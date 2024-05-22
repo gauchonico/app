@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}POS - Customer Order System{% endblock %}
+
+{% block js %}
+	<script src="{% static 'js/demo/pos-customer-order.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+	<!-- BEGIN pos -->
+	<div class="pos card" id="pos">
+		<div class="pos-container card-body">
+			<!-- BEGIN pos-menu -->
+			<div class="pos-menu">
+				<!-- BEGIN logo -->
+				<div class="logo">
+					<a href="{% url 'DjangoHUDApp:index' %}">
+						<div class="logo-img"><i class="bi bi-arrow-left-circle-fill" style="font-size: 2.1rem;"></i></div>
+						<div class="logo-text">Back</div>
+					</a>
+				</div>
+				<!-- END logo -->
+				<!-- BEGIN nav-container -->
+				<div class="nav-container">
+					<div data-scrollbar="true" data-height="100%" data-skip-mobile="true" >
+						<ul class="nav nav-tabs">
+							<li class="nav-item">
+								<a class="nav-link active" href="#" data-filter="product">
+									<div class="card">
+										<div class="card-body">
+											Products
+										</div>
+										<div class="card-arrow">
+											<div class="card-arrow-top-left"></div>
+											<div class="card-arrow-top-right"></div>
+											<div class="card-arrow-bottom-left"></div>
+											<div class="card-arrow-bottom-right"></div>
+										</div>
+									</div>
+								</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link" href="#" data-filter="babershop">
+									<div class="card">
+										<div class="card-body">
+											Barbershop
+										</div>
+										<div class="card-arrow">
+											<div class="card-arrow-top-left"></div>
+											<div class="card-arrow-top-right"></div>
+											<div class="card-arrow-bottom-left"></div>
+											<div class="card-arrow-bottom-right"></div>
+										</div>
+									</div>
+								</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link" href="#" data-filter="nail_art">
+									<div class="card">
+										<div class="card-body">
+											Nail Art
+										</div>
+										<div class="card-arrow">
+											<div class="card-arrow-top-left"></div>
+											<div class="card-arrow-top-right"></div>
+											<div class="card-arrow-bottom-left"></div>
+											<div class="card-arrow-bottom-right"></div>
+										</div>
+									</div>
+								</a>
+							</li>
+							
+						</ul>
+					</div>
+				</div>
+				<!-- END nav-container -->
+			</div>
+			<!-- END pos-menu -->
+		
+			<!-- BEGIN pos-content -->
+			<div class="pos-content">
+				<div class="pos-content-container h-100 p-4" data-scrollbar="true" data-height="100%">
+					<div class="row gx-4">
+						{% for product in products %}
+						<div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="product">
+							<!-- BEGIN card -->
+							
+							<div class="card h-100">
+								<div class="card-body h-100 p-1">
+									<div class="pos-product">
+										<img class="img" src="{{product.image.url}}" />
+										<div class="info">
+											<div class="title">{{ product.name }}&reg;</div>
+											<div class="desc">{{ product.description }}</div>
+											<div class="price">{{product.price}}</div>
+										</div>
+										<a href="{% url 'DjangoHUDApp:pageProductDetails' product.id %}" class="btn d-block btn-outline-theme">View Product</a>
+									</div>
+								</div>
+								<div class="card-arrow">
+									<div class="card-arrow-top-left"></div>
+									<div class="card-arrow-top-right"></div>
+									<div class="card-arrow-bottom-left"></div>
+									<div class="card-arrow-bottom-right"></div>
+								</div>
+							</div>
+							
+							
+							<!-- END card -->
+						</div>
+						{% endfor %}
+						<!--REMOVED THE REST OF THE UI CONTENT AND SAVED IT SOMEWHERE-->
+					</div>
+				</div>
+			</div>
+			<!-- END pos-content -->
+		
+			<!-- BEGIN pos-sidebar -->
+			<div class="pos-sidebar" id="pos-sidebar">
+				<div class="h-100 d-flex flex-column p-0">
+					<!-- BEGIN pos-sidebar-header -->
+					<div class="pos-sidebar-header">
+						<div class="back-btn">
+							<button type="button" data-toggle-class="pos-mobile-sidebar-toggled" data-toggle-target="#pos" class="btn">
+								<i class="bi bi-chevron-left"></i>
+							</button>
+						</div>
+						
+						<div class="title">Customer Cart</div>
+						<div class="order">Order: <b>#0056</b></div>
+					</div>
+					<!-- END pos-sidebar-header -->
+				
+					<!-- BEGIN pos-sidebar-nav -->
+					<div class="pos-sidebar-nav">
+						<ul class="nav nav-tabs nav-fill">
+							<li class="nav-item mb-2">
+								
+								<!-- <a class="nav-link active badge rounded-pill bg-danger mb-4" href="#" data-bs-toggle="tab" id="cart_quantity" data-bs-target="#newOrderTab">{{ cart|length}}</a> -->
+								<button type="button" class="btn btn-primary position-relative">
+									Cart Items
+									<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart_quantity">
+									{{ cart|length}}
+									</span>
+								  </button>
+							</li>
+							
+						</ul>
+					</div>
+					<!-- END pos-sidebar-nav -->
+				
+					<!-- BEGIN pos-sidebar-body -->
+					<div class="pos-sidebar-body tab-content" data-scrollbar="true" data-height="100%">
+						<!-- BEGIN #newOrderTab -->
+						<div class="tab-pane fade h-100 show active" id="newOrderTab">
+							
+							<!-- BEGIN pos-order -->
+							{% if cart_products %}
+								{% for product in cart_products %}
+							<div class="pos-order">
+								<div class="pos-order-product mx-auto">
+									
+									<!-- <div class="img" style="background-image: url({% static 'img/pos/emr.png' %})"></div> -->
+									<div class="flex-1">
+										
+										<div class="h6 mb-1">{{ product.name }}</div>
+										<div class="small">{{ product.price }}</div>
+										<div class="small mb-2">{{ product.category }}</div>
+										<div class="mb-3">
+											<label class="form-label">Quantity</label>
+											<select class="form-select" id="qty-cart">
+											{% for key, value in quantities.items %}
+												{% if key == product.id|slugify %}
+													<option selected>{{ value }}</option>
+												{% endif %}
+											{% endfor %}
+													<option value="1">1</option>
+													<option value="2">2</option>
+													<option value="3">3</option>
+													<option value="4">4</option>
+													<option value="5">5</option>
+													<option value="6">6</option>
+													<option value="7">7</option>
+											</select>
+										</div>
+										
+									</div>
+									
+								</div>
+								<div class="pos-order-price">
+									{{product.price}}
+								</div>
+								
+							</div>
+								{% endfor %}
+								{% else %}
+  									<p>No items in the cart.</p>
+							{% endif %}
+							
+							
+							
+							<!-- END pos-order -->
+							
+		
+						</div>
+						<!-- END #orderHistoryTab -->
+					
+						<!-- BEGIN #orderHistoryTab -->
+						
+						<!-- END #orderHistoryTab -->
+					</div>
+					<!-- END pos-sidebar-body -->
+				
+					<!-- BEGIN pos-sidebar-footer -->
+					<div class="pos-sidebar-footer">
+						<div class="d-flex align-items-center mb-2">
+							<div>Subtotal</div>
+							<div class="flex-1 text-end h6 mb-0">$30.98</div>
+						</div>
+						<div class="d-flex align-items-center">
+							<div>Taxes (6%)</div>
+							<div class="flex-1 text-end h6 mb-0">$2.12</div>
+						</div>
+						<hr>
+						<div class="d-flex align-items-center mb-2">
+							<div>Total</div>
+							<div class="flex-1 text-end h4 mb-0">$33.10</div>
+						</div>
+						<div class="mt-3">
+							<div class="btn-group d-flex">
+								<a href="#" class="btn btn-outline-default rounded-0 w-80px">
+									<i class="bi bi-bell fa-lg"></i><br>
+									<span class="small">Service</span>
+								</a>
+								<a href="#" class="btn btn-outline-default rounded-0 w-80px">
+									<i class="bi bi-receipt fa-fw fa-lg"></i><br>
+									<span class="small">Bill</span>
+								</a>
+								<a href="{% url 'cart_summary' %}" class="btn btn-outline-theme rounded-0 w-150px">
+									<i class="bi bi-send-check fa-lg"></i><br>
+									<span class="small">Go To Cart</span>
+								</a>
+							</div>
+						</div>
+					</div>
+					<!-- END pos-sidebar-footer -->
+				</div>
+			</div>
+			<!-- END pos-sidebar -->
+		</div>
+		<div class="card-arrow">
+			<div class="card-arrow-top-left"></div>
+			<div class="card-arrow-top-right"></div>
+			<div class="card-arrow-bottom-left"></div>
+			<div class="card-arrow-bottom-right"></div>
+		</div>
+	</div>
+	<!-- END pos -->
+	
+	<!-- BEGIN pos-mobile-sidebar-toggler -->
+	<a href="#" class="pos-mobile-sidebar-toggler" data-toggle-class="pos-mobile-sidebar-toggled" data-toggle-target="#pos">
+		<i class="bi bi-bag"></i>
+		<span class="cart_quantity">{{ cart|length }}</span>
+	</a>
+	<!-- END pos-mobile-sidebar-toggler -->
+
+	
+{% endblock %}

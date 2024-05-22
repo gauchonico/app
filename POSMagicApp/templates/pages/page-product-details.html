@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Product Details{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/summernote/dist/summernote-lite.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/vendor/jquery.ui.widget.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-tmpl/js/tmpl.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-load-image/js/load-image.all.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-canvas-to-blob/js/canvas-to-blob.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-gallery/js/jquery.blueimp-gallery.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.iframe-transport.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-process.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-image.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-audio.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-video.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-validate.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-ui.js' %}"></script>
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
+	<script src="{% static 'js/demo/page-product-details.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+	<div class="d-flex align-items-center mb-3">
+		<div>
+			<ol class="breadcrumb">
+				<li class="breadcrumb-item"><a href="javascript:;">PAGES</a></li>
+				<li class="breadcrumb-item active">PRODUCT DETAILS</li>
+			</ol>
+			<h1 class="page-header mb-0">Product Details</h1>
+		</div>
+	</div>
+	
+	<div class="row gx-4">
+		<div class="col-lg-8">
+			<div class="card mb-4">
+				<div class="card-header d-flex align-items-center bg-inverse bg-opacity-10 fw-400">
+					Product Information
+				</div>
+				<div class="card-body">
+					<div class="mb-3">
+						<label class="form-label">Product Name <span class="text-danger">*</span></label>
+						<h2>{{product.name}}</h2>
+					</div>
+
+					<div class="">
+						<label class="form-label">Description <span class="text-danger">*</span></label>
+					</div>
+					<div class="alert alert-success py-2">
+						{{product.description}}
+					</div>
+					<div class="row mb-3 fw-bold text-inverse">
+						<div class="col-4">Category: {{product.category}}</div>
+						<div class="col-8">UGX {{product.price}}</div>
+					</div>
+					<div class="row">
+						<div class="col-sm-6">
+							<div class="mb-lg-0 mb-3">
+								<label class="form-label">Staff In-Charge (For Comission purposes)</label>
+								<select class="form-select" name="warranty_type_id">
+									<option value="">-- Select Staff --</option>
+									<option value="1">No Warranty</option>
+									<option value="2">Local Supplier Warranty</option>
+									<option value="3">Local Manufacturer Warranty</option>
+									<option value="4">International Manufacturer Warranty</option>
+								</select>
+							</div>
+						</div>
+						<div class="col-sm-6">
+							<div class="mb-3">
+								<label class="form-label">Quantity</label>
+								<select class="form-select" id="qty-cart">
+									<option value="">-- Total Quantities --</option>
+									<option value="1">1</option>
+									<option value="2">2</option>
+									<option value="3">3</option>
+									<option value="4">4</option>
+									<option value="4">5</option>
+									<option value="4">6</option>
+									<option value="4">7</option>
+								</select>
+							</div>
+						</div>
+						<div class="col-sm-2">
+							<button value="{{ product.id }}" class="btn btn-outline-theme" id="add-cart">Add To Cart</button>
+						</div>
+						<div class="col-sm-2">
+							<a href="{% url 'cart_summary' %}"><button class="btn btn-outline-theme">View Cart</button></a>
+						</div>
+						<div class="col-sm-6">
+							<a href="{% url 'DjangoHUDApp:customerOrder' %}" class="btn btn-outline-primary">Point Of Sale</a>
+						</div>
+					</div>
+
+					
+				</div>
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+			</div>
+		</div>
+		<div class="col-lg-4">
+			<div class="card mb-4">
+				<div class="card-header d-flex align-items-center fw-400 bg-inverse bg-opacity-10">
+					<div class="flex-1">
+						<div>Products in Cart</div>
+					</div>
+					<div id="cart_quantity" class="badge rounded-circle bg-danger">{{cart|length}}</div>
+				</div>
+				<div class="card-body">
+					<img class="img" src="{{product.image.url}}" style="width: 250px; height: 250px;" />
+				</div>
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+			</div>
+		</div>
+	</div>
+<script>
+//check if button is clicked
+$(document).on('click','#add-cart', function(e){
+	e.preventDefault();
+	$.ajax({
+		type: 'POST',
+		url: "{% url 'cart_add' %}",
+		data: {
+			product_id: $('#add-cart').val(),
+			product_qty: $('#qty-cart option:selected').text(),
+			csrfmiddlewaretoken:'{{ csrf_token }}',
+			action: 'post',
+		},
+		success: function(json){
+			document.getElementById('cart_quantity').textContent = json.qty;
+		},
+		error: function(xhr, errmsg, err){
+
+		}
+	});
+})
+			
+</script>
+	
+{% endblock %}
+
+{% block outter_content %}
+
+
+	{% verbatim %}
+		<!-- BEGIN template-upload -->
+		<script id="template-upload" type="text/x-tmpl">
+		{% for (var i=0, file; file=o.files[i]; i++) { %}
+			<tr class="template-upload">
+				<td>
+					<span class="preview d-flex justify-content-center flex-align-center" style="height: 80px"></span>
+				</td>
+				<td>
+					<p class="name mb-1">{%=file.name%}</p>
+					<strong class="error text-danger"></strong>
+				</td>
+				<td>
+					<p class="size mb-2">Processing...</p>
+					<div class="progress progress-sm mb-0 h-10px progress-striped active"><div class="progress-bar bg-theme" style="min-width: 2em; width:0%;"></div></div>
+				</td>
+				<td nowrap>
+					{% if (!i && !o.options.autoUpload) { %}
+						<button class="btn btn-outline-theme btn-sm d-block w-100 start" disabled>
+							<span>Start</span>
+						</button>
+					{% } %}
+					{% if (!i) { %}
+						<button class="btn btn-outline-default btn-sm d-block w-100 cancel mt-2">
+							<span>Cancel</span>
+						</button>
+					{% } %}
+				</td>
+			</tr>
+		{% } %}
+		</script>
+		<!-- END template-upload -->
+	
+		<!-- BEGIN template-download -->
+		<script id="template-download" type="text/x-tmpl">
+		{% for (var i=0, file; file=o.files[i]; i++) { %}
+			<tr class="template-download">
+				<td>
+					<span class="preview d-flex justify-content-center flex-align-center" style="height: 80px">
+						{% if (file.thumbnailUrl) { %}
+							<a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" data-gallery><img src="{%=file.thumbnailUrl%}"></a>
+						{% } %}
+					</span>
+				</td>
+				<td>
+					<p class="name">
+						{% if (file.url) { %}
+							<a href="{%=file.url%}" title="{%=file.name%}" download="{%=file.name%}" {%=file.thumbnailUrl?'data-gallery':''%}>{%=file.name%}</a>
+						{% } else { %}
+							<span>{%=file.name%}</span>
+						{% } %}
+					</p>
+					{% if (file.error) { %}
+						<div><span class="label label-danger">Error</span> {%=file.error%}</div>
+					{% } %}
+				</td>
+				<td>
+					<span class="size">{%=o.formatFileSize(file.size)%}</span>
+				</td>
+				<td nowrap>
+					{% if (file.deleteUrl) { %}
+						<button class="btn btn-outline-danger btn-sm btn-block delete" data-type="{%=file.deleteType%}" data-url="{%=file.deleteUrl%}"{% if (file.deleteWithCredentials) { %} data-xhr-fields='{"withCredentials":true}'{% } %}>
+							<span>Delete</span>
+						</button>
+						<div class="form-check mt-2">
+							<input type="checkbox" id="{%=file.deleteUrl%}" name="delete" value="1" class="form-check-input toggle">
+							<label for="{%=file.deleteUrl%}" class="form-check-label"></label>
+						</div>
+					{% } else { %}
+						<button class="btn btn-outline-default btn-sm d-block w-100 cancel">
+							<span>Cancel</span>
+						</button>
+					{% } %}
+				</td>
+			</tr>
+		{% } %}
+		</script>
+		<!-- END template-download -->
+	{% endverbatim %}
+{% endblock %}

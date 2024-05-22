@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Starter Page{% endblock %}
+{% block css %}
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-slider/dist/css/bootstrap-slider.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-slider/dist/bootstrap-slider.min.js' %}"></script>
+	<script src="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.js' %}"></script>
+	<script src="{% static 'plugins/jquery.maskedinput/src/jquery.maskedinput.js' %}"></script>
+	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/vendor/jquery.ui.widget.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-tmpl/js/tmpl.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-load-image/js/load-image.all.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-canvas-to-blob/js/canvas-to-blob.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-gallery/js/jquery.blueimp-gallery.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.iframe-transport.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-process.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-image.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-audio.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-video.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-validate.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-ui.js' %}"></script>
+	<script src="{% static 'plugins/summernote/dist/summernote-lite.min.js' %}"></script>
+	<script src="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.js' %}"></script>
+	<script src="{% static 'plugins/select-picker/dist/picker.min.js' %}"></script>
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'js/demo/form-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+	<ul class="breadcrumb">
+		<li class="breadcrumb-item"><a href="#">SUPPLIERS</a></li>
+		<li class="breadcrumb-item active">CREATE PURCHASE ORDER</li>
+	</ul>
+	
+	<h1 class="page-header">
+		Create New Purchase Order <small>Get started</small>
+	</h1>
+	
+	<ul>
+		<!-- <li>Member must have National ID / Passport</li> -->
+    </ul>
+
+<div class="card">
+    <div class="card-body pb-2">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+        
+            <div class="row">
+                <div class="col-xl-6">
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="first_name">Name of Supplier</label>
+                        {{form.supplier}}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="last_name">Raw Material to be ordered:</label>
+                        {{form.raw_material}}
+                    </div>
+                    <div>
+                        <label class="form-label" for="sex">Quanity Purchased:</label>
+                        {{form.quantity}}
+                    </div>
+                
+                </div>
+                <div class="col-xl-6">
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="location">Unit Price</label>
+                        {{form.unit_price}}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="nin_no">Order No.</label>
+                        {{form.order_number}}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="nin_no">Fullfilled Quantity</label>
+                        {{ form.fullfilled_qty }}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="nin_no">LPO Status</label>
+                        {{form.status}}
+                    </div>
+                </div>
+            </div>
+            <div class="ms-auto mt-5">
+                <button type="submit" class="btn btn-outline-theme me-2">Generate LPO</button>
+            </div>
+            
+        </form>
+    </div>
+    <div class="card-arrow">
+        <div class="card-arrow-top-left"></div>
+        <div class="card-arrow-top-right"></div>
+        <div class="card-arrow-bottom-left"></div>
+        <div class="card-arrow-bottom-right"></div>
+    </div>
+
+</div>
+{% endblock %}
+{% block outter_content %}
+{% if form.errors %}
+    <div class="toasts-container">
+        <div class="toast fade show">
+            <div class="toast-header">
+                <i class="far fa-bell text-muted me-2"></i>
+                <strong class="me-auto">Form Validation Error</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                {% for field, error_msgs in form.errors.items %}
+                    {% for error_msg in error_msgs %}
+                    <ul>
+                        <li>{{ error_msg }}</li>
+                    </ul>
+                        
+                        <br>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock outter_content %}

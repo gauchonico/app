@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Coming Soon{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/kbw-countdown/dist/css/jquery.countdown.css' %}" rel="stylesheet" />
+{% endblock %}
+
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-xl-12">
+            <div class="row">
+                <div id="productDetails" class="col-xl-9">
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#">PRODUCTS</a></li>
+                        <li class="breadcrumb-item active">Product Information</li>
+                    </ul>
+                    <h1>{{ product.product_name }} Details</h1>
+
+                    <h2>{{ product.total_volume }} ml</h2>
+                    <p>Total Volume: {{ product.total_volume }}</p>
+                    
+                    <h2>Raw Materials</h2>
+                    {% if ingredients %}
+                        <ul class="list-group">
+                            {% for ingredient in ingredients %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume }} milliliters
+                            {% if ingredient.raw_material.name in excluded_materials %}
+                                <span class="badge text-bg-danger rounded-pill">{{ ingredient.quantity_per_unit_product_volume }}</span>
+                                {% else %}
+                                <span class="badge text-bg-theme text-black rounded-pill">{{ ingredient.quantity_per_unit_product_volume }}</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No raw materials added yet.</p>
+                        <a href="{% url 'editProduct' product.id %}" class="btn btn-primary">Add Raw Materials</a>
+                    {% endif %}
+                </div>
+                <div class="col-xl-3">
+                    <!-- BEGIN #sidebar-bootstrap -->
+                    <nav id="sidebar-bootstrap" class="navbar navbar-sticky d-none d-xl-block">
+                        <nav class="nav">
+                            
+                            <a class="nav-link" href="{% url 'productsList' %}">Product List</a>
+                            <a class="nav-link active" href="#productDetails" data-toggle="scroll-to">Product Details</a>
+                            <a class="nav-link" href="{% url 'editProduct' product.id %}">Edit Product Ingredients</a>
+                        </nav>
+                    </nav>
+                    <!-- END #sidebar-bootstrap -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    
+	<!-- END coming-soon -->
+{% endblock %}

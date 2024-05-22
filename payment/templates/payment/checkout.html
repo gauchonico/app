@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Home Page{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block js %}
+{% endblock %}
+
+{% block content %}
+<ul class="breadcrumb">
+    <li class="breadcrumb-item"><a href="#">BREADCRUMB</a></li>
+    <li class="breadcrumb-item active">CHECKOUT</li>
+</ul>
+
+<h1 class="page-header">
+    Checkout <small>continue to billing</small>
+</h1>
+
+<p>
+    Make sure to update your cart quantity after changes
+</p>
+
+<!-- END pos-sidebar-nav -->
+
+<!-- BEGIN pos-sidebar-body -->
+<div class="row gx-4">
+<div class="col-xl-8">
+    <!-- BEGIN card -->
+    <div class="card mb-3">
+        <!-- BEGIN card-body -->
+        <div class="card-body">
+            <!-- BEGIN title -->
+            <div class="d-flex fw-bold small mb-3">
+                <span class="flex-grow-1">Order Summary</span>
+                <a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
+            </div>
+            <!-- END title -->
+            <!-- BEGIN table -->
+            <form method="post">
+                {% csrf_token %}
+                <div class="table-responsive">
+                    <table class="w-100 mb-0 small align-middle text-nowrap">
+                        
+                        {% for product in cart_products %}
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="d-flex">
+                                        <div class="position-relative mb-2">
+                                            <div class="bg-position-center bg-size-cover bg-repeat-no-repeat w-10px h-10px">
+                                            </div>
+                                            <div class="position-absolute top-0 start-0">
+                                                <span class="badge bg-theme text-theme-900 rounded-0 d-flex align-items-center justify-content-center w-20px h-20px">{{forloop.counter}}</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex-1 ps-3">
+                                            <div class="mb-1"><small class="fs-9px fw-500 lh-1 d-inline-block rounded-0 badge bg-secondary bg-opacity-25 text-inverse text-opacity-75 pt-5px">{{product.category}}</small></div>
+                                            <div class="fw-500 text-inverse">{{ product.name }}</div>
+                                            
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <td>Price:</td>
+                                    <td>{{ product.price }}</td>
+                                </td>
+                                <td>
+                                    <table class="mb-2">
+                                        <tr>
+                                            <td class="pe-3">Quantity:</td>
+                                            <td class="text-inverse text-opacity-75 fw-500">
+                                                
+                                                {% for key, value in quantities.items %}
+                                                    {% if key == product.id|slugify %}
+                                                        {{ value }}
+                                                    {% endif %}
+                                                {% endfor %}
+                                                
+                                            </td>
+                                        </tr>
+                                    
+                                    </table>
+                                </td>
+            
+                            </tr>
+                        </tbody>
+                        {% endfor %}
+                    </table>
+                    <div class="card mt-2">
+                        <div class="card-header">Transaction Details</div>
+                            <div class="card-body">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="customer">Customer</label>
+                                    {{order_details_form.customer}}
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="branch">Livara Branch</label>
+                                    {{order_details_form.branch}}
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="staff">Staff: In-Charge of Service</label>
+                                    {{order_details_form.staff}}
+                                </div>
+                                <div class="form-check form-switch">
+                                    <label class="form-check-label px-4" for="customSwitch1">Is Order for Delivery ?</label>
+                                    {{order_details_form.is_delivery}}
+                                </div>
+                                <div class="form-group mb-3 mt-2">
+                                    <label class="form-label" for="notes">Additional Notes</label>
+                                    {{order_details_form.notes}}
+                                </div>
+                            </div>
+                            <div class="card-arrow">
+                                <div class="card-arrow-top-left"></div>
+                                <div class="card-arrow-top-right"></div>
+                                <div class="card-arrow-bottom-left"></div>
+                                <div class="card-arrow-bottom-right"></div>
+                            </div>
+                        
+                    </div>
+                    <div class="pos-sidebar-footer">
+                        <div class="d-flex align-items-center mb-1 mt-5">
+                            <div>Subtotal</div>
+                            <div class="flex-1 text-end h6 mb-0">UGX {{ totals }}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div>Taxes (6%)</div>
+                            <div class="flex-1 text-end h6 mb-0">
+                                0.0%
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="d-flex align-items-center mb-2">
+                            <div>Total</div>
+                            <div class="flex-1 text-end h4 mb-0">UGX {{ totals }}</div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="btn-group d-flex">
+                                <a href="{% url 'cart_summary' %}" class="btn btn-outline-default rounded-0 w-80px">
+                                    <i class="bi bi-bell fa-lg"></i><br>
+                                    <span class="small">Back to Cart</span>
+                                </a>
+                                <a href="#" class="btn btn-outline-default rounded-0 w-80px">
+                                    <i class="bi bi-receipt fa-fw fa-lg"></i><br>
+                                    <span class="small">POS</span>
+                                </a>
+                                <button type="submit" class="btn btn-outline-theme rounded-0 w-150px">
+                                    <i class="bi bi-send-check fa-lg"></i><br>
+                                    <span class="small">Submit Order</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            
+            
+            <!-- END table -->
+        </div>
+        <!-- END card-body -->
+        
+        <!-- BEGIN card-arrow -->
+        <div class="card-arrow">
+            <div class="card-arrow-top-left"></div>
+            <div class="card-arrow-top-right"></div>
+            <div class="card-arrow-bottom-left"></div>
+            <div class="card-arrow-bottom-right"></div>
+        </div>
+        <!-- END card-arrow -->
+    </div>
+    <!-- END card -->
+</div>
+</div>
+
+
+{% endblock %}

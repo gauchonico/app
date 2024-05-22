@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Coming Soon{% endblock %}
+
+{% block css %}
+	
+{% endblock %}
+
+{% block js %}
+	
+{% endblock %}
+
+{% block content %}
+	<!-- BEGIN coming-soon -->
+	<div class="">
+		<div class="flex-1">
+			<div class="coming-soon-timer">
+				<div id="timer"></div>
+			</div>
+			<!-- BEGIN coming-soon-content -->
+            <h1>Edit Product Ingredient:</h1>
+            <h3>{{ product.product_name}}</h3>
+
+            <form method="post">
+                {% csrf_token %}
+                {{ product_form.as_p }}
+                {{ formset.management_form }}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Raw Material</th>
+                            <th>Quantity per Unit Product Volume (milliliters)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for form in formset %}
+                            {{ form.id }} <!-- Include the ID field as a hidden input -->
+                            <tr>
+                                <td>{{ form.raw_material }}</td>
+                                <td>{{ form.quantity_per_unit_product_volume }}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">{{ form.errors }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="mt-3">
+                    <button class="btn btn-outline-theme" type="submit">Save Recipe</button>
+                </div>
+            </form>
+			<!-- END coming-soon-content -->
+		</div>
+	</div>
+	<!-- END coming-soon -->
+{% endblock %}

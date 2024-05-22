@@ -1,0 +1,246 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Home Page{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block js %}
+{% endblock %}
+
+{% block content %}
+<ul class="breadcrumb">
+    <li class="breadcrumb-item"><a href="#">BREADCRUMB</a></li>
+    <li class="breadcrumb-item active">Cart</li>
+</ul>
+
+<h1 class="page-header">
+    Cart Orders <small>page header description goes here...</small>
+</h1>
+
+<p>
+    Make sure to update your cart quantity after changes
+</p>
+
+<!-- END pos-sidebar-nav -->
+
+<!-- BEGIN pos-sidebar-body -->
+
+<div class="col-xl-8">
+    <!-- BEGIN card -->
+    <div class="card mb-3">
+        <!-- BEGIN card-body -->
+        <div class="card-body">
+            <!-- BEGIN title -->
+            <div class="d-flex fw-bold small mb-3">
+                <span class="flex-grow-1">Cart Items</span>
+                <a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
+            </div>
+            <!-- END title -->
+            <!-- BEGIN table -->
+            <div class="table-responsive">
+                <table class="w-100 mb-0 small align-middle text-nowrap">
+                    {% if cart_products %}
+                        {% for product in cart_products %}
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div class="d-flex">
+                                    <div class="position-relative mb-2">
+                                        <div class="bg-position-center bg-size-cover bg-repeat-no-repeat w-80px h-60px" style="background-image: url({{ product.image.url }});">
+                                </div>
+                                        <div class="position-absolute top-0 start-0">
+                                            <span class="badge bg-theme text-theme-900 rounded-0 d-flex align-items-center justify-content-center w-20px h-20px">1</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 ps-3">
+                                        <div class="mb-1"><small class="fs-9px fw-500 lh-1 d-inline-block rounded-0 badge bg-secondary bg-opacity-25 text-inverse text-opacity-75 pt-5px">{{product.category}}</small></div>
+                                        <div class="fw-500 text-inverse">{{ product.name }}</div>
+                                        {{ product.price }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <table class="mb-2">
+                                    <tr>
+                                        <td class="pe-3">Quantiy:</td>
+                                        <td class="text-inverse text-opacity-75 fw-500">
+                                            <select class="form-select form-select-sm" id="select{{product.id}}">
+                            
+                                                {% for key, value in quantities.items %}
+                                                    {% if key == product.id|slugify %}
+                                                        <option selected>{{ value }}</option>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                        </option>
+                                                        <option value="1">1</option>
+                                                        <option value="2">2</option>
+                                                        <option value="3">3</option>
+                                                        <option value="4">4</option>
+                                                        <option value="4">5</option>
+                                                        <option value="4">6</option>
+                                                        <option value="4">7</option>
+                                                    </select>
+                                                </div>
+                                            
+                                        </td>
+                                    </tr>
+                                   
+                                </table>
+                            </td>
+                            <td><button type="button" data-index="{{ product.id }}" class="btn btn-outline-theme btn-sm update-cart">Update</button></td>
+                            <td><button type="button" data-index="{{ product.id }}" class="btn btn-outline-danger btn-sm delete-product">Delete</button></td>
+                        </tr>
+                    </tbody>
+                    {% endfor %}
+                        {% else %}
+                            <p>No items in the cart.</p>
+                    {% endif %}
+                </table>
+                <div class="pos-sidebar-footer">
+                    <div class="d-flex align-items-center mb-2">
+                        <div>Subtotal</div>
+                        <div class="flex-1 text-end h6 mb-0">UGX {{ totals }}</div>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <div>Taxes (6%)</div>
+                        <div class="flex-1 text-end h6 mb-0">
+                            0.0%
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="d-flex align-items-center mb-2">
+                        <div>Total</div>
+                        <div class="flex-1 text-end h4 mb-0">UGX {{ totals }}</div>
+                    </div>
+                    <div class="mt-3">
+                        <div class="btn-group d-flex">
+                            <a href="#" class="btn btn-outline-default rounded-0 w-80px">
+                                <i class="bi bi-bell fa-lg"></i><br>
+                                <span class="small">Service</span>
+                            </a>
+                            <a href="#" class="btn btn-outline-default rounded-0 w-80px">
+                                <i class="bi bi-receipt fa-fw fa-lg"></i><br>
+                                <span class="small">Bill</span>
+                            </a>
+                            <a href="{% url 'checkout' %}" class="btn btn-outline-theme rounded-0 w-150px">
+                                <i class="bi bi-send-check fa-lg"></i><br>
+                                <span class="small">Checkout</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- END table -->
+        </div>
+        <!-- END card-body -->
+        
+        <!-- BEGIN card-arrow -->
+        <div class="card-arrow">
+            <div class="card-arrow-top-left"></div>
+            <div class="card-arrow-top-right"></div>
+            <div class="card-arrow-bottom-left"></div>
+            <div class="card-arrow-bottom-right"></div>
+        </div>
+        <!-- END card-arrow -->
+    </div>
+    <!-- END card -->
+</div>
+
+<script>
+//update Cart 
+$(document).on('click','.update-cart', function(e){
+    e.preventDefault();
+    var productid = $(this).data('index');
+    $.ajax({
+        type: 'POST',
+        url: "{% url 'cart_update' %}",
+        data: {
+            product_id: $(this).data('index'),
+            product_qty: $('#select' + productid + ' option:selected' ).text(),
+            csrfmiddlewaretoken:'{{ csrf_token }}',
+            action: 'post',
+        },
+        success: function(json){
+            $('#confirmationModal').modal('show');
+
+            // Bind a click event handler to the "Okay" button in the modal
+            $('#confirmationModal').on('click', '.btns-okay', function() {
+                // Reload the page when the "Okay" button is clicked
+                location.reload();
+            });
+        },
+        error: function(xhr, errmsg, err){
+
+        }
+    });
+})
+
+//Delete Item Cart 
+$(document).on('click','.delete-product', function(e){
+    e.preventDefault();
+    var productid = $(this).data('index');
+    $.ajax({
+        type: 'POST',
+        url: "{% url 'cart_delete' %}",
+        data: {
+            product_id: $(this).data('index'),
+            csrfmiddlewaretoken:'{{ csrf_token }}',
+            action: 'post',
+        },
+        success: function(json){
+            $('#confirmationModal2').modal('show');
+
+            // Bind a click event handler to the "Okay" button in the modal
+            $('#confirmationModal2').on('click', '.btn-okay', function() {
+                // Reload the page when the "Okay" button is clicked
+                location.reload();
+            });
+        },
+        error: function(xhr, errmsg, err){
+
+        }
+    });
+
+})
+                
+</script>
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div> <i class="fa fa-check-circle fa-fw me-1 text-theme"></i> </div>
+                <h5 class="modal-title" id="confirmationModalLabel">Confirmation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal">
+                </button>
+            </div>
+            <div class="modal-body">
+                Quantity updated successfully!
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btns-okay" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="confirmationModal2" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div> <i class="fa fa-check-circle fa-fw me-1 text-theme"></i> </div>
+                <h5 class="modal-title" id="confirmationModalLabel">Confirmation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal">
+                </button>
+            </div>
+            <div class="modal-body">
+                Item Deleted Succesfully from Cart.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-okay" data-bs-dismiss="modal">Ok</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+	<!-- BEGIN login -->
+	<div class="login">
+		<!-- BEGIN login-content -->
+		<div class="login-content">
+			<form action="{% url 'DjangoHUDApp:login' %}" method="POST" name="login_form">
+				{% csrf_token %}
+				<h1 class="text-center">Sign In</h1>
+				<div class="text-inverse text-opacity-50 text-center mb-4">
+					For your protection, please verify your identity.
+				</div>
+				<div class="mb-3">
+					<label class="form-label">Username <span class="text-danger">*</span></label>
+					<input type="text" class="form-control form-control-lg bg-inverse bg-opacity-5" name="username" value="" placeholder="Enter Username">
+				</div>
+				<div class="mb-3">
+					<div class="d-flex">
+						<label class="form-label">Password <span class="text-danger">*</span></label>
+						<a href="#" class="ms-auto text-inverse text-decoration-none text-opacity-50">Forgot password?</a>
+					</div>
+					<input type="password" class="form-control form-control-lg bg-inverse bg-opacity-5" name="password" placeholder="">
+				</div>
+				<div class="mb-3">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" value="" id="customCheck1">
+						<label class="form-check-label" for="customCheck1">Remember me</label>
+					</div>
+				</div>
+				<button type="submit" class="btn btn-outline-theme btn-lg d-block w-100 fw-500 mb-3">Sign In</button>
+				<div class="text-center text-inverse text-opacity-50">
+					Don't have an account yet? <a href="{% url 'DjangoHUDApp:register' %}">Sign up</a>.
+				</div>
+			</form>
+		</div>
+		<!-- END login-content -->
+	</div>
+	<!-- END login -->
+{% endblock %}
+{% block outter_content %}
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Product Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock outter_content %}

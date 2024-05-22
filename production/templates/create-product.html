@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Table Plugins{% endblock %}
+
+{% block css %}
+    <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+    <script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+    <script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+    <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+    
+        <!-- BEGIN container -->
+        <div class="container">
+            <!-- BEGIN row -->
+            <div class="row justify-content-center">
+                <!-- BEGIN col-10 -->
+                <div class="col-xl-12">
+                    <!-- BEGIN row -->
+                    <div class="row">
+                        <!-- BEGIN col-9 -->
+                        <div class="col-xl-9">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="#">PRODUCTS</a></li>
+                                <li class="breadcrumb-item active">ROLL OUT NEW PRODUCT</li>
+                            </ul>
+                            
+                            <h1 class="page-header">
+                                New Product <small>page header description goes here...</small>
+                            </h1>
+                            
+                            <hr class="mb-4">
+                            
+                            <!-- BEGIN #datatable -->
+                            <h1>Create Product</h1>
+                            <form method="post">
+                                {% csrf_token %}
+                                {{ product_form.as_p }}
+                            
+                                {{ formset.management_form }}
+                                {% for form in formset %}
+                                    {{ form.as_p }}
+                                    {% for field_error in form.errors %}
+                                        <div class="alert alert-danger" role="alert">{{ field_error }}</div>
+                                    {% endfor %}
+                                {% endfor %}
+                            
+                                <button class="btn btn-outline-theme" type="submit">Create Product</button>
+                            </form>
+                                
+                            <!-- END #datatable -->
+                        </div>
+                        <!-- END col-9-->
+                        <!-- BEGIN col-3 -->
+                        <div class="col-xl-3">
+                            <!-- BEGIN #sidebar-bootstrap -->
+                            <nav id="sidebar-bootstrap" class="navbar navbar-sticky d-none d-xl-block">
+                                <nav class="nav">
+                                    <a class="nav-link active" href="{% url 'createProduct' %}">Roll Out New Product</a>
+                                    <a class="nav-link" href="#datatable" data-toggle="scroll-to">Product List</a>
+                                </nav>
+                            </nav>
+                            <!-- END #sidebar-bootstrap -->
+                        </div>
+                        <!-- END col-3 -->
+                    </div>
+                    <!-- END row -->
+                </div>
+                <!-- END col-10 -->
+            </div>
+            <!-- END row -->
+        </div>
+        <!-- END container -->
+  
+{% endblock %}
+{% block outter_content %}
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Product Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock outter_content %}

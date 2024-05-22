@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Profile{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/lity/dist/lity.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/lity/dist/lity.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+
+	<div class="card">
+		<div class="card-body p-0">
+			<!-- BEGIN profile -->
+			<div class="profile">
+				<!-- BEGIN profile-container -->
+				<div class="profile-container">
+					<!-- BEGIN profile-sidebar -->
+					<div class="profile-sidebar">
+						<div class="desktop-sticky-top">
+							<div class="profile-img">
+								<img src="{{ customer.profile_image }}" alt="">
+							</div>
+							<!-- profile info -->
+							<h4>{{ customer.first_name }}</h4>
+							<div class="mb-3 text-inverse text-opacity-50 fw-bold mt-n2">{{customer.phone}}</div>
+							<p>
+								
+							</p>
+							<div class="mb-1">
+								<i class="fa fa-map-marker-alt fa-fw text-inverse text-opacity-50"></i> {{customer.address}}
+							</div>
+							<div class="mb-3">
+								<i class="fa fa-link fa-fw text-inverse text-opacity-50"></i> {{customer.email}}
+							</div>
+					
+							<hr class="mt-4 mb-4">
+					
+							<!-- people-to-follow -->
+							<div class="fw-bold mb-3 fs-16px">Customer Account</div>
+							<div class="d-flex align-items-center mb-3">
+								<div class="flex-fill px-3">
+									
+									<div class="fs-12px text-inverse text-opacity-50">This is a Permanent Action</div>
+								</div>
+								<a href="{% url 'DjangoHUDApp:deleteCustomer' customer.id %}" class="btn btn-sm btn-outline-danger fs-11px">Delete</a>
+							</div>
+						</div>
+					</div>
+					<!-- END profile-sidebar -->
+			
+					<!-- BEGIN profile-content -->
+					<div class="profile-content">
+						<ul class="profile-tab nav nav-tabs nav-tabs-v2">
+							<li class="nav-item">
+								<a href="#orders" class="nav-link active" data-bs-toggle="tab">
+									<div class="nav-field">Orders</div>
+									<div class="nav-value">{{ transactions.count }}</div>
+								</a>
+							</li>
+							<li class="nav-item">
+								<a href="#profile-followers" class="nav-link" data-bs-toggle="tab">
+									<div class="nav-field">Points</div>
+									<div class="nav-value">0</div>
+								</a>
+							</li>
+							
+						</ul>
+						<div class="profile-content-container">
+							<div class="row gx-4">
+								<div class="col-xl-8">
+									<div class="tab-content p-0">
+										<!-- BEGIN tab-pane -->
+										<div class="tab-pane fade show active" id="orders">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <table id="datatableDefault" class="table text-nowrap w-100">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="border-top-0 pt-0 pb-2">#</th>
+                                                                <th class="border-top-0 pt-0 pb-2">Order No.</th>
+                                                                <th class="border-top-0 pt-0 pb-2">Order Date</th>
+                                                                <th class="border-top-0 pt-0 pb-2">Bill</th>
+                                                                
+                                                            </tr>
+                                                        </thead>
+														{% for transaction in transactions %}
+                                                        <tbody>
+                                                            <tr>
+                                                                <td class="align-middle">{{ forloop.counter }}</td>
+                                                                <td class="align-middle"><a href="{% url 'DjangoHUDApp:pageOrderDetails' transaction.id %}">{{ transaction.id}}</a></td>
+                                                                <td class="align-middle">{{ transaction.created_at}}</td>
+                                                                <td class="align-middle">UGX {{ transaction.total_amount}}</td>
+                                                            </tr>
+                                                        </tbody>
+														{% endfor %}
+                                                    </table>
+                                                </div>
+                                                <div class="card-arrow">
+                                                    <div class="card-arrow-top-left"></div>
+                                                    <div class="card-arrow-top-right"></div>
+                                                    <div class="card-arrow-bottom-left"></div>
+                                                    <div class="card-arrow-bottom-right"></div>
+                                                </div>
+                                                
+                                            </div>
+                                        </div>
+										<!-- END tab-pane -->
+							
+										<!-- BEGIN tab-pane -->
+										
+										<!-- END tab-pane -->
+							
+										<!-- BEGIN tab-pane -->
+										
+										<!-- END tab-pane -->
+							
+
+									</div>
+								</div>
+								<div class="col-xl-4">
+									<div class="desktop-sticky-top d-none d-lg-block">
+										<div class="card mb-3">
+											<div class="list-group list-group-flush">
+												<div class="list-group-item fw-bold px-3 d-flex">
+													<span class="flex-fill">Trends for you</span> 
+													<a href="#" class="text-inverse text-opacity-50"><i class="fa fa-cog"></i></a>
+												</div>
+												<div class="list-group-item px-3">
+													<div class="text-inverse text-opacity-50"><small><strong>Trending Worldwide</strong></small></div>
+													<div class="fw-bold mb-2">#BreakingNews</div>
+													<a href="#" class="card text-inverse text-decoration-none mb-1">
+														<div class="card-body">
+															<div class="row no-gutters">
+																<div class="col-md-8">
+																	<div class="small text-inverse text-opacity-50 mb-1 mt-n1">Space</div>
+																	<div class="h-40px fs-13px overflow-hidden mb-n1">Distant star explosion is brightest ever seen, study finds</div>
+																</div>
+																
+															</div>
+														</div>
+														<div class="card-arrow">
+															<div class="card-arrow-top-left"></div>
+															<div class="card-arrow-top-right"></div>
+															<div class="card-arrow-bottom-left"></div>
+															<div class="card-arrow-bottom-right"></div>
+														</div>
+													</a>
+													<div><small class="text-inverse text-opacity-50">1.89m share</small></div>
+												</div>
+												<div class="list-group-item px-3">
+													<div class="fw-bold mb-2">#TrollingForGood</div>
+													<div class="fs-13px mb-1">Be a good Troll and spread some positivity on HUD today.</div>
+													<div><small class="text-inverse text-opacity-50"><i class="fa fa-external-link-square-alt"></i> Promoted by HUD Trolls</small></div>
+												</div>
+												<div class="list-group-item px-3">
+													<div class="text-inverse text-opacity-50"><small><strong>Trending Worldwide</strong></small></div>
+													<div class="fw-bold mb-2">#CronaOutbreak</div>
+													<div class="fs-13px mb-1">The coronavirus is affecting 210 countries around the world and 2 ...</div>
+													<div><small class="text-inverse text-opacity-50">49.3m share</small></div>
+												</div>
+												<div class="list-group-item px-3">
+													<div class="text-inverse text-opacity-50"><small><strong>Trending in New York</strong></small></div>
+													<div class="fw-bold mb-2">#CoronavirusPandemic</div>
+													<a href="#" class="card mb-1 text-inverse text-decoration-none">
+														<div class="card-body">
+															<div class="row no-gutters">
+																<div class="col-md-8">
+																	<div class="fs-12px text-inverse text-opacity-50 mt-n1">Coronavirus</div>
+																	<div class="h-40px fs-13px overflow-hidden mb-n1">Coronavirus: US suspends travel from Europe</div>
+																</div>
+																
+															</div>
+														</div>
+														<div class="card-arrow">
+															<div class="card-arrow-top-left"></div>
+															<div class="card-arrow-top-right"></div>
+															<div class="card-arrow-bottom-left"></div>
+															<div class="card-arrow-bottom-right"></div>
+														</div>
+													</a>
+													<div><small class="text-inverse text-opacity-50">821k share</small></div>
+												</div>
+												<a href="#" class="list-group-item list-group-action text-center">
+													Show more
+												</a>
+											</div>
+											<div class="card-arrow">
+												<div class="card-arrow-top-left"></div>
+												<div class="card-arrow-top-right"></div>
+												<div class="card-arrow-bottom-left"></div>
+												<div class="card-arrow-bottom-right"></div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<!-- END profile-content -->
+				</div>
+				<!-- END profile-container -->
+			</div>
+			<!-- END profile -->
+		</div>
+		<div class="card-arrow">
+			<div class="card-arrow-top-left"></div>
+			<div class="card-arrow-top-right"></div>
+			<div class="card-arrow-bottom-left"></div>
+			<div class="card-arrow-bottom-right"></div>
+		</div>
+	</div>
+{% endblock %}

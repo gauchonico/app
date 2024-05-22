@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/jvectormap-next/jquery-jvectormap.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jvectormap-next/jquery-jvectormap.min.js' %}"></script>
+	<script src="{% static 'plugins/jvectormap-content/world-mill.js' %}"></script>
+	<script src="{% static 'plugins/apexcharts/dist/apexcharts.min.js' %}"></script>
+	<script src="{% static 'js/demo/dashboard.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+	<div>
+		<ul class="breadcrumb">
+			<li class="breadcrumb-item"><a href="#">PAGES</a></li>
+			<li class="breadcrumb-item active">RAW MATERIALS</li>
+		</ul>
+		<h1 class="page-header mb-0">RAW MATERIALS STORE</h1>
+	</div>
+	
+	<div class="ms-auto">
+		<a href="{% url 'addRawmaterial' %}" class="btn btn-outline-theme me-2">Add New RAW MATERIAL</a>
+	</div>
+</div>
+	<!-- BEGIN row -->
+	<div class="row">
+		<!-- BEGIN col-3 -->
+        {% for rawmaterial in rawmaterials %}
+		<div class="col-xl-3 col-lg-6">
+			<!-- BEGIN card -->
+			<div class="card mb-3">
+				<!-- BEGIN card-body -->
+				<div class="card-body">
+					<!-- BEGIN title -->
+					<div class="d-flex fw-bold small mb-3">
+						<span class="flex-grow-1">{{ rawmaterial.name}}</span>
+						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
+					</div>
+					<!-- END title -->
+					<!-- BEGIN stat-lg -->
+					<div class="row align-items-center mb-2">
+						<div class="col-7">
+							<h3 class="mb-0">{{rawmaterial.current_stock}} {{ rawmaterial.unit_measurement}}</h3>
+						</div>
+						<div class="col-5">
+							<div class="mt-n2" data-render="apexchart" data-type="bar" data-title="Visitors" data-height="30"></div>
+						</div>
+					</div>
+					<!-- END stat-lg -->
+					<!-- BEGIN stat-sm -->
+					<div class="small text-inverse text-opacity-50 text-truncate mb-3">
+						<i class="bi bi-circle-fill fs-8px text-theme me-2"></i> Supplier<br>
+						{{rawmaterial.supplier}}
+					</div>
+                    <div class="small text-inverse text-opacity-50 text-truncate mb-3">
+						<i class="bi bi-circle-fill fs-8px text-theme me-2"></i> Re-Order Point<br>
+						{{rawmaterial.reorder_point}} {{ rawmaterial.unit_measurement}}
+					</div>
+                    {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
+                    <div class="mt-10">
+                        <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-outline-theme">Purchase order</a>
+                    </div>
+                    {% endif %}
+					<!-- END stat-sm -->
+				</div>
+				<!-- END card-body -->
+				
+				<!-- BEGIN card-arrow -->
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+				<!-- END card-arrow -->
+			</div>
+			<!-- END card -->
+		</div>
+        {% endfor %}
+		<!-- END col-3 -->
+		<!-- END col-3 -->
+	</div>
+	<!-- END row -->
+{% endblock %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Raw material Action</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% endblock outter_content %}
