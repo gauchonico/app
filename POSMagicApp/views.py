@@ -41,7 +41,7 @@ def login_user(request):
 def logout_user(request):
 	logout(request)
 	messages.success(request, "User logged out")
-	return redirect('DjangoHUDApp:index')
+	return redirect('DjangoHUDApp:login')
 
 def register_user(request):
 	context = {
@@ -51,6 +51,7 @@ def register_user(request):
 	}
 	return render(request, "pages/register.html", context)
 
+@login_required(login_url='/login/')
 def pageOrderDetails(request, transaction_id):
 	# Retrieve the transaction object from the database
 	transaction = get_object_or_404(Transaction, pk=transaction_id)
@@ -64,6 +65,7 @@ def editOrderDetails(request, transaction_id):
 
 ## Customer ###
 
+@login_required(login_url='/login/')
 def pageCustomer(request):
 	# get all customers
 	customers = Customer.objects.all()
@@ -118,6 +120,7 @@ def deleteCustomer (request, customer_id):
 
 ## Product ##
 
+@login_required(login_url='/login/')
 def pageProduct(request):
 	# Get all products
 	all_products = Product.objects.all()
@@ -143,6 +146,7 @@ def pageProduct(request):
 	}
 	return render(request, "pages/page-product.html", context)
 
+@login_required(login_url='/login/')
 def pageProductDetails(request, pk):
 	product = Product.objects.get(id=pk)
 	context = {'product': product}
@@ -189,6 +193,7 @@ def deleteProduct(request, product_id):
 
 
 ## Staff ###
+@login_required(login_url='/login/')
 def staff(request):
 	all_staff = Staff.objects.all()
 	context = {
@@ -229,6 +234,7 @@ def deleteStaff(request, staff_id):
 	messages.success(request, "Staff deleted successfully")
 	return redirect('DjangoHUDApp:staff')
 
+@login_required(login_url='/login/')
 def posCustomerOrder(request):
 	cart = Cart(request)  # Create a Cart instance
 	
@@ -275,6 +281,7 @@ def posCustomerOrder(request):
 	}
 	return render(request, "pages/pos_customer_order.html", context)
 
+@login_required(login_url='/login/')
 def transactionList(request):
 	transactions = Transaction.objects.all()
 	context = {

@@ -5,6 +5,7 @@ from django.forms import ValidationError, inlineformset_factory, modelformset_fa
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.contrib.auth.decorators import login_required
 from .utils import calculate_percentage_inclusion, cost_per_unit
 from .forms import AddSupplierForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, StoreAlertForm
 from .models import ManufactureProduct, ManufacturedProductInventory, ProductionIngredient, Production, RawMaterial, StoreAlerts, Supplier, PurchaseOrder
@@ -14,6 +15,7 @@ from .models import ManufactureProduct, ManufacturedProductInventory, Production
 def productionPage(request):
     return render(request, "production_index.html")
 
+@login_required(login_url='/login/')
 def supplierList(request):
     suppliers = Supplier.objects.all()
     context ={
@@ -53,6 +55,7 @@ def deleteSupplier(request, supplier_id):
     messages.success(request, "Supplier has been deleted successfully")
     return redirect('supplierList')
 
+@login_required(login_url='/login/')
 def rawmaterialsList(request):
     rawmaterials = RawMaterial.objects.all()
     context = {
@@ -75,6 +78,7 @@ def addRawmaterial(request):
 def storeManagement(request):
     return render(request, "store-management.html")
 
+@login_required(login_url='/login/')
 def storeRequests(request):
     porders = PurchaseOrder.objects.all()
     store_alerts = StoreAlerts.objects.filter(handled=False)
@@ -118,6 +122,9 @@ def productionProcess(request):
 def purchaseOderList(request):
     return render(request, "purchase-order-list.html")
 
+
+
+### Purchase Orders #########################################################################
 def createPurchaseOrder(request, rawmaterial_id):
 
     selected_rawmaterial = RawMaterial.objects.get(id=rawmaterial_id)
@@ -160,6 +167,7 @@ def editPurchaseOrderDetails(request, purchase_order_id):
     context = {'form': form}
     return render(request, "edit-purchase-order-details.html", context)
 
+@login_required(login_url='/login/')
 def productsList(request):
     products = Production.objects.all()
     context = {
@@ -354,6 +362,7 @@ def deduct_raw_materials(product, quantity):
         quantity_needed = ingredient.quantity_per_unit_product_volume * quantity
         ingredient.raw_material.remove_stock(quantity_needed)
 
+@login_required(login_url='/login/')
 def factory_inventory(request):
     """
     View to display the manufactured product inventory.
@@ -366,6 +375,7 @@ def factory_inventory(request):
 
     return render(request, 'manufactured-product-inventory.html', context)
 
+@login_required(login_url='/login/')
 def manufactured_products_list(request):
     """
     View to display a list of all manufactured products.
