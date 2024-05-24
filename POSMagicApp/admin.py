@@ -21,4 +21,5 @@ admin.site.register(Production)
 admin.site.register(ProductionIngredient)
 admin.site.register(ManufactureProduct)
 admin.site.register(ManufacturedProductInventory)
-# admin.site.register(UnitOfMeasurement)
+admin.site.register(CommissionRate)
+

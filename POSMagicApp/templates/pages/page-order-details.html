@@ -11,13 +11,13 @@
 				<li class="breadcrumb-item"><a href="javascript:;">PAGES</a></li>
 				<li class="breadcrumb-item active">ORDER DETAILS</li>
 			</ol>
-			<h1 class="page-header mb-0">Order Details</h1>
+			<h1 class="page-header mb-0">Order Details- {{ transaction.customer }}</h1>
 		</div>
 	</div>
 	
 	<div class="mb-3 d-md-flex fw-bold">
 		<div class="mt-md-0 mt-2"><a href="#" class="text-decoration-none text-inverse"><i class="bi bi-printer fa-fw me-1 text-inverse text-opacity-50"></i> Print</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="#" class="text-decoration-none text-inverse"><i class="bi bi-boxes fa-fw me-1 text-inverse text-opacity-50"></i> Restock items</a></div>
+		
 		<div class="ms-md-4 mt-md-0 mt-2"><a href="#" class="text-decoration-none text-inverse"><i class="bi bi-pen fa-fw me-1 text-inverse text-opacity-50"></i> Edit</a></div>
 		<div class="ms-md-4 mt-md-0 mt-2 dropdown-toggle">
 			<a href="#" data-bs-toggle="dropdown" class="text-decoration-none text-inverse"><i class="bi bi-gear fa-fw me-1 text-inverse text-opacity-50"></i> More Actions</a>
@@ -35,7 +35,7 @@
 			<div class="card mb-4">
 				<div class="card-header d-flex align-items-center bg-inverse bg-opacity-10 fw-400">
 					Items in Order {{ transaction.products.count }}
-					<a href="#" class="ms-auto text-decoration-none text-inverse text-opacity-50"><i class="bi bi-truck fa-lg me-1"></i> Add Tracking Link</a>
+					<a href="#" class="ms-auto text-decoration-none text-success text-opacity-90"><i class="bi bi-calendar fa-lg me-1"></i> {{ transaction.created_at }}</a>
 				</div>
 				{% for product in transaction.products.all %}
 				<div class="card-body text-inverse">
@@ -46,7 +46,7 @@
 								<span class="w-20px h-20px p-0 d-flex align-items-center justify-content-center badge bg-theme text-theme-color position-absolute end-0 top-0 fw-bold fs-12px rounded-pill mt-n2 me-n2">{{ forloop.counter }}</span>
 							</div>
 							<div class="ps-3 flex-1">
-								<div><a href="#" class="text-decoration-none text-inverse">{{ product.name}}</a></div>
+								<div><a href="#" class="text-decoration-none text-inverse">{{ product.name }}</a></div>
 								<div class="text-inverse text-opacity-50 small">
 									SKU: EMRLD-512
 								</div>
@@ -82,9 +82,9 @@
 								<td class="text-end">{{ transaction.total_amount }}</td>
 							</tr>
 							<tr>
-								<td>Tax</td>
-								<td>GST 0%</td>
-								<td class="text-end">0</td>
+								<td>Commision</td>
+								<td>{{ transaction.commission_percentage }}%</td>
+								<td class="text-end">{{ transaction.commission_amount }}</td>
 							</tr>
 							
 							<tr>
@@ -116,16 +116,17 @@
 					<div class="d-flex align-items-center">
 						<a href="#" class="d-block"><img src="{% static 'img/user/user-1.jpg' %}" alt="" width="45" class="rounded-pill"></a>
 						<div class="flex-1 ps-3">
-							<a href="#" class="d-block text-decoration-none">{{ transaction.staff }}</a>
+							<a href="#" class="d-block text-decoration-none col-5 text-truncate">{{ transaction.staff }}</a>
 							<p>{{ transaction.staff.specialization }}</p>
 							<div class="align-items-center fw-400">
 								Contact: {{ transaction.staff.phone }}
 								
 							</div>
 							Branch: {{ transaction.branch}}
-							
+							<div>
+								Commission: <span class="text-underline text-warning">UGX {{ transaction.commission_amount }}</span>
+							</div>
 						</div>
-						
 					</div>
 				</div>
 				<div class="card-arrow">
@@ -135,15 +136,83 @@
 					<div class="card-arrow-bottom-right"></div>
 				</div>
 			</div>
-			<div class="card mb-4">
+			
+			<div class="card mb-4 order-details">
 				<div class="card-header d-flex align-items-center bg-inverse bg-opacity-10 fw-400">
 					Order Status
-					<a href="#" class="ms-auto text-decoration-none text-inverse text-opacity-50">Edit</a>
+					<a href="#" class="ms-auto text-decoration-none text-inverse text-opacity-50"></a>
 				</div>
 				<div class="card-body fw-bold">
 					<div class="d-flex align-items-center">
-						<td class="py-1 align-middle"><span class="badge border border-success text-success px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ transaction.status}}</span></td>
+						Order Status:
+						<td class="py-1 align-middle"><span class="badge border border-success text-success px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ transaction.status }}</span></td>
 					</div>
+					<div class="d-flex align-items-center">
+						<td class="py-1 align-middle">Customer Name: <p class="text-light mt-3 px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center">{{ transaction.customer}}</p></td>
+					</div>
+					<div class="d-flex align-items-center">
+						<td class="py-1 align-middle">Staff In-charge: <p class="text-light mt-3 px-2 pt-0px pb-5px rounded fs-12px d-inline-flex align-items-center">{{ transaction.staff }}</p></td>
+					</div>
+					{% for product in transaction.products.all %}
+					<div class="card-body text-inverse">
+						<div class="row align-items-center">
+							<div class="col-lg-8 d-flex align-items-center">
+								<div class="h-65px w-65px d-flex align-items-center justify-content-center position-relative bg-white p-1">
+									<img src="{{ product.image.url }}" alt="" class="mw-100 mh-100">
+									<span class="w-20px h-20px p-0 d-flex align-items-center justify-content-center badge bg-theme text-theme-color position-absolute end-0 top-0 fw-bold fs-12px rounded-pill mt-n2 me-n2">{{ forloop.counter }}</span>
+								</div>
+								<div class="ps-3 flex-1">
+									<div><a href="#" class="text-decoration-none text-inverse">{{ product.name }}</a></div>
+									
+								</div>
+							</div>
+							<div class="col-lg-4">
+								UGX {{ product.price}}
+							</div>
+						</div>
+					</div>
+					{% endfor%}
+					
+					<div class="d-flex align-items-center">
+						<td class="py-1 align-middle">Oder Type:
+							<span class="badge 
+							  {% if transaction.is_delivery %}
+								text-warning px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center
+							  {% else %}
+								text-success px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center
+							  {% endif %}
+							">
+							  {% if transaction.is_delivery %}
+								<i class="fa fa-circle fs-9px fa-fw me-5px"></i> For Delivery
+							  {% else %}
+								<i class="fa fa-check fs-9px fa-fw me-5px" style="color: green;"></i> In-House
+							  {% endif %}
+							</span>
+						  </td>
+					</div>
+					<table class="table table-borderless table-sm m-0">
+						<tbody>
+							<tr>
+								<td class="w-150px">Subtotal</td>
+								<td>{{ transaction.products.count }}</td>
+								<td class="text-end">{{ transaction.total_amount }}</td>
+							</tr>
+							<tr>
+								<td>Commision</td>
+								<td>{{ transaction.commission_percentage }}%</td>
+								<td class="text-end">{{ transaction.commission_amount }}</td>
+							</tr>
+							
+							<tr>
+								<td class="pb-2" colspan="2"><b>Total</b></td>
+								<td class="text-end pb-2 text-decoration-underline"><b>UGX {{ transaction.total_amount }}</b></td>
+							</tr>
+							
+						</tbody>
+					</table>
+				</div>
+				<div class="card-footer bg-none d-flex p-3">
+					<a href="#" class="btn btn-outline-theme ms-auto" id="generate-pdf">Make Receipt (PDF)</a>
 				</div>
 				<div class="card-arrow">
 					<div class="card-arrow-top-left"></div>
@@ -155,3 +224,35 @@
 		</div>
 	</div>
 {% endblock %}
+{% block outter_content %}
+<script>
+    const generatePDFButton = document.getElementById('generate-pdf');
+
+    generatePDFButton.addEventListener('click', async () => {
+        const orderDetailsHTML = document.getElementById('order-details').innerHTML; // Assuming an element with ID 'order-details'
+
+        try {
+            const pdfResponse = await fetch('/generate-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ orderDetailsHTML }) // Send order details HTML as JSON
+            });
+
+            if (!pdfResponse.ok) {
+                throw new Error('Failed to generate PDF');
+            }
+
+            const pdfBlob = await pdfResponse.blob();
+            const pdfURL = URL.createObjectURL(pdfBlob);
+
+            // Open the PDF in a new tab
+            window.open(pdfURL, '_blank');
+        } catch (error) {
+            console.error(error);
+            // Handle errors appropriately, e.g., display an error message to the user
+        }
+    });
+</script>
+{% endblock outter_content %}

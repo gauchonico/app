@@ -99,7 +99,21 @@
 								<td>{{transaction.products.count}}</td>
 								<td class="align-middle">{{ transaction.branch }}</td>
 								<td class="py-1 align-middle"><span class="badge {% if transaction.status == 'pending' %}border border-warning text-warning{% elif transaction.status == 'paid' %}border border-success text-success {% else %}border border-secondary text-secondary{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ transaction.status}}</span></td>
-								<td class="align-middle"><span class="badge text-warning px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{transaction.staff}}</span></td>
+								<td class="align-middle">
+									<span class="badge 
+									  {% if transaction.is_delivery %}
+										text-light px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center
+									  {% else %}
+										text-success px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center
+									  {% endif %}
+									">
+									  {% if transaction.is_delivery %}
+										<i class="fa fa-circle fs-9px fa-fw me-5px"></i> For Delivery
+									  {% else %}
+										<i class="fa fa-check fs-9px fa-fw me-5px" style="color: green;"></i> In-House
+									  {% endif %}
+									</span>
+								  </td>
 								
 								<td class="align-middle">{{ transaction.total_amount}}</td>
 							</tr>

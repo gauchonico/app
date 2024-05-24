@@ -1,6 +1,7 @@
 from datetime import datetime
+from decimal import Decimal
 from django.shortcuts import render
-from .models import Transaction
+from .models import CommissionRate, Transaction
 from cart.cart import Cart
 from payment.forms import OrderDetailsForm
 from POSMagicApp.models import Staff
@@ -27,6 +28,10 @@ def checkout(request):
             order_details = order_details_form.save(commit=False)
             order_details.save()
 
+             # Calculate commission based on chosen commission rate
+            commission_rate = order_details.commission_rate.percentage if order_details.commission_rate else Decimal('0.00')
+            commission_amount = totals * (commission_rate / Decimal('100.00'))  # Ensure decimal division
+
 
             transaction = Transaction.objects.create(
                 customer=order_details.customer,
@@ -36,7 +41,9 @@ def checkout(request):
                 is_delivery=order_details.is_delivery,
                 staff=order_details.staff,
                 branch=order_details.branch,
-                notes=order_details.notes
+                notes=order_details.notes,
+                commission_percentage =order_details.commission_rate.percentage,
+                commission_amount=commission_amount,
                 
             )
             # Add products from the cart to the transaction
