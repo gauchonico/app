@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-6#97(6ryq6m!i3(&h&@ah(0o*$9*$&386^^b%b#zow1+y=0i1z'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["127.0.0.1", ".vercel.app", ".now.sh","app.mylivara.com"]
 CSRF_TRUSTED_ORIGINS=["https://app.mylivara.com/"]

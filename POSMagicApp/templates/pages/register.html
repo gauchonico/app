@@ -10,6 +10,7 @@
 		<!-- BEGIN register-content -->
 		<div class="register-content">
 			<form action="/" method="GET" name="register_form">
+				{% csrf_token %}
 				<h1 class="text-center">Sign Up</h1>
 				<p class="text-inverse text-opacity-50 text-center">One Admin ID is all you need to access all the Admin services.</p>
 				<div class="mb-3">
