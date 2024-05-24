@@ -2,37 +2,6 @@ from django.db import models
 from django.contrib.auth.models import User
 from POSMagicApp.models import Customer, Product, Branch, Staff
 
-# Create your models here.
-
-# class SalonMaterial(models.Model):
-#     name = models.CharField(max_length=255)
-#     price = models.DecimalField(max_digits=10, decimal_places=2)
-#     unit_of_measurement = models.CharField(max_length=10, blank=True)
-
-#     def __str__(self):
-#         return self.name
-
-# class SalonMaterialInventory(models.Model):
-#     material = models.ForeignKey(SalonMaterial, on_delete=models.CASCADE)
-#     quantity = models.PositiveIntegerField()
-#     last_updated = models.DateField(auto_now=True, null=True)  # Track last update date
-
-#     def __str__(self):
-#         return f"{self.material.name} - {self.quantity}"
-
-#     def restock(self, quantity_added):
-#         """
-#         Increase the quantity of this material in stock.
-
-#         Args:
-#             quantity_added (int): The positive quantity to add to the inventory.
-#         """
-#         if quantity_added <= 0:
-#             raise ValueError("Restock quantity must be a positive integer.")
-#         self.quantity += quantity_added
-#         self.save()
-
-
 class CommissionRate(models.Model):
     percentage = models.DecimalField(max_digits=5, decimal_places=2)
     description = models.CharField(max_length=255, blank=True)
