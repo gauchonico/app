@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Table Plugins{% endblock %}
+{% block title %}Page Staff{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -42,6 +42,7 @@
 		
 		<div class="ms-auto">
 			<a href="{% url 'DjangoHUDApp:createStaff' %}" class="btn btn-outline-theme me-2">Add New Staff</a>
+			<a href="{% url 'DjangoHUDApp:StaffCommissionsView' %}" class="btn btn-outline-theme"><i class="fa fa-plus-circle fa-fw me-1"></i>Commissions</a>
 		</div>
 	</div>
 	

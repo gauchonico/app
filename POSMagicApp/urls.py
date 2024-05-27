@@ -25,6 +25,7 @@ urlpatterns = [
     path('page/create-staff', views.createStaff, name='createStaff'),
     path('page/edit-staff/<int:staff_id>/', views.editStaff, name='editStaff'),
     path('delete-staff/<int:staff_id>/', views.deleteStaff, name='deleteStaff'),
+    path('staff-commissions/', views.staff_commissions_view, name='StaffCommissionsView'),
     path('page/product-details/<int:pk>/', views.pageProductDetails, name='pageProductDetails'),
     path('404/', views.error404, name='error404'),
     path('customer-order/', views.posCustomerOrder, name='customerOrder'),

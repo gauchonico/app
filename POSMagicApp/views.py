@@ -1,13 +1,14 @@
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
+from django.db.models import Q
 from django.views import generic
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
-from payment.models import Transaction
+from payment.models import Transaction, StaffCommission
 from cart.cart import Cart
 from .models import *
 from django.contrib.auth.models import User
@@ -51,7 +52,7 @@ def register_user(request):
 	}
 	return render(request, "pages/register.html", context)
 
-@login_required(login_url='/login/')
+@login_required
 def pageOrderDetails(request, transaction_id):
 	# Retrieve the transaction object from the database
 	transaction = get_object_or_404(Transaction, pk=transaction_id)
@@ -120,7 +121,6 @@ def deleteCustomer (request, customer_id):
 
 ## Product ##
 
-@login_required(login_url='/login/')
 def pageProduct(request):
 	# Get all products
 	all_products = Product.objects.all()
@@ -146,7 +146,6 @@ def pageProduct(request):
 	}
 	return render(request, "pages/page-product.html", context)
 
-@login_required(login_url='/login/')
 def pageProductDetails(request, pk):
 	product = Product.objects.get(id=pk)
 	context = {'product': product}
@@ -171,7 +170,7 @@ def editProduct(request, product_id):
     product = get_object_or_404(Product, pk=product_id)  # Fetch product by ID
 
     if request.method == 'POST':
-        form = EditProductForm(request.POST, instance=product)  # Pre-populate form with existing data
+        form = EditProductForm(request.POST, request.FILES, instance=product)  # Pre-populate form with existing data
         if form.is_valid():
             form.save()
             return redirect('DjangoHUDApp:pageProduct')  # Redirect to product list after successful edit
@@ -234,7 +233,34 @@ def deleteStaff(request, staff_id):
 	messages.success(request, "Staff deleted successfully")
 	return redirect('DjangoHUDApp:staff')
 
-@login_required(login_url='/login/')
+def staff_commissions_view(request):
+	staff = request.GET.get('staff')  # Get staff member filter (optional)
+	start_date = request.GET.get('start_date')  # Get start date filter (optional)
+	end_date = request.GET.get('end_date')  # Get end date filter (optional)
+	status = request.GET.get('status') # Get status filter
+	
+
+	commissions = StaffCommission.objects.all()  # Start with all commissions
+
+	# Apply filters based on provided parameters
+	filters = Q()
+	if staff:
+		filters &= Q(staff__id=staff)  # Filter by staff ID
+	if start_date and end_date:
+		filters &= Q(date__range=(start_date, end_date))  # Filter by date range
+	if status:
+		filters &= Q(transaction__status=status)  # Filter by transaction status
+
+	commissions = commissions.filter(filters)
+
+	context = {
+		'staff_commissions': commissions,
+		'staff_choices': Staff.objects.all(),
+		'status_choices': Transaction.STATUS_CHOICES,  # List of all staff members for dropdown (optional)
+	}
+
+	return render (request, 'pages/staff-commissions.html',context)
+
 def posCustomerOrder(request):
 	cart = Cart(request)  # Create a Cart instance
 	
@@ -281,7 +307,6 @@ def posCustomerOrder(request):
 	}
 	return render(request, "pages/pos_customer_order.html", context)
 
-@login_required(login_url='/login/')
 def transactionList(request):
 	transactions = Transaction.objects.all()
 	context = {

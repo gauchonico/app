@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Staff Commissions{% endblock %}
+
+{% block css %}
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.1/css/jquery.dataTables.min.css">
+    <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet">
+    <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet">
+    <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet">
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet">
+    <link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet">
+    <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-fixedcolumns-bs5/css/fixedColumns.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+    <script src="{% static 'plugins/select-picker/dist/picker.min.js' %}"></script>
+    <script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/jszip/dist/jszip.min.js' %}"></script>
+	<script src="{% static 'plugins/pdfmake/build/pdfmake.min.js' %}"></script>
+	<script src="{% static 'plugins/pdfmake/build/vfs_fonts.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-fixedcolumns/js/dataTables.fixedColumns.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-fixedcolumns-bs5/js/fixedColumns.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'js/demo/page-data-management.demo.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+
+{% endblock %}
+
+{% block content %}
+<ul class="breadcrumb">
+    <li class="breadcrumb-item"><a href="#">STAFF</a></li>
+    <li class="breadcrumb-item active">COMMISSIONS</li>
+</ul>
+
+<h1 class="page-header">
+    Staff Commissions <small></small>
+</h1>
+
+<p>
+    Filter commissions according to Staff Name, Date, Transaction Status...
+</p>
+
+<form method="GET">
+    <div class="row">
+        <div class="col-xl-3">
+            <div class="mb-3">
+                <label for="staff" class="form-label">Staff Member:</label>
+                <select class="selectpicker form-control" id="staff" name="staff">
+                    <option value="">Select Staff</option>
+                    {% for staff_member in staff_choices %}
+                    <option value="{{ staff_member.id }}">{{ staff_member.first_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="col-xl-3">
+            <div class="mb-3">
+                <label class="form-label" for="start_date">Filter by Date:</label>
+                <div class="input-group input-daterange" id="datepicker-range">
+                    <input type="date" id="start_date" name="start_date" class="form-control">
+                    <span class="input-group-text">to</span>
+                    <input type="date" id="end_date" name="end_date" class="form-control">
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3">
+            <label class="form-label" for="status">Transaction Status:</label>
+            <select class="selectpicker form-control" id="status" name="status">
+                <option value="">Transaction Status</option>
+                {% for status_option in status_choices %}
+                <option value="{{ status_option.0 }}">{{ status_option.1 }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-xl-3">
+            <label class="form-label" for="filter">Apply filters:</label>
+            <div>
+                <button class="btn btn-outline-theme" type="submit">Filter</button>
+            </div>
+            
+        </div>
+            
+    </div>
+</form>
+    <div class="card">
+        <div class="card-body text-center">
+            <table id="datatableDefault" class="table text-nowrap w-100">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Staff Name</th>
+                        <th>Transaction Id</th>
+                        <th>Commission Amount</th>
+                        <th>Trans. Status</th>
+                        <th>Date</th>
+                        <th>Salary</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for commission in staff_commissions %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="text-center">{{ commission.staff }}</td>
+                        <td class="text-center">{{ commission.transaction.id }}</td>
+                        <td class="text-center">{{ commission.commission_amount }}</td>
+                        <td class="text-center">{{ commission.transaction.get_status_display }}</td>
+                        <td class="text-center">{{ commission.date }}</td>
+                        <td><p class="col-5 text-truncate">{{ commission.transaction }}</p></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-arrow">
+            <div class="card-arrow-top-left"></div>
+            <div class="card-arrow-top-right"></div>
+            <div class="card-arrow-bottom-left"></div>
+            <div class="card-arrow-bottom-right"></div>
+        </div>
+    </div>
+<script>
+    $(document).ready(function() {
+        // Initialize DataTables for printing and CSV export (refer to DataTables documentation for details)
+        $('#datatableDefault').DataTable({
+    dom: 'Bfrtip',
+    buttons: [
+        'print',
+        'csv'
+    ]
+});
+
+// Trigger print on button click
+$('#print-btn').click(function() {
+    $('#datatableDefault').DataTable().button('.buttons-print').trigger();
+});
+});
+</script>
+
+
+
+
+
+
+
+
+{% endblock %}
+{% block outter_content%}
+<script>
+    $('#datepicker').datepicker({
+      autoclose: true
+    });
+</script>
+{% endblock outter_content %}

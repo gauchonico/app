@@ -22,4 +22,5 @@ admin.site.register(ProductionIngredient)
 admin.site.register(ManufactureProduct)
 admin.site.register(ManufacturedProductInventory)
 admin.site.register(CommissionRate)
+admin.site.register(StaffCommission)
 

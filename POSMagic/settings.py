@@ -28,7 +28,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["127.0.0.1", ".vercel.app", ".now.sh","app.mylivara.com"]
 CSRF_TRUSTED_ORIGINS=['https://app.mylivara.com']
-SESSION_COOKIE_DOMAIN = '.mylivara.com'  # Replace with your top-level domain
+# SESSION_COOKIE_DOMAIN = '.mylivara.com'  # Replace with your top-level domain
 
 
 # Application definition
