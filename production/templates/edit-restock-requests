@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Create Restock Order{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
+	<script src="{% static 'js/demo/page-scrum-board.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+	<div class="d-flex align-items-center mb-md-3 mb-2">
+		<div class="flex-fill">
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">RESTOCK REQUESTS</a></li>
+				<li class="breadcrumb-item active">APPROVE RESTOCK ORDER</li>
+			</ul>
+
+			<h1 class="page-header mb-0">
+				Re-stock Order
+			</h1>
+		</div>
+		<div class="ms-auto">
+			<a href="{% url 'createRestockRequest' %}" class="btn btn-outline-theme"><i class="fa fa-plus-circle me-1"></i> Add Task</a>
+		</div>
+	</div>
+
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="dropdown-toggle">
+			<a href="#" data-bs-toggle="dropdown" class="text-inverse text-opacity-75 text-decoration-none"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/hud</a>
+			<div class="dropdown-menu">
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/mobile-app-dev</a>
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/bootstrap-5</a>
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/mvc-version</a>
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/ruby-version</a>
+			</div>
+		</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="fa fa-code-branch fa-fw fa-lg me-1 text-theme"></i> 1,392 pull request</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="fa fa-users-cog fa-fw fa-lg me-1 text-theme"></i> 52 participant</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="far fa-clock fa-fw fa-lg me-1 text-theme"></i> 14 day(s)</div>
+	</div>
+
+	<!-- BEGIN row -->
+	<div class="row">
+		<!-- BEGIN col-4 -->
+		<div class="col-xl-4 col-lg-6">
+			<!-- BEGIN card -->
+			<form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary">Create Request</button>
+            </form>
+			<!-- END card -->
+		</div>
+    </div>
+
+    
+{% endblock %}
+
+
+{% block outter_content %}
+    <!-- BEGIN row -->
+    
+	<!-- BEGIN modal -->
+
+	<!-- END modal -->
+{% endblock %}

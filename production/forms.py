@@ -113,3 +113,30 @@ class ManufactureProductForm(forms.Form):
     batch_number = forms.CharField(required=True, label="Batch Number", widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'e.g. EMR001'}))
     expiry_date = forms.DateField(required=True, label="Expiry Date", widget=forms.TextInput(attrs={'class': 'form-control'}))
     labor_cost_per_unit = forms.DecimalField(required=True, label="Labor Cost per Unit", widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+class StoreForm(forms.ModelForm):
+    class Meta:
+        model = Store
+        fields = ['name', 'location']
+        widgets = {
+            'name': forms.TextInput(attrs={'class':'form-control'}),
+            'location': forms.TextInput(attrs={'class':'form-control'}),
+        }
+
+class RestockRequestForm(forms.ModelForm):
+    class Meta:
+        model = RestockRequest
+        fields = ['product','store','status', 'comments','quantity', 'requested_by']
+        widgets = {
+            'product': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+            'comments': forms.Textarea(attrs={'class':'form-control'}),
+            'store': forms.Select(attrs={'class':'form-control'}),
+            'status': forms.Select(attrs={'class':'form-control'}),
+            'requested_by': forms.HiddenInput(),
+
+        }
+class RestockRequestEditForm(forms.ModelForm):
+    class Meta:
+        model = RestockRequest
+        fields = ['product', 'store', 'quantity', 'status', 'comments']

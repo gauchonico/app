@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import User
+from django.db import transaction 
 
 # Create your models here.
 
@@ -135,8 +137,56 @@ class ManufacturedProductInventory(models.Model):
 
     def __str__(self):
         return f"{self.product.product_name} ({self.quantity})- Last Updated: {self.last_updated}"
-    
 
+
+ ################### stores models   
+class Store(models.Model):
+    name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+    
+class StockTransfer(models.Model):
+    from_inventory = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE, related_name='from_transfers')
+    to_store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    transfer_date = models.DateTimeField(auto_now_add=True)
+    processed_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)  # Optional: User who processed the transfer
+
+    def __str__(self):
+        return f"Transferred {self.quantity} units of {self.from_inventory.product.product_name} to {self.to_store} on {self.transfer_date.strftime('%Y-%m-%d')}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+class RestockRequest(models.Model):
+    product = models.ForeignKey(Production, on_delete=models.CASCADE)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)  # Optional: User who requested
+    request_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=255, choices=[
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ], default="pending")
+    comments = models.TextField(blank=True)  # Optional: Comments or reasons for rejection
+
+    def __str__(self):
+        return f"Restock Request for {self.quantity} units of {self.product.product_name} from {self.store.name} (requested by: {self.requested_by.username if self.requested_by else 'N/A'})"
+    
+class StoreInventory(models.Model):
+    product = models.ForeignKey(Production, on_delete=models.CASCADE)  # Link to manufactured product
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)  # Link to store
+    quantity = models.PositiveIntegerField()
+    last_updated = models.DateTimeField(auto_now=True)  # Track last update
+
+    def __str__(self):
+        return f"{self.product.product_name} ({self.quantity}) in {self.store.name} - Last Updated: {self.last_updated.strftime('%Y-%m-%d')}"
+
+    class Meta:
+        unique_together = (('product', 'store'),)
 
 # what to add 
 # bottle top and bottle without affecting the total volume

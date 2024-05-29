@@ -23,4 +23,8 @@ admin.site.register(ManufactureProduct)
 admin.site.register(ManufacturedProductInventory)
 admin.site.register(CommissionRate)
 admin.site.register(StaffCommission)
+admin.site.register(Store)
+admin.site.register(StoreInventory)
+admin.site.register(StockTransfer)
+admin.site.register(RestockRequest)
 

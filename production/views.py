@@ -6,9 +6,10 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
-from .utils import calculate_percentage_inclusion, cost_per_unit
-from .forms import AddSupplierForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, StoreAlertForm
-from .models import ManufactureProduct, ManufacturedProductInventory, ProductionIngredient, Production, RawMaterial, StoreAlerts, Supplier, PurchaseOrder
+from django.db import transaction
+from .utils import approve_restock_request, cost_per_unit
+from .forms import AddSupplierForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, RestockRequestEditForm, RestockRequestForm, StoreAlertForm, StoreForm
+from .models import ManufactureProduct, ManufacturedProductInventory, ProductionIngredient, Production, RawMaterial, RestockRequest, Store, StoreAlerts, StoreInventory, Supplier, PurchaseOrder
 
 # Create your views here.
 
@@ -455,3 +456,111 @@ def product_inventory_details(request, inventory_id):
         'product':product,
     }
     return render (request, 'product-inventory-details.html', context)
+
+def all_stores(request):
+    stores = Store.objects.all()
+    context = {
+        'stores': stores,
+    }
+    return render (request, 'all-stores.html', context)
+
+def add_store(request):
+    form = StoreForm
+    if request.method == 'POST':
+        form = StoreForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('allStores')
+        else:
+            form = StoreForm()  # Create an empty form for GET requests
+    context = {
+        'form': form,
+    }
+    return render(request, 'add-store.html', context)
+
+def edit_store(request, store_id):
+    store = get_object_or_404(Store, pk=store_id)  # Fetch store by ID
+    if request.method == 'POST':
+        form = StoreForm(request.POST, instance=store)  # Pre-populate the form
+        if form.is_valid():
+            form.save()
+            return redirect('allStores')  # Redirect to 'allStores' view after update
+    else:
+        form = StoreForm(instance=store)  # Pre-populate the form with existing data
+
+    context = {'form': form}
+    return render(request, 'edit-store.html', context)
+
+def delete_store(request, store_id):
+    store = get_object_or_404(Store, pk=store_id)
+    if request.method == 'POST':
+        store.delete()
+        return redirect('allStores')  # Redirect to 'allStores' view after deletion
+    context = {'store': store}
+    return render(request, 'delete-store.html', context)
+
+def restock_requests (request):
+    restock_requests = RestockRequest.objects.all().order_by('-request_date')
+    context = {
+       'restock_requests': restock_requests,
+    }
+    
+    return render(request, 'restock-requests.html', context)
+
+def create_restock_request(request):
+    if request.method == 'POST':
+        form = RestockRequestForm(request.POST)
+        if form.is_valid():
+            form.save()  # Save the new restock request
+            return redirect('restockRequests')  # Redirect to list view on success
+    else:
+        form = RestockRequestForm()  # Create an empty form
+
+    context = {'form': form}
+    
+    return render(request, 'create-restock-requests.html', context)
+
+def edit_restock_request(request, request_id):
+    restock_request = get_object_or_404(RestockRequest, pk=request_id)
+
+    if request.method == 'POST':
+        form = RestockRequestEditForm(request.POST, instance=restock_request)
+        if form.is_valid():
+            form.save()
+            return redirect('restockRequests')
+        else:
+            form = RestockRequestEditForm()
+
+    context ={
+        'restock_request':restock_request,
+    }
+    return render(request, 'edit-restock-requests.html',context)
+
+def approve_restock_requests(request, request_id):
+  restock_request = get_object_or_404(RestockRequest, pk=request_id)
+
+  if restock_request.status == "pending":  # Check if request is pending
+    with transaction.atomic():
+      approve_restock_request(request_id)  # Call your approval function
+  
+  # Redirect to the restock request list view after approval (or display a message)
+  return redirect('restockRequests')
+
+def reject_restock_request(request, request_id):
+  restock_request = get_object_or_404(RestockRequest, pk=request_id)
+
+  if restock_request.status == "pending":
+    restock_request.status = "rejected"
+    restock_request.save()
+
+  # Redirect to the restock request list view after rejection (or display a message)
+  return redirect('restockRequests')
+
+
+def store_inventory_list(request):
+    stores = Store.objects.all()  # Get all stores
+    # Get all store inventory objects (optional: filter or order)
+    store_inventory = StoreInventory.objects.all().select_related('store', 'product')  # Optimize query
+
+    context = {'store_inventory': store_inventory, 'stores':stores }
+    return render(request, 'general-stores.html', context)

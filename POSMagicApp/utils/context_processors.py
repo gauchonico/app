@@ -97,6 +97,24 @@ def sidebar_menu(request):
              'text': 'Dispatch',
              'name': 'dispatchList'
         }]
+    },{
+         'text': 'STORES',
+         'is_header': 1
+    },{
+        'url': '/production/all-stores/',
+        'icon': 'bi bi-shop',
+        'text': 'All Stores',
+        'name': 'allStores'
+    },{
+        'url': '/production/restock-requests/',
+        'icon': 'bi bi-recycle',
+        'text': 'Restock Requests',
+        'name': 'restockRequests',
+    },{
+        'url': '/production/general-stores/',
+        'icon': 'bi bi-boxes',
+        'text': 'General Stores',
+        'name': 'store_inventory_list',
     }]
 	
 	resolved_path = resolve(request.path_info)

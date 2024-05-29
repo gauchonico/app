@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Scrum Board{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
+	<script src="{% static 'js/demo/page-scrum-board.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+	<div class="d-flex align-items-center mb-md-3 mb-2">
+		<div class="flex-fill">
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">RESTOCK REQUESTS</a></li>
+				<li class="breadcrumb-item active">RESTOCK STORES</li>
+			</ul>
+
+			<h1 class="page-header mb-0">
+				Re-stock Dashboard
+			</h1>
+		</div>
+		<div class="ms-auto">
+			<a href="{% url 'createRestockRequest' %}" class="btn btn-outline-theme"><i class="fa fa-plus-circle me-1"></i> Restock Order</a>
+		</div>
+	</div>
+
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="dropdown-toggle">
+			<a href="#" data-bs-toggle="dropdown" class="text-inverse text-opacity-75 text-decoration-none"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/hud</a>
+			<div class="dropdown-menu">
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/mobile-app-dev</a>
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/bootstrap-5</a>
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/mvc-version</a>
+				<a href="#" class="dropdown-item"><i class="far fa-folder fa-fw fa-lg text-theme me-1"></i> project/ruby-version</a>
+			</div>
+		</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="fa fa-code-branch fa-fw fa-lg me-1 text-theme"></i> 1,392 pull request</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="fa fa-users-cog fa-fw fa-lg me-1 text-theme"></i> 52 participant</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="far fa-clock fa-fw fa-lg me-1 text-theme"></i> 14 day(s)</div>
+	</div>
+
+	<!-- BEGIN row -->
+	<div class="row">
+		<!-- BEGIN col-4 -->
+		<div class="col-xl-4 col-lg-6">
+			<!-- BEGIN card -->
+			<div class="card mb-3">
+				<!-- BEGIN card-header -->
+				<div class="card-header d-flex align-items-center bg-warning bg-opacity-20">
+					<span class="flex-grow-1 fw-400">Pending Requests</span>
+					<a href="#" class="text-inverse text-opacity-50 text-decoration-none me-3"><i class="fa fa-fw fa-redo"></i></a>
+					<a href="#" class="text-inverse text-opacity-50 text-decoration-none"><i class="fa fa-fw fa-trash"></i></a>
+				</div>
+				<!-- END card-header -->
+				<!-- BEGIN list-group -->
+				<div class="list-group list-group-flush">
+					<!-- BEGIN list-group-item -->
+                    {% for request in restock_requests %}
+                        {% if request.status == 'pending' %}
+                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3">
+                            <div class="me-3 pt-1">
+                                <i class="far fa-question-circle text-warning fa-fw fa-lg"></i> 
+                            </div>
+                            <div class="flex-fill">
+                                <div class="fw-400">{{ request.quantity }} Units of {{ request.product.product_name }}</div>
+                                <div class="small text-inverse text-opacity-50 mb-2">Request by: {{ request.store.name }}</div>
+                                <div class="fw-400">Notes</div>
+                                <div class="small text-inverse text-opacity-50 mb-2">{{ request.comments }}</div>
+                                <div>
+                                    
+                                    <span class="badge border border-warning text-warning">{{ request.status }}</span>
+                                </div>
+                                <hr class="my-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="fw-400 me-2">
+                                        Progress progress:
+                                    </div>
+                                    <div class="progress progress-xs w-100px me-2 ms-auto" style="height: 6px;">
+                                        <div class="progress-bar progress-bar-striped bg-warning" style="width: 50%;"></div>
+                                    </div>
+                                    <div class="fs-12px">50%</div>
+                                </div>
+                            </div>
+                        </a>
+                        <div class="card-footer d-flex align-items-center bg-warning bg-opacity-20">
+                            <span class="fw-400">Request Actions</span>
+                            <a href="{% url 'reject_request' request.pk %}" class="text-inverse text-decoration-none px-5"><i class="fa fa-fw fa-trash text-danger"></i>Reject</a>
+                            <a href="{% url 'approve_restock_requests' request.pk %}" class="btn btn-success">Approve</a>
+                            
+                        </div>
+                        {% endif %}
+                    
+                    {% endfor %}
+                    
+				</div>
+				<!-- END list-group -->
+				<!-- BEGIN card-arrow -->
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+				<!-- END card-arrow -->
+			</div>
+			<!-- END card -->
+		</div>
+		<!-- END col-4 -->
+		<!-- BEGIN col-4 -->
+		<div class="col-xl-4 col-lg-6">
+			<!-- BEGIN card -->
+			<div class="card mb-3">
+				<!-- BEGIN card-header -->
+				<div class="card-header d-flex align-items-center bg-success bg-opacity-20">
+					<span class="flex-grow-1 fw-400">Approved Requests</span>
+					<a href="#" class="text-inverse text-opacity-50 text-decoration-none me-3"><i class="fa fa-fw fa-redo"></i></a>
+					<a href="#" class="text-inverse text-opacity-50 text-decoration-none"><i class="fa fa-fw fa-trash"></i></a>
+				</div>
+				<!-- END card-header -->
+				<!-- BEGIN list-group -->
+				<div class="list-group list-group-flush">
+					<!-- BEGIN list-group-item -->
+                    {% for request in restock_requests %}
+                        {% if request.status == 'approved' %}
+                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3">
+                            <div class="me-3 pt-1">
+                                <i class="bi bi-check-circle-fill text-success fa-fw fa-lg"></i> 
+                            </div>
+                            <div class="flex-fill">
+                                <div class="fw-400">{{ request.quantity }} Units of {{ request.product.product_name }}</div>
+                                <div class="small text-inverse text-opacity-50 mb-2">Request by: {{ request.store.name }}</div>
+                                <div class="fw-400">Notes</div>
+                                <div class="small text-inverse text-opacity-50 mb-2">{{ request.comments }}</div>
+                                <div>
+                                    
+                                    <span class="badge border border-success text-success">{{ request.status }}</span>
+                                </div>
+                                <hr class="my-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="fw-400 me-2">
+                                        Progress progress:
+                                    </div>
+                                    <div class="progress progress-xs w-100px me-2 ms-auto" style="height: 6px;">
+                                        <div class="progress-bar progress-bar-striped bg-success" style="width: 100%;"></div>
+                                    </div>
+                                    <div class="fs-12px">100%</div>
+                                </div>
+                            </div>
+                            
+                        </a>
+                        
+                    
+                        {% endif %}
+                    {% endfor %}
+				</div>
+				<!-- END list-group -->
+				<!-- BEGIN card-arrow -->
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+				<!-- END card-arrow -->
+			</div>
+			<!-- END card -->
+		</div>
+		<!-- END col-4 -->
+		<!-- BEGIN col-4 -->
+		<div class="col-xl-4 col-lg-6">
+			<!-- BEGIN card -->
+			<div class="card mb-3">
+				<!-- BEGIN card-header -->
+				<div class="card-header d-flex align-items-center bg-danger bg-opacity-10">
+					<span class="flex-grow-1 fw-400">Rejected</span>
+					<a href="#" class="text-inverse text-opacity-50 text-decoration-none me-3"><i class="fa fa-fw fa-redo"></i></a>
+					<a href="#" class="text-inverse text-opacity-50 text-decoration-none"><i class="fa fa-fw fa-trash"></i></a>
+				</div>
+				<!-- END card-header -->
+				<!-- BEGIN list-group -->
+				<div class="list-group list-group-flush">
+					<!-- BEGIN list-group-item -->
+                    {% for request in restock_requests %}
+                        {% if request.status == 'rejected' %}
+                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3">
+                            <div class="me-3 pt-1">
+                                <i class="bi bi-x-circle-fill text-danger fa-fw fa-lg"></i> 
+                            </div>
+                            <div class="flex-fill">
+                                <div class="fw-400">{{ request.quantity }} Units of {{ request.product.product_name }}</div>
+                                <div class="small text-inverse text-opacity-50 mb-2">Request by: {{ request.store.name }}</div>
+                                <div class="fw-400">Notes</div>
+                                <div class="small text-inverse text-opacity-50 mb-2">{{ request.comments }}</div>
+                                <div>
+                                    
+                                    <span class="badge border border-warning text-warning">{{ request.status }}</span>
+                                </div>
+                                <hr class="my-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="fw-400 me-2">
+                                        Progress progress:
+                                    </div>
+                                    <div class="progress progress-xs w-100px me-2 ms-auto" style="height: 6px;">
+                                        <div class="progress-bar progress-bar-striped bg-danger" style="width: 5%;"></div>
+                                    </div>
+                                    <div class="fs-12px">0%</div>
+                                </div>
+                            </div>
+                        </a>
+                    
+                        {% endif %}
+                    {% endfor %}
+				</div>
+				<!-- END list-group -->
+				<!-- BEGIN card-arrow -->
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+				<!-- END card-arrow -->
+			</div>
+			<!-- END card -->
+		</div>
+		<!-- END col-4 -->
+		<!-- BEGIN col-4 -->
+	</div>
+	<!-- END row -->
+    
+{% endblock %}
+
+
+{% block outter_content %}
+    <!-- BEGIN row -->
+    
+	<!-- BEGIN modal -->
+
+	<!-- END modal -->
+{% endblock %}

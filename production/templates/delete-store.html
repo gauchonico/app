@@ -1,0 +1,88 @@
+
+{% load static %}
+
+{% block title %}Modal & Notifications{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+	<script src="{% static 'js/demo/ui-modal-notification.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+<div class="modal">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">MODAL TITLE</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Modal body text goes here.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-outline-theme">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+<div class="modal modal-cover fade" id="modalCoverExample" tabindex="1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Sign Up!</h3>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    Are you sure you want to delete the store: <br>
+                    {{ store.name }}?
+                </p>
+                <div class="row mb-5">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-outline-theme btn-lg btn-block">Confirm Delete</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="pt-3">
+                    <a href="#" class="text-muted fs-12px">What is it? Terms and conditions</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block outter_content %}
+<div class="modal modal-cover fade" id="modalCoverExample">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Sign Up!</h3>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">
+                    Are you sure you want to delete the store: <br>
+                    {{ store.name }}?
+                </p>
+                <div class="row mb-5">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-outline-theme btn-lg btn-block">Confirm Delete</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="pt-3">
+                    <a href="#" class="text-muted fs-12px">What is it? Terms and conditions</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock outter_content %}

@@ -1,5 +1,6 @@
 from decimal import Decimal
-from production.models import PurchaseOrder
+from django.db import transaction
+from production.models import ManufacturedProductInventory, PurchaseOrder, RestockRequest, StoreInventory
 
 
 def cost_per_unit(self):
@@ -49,3 +50,33 @@ def calculate_percentage_inclusion(ingredient, exclude_names=['Bottle Top', 'Lab
     return None
 
   return ingredient.quantity_per_unit_product_volume * Decimal('0.10')
+
+def approve_restock_request(request_id):
+  with transaction.atomic():
+    restock_request = RestockRequest.objects.get(pk=request_id)
+    if restock_request.status == "pending":
+      inventory = ManufacturedProductInventory.objects.filter(product=restock_request.product).first()
+      if inventory and inventory.quantity >= restock_request.quantity:
+        # Check for existing StoreInventory record
+        existing_inventory = StoreInventory.objects.filter(
+            product=restock_request.product,
+            store=restock_request.store
+        ).first()
+        if existing_inventory:
+          # Update existing record quantity
+          existing_inventory.quantity += restock_request.quantity
+          existing_inventory.save()
+        else:
+          # Create new StoreInventory record if none exists
+          StoreInventory.objects.create(
+              product=restock_request.product,
+              store=restock_request.store,
+              quantity=restock_request.quantity,
+          )
+        inventory.quantity -= restock_request.quantity
+        inventory.save()
+        restock_request.status = "approved"
+      else:
+        restock_request.status = "rejected"
+        restock_request.comments = "Insufficient manufactured product inventory."
+      restock_request.save()

@@ -29,4 +29,15 @@ urlpatterns = [
     path('factory-inventory/', views.factory_inventory, name='factoryInventory'),
     path('manufactured-product-details/<int:product_id>/', views.manufacturedproduct_detail, name="manufacturedProductDetails"),
     path('product-inventory-details/<int:inventory_id>/', views.product_inventory_details, name="productInventoryDetails"),
+    path('all-stores/', views.all_stores, name="allStores"),
+    path('add-store/', views.add_store, name="addStore"),
+    path('edit-store/<int:store_id>', views.edit_store, name="editStore"),
+    path('delete-store/<int:store_id>/', views.delete_store, name="deleteStore"),
+    path('restock-requests/', views.restock_requests, name="restockRequests"),
+    path('create-restock-request/', views.create_restock_request, name="createRestockRequest"),
+    path('edit-restock-request/<int:request_id>/', views.edit_restock_request, name="editRestockRequests"),
+    path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),
+    path('general-stores/', views.store_inventory_list, name="store_inventory_list"),
+    path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
+   
 ]
