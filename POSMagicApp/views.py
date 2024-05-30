@@ -8,15 +8,17 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
+from .decorators import unauthenticated_user, allowed_users
 from payment.models import Transaction, StaffCommission
 from cart.cart import Cart
 from .models import *
 from django.contrib.auth.models import User
 from .forms import AddCustomerForm, AddProductForm, EditCustomerForm, EditProductForm, AddStaffForm, EditStaffForm
 
+
 def index(request):
 	return render(request, "pages/index.html")
-
+@unauthenticated_user
 def login_user(request):
 	if request.method == 'POST':
 		username = request.POST.get('username')
@@ -26,7 +28,19 @@ def login_user(request):
 		if user is not None:
 			login(request, user)
 			messages.success(request, "User logged in")
-			return redirect('DjangoHUDApp:index')
+
+			# Redirect based on user group membership
+			if user.groups.filter(name='Finance').exists():
+				return redirect('restockRequests') # Redirect to Finance dashboard
+			elif user.groups.filter(name='Storemanager').exists():
+				return redirect('store_inventory_list')  # Redirect to Store Manager dashboard
+			elif user.groups.filter(name='Cashier').exists():
+				return redirect('DjangoHUDApp:customerOrder')  # Redirect to Cashier dashboard
+			else:
+				# Handle case where user doesn't belong to any relevant group
+				return redirect('DjangoHUDApp:index')
+
+			
 		else:
 			messages.error(request, "Invalid username or password")
 			return redirect('DjangoHUDApp:login')
@@ -53,6 +67,7 @@ def register_user(request):
 	return render(request, "pages/register.html", context)
 
 @login_required
+@allowed_users(allowed_roles=['admin'])
 def pageOrderDetails(request, transaction_id):
 	# Retrieve the transaction object from the database
 	transaction = get_object_or_404(Transaction, pk=transaction_id)
@@ -67,6 +82,7 @@ def editOrderDetails(request, transaction_id):
 ## Customer ###
 
 @login_required(login_url='/login/')
+@allowed_users(allowed_roles=['Admin','Store Manager','Finance'])
 def pageCustomer(request):
 	# get all customers
 	customers = Customer.objects.all()
@@ -75,6 +91,8 @@ def pageCustomer(request):
 	}
 	return render(request, "pages/page-customer.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin'])
 def createCustomer(request):
 	if request.method == 'POST':
 		form = AddCustomerForm(request.POST)
@@ -89,6 +107,8 @@ def createCustomer(request):
 	return render(request, "pages/create-customer.html", context)
  
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','Finance'])
 def customer_details(request, customer_id):
 	customer = get_object_or_404(Customer, pk=customer_id) # fetch customer by id
 	transactions = Transaction.objects.filter(customer = customer)
@@ -98,6 +118,8 @@ def customer_details(request, customer_id):
     }
 	return render(request, "pages/customer-details.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin'])
 def editCustomer(request, customer_id):
     customer = get_object_or_404(Customer, pk=customer_id)  # Fetch customer by ID
 
@@ -120,7 +142,8 @@ def deleteCustomer (request, customer_id):
 
 
 ## Product ##
-
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','Finance'])
 def pageProduct(request):
 	# Get all products
 	all_products = Product.objects.all()
@@ -146,6 +169,8 @@ def pageProduct(request):
 	}
 	return render(request, "pages/page-product.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','finance'])
 def pageProductDetails(request, pk):
 	product = Product.objects.get(id=pk)
 	context = {'product': product}
@@ -166,6 +191,8 @@ def createProduct(request):
 
 	return render(request, "pages/create-product.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin'])
 def editProduct(request, product_id):
     product = get_object_or_404(Product, pk=product_id)  # Fetch product by ID
 
@@ -193,6 +220,7 @@ def deleteProduct(request, product_id):
 
 ## Staff ###
 @login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','finance'])
 def staff(request):
 	all_staff = Staff.objects.all()
 	context = {
@@ -200,6 +228,8 @@ def staff(request):
     }
 	return render(request, "pages/page-staff.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin'])
 def createStaff(request):
 	if request.method == 'POST':
 		form = AddStaffForm(request.POST)
@@ -212,6 +242,8 @@ def createStaff(request):
 	context ={"form": form}
 	return render(request, "pages/create-staff.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin'])
 def editStaff(request, staff_id):
 	staff = get_object_or_404(Staff, pk=staff_id)  # Fetch staff by user ID (primary key)
 	
@@ -233,6 +265,8 @@ def deleteStaff(request, staff_id):
 	messages.success(request, "Staff deleted successfully")
 	return redirect('DjangoHUDApp:staff')
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','Finance'])
 def staff_commissions_view(request):
 	staff = request.GET.get('staff')  # Get staff member filter (optional)
 	start_date = request.GET.get('start_date')  # Get start date filter (optional)
@@ -261,6 +295,9 @@ def staff_commissions_view(request):
 
 	return render (request, 'pages/staff-commissions.html',context)
 
+
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','Cashier'])
 def posCustomerOrder(request):
 	cart = Cart(request)  # Create a Cart instance
 	
@@ -307,6 +344,8 @@ def posCustomerOrder(request):
 	}
 	return render(request, "pages/pos_customer_order.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','finance','cashier'])
 def transactionList(request):
 	transactions = Transaction.objects.all()
 	context = {

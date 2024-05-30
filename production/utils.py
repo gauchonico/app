@@ -54,7 +54,7 @@ def calculate_percentage_inclusion(ingredient, exclude_names=['Bottle Top', 'Lab
 def approve_restock_request(request_id):
   with transaction.atomic():
     restock_request = RestockRequest.objects.get(pk=request_id)
-    if restock_request.status == "pending":
+    if restock_request.status == "approved":
       inventory = ManufacturedProductInventory.objects.filter(product=restock_request.product).first()
       if inventory and inventory.quantity >= restock_request.quantity:
         # Check for existing StoreInventory record
@@ -75,7 +75,7 @@ def approve_restock_request(request_id):
           )
         inventory.quantity -= restock_request.quantity
         inventory.save()
-        restock_request.status = "approved"
+        restock_request.status = "delivered"
       else:
         restock_request.status = "rejected"
         restock_request.comments = "Insufficient manufactured product inventory."

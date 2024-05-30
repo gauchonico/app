@@ -7,14 +7,17 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+
+from POSMagicApp.decorators import allowed_users
 from .utils import approve_restock_request, cost_per_unit
 from .forms import AddSupplierForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, RestockRequestEditForm, RestockRequestForm, StoreAlertForm, StoreForm
 from .models import ManufactureProduct, ManufacturedProductInventory, ProductionIngredient, Production, RawMaterial, RestockRequest, Store, StoreAlerts, StoreInventory, Supplier, PurchaseOrder
 
 # Create your views here.
-
+@login_required(login_url='/login/')
 def productionPage(request):
     return render(request, "production_index.html")
+
 
 @login_required(login_url='/login/')
 def supplierList(request):
@@ -24,6 +27,7 @@ def supplierList(request):
     }
     return render(request, "suppliers_list.html", context)
 
+@login_required(login_url='/login/')
 def addSupplier(request):
     if request.method == 'POST':
         form = AddSupplierForm(request.POST)
@@ -36,6 +40,7 @@ def addSupplier(request):
         context = {'form': form}
     return render(request, "add-supplier.html", context)
 
+@login_required(login_url='/login/')
 def editSupplier(request, supplier_id):
     supplier = get_object_or_404(Supplier, pk=supplier_id)
     if request.method == 'POST':
@@ -50,11 +55,14 @@ def editSupplier(request, supplier_id):
 
     return render(request, "edit-supplier.html", context)
 
+@login_required(login_url='/login/')
+
 def deleteSupplier(request, supplier_id):
     supplier = get_object_or_404(Supplier, pk=supplier_id)
     supplier.delete()
     messages.success(request, "Supplier has been deleted successfully")
     return redirect('supplierList')
+
 
 @login_required(login_url='/login/')
 def rawmaterialsList(request):
@@ -64,6 +72,7 @@ def rawmaterialsList(request):
     }
     return render(request, "raw-materials-list.html", context)
 
+@login_required(login_url='/login/')
 def addRawmaterial(request):
     if request.method == 'POST':
         form = AddRawmaterialForm(request.POST)
@@ -88,6 +97,8 @@ def storeRequests(request):
         'store_alerts': store_alerts,
     }
     return render(request, "store-requests.html", context)
+
+@login_required(login_url='/login/')
 def editStoreAlerts(request, alert_id):
     store_alert = get_object_or_404(StoreAlerts, pk=alert_id)
     if request.method == 'POST':
@@ -126,6 +137,7 @@ def purchaseOderList(request):
 
 
 ### Purchase Orders #########################################################################
+@login_required(login_url='/login/')
 def createPurchaseOrder(request, rawmaterial_id):
 
     selected_rawmaterial = RawMaterial.objects.get(id=rawmaterial_id)
@@ -144,6 +156,7 @@ def createPurchaseOrder(request, rawmaterial_id):
     context = {'form': form}
     return render(request, "create-purchase-order.html", context)
 
+@login_required(login_url='/login/')
 def purhcaseOrderDetails (request, purchase_order_id):
     purchase_order = get_object_or_404(PurchaseOrder, id=purchase_order_id)
     context = {
@@ -151,6 +164,8 @@ def purhcaseOrderDetails (request, purchase_order_id):
     }
     return render (request, "purchase-order-details.html", context)
 
+
+@login_required(login_url='/login/')
 def editPurchaseOrderDetails(request, purchase_order_id):
     purchase_order = get_object_or_404(PurchaseOrder, id=purchase_order_id)
     if request.method == 'POST':
@@ -177,6 +192,9 @@ def productsList(request):
     }
     return render(request, "products-list.html", context)
 
+
+
+@login_required(login_url='/login/')
 def productDetails(request, product_id):
     product = Production.objects.get( pk=product_id)
     ingridients = ProductionIngredient.objects.filter(product=product_id)
@@ -191,6 +209,8 @@ def productDetails(request, product_id):
 #         # Always return a queryset with empty forms
 #         return super().get_queryset().none()
 
+
+@login_required(login_url='/login/')
 def create_product(request):
     ingredient_formset =  inlineformset_factory(Production, ProductionIngredient, form=ProductionIngredientForm, extra=5)
     if request.method == 'POST':
@@ -221,6 +241,8 @@ def create_product(request):
         formset = ingredient_formset()
     return render(request, 'create-product.html', {'product_form': product_form, 'formset': formset})
 
+
+@login_required(login_url='/login/')
 def testProduct(request, product_id):
     product = Production.objects.get(pk=product_id)
     raw_materials = RawMaterial.objects.all()  # Get all available raw materials
@@ -264,6 +286,8 @@ def testProduct(request, product_id):
 
 #     return render(request, 'add-ingredients.html', {'production_form': production_form, 'ingredient_formset': ingredient_formset})
 
+
+@login_required(login_url='/login/')
 def edit_product(request, product_id):
     # Retrieve the product instance to edit
     product = get_object_or_404(Production, pk=product_id)
@@ -292,6 +316,8 @@ def edit_product(request, product_id):
     # Render the edit-product.html template with the forms
     return render(request, 'product-edit.html', {'product': product, 'product_form': product_form, 'formset': formset})
 
+
+@login_required(login_url='/login/')
 def manufacture_product(request, product_id):
     product = Production.objects.get(pk=product_id)
     
@@ -377,6 +403,7 @@ def factory_inventory(request):
     return render(request, 'manufactured-product-inventory.html', context)
 
 @login_required(login_url='/login/')
+@allowed_users(allowed_roles=['admin','storemanager','Finance'])
 def manufactured_products_list(request):
     """
     View to display a list of all manufactured products.
@@ -392,6 +419,7 @@ def manufactured_products_list(request):
 
     return render(request, 'manufactured-product-list.html', context)
 
+@login_required(login_url='/login/')
 def manufacturedproduct_detail(request, product_id):
     manufactured_product = get_object_or_404(ManufactureProduct, pk=product_id)
     product = manufactured_product.product
@@ -444,6 +472,7 @@ def get_raw_material_price(raw_material_name):
   except RawMaterial.DoesNotExist:
     return None  #
 
+@login_required(login_url='/login/')
 def product_inventory_details(request, inventory_id):
 
     inventory_item = get_object_or_404(ManufacturedProductInventory, pk=inventory_id)  # Assuming Production model represents product
@@ -457,6 +486,7 @@ def product_inventory_details(request, inventory_id):
     }
     return render (request, 'product-inventory-details.html', context)
 
+@login_required(login_url='/login/')
 def all_stores(request):
     stores = Store.objects.all()
     context = {
@@ -464,6 +494,7 @@ def all_stores(request):
     }
     return render (request, 'all-stores.html', context)
 
+@login_required(login_url='/login/')
 def add_store(request):
     form = StoreForm
     if request.method == 'POST':
@@ -478,6 +509,8 @@ def add_store(request):
     }
     return render(request, 'add-store.html', context)
 
+
+@login_required(login_url='/login/')
 def edit_store(request, store_id):
     store = get_object_or_404(Store, pk=store_id)  # Fetch store by ID
     if request.method == 'POST':
@@ -491,6 +524,8 @@ def edit_store(request, store_id):
     context = {'form': form}
     return render(request, 'edit-store.html', context)
 
+
+@login_required(login_url='/login/')
 def delete_store(request, store_id):
     store = get_object_or_404(Store, pk=store_id)
     if request.method == 'POST':
@@ -499,6 +534,8 @@ def delete_store(request, store_id):
     context = {'store': store}
     return render(request, 'delete-store.html', context)
 
+
+@login_required(login_url='/login/')
 def restock_requests (request):
     restock_requests = RestockRequest.objects.all().order_by('-request_date')
     context = {
@@ -507,6 +544,8 @@ def restock_requests (request):
     
     return render(request, 'restock-requests.html', context)
 
+
+@login_required(login_url='/login/')
 def create_restock_request(request):
     if request.method == 'POST':
         form = RestockRequestForm(request.POST)
@@ -520,6 +559,8 @@ def create_restock_request(request):
     
     return render(request, 'create-restock-requests.html', context)
 
+
+@login_required(login_url='/login/')
 def edit_restock_request(request, request_id):
     restock_request = get_object_or_404(RestockRequest, pk=request_id)
 
@@ -539,17 +580,25 @@ def edit_restock_request(request, request_id):
 def approve_restock_requests(request, request_id):
   restock_request = get_object_or_404(RestockRequest, pk=request_id)
 
-  if restock_request.status == "pending":  # Check if request is pending
+  if restock_request.status == "approved":  # Check if request is pending
     with transaction.atomic():
       approve_restock_request(request_id)  # Call your approval function
   
   # Redirect to the restock request list view after approval (or display a message)
   return redirect('restockRequests')
 
+def finance_approve_request(request, request_id):
+    restock_request = get_object_or_404(RestockRequest, pk=request_id)
+
+    if restock_request.status == "pending":
+        restock_request.status = "approved"
+        restock_request.save()
+    return redirect('restockRequests')
+
 def reject_restock_request(request, request_id):
   restock_request = get_object_or_404(RestockRequest, pk=request_id)
 
-  if restock_request.status == "pending":
+  if restock_request.status in ("pending","approved"):
     restock_request.status = "rejected"
     restock_request.save()
 
@@ -557,6 +606,7 @@ def reject_restock_request(request, request_id):
   return redirect('restockRequests')
 
 
+@login_required(login_url='/login/')
 def store_inventory_list(request):
     stores = Store.objects.all()  # Get all stores
     # Get all store inventory objects (optional: filter or order)

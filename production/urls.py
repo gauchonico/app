@@ -39,5 +39,6 @@ urlpatterns = [
     path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),
     path('general-stores/', views.store_inventory_list, name="store_inventory_list"),
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
+    path('finance-approval/<int:request_id>', views.finance_approve_request, name="finance_approval"),
    
 ]

@@ -169,6 +169,7 @@ class RestockRequest(models.Model):
     status = models.CharField(max_length=255, choices=[
         ("pending", "Pending"),
         ("approved", "Approved"),
+        ("delivered", "Delivered"),
         ("rejected", "Rejected"),
     ], default="pending")
     comments = models.TextField(blank=True)  # Optional: Comments or reasons for rejection
