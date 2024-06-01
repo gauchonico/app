@@ -21,6 +21,8 @@ def checkout(request):
     quantities = cart.get_quants
     totals = cart.cart_total()
 
+    print(quantities())
+
     if request.method == 'POST':
         order_details_form = OrderDetailsForm(request.POST)
 
@@ -28,9 +30,17 @@ def checkout(request):
             order_details = order_details_form.save(commit=False)
             order_details.save()
 
-             # Calculate commission based on chosen commission rate
+             # Calculate commission based on chosen commission rate exclude saloon materials
+            allowed_commission_products = cart_products.exclude(category="SALOOMATERIALS")
+            allowed_total = 0
+            for key, value in quantities().items():
+                key = int(key)
+                for product in allowed_commission_products:
+                    if product.id == key:
+                        allowed_total += product.price * int(value)
+            
             commission_rate = order_details.commission_rate.percentage if order_details.commission_rate else Decimal('0.00')
-            commission_amount = totals * (commission_rate / Decimal('100.00'))  # Ensure decimal division
+            commission_amount = allowed_total * (commission_rate / Decimal('100.00'))  # Ensure decimal division
 
 
             transaction = Transaction.objects.create(

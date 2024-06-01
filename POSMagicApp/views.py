@@ -220,7 +220,7 @@ def deleteProduct(request, product_id):
 
 ## Staff ###
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','finance'])
+@allowed_users(allowed_roles=['Finance'])
 def staff(request):
 	all_staff = Staff.objects.all()
 	context = {
@@ -297,7 +297,7 @@ def staff_commissions_view(request):
 
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','Cashier'])
+@allowed_users(allowed_roles=['Finance'])
 def posCustomerOrder(request):
 	cart = Cart(request)  # Create a Cart instance
 	
@@ -345,7 +345,7 @@ def posCustomerOrder(request):
 	return render(request, "pages/pos_customer_order.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','finance','cashier'])
+@allowed_users(allowed_roles=['Finance'])
 def transactionList(request):
 	transactions = Transaction.objects.all()
 	context = {

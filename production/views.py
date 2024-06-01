@@ -403,7 +403,6 @@ def factory_inventory(request):
     return render(request, 'manufactured-product-inventory.html', context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','storemanager','Finance'])
 def manufactured_products_list(request):
     """
     View to display a list of all manufactured products.

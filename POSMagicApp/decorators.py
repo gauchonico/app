@@ -16,7 +16,7 @@ def allowed_users(allowed_roles=[]):
         return redirect('login')  # Redirect to login for anonymous users
 
       user_groups = request.user.groups.all()  # Get all user groups
-      authorized = any(group.name in allowed_roles for group in user_groups)
+      authorized = any(group.name in allowed_roles for group in user_groups) or request.user.is_superuser
 
       if authorized:
         return view_func(request, *args, **kwargs)
