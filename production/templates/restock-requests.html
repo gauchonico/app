@@ -64,7 +64,7 @@
 					<!-- BEGIN list-group-item -->
                     {% for request in restock_requests %}
                         {% if request.status == 'pending' %}
-                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3">
+                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3" id="pending-requests">
                             <div class="me-3 pt-1">
                                 <i class="far fa-question-circle text-warning fa-fw fa-lg"></i> 
                             </div>
@@ -125,11 +125,11 @@
 				</div>
 				<!-- END card-header -->
 				<!-- BEGIN list-group -->
-				<div class="list-group list-group-flush">
+				<div class="list-group list-group-flush" id="approved-requests">
 					<!-- BEGIN list-group-item -->
                     {% for request in restock_requests %}
                         {% if request.status == 'approved' %}
-                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3">
+                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3" id="approved-requests">
                             <div class="me-3 pt-1">
                                 <i class="bi bi-check-circle-fill text-success fa-fw fa-lg"></i> 
                             </div>
@@ -145,7 +145,7 @@
                                 <hr class="my-3">
                                 <div class="d-flex align-items-center mb-2">
                                     <div class="fw-400 me-2">
-                                        Progress progress:
+                                        Ready for Delivery:
                                     </div>
                                     <div class="progress progress-xs w-100px me-2 ms-auto" style="height: 6px;">
                                         <div class="progress-bar progress-bar-striped bg-success" style="width: 80%;"></div>
@@ -195,7 +195,7 @@
 					<!-- BEGIN list-group-item -->
                     {% for request in restock_requests %}
                         {% if request.status == 'delivered' %}
-                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3">
+                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3" id="delivered-requests">
                             <div class="me-3 pt-1">
                                 <i class="bi bi-truck text-primary fa-fw fa-lg"></i> 
                             </div>
@@ -255,7 +255,7 @@
 					<!-- BEGIN list-group-item -->
                     {% for request in restock_requests %}
                         {% if request.status == 'rejected' %}
-                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3">
+                        <a href="#" class="list-group-item list-group-item-action d-flex ps-3" id="rejected-requests">
                             <div class="me-3 pt-1">
                                 <i class="bi bi-x-circle-fill text-danger fa-fw fa-lg"></i> 
                             </div>
@@ -271,13 +271,14 @@
                                 <hr class="my-3">
                                 <div class="d-flex align-items-center mb-2">
                                     <div class="fw-400 me-2">
-                                        Progress progress:
+                                        Attention!
                                     </div>
                                     <div class="progress progress-xs w-100px me-2 ms-auto" style="height: 6px;">
                                         <div class="progress-bar progress-bar-striped bg-danger" style="width: 5%;"></div>
                                     </div>
                                     <div class="fs-12px">0%</div>
                                 </div>
+								<a href="{% url 'editRestockRequests' request.pk %}">Edit</a>
                             </div>
                         </a>
                     
@@ -287,7 +288,9 @@
 				<!-- END list-group -->
 				<!-- BEGIN card-arrow -->
 				<div class="card-arrow">
-					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-left">
+						
+					</div>
 					<div class="card-arrow-top-right"></div>
 					<div class="card-arrow-bottom-left"></div>
 					<div class="card-arrow-bottom-right"></div>
@@ -305,9 +308,10 @@
 
 
 {% block outter_content %}
+
     <!-- BEGIN row -->
     
 	<!-- BEGIN modal -->
 
 	<!-- END modal -->
-{% endblock %}
+{% endblock outter_content%}

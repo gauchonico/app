@@ -140,3 +140,10 @@ class RestockRequestEditForm(forms.ModelForm):
     class Meta:
         model = RestockRequest
         fields = ['product', 'store', 'quantity', 'status', 'comments']
+        widgets = {
+            'product': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+            'comments': forms.Textarea(attrs={'class':'form-control'}),
+            'store': forms.Select(attrs={'class':'form-control'}),
+            'status': forms.Select(attrs={'class':'form-control'}),
+        }

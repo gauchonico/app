@@ -537,8 +537,13 @@ def delete_store(request, store_id):
 @login_required(login_url='/login/')
 def restock_requests (request):
     restock_requests = RestockRequest.objects.all().order_by('-request_date')
+
+    user_groups = request.user.groups.all()  # This retrieves all groups the user belongs to
+    user_group = user_groups.first()
+
     context = {
        'restock_requests': restock_requests,
+       'user_group': user_group,
     }
     
     return render(request, 'restock-requests.html', context)
@@ -562,19 +567,19 @@ def create_restock_request(request):
 @login_required(login_url='/login/')
 def edit_restock_request(request, request_id):
     restock_request = get_object_or_404(RestockRequest, pk=request_id)
-
+    form = RestockRequestEditForm(instance=restock_request)
     if request.method == 'POST':
-        form = RestockRequestEditForm(request.POST, instance=restock_request)
         if form.is_valid():
             form.save()
             return redirect('restockRequests')
         else:
-            form = RestockRequestEditForm()
+            form = RestockRequestEditForm(instance=restock_request)  # Create an empty form for GET requests
+            # Form is already defined, no need to re-initialize here
 
-    context ={
-        'restock_request':restock_request,
+    context = {
+        'form': form,
     }
-    return render(request, 'edit-restock-requests.html',context)
+    return render(request, 'edit-restock-requests.html', context)
 
 def approve_restock_requests(request, request_id):
   restock_request = get_object_or_404(RestockRequest, pk=request_id)

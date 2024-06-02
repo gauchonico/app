@@ -1,9 +1,11 @@
+import subprocess
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.db.models import Q
 from django.views import generic
 from django.http import HttpResponse
+from django.template.loader import render_to_string
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -67,7 +69,7 @@ def register_user(request):
 	return render(request, "pages/register.html", context)
 
 @login_required
-@allowed_users(allowed_roles=['admin'])
+@allowed_users(allowed_roles=['Finance','Cashier'])
 def pageOrderDetails(request, transaction_id):
 	# Retrieve the transaction object from the database
 	transaction = get_object_or_404(Transaction, pk=transaction_id)
@@ -76,13 +78,53 @@ def pageOrderDetails(request, transaction_id):
 	}
 
 	return render(request, "pages/page-order-details.html", context)
-def editOrderDetails(request, transaction_id):
-	transaction = get_object_or_404(Transaction, pk=transaction_id)
+
+def update_transaction_status(request, transaction_id):
+    try:
+        transaction = Transaction.objects.get(pk=transaction_id)
+        if transaction.status == 'pending':
+            transaction.status = 'paid'
+            transaction.save()
+            # Success message or redirect to confirmation page (optional)
+            return redirect('pageOrderDetails', transaction.id)  # Redirect example
+    except Transaction.DoesNotExist:
+        # Handle transaction not found error (optional)
+        pass
+    return HttpResponse('Transaction not found or update failed.')  # Error response
+
+def generate_pdf(request, transaction_id):
+    try:
+        transaction = Transaction.objects.get(pk=transaction_id)
+        context = {'transaction': transaction}
+        html_string = render_to_string('page-order-details.html', context)
+
+        # Use wkhtmltopdf command (adjust paths if needed)
+        pdf_filename = f'receipt-{transaction_id}.pdf'
+        subprocess.run(['wkhtmltopdf', '-quiet', '-O', 'portrait', 'your_receipt_template.html', pdf_filename])
+
+        # Read generated PDF content
+        with open(pdf_filename, 'rb') as f:
+            pdf_content = f.read()
+
+        # Remove the temporary PDF file (optional)
+        # os.remove(pdf_filename)  # Uncomment if needed
+
+        # Set appropriate content type and filename
+        response = HttpResponse(pdf_content, content_type='application/pdf')
+        response.headers['Content-Disposition'] = f'attachment; filename={pdf_filename}'
+
+        return response
+    except Transaction.DoesNotExist:
+        return HttpResponse('Transaction not found.')
+    except Exception as e:
+        print(f"Error generating PDF: {e}")
+        return HttpResponse('Failed to generate PDF.')
+
 
 ## Customer ###
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Admin','Store Manager','Finance'])
+@allowed_users(allowed_roles=['Finance','Cashier'])
 def pageCustomer(request):
 	# get all customers
 	customers = Customer.objects.all()
@@ -92,7 +134,7 @@ def pageCustomer(request):
 	return render(request, "pages/page-customer.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin'])
+@allowed_users(allowed_roles=['Finance'])
 def createCustomer(request):
 	if request.method == 'POST':
 		form = AddCustomerForm(request.POST)
@@ -143,7 +185,7 @@ def deleteCustomer (request, customer_id):
 
 ## Product ##
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','Finance'])
+@allowed_users(allowed_roles=['Finance','Cashier'])
 def pageProduct(request):
 	# Get all products
 	all_products = Product.objects.all()
@@ -170,13 +212,15 @@ def pageProduct(request):
 	return render(request, "pages/page-product.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','finance'])
+@allowed_users(allowed_roles=['Finance'])
 def pageProductDetails(request, pk):
 	product = Product.objects.get(id=pk)
 	context = {'product': product}
 
 	return render(request, "pages/page-product-details.html", context)
 
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['Finance'])
 def createProduct(request):
 
 	if request.method == 'POST':
@@ -192,7 +236,7 @@ def createProduct(request):
 	return render(request, "pages/create-product.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin'])
+@allowed_users(allowed_roles=['Finance'])
 def editProduct(request, product_id):
     product = get_object_or_404(Product, pk=product_id)  # Fetch product by ID
 
@@ -207,6 +251,7 @@ def editProduct(request, product_id):
     context = {'form': form, 'product': product}
     return render(request, 'pages/edit_product.html', context)
 
+@login_required(login_url='/login/')
 def productDetails (request):
 	return render(request, "pages/product_details.html")
 
@@ -229,7 +274,7 @@ def staff(request):
 	return render(request, "pages/page-staff.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin'])
+@allowed_users(allowed_roles=['Finance'])
 def createStaff(request):
 	if request.method == 'POST':
 		form = AddStaffForm(request.POST)
@@ -243,7 +288,6 @@ def createStaff(request):
 	return render(request, "pages/create-staff.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin'])
 def editStaff(request, staff_id):
 	staff = get_object_or_404(Staff, pk=staff_id)  # Fetch staff by user ID (primary key)
 	
@@ -266,7 +310,7 @@ def deleteStaff(request, staff_id):
 	return redirect('DjangoHUDApp:staff')
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','Finance'])
+@allowed_users(allowed_roles=['Finance'])
 def staff_commissions_view(request):
 	staff = request.GET.get('staff')  # Get staff member filter (optional)
 	start_date = request.GET.get('start_date')  # Get start date filter (optional)
@@ -297,7 +341,7 @@ def staff_commissions_view(request):
 
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Finance'])
+@allowed_users(allowed_roles=['Finance','Cashier'])
 def posCustomerOrder(request):
 	cart = Cart(request)  # Create a Cart instance
 	
@@ -345,7 +389,7 @@ def posCustomerOrder(request):
 	return render(request, "pages/pos_customer_order.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Finance'])
+@allowed_users(allowed_roles=['Finance','Cashier'])
 def transactionList(request):
 	transactions = Transaction.objects.all()
 	context = {

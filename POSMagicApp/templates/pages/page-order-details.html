@@ -95,9 +95,15 @@
 						</tbody>
 					</table>
 				</div>
+				{% if transaction.status == 'pending' %}
 				<div class="card-footer bg-none d-flex p-3">
-					<a href="#" class="btn btn-outline-theme ms-auto">Edit Order Details</a>
+					<a href="{% url 'DjangoHUDApp:mark_transaction' transaction.id %}" class="btn btn-outline-white ms-auto">Mark Transaction as Paid</a>
 				</div>
+				{% else %}
+				<div class="card-footer bg-none d-flex p-3">
+					<button onclick="window.print()" class="btn btn-indigo ms-auto">Make Reciept</button>
+				</div>
+				{% endif %}
 				<div class="card-arrow">
 					<div class="card-arrow-top-left"></div>
 					<div class="card-arrow-top-right"></div>
