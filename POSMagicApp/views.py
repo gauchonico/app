@@ -86,11 +86,10 @@ def update_transaction_status(request, transaction_id):
             transaction.status = 'paid'
             transaction.save()
             # Success message or redirect to confirmation page (optional)
-            return redirect('pageOrderDetails', transaction.id)  # Redirect example
+            return redirect('DjangoHUDApp:pageOrder')  # Redirect example
     except Transaction.DoesNotExist:
         # Handle transaction not found error (optional)
         pass
-    return HttpResponse('Transaction not found or update failed.')  # Error response
 
 def generate_pdf(request, transaction_id):
     try:
@@ -212,7 +211,7 @@ def pageProduct(request):
 	return render(request, "pages/page-product.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Finance'])
+@allowed_users(allowed_roles=['Finance','Cashier'])
 def pageProductDetails(request, pk):
 	product = Product.objects.get(id=pk)
 	context = {'product': product}
