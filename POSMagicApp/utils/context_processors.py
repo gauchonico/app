@@ -65,6 +65,11 @@ def sidebar_menu(request):
          'text': 'Products',
          'name': 'productsList'
     },{
+        'url': '/production/production-production-orders/',
+        'icon': 'bi bi-node-plus-fill',
+        'text': 'Production Orders',
+        'name': 'productionProduction'
+    },{
         'url': '/production/manufactured-product-list/',
         'icon': 'bi bi-speedometer',
         'text': 'Production Center',
@@ -101,6 +106,20 @@ def sidebar_menu(request):
          'text': 'STORES',
          'is_header': 1
     },{
+        'icon': 'bi bi-node-plus-fill',
+        'text': 'Production Orders',
+        'children': [{
+            'url': '/production/production-orders/',
+            'icon': 'bi bi-reciept',
+            'text': 'Production Orders',
+            'name': 'productionList'
+        },{
+            'url': '/production/create_production_order/',
+            'icon': 'bi bi-node-plus-fill',
+            'text': 'Create Prodcution Order',
+            'name': 'create_production_order'
+        }]
+    },{
         'url': '/production/all-stores/',
         'icon': 'bi bi-shop',
         'text': 'All Stores',
@@ -115,6 +134,24 @@ def sidebar_menu(request):
         'icon': 'bi bi-boxes',
         'text': 'General Stores',
         'name': 'store_inventory_list',
+    },{
+         'text': 'FINANCE',
+         'is_header': 1
+    },{
+        'url': '/production/finance-production-orders/',
+        'icon': 'bi bi-bounding-box-circles',
+        'text': 'Production Orders',
+        'name': 'financeProduction',
+    },{
+         'url': '/production/finance-purchase-orders/',
+         'icon': 'bi bi-box-seam',
+         'text': 'Raw-material P.O',
+         'name': 'financePurchase'
+    },{
+         'url': '/production/finance-restock-requests/',
+         'icon': 'bi bi-receipt',
+         'text': 'Restock Requests',
+         'name': 'financeRestockRequests',
     }]
 	
 	resolved_path = resolve(request.path_info)

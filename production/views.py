@@ -10,8 +10,8 @@ from django.db import transaction
 
 from POSMagicApp.decorators import allowed_users
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, RestockRequestEditForm, RestockRequestForm, StoreAlertForm, StoreForm
-from .models import ManufactureProduct, ManufacturedProductInventory, ProductionIngredient, Production, RawMaterial, RestockRequest, Store, StoreAlerts, StoreInventory, Supplier, PurchaseOrder
+from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, StoreAlertForm, StoreForm
+from .models import ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, Store, StoreAlerts, StoreInventory, Supplier, PurchaseOrder
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -90,7 +90,7 @@ def storeManagement(request):
 
 @login_required(login_url='/login/')
 def storeRequests(request):
-    porders = PurchaseOrder.objects.all()
+    porders = PurchaseOrder.objects.all().order_by('-created_at')
     store_alerts = StoreAlerts.objects.filter(handled=False)
     context = {
         'porders': porders,
@@ -212,7 +212,7 @@ def productDetails(request, product_id):
 
 @login_required(login_url='/login/')
 def create_product(request):
-    ingredient_formset =  inlineformset_factory(Production, ProductionIngredient, form=ProductionIngredientForm, extra=5)
+    ingredient_formset =  inlineformset_factory(Production, ProductionIngredient, form=ProductionIngredientForm, extra=7)
     if request.method == 'POST':
         product_form = ProductionForm(request.POST)
         formset = ingredient_formset(request.POST)
@@ -366,7 +366,8 @@ def manufacture_product(request, product_id):
                     manufactured_product_inventory.save()  # Update existing inventory
                 
                 cost_per = cost_per_unit(product)
-                total_cost = (cost_per * quantity) + (labor_cost_per_unit * quantity)
+                # total_cost = (cost_per * quantity) + (labor_cost_per_unit * quantity)
+                total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per) + (labor_cost_per_unit * quantity)
                 
                 context ={
                     'cost_per': cost_per,
@@ -618,3 +619,145 @@ def store_inventory_list(request):
 
     context = {'store_inventory': store_inventory, 'stores':stores }
     return render(request, 'general-stores.html', context)
+
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles='Finance')
+def create_production_order(request):
+    if not request.user.groups.filter(name='Finance').exists():
+        messages.error(request, "You don't have permission to create production orders.")
+        return redirect('store_inventory_list')  # Redirect to homepage on permission error
+
+    if request.method == 'POST':
+        form = ProductionOrderForm(request.POST)
+        if form.is_valid():
+            product = form.cleaned_data['product']
+            quantity = form.cleaned_data['quantity']
+            notes = form.cleaned_data['notes']
+            target_completion_date = form.cleaned_data['target_completion_date']
+
+            # Check for sufficient raw materials (optional)
+            # ... (implement logic to check raw material stock)
+
+            production_order = ProductionOrder.objects.create(
+                product=product,
+                quantity=quantity,
+                notes=notes,
+                target_completion_date=target_completion_date,
+                requested_by=request.user,
+            )
+            messages.success(request, f"Production order created for {quantity} units of {product.product_name}")
+            return redirect('productionList')  # Redirect to production order list
+    else:
+        form = ProductionOrderForm()
+
+    context = {'form': form}
+    return render(request, 'create_production_order.html', context)
+
+def list_production_orders(request):
+    production_orders = ProductionOrder.objects.all().order_by('-created_at')  # Order by creation date descending
+
+    context = {'production_orders': production_orders}
+    return render(request, 'production_order_list.html', context)
+
+def finance_view_production_orders(request):
+    production_orders = ProductionOrder.objects.all().order_by('-created_at')  # Order by creation date descending
+    context = {'production_orders': production_orders}
+    return render(request, 'finance_production_order.html', context)
+def finance_view_purchase_orders(request):
+    statuses = ['pending','approved']
+    purchase_orders = PurchaseOrder.objects.filter(status__in = statuses).order_by('-created_at')  # Order by creation date descending
+    context = {'purchase_orders': purchase_orders}
+    return render(request, 'finance_purchase_orders.html', context)
+
+def approve_purchase_order(request, purchaseo_id):
+    purchase_order = get_object_or_404(PurchaseOrder, pk=purchaseo_id)
+    if request.method == 'POST':
+        form = ApprovePurchaseForm(request.POST, instance=purchase_order)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Purchase Order Details have been updated successfully")
+            return redirect ('financePurchase')
+        else:
+            messages.error(request, "Failed to update Purchase Order Details. Please check the form.")
+            print(form.errors)
+    else:
+        form = ApprovePurchaseForm(instance=purchase_order)
+        
+    context = {'form': form}
+    return render(request, 'approve_purchase_order.html', context)
+
+def productions_view_production_orders(request):
+    production_orders = ProductionOrder.objects.filter(status__in=['Approved', 'In Progress', 'Completed']).order_by('-created_at')  # Order by creation date descending
+    context = {'production_orders': production_orders}
+    return render(request, 'production_production_orders.html', context)
+
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles='Finance')
+def approve_production_order(request, pk):
+    if not request.user.groups.filter(name='Finance').exists():
+        messages.error(request, "You don't have permission to create production orders.")
+        return redirect('store_inventory_list')  # Redirect to homepage on permission error
+    
+    production_order = ProductionOrder.objects.get(pk=pk)
+    if request.method == 'POST':
+        approved_quantity = request.POST.get('approved_quantity')
+        if approved_quantity:
+            try:
+                approved_quantity = int(approved_quantity)
+                if approved_quantity <= 0:
+                    messages.error(request, "Approved quantity must be a positive integer.")
+                elif approved_quantity > production_order.quantity:
+                    messages.error(request, "Approved quantity cannot be greater than requested quantity.")
+                else:
+                    production_order.approved_quantity = approved_quantity
+                    production_order.status = 'Approved'
+                    production_order.save()
+                    messages.success(request, f"Production order approved for {approved_quantity} units.")
+                    # Create notification
+                    notification = Notification.objects.create(
+                        recipient=production_order.requested_by,
+                        verb='Your production order has been approved!',
+                        description=f"Order #{production_order.pk} for '{production_order.product.product_name}' has been approved and is ready for production (approved quantity: {approved_quantity} units).",
+                    )
+                    return redirect('financeProduction')
+            except ValueError:
+                messages.error(request, "Invalid approved quantity. Please enter a number.")
+    context = {'production_order': production_order}
+    return render(request, 'approve_production_order.html', context)
+
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles='Finance')
+def start_production_progress(request, pk):
+    if not request.user.groups.filter(name='Finance').exists():
+        messages.error(request, "You don't have permission to create production orders.")
+        return redirect('store_inventory_list')  # Redirect to homepage on permission error
+    production_order = ProductionOrder.objects.get(pk=pk)
+    if production_order.status == 'Approved':
+        production_order.status = 'In Progress'  # Update status to In Progress
+        production_order.save()
+        messages.success(request, f"Production progress started for order {production_order.pk}.")
+    else:
+        messages.error(request, "Order status must be 'Approved' to start progress.")
+    return redirect('productionProduction')
+
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles='Finance')
+def finance_restock_requests(request):
+    restock_requests = RestockRequest.objects.all()  # Order by creation date descending
+    context = {'restock_requests': restock_requests}
+    return render(request, 'finance_restock_requests.html', context)
+
+def finance_approve_restock_requests(request, pk):
+    restock_request = RestockRequest.objects.get(pk=pk)  # Order by creation date descending
+    form = RestockApproveForm(request.POST, instance=restock_request)
+    if request.method == 'POST':  
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Restock Request Details have been updated successfully")
+            return redirect ('financeRestockRequests')
+        else:
+            form = RestockApproveForm(instance=restock_request)
+
+    context = {'form': form}
+    return render(request, 'approve_restock_order.html', context)
+

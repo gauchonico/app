@@ -27,4 +27,6 @@ admin.site.register(Store)
 admin.site.register(StoreInventory)
 admin.site.register(StockTransfer)
 admin.site.register(RestockRequest)
+admin.site.register(ProductionOrder)
+admin.site.register(Notification)
 

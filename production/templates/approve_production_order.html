@@ -2,9 +2,10 @@
 
 {% load static %}
 
-{% block title %}Table Plugins{% endblock %}
+{% block title %}Production Order Approval{% endblock %}
 
 {% block css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr/latest/toastr.min.css">
     <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -12,6 +13,7 @@
 {% endblock %}
 
 {% block js %}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
     <script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
     <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
@@ -42,56 +44,45 @@
                         <div class="col-xl-9">
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="#">PRODUCTS</a></li>
-                                <li class="breadcrumb-item active">ROLL OUT NEW PRODUCT</li>
+                                <li class="breadcrumb-item active">APPROVE PRODUCTION ORDER</li>
                             </ul>
                             
                             <h1 class="page-header">
-                                New Product <small>page header description goes here...</small>
+                                APPROVE ORDER <small>page header description goes here...</small>
                             </h1>
                             
                             <hr class="mb-4">
                             
                             <!-- BEGIN #datatable -->
-                            <h1>Add Raw Materials to {{ product.product_name }}</h1>
-                        <!-- <form method="post">
-                            {% csrf_token %}
-                            {{ formset.management_form }}
-                            <div class="form-group row">
-                                <div class="col-sm-10">
-                                    {% for form in formset %}
-                                        <div class="allform">
-                                            <div class="form-group row">
-                                                <label for="{{ form.prefix }}-raw_material" class="col-sm-2 col-form-label">Raw Material:</label>
-                                                <div class="col-sm-6">
-                                                    {{ form.raw_material }}
-                                                    <span class="text-danger">{{ form.raw_material.errors }}</span>  </div>
-                                            </div>
-                                            <div class="form-group row">
-                                                <label for="{{ form.prefix }}-quantity_per_unit_product_volume" class="col-sm-2 col-form-label">Quantity per Unit Volume:</label>
-                                                <div class="col-sm-6">
-                                                    {{ form.quantity_per_unit_product_volume }}
-                                                    <span class="text-danger">{{ form.quantity_per_unit_product_volume.errors }}</span>  </div>
-                                            </div>
-                                            {% if formset.can_delete %}
-                                                <div class="form-group row">
-                                                    <div class="col-sm-2"></div>
-                                                    <div class="col-sm-6">
-                                                        <a href="#" class="btn btn-danger">Delete Ingredient</a>
-                                                    </div>
-                                                </div>
-                                        </div>
-                                        {% endif %}
-                                        <hr>
-                                    {% endfor %}
-                                </div>
-                                <div class="col-sm-2">
-                                    <button type="button" id="add_ingredient_form" class="btn btn-primary">Add Ingredient</button>
-                                    
-                                </div>
-                            </div>
+                            
+                            <h1>Approve Production Order</h1>
 
-                            <button type="submit" class="btn btn-primary">Add Ingredients</button>
-                        </form> -->
+                            {% if messages %}
+                                <ul class="messages">
+                                    {% for message in messages %}
+                                        <li {% if message.tags == 'error' %}class="error"{% endif %}>{{ message }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+
+                            <form method="post">
+                                {% csrf_token %}
+                                <p>Requested Quantity: {{ production_order.quantity }}</p>
+                                <label for="approved_quantity">Approved Quantity:</label>
+                                <p class="text-danger">Approve how many products will be able to produced.</p>
+                                <input class="form-control" type="number" name="approved_quantity" id="approved_quantity">
+                                <button class="btn btn-dark mt-4" type="submit">Approve Order</button>
+                            </form>
+
+                            <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr/latest/toastr.min.js"></script>
+                            <script>
+                                $(document).ready(function() {
+                                    // Check for error message in a hidden form field (optional)
+                                    if ($('#error_message').val()) {
+                                        toastr.error($('#error_message').val());
+                                    }
+                                });
+                            </script>
                         
                         
                         
@@ -104,8 +95,8 @@
                             <!-- BEGIN #sidebar-bootstrap -->
                             <nav id="sidebar-bootstrap" class="navbar navbar-sticky d-none d-xl-block">
                                 <nav class="nav">
-                                    <a class="nav-link active" href="{% url 'createProduct' %}">Roll Out New Product</a>
-                                    <a class="nav-link" href="#datatable" data-toggle="scroll-to">Product List</a>
+                                    <a class="nav-link active" href="{% url 'createProduct' %}">Create Production Order</a>
+                                    <a class="nav-link" href="{% url 'productionList' %}">Production Order List</a>
                                 </nav>
                             </nav>
                             <!-- END #sidebar-bootstrap -->
@@ -119,16 +110,5 @@
             <!-- END row -->
         </div>
         <!-- END container -->
-  
+        
 {% endblock %}
-<script>
-    const addform = document.getElementById('add_ingredient_form');
-    const all_form = document.getElementById('allform');
-
-    addform.addEventListener('click', function() {
-        const newform = all_form.cloneNode(true);
-
-        all_form.getElementByTagName('div')[0].appendChild(newform);
-
-    })
-</script>

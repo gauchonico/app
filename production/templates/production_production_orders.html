@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Production Orders{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+    <!-- BEGIN page-header -->
+	<div class="d-flex align-items-center mb-3">
+		<div>
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">PAGES</a></li>
+				<li class="breadcrumb-item active">PRODUCTION ORDERS</li>
+			</ul>
+			<h1 class="page-header mb-0">Production Orders</h1>
+		</div>
+		
+	</div>
+	
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-download fa-fw me-1 text-theme"></i> Export</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-upload fa-fw me-1 text-theme"></i> Bulk Import</a></div>
+		<div class="mb-md-4 mb-3 d-flex justify-content-between">
+            <div class="ms-md-4 mt-md-0 mt-2">
+                <select id="statusFilter" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="Approved">Approved</option>
+                    <option value="In Progress">In Progress</option>
+                </select>
+            </div>
+            
+        </div>
+	</div>
+
+	<div id="datatable" class="mb-5">
+		
+		<p>Request Factory to create products</p>
+		<div class="card">
+			<div class="card-body text-center">
+				<table id="datatableDefault" class="table text-nowrap w-100">
+					<thead>
+						<tr>
+							<th class="border-top-0 pt-0 pb-2">#</th>
+							<th class="border-top-0 pt-0 pb-2 text-center">Name</th>
+							<th class="border-top-0 pt-0 pb-2 text-center">Qty. Approved</th>
+							<th class="border-top-0 pt-0 pb-2 text-center">Status</th>
+							<th class="border-top-0 pt-0 pb-2 text-center">Requested by:</th>
+							<th class="border-top-0 pt-0 pb-2 text-center">Created At:</th>
+                            <th class="border-top-0 pt-0 pb-2 text-center">Target</th>
+							<th class="border-top-0 pt-0 pb-2 text-center">Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for order in production_orders %}
+						<tr>
+							<td class="align-middle">{{forloop.counter}}</td>
+							<td class="align-middle"><a href="#">{{ order.product.product_name }}</a></td>
+							<td class="align-middle text-center">{{ order.approved_quantity }}</td>
+							<td class="align-middle"><span class="badge {% if order.status == 'Created' %}border border-warning text-warning{% elif order.status == 'Approved' %}border border-success text-success{% elif order.status == 'In Progress' %}border border-primary text-primary{% else %}bg-white text-dark{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ order.status}}</span></td>
+							<td class="align-middle"><i class="bi bi-person-circle px-2 text-center"></i>{{ order.requested_by.username }}</td>
+							<td class="align-middle text-center">{{ order.created_at }}</td>
+                            <td class="align-middle">{{ order.target_completion_date }}</td>
+							<td class="align-middle">
+                                {% if order.status == 'Approved' %}
+								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
+                                    <a href="{% url 'startProgress' order.pk %}"><button class="btn btn-indigo">Start Progress</button></a>
+	
+								</div>
+                                {% elif order.status == 'In Progress' %}
+                                    <span class="text-info">You are ready for Production</span>
+                                {% elif order.status == 'Completed' %}
+                                    <span class="text-success">Completed Production</span>
+                                {% else %}
+                                    {{ order.status }}
+                                {% endif %}
+							</td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+			<div class="card-arrow">
+				<div class="card-arrow-top-left"></div>
+				<div class="card-arrow-top-right"></div>
+				<div class="card-arrow-bottom-left"></div>
+				<div class="card-arrow-bottom-right"></div>
+			</div>
+			
+		</div>
+	</div>
+	
+	<!-- BEGIN container -->
+	
+	<!-- END container -->
+{% endblock %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Customer Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}

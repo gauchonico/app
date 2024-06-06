@@ -36,12 +36,10 @@
 			</ul>
 
 			<h1 class="page-header mb-0">
-				Re-stock Dashboard
+				Re-stock Approval
 			</h1>
 		</div>
-		<div class="ms-auto">
-			<a href="{% url 'createRestockRequest' %}" class="btn btn-outline-theme"><i class="fa fa-plus-circle me-1"></i> Restock Order</a>
-		</div>
+		
 	</div>
 
 	<div class="mb-md-4 mb-3 d-md-flex">
@@ -94,7 +92,8 @@
 											<td>
 												<span class="badge d-block bg-warning text-white rounded-0 pt-5px w-70px" style="min-height: 18px">DELIVERED</span>
 											</td>
-											<td><a href="#" class="text-decoration-none text-inverse"><i class="bi bi-search"></i></a></td>
+											<td><a href="{% url 'approveRestockRequest' request.pk %}" class="text-decoration-none text-inverse"><i class="bi bi-pen-fill text-theme">APPROVE</i></a></td>
+                                            <td><a href="{% url 'editRestockRequests' request.pk %}" class="text-decoration-none text-inverse"><i class="bi bi-pen-fill text-danger">REJECT</i></a></td>
 										</tr>
 										{% endif %}
 									{% endfor %}
@@ -151,7 +150,7 @@
 											<td>
 												<span class="badge d-block bg-theme text-dark rounded-0 pt-5px w-70px" style="min-height: 18px">APPROVED</span>
 											</td>
-											<td><a href="{% url 'editRestockRequests' request.pk %}" class="text-decoration-none text-inverse"><i class="bi bi-pen-fill text-theme">DELIVER</i></a></td>
+											
 											
 										</tr>
 										{% endif %}

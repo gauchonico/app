@@ -1,9 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.db import transaction 
+from django.db import transaction
+from django.contrib.auth import get_user_model 
 
 # Create your models here.
-
+User = get_user_model()
 
 class Supplier(models.Model):
     name = models.CharField(max_length=255)
@@ -133,7 +134,9 @@ class ManufactureProduct(models.Model):
 class ManufacturedProductInventory(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
     quantity = models.IntegerField()
+    batch_number = models.CharField(max_length=50,blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)
+    expiry_date = models.DateField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.product.product_name} ({self.quantity})- Last Updated: {self.last_updated}"
@@ -195,3 +198,44 @@ class StoreInventory(models.Model):
 # total vo,ume of the product.
 # when creating a product  measurements litres make sure its capital or something
 # 
+
+class ProductionOrder(models.Model):
+    product = models.ForeignKey(
+        'Production', on_delete=models.CASCADE, related_name='production_orders'
+    )
+    quantity = models.PositiveIntegerField()
+    status = models.CharField(max_length=20, choices=[
+        ('Created', 'Created'),
+        ('Approved', 'Approved'),
+        ('In Progress', 'In Progress'),
+        ('Completed', 'Completed'),
+    ], default='Created')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+    target_completion_date = models.DateField(blank=True, null=True)
+    approved_quantity = models.PositiveIntegerField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Production Order: {self.product.product_name} - {self.quantity} units"
+    
+    def create_approval_notification(self):
+        notification = Notification.objects.create(
+            recipient=self.store_manager,
+            verb='Your production order has been approved!',
+            description=f"Order #{self.pk} for '{self.product.product_name}' has been approved and is ready for production.",
+        )
+        return notification
+
+    class Meta:
+        ordering = ['-created_at'] 
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    verb = models.CharField(max_length=255)
+    description = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.verb} - {self.description[:20]}"

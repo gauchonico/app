@@ -97,6 +97,27 @@ ProductionIngredientFormSet = inlineformset_factory(
     }
 )
 
+class ApprovePurchaseForm(forms.ModelForm):
+  class Meta:
+    model = PurchaseOrder
+    fields = ['status','supplier','raw_material','quantity','unit_price','total_cost','order_number']  # Only include the 'status' field
+    widgets = {
+      'status': forms.Select(attrs={'class':'form-control','disabled': False}),
+      'supplier': forms.TextInput(attrs={'class':'form-control','disabled': True}),
+      'raw_material': forms.TextInput(attrs={'class':'form-control','disabled': True}),
+      'quantity': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
+      'unit_price': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
+      'total_cost': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
+      'order_number': forms.TextInput(attrs={'class':'form-control','disabled': True}),
+      
+    }
+
+  def clean_status(self):
+    data = self.cleaned_data['status']
+    if data != 'Approved':
+      raise forms.ValidationError('Order status can only be set to "Approved" on this page.')
+    return data
+
 
 class ProductionIngredientForm(forms.ModelForm):
   class Meta:
@@ -111,7 +132,7 @@ class ManufactureProductForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, label="Quantity to Manufacture", widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'e.g. 3'}))
     notes = forms.CharField(required=False, label="Manufacturing Notes", widget=forms.TextInput(attrs={'class': 'form-control'}))
     batch_number = forms.CharField(required=True, label="Batch Number", widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'e.g. EMR001'}))
-    expiry_date = forms.DateField(required=True, label="Expiry Date", widget=forms.TextInput(attrs={'class': 'form-control'}))
+    expiry_date = forms.DateField(required=True, label="Expiry Date", widget=forms.TextInput(attrs={'type':'date','class': 'form-control'}))
     labor_cost_per_unit = forms.DecimalField(required=True, label="Labor Cost per Unit", widget=forms.TextInput(attrs={'class': 'form-control'}))
 
 class StoreForm(forms.ModelForm):
@@ -146,4 +167,33 @@ class RestockRequestEditForm(forms.ModelForm):
             'comments': forms.Textarea(attrs={'class':'form-control'}),
             'store': forms.Select(attrs={'class':'form-control'}),
             'status': forms.Select(attrs={'class':'form-control'}),
+        }
+class RestockApproveForm(forms.ModelForm):
+  class Meta:
+    model = RestockRequest
+    fields = ['product','quantity','requested_by', 'status','comments','store']
+    widgets = {
+      'product': forms.TextInput(attrs={'disabled': True}),
+      'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+      'requested_by': forms.TextInput(attrs={'disabled': True}),
+      'comments': forms.Textarea(attrs={'class':'form-control'}),
+      'status': forms.Select(attrs={'class':'form-control'}),
+      'store': forms.Select(attrs={'class':'form-control'}),
+    }
+
+  def clean_status(self):
+    data = self.cleaned_data['status']
+    if data != 'Approved':
+      raise forms.ValidationError('Restock order can only be approved on this page.')
+    return data
+
+class ProductionOrderForm(forms.ModelForm):
+    class Meta:
+        model = ProductionOrder
+        fields = ['product','quantity','notes','target_completion_date']
+        widgets = {
+            'product': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+            'notes': forms.Textarea(attrs={'class':'form-control'}),
+            'target_completion_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
         }

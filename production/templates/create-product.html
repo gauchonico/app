@@ -58,13 +58,26 @@
                                 {{ product_form.as_p }}
                             
                                 {{ formset.management_form }}
-                                {% for form in formset %}
-                                    {{ form.as_p }}
-                                    {% for field_error in form.errors %}
-                                        <div class="alert alert-danger" role="alert">{{ field_error }}</div>
-                                    {% endfor %}
-                                {% endfor %}
-                            
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Raw Material</th>
+                                            <th>Quantity per Unit Product Volume</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for form in formset %}
+                                            <tr>
+                                                <td>{{ form.raw_material }}</td>
+                                                <td>{{ form.quantity_per_unit_product_volume }}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="2">{{ form.errors}}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+ 
                                 <button class="btn btn-outline-theme" type="submit">Create Product</button>
                             </form>
                                 

@@ -40,5 +40,16 @@ urlpatterns = [
     path('general-stores/', views.store_inventory_list, name="store_inventory_list"),
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
     path('finance-approval/<int:request_id>', views.finance_approve_request, name="finance_approval"),
+    path('create_production_order/', views.create_production_order, name="create_production_order"),
+    path('production-orders/', views.list_production_orders, name='productionList'),
+    path('finance-approval/<int:pk>/', views.approve_production_order, name='approveProduction'),
+    path('finance-production-orders/', views.finance_view_production_orders, name='financeProduction'),
+    path('production-production-orders/', views.productions_view_production_orders, name='productionProduction'),
+    path('start-progress/<int:pk>/', views.start_production_progress, name='startProgress'),
+    path('finance-purchase-orders/', views.finance_view_purchase_orders, name='financePurchase'),
+    path('approve-purchase-orders/<int:purchaseo_id>', views.approve_purchase_order, name='approvePurchaseOrder'),
+    path('finance-restock-requests/', views.finance_restock_requests, name='financeRestockRequests'),
+    path('finance_approve_restock_request/<int:pk>', views.approve_restock_request, name='approveRestockRequest'),
+    
    
 ]

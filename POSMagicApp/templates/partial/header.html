@@ -119,14 +119,35 @@
 				<div class="menu-badge bg-theme"></div>
 			</a>
 			<div class="dropdown-menu dropdown-menu-end mt-1 w-300px fs-11px pt-1">
-				<h6 class="dropdown-header fs-10px mb-1">NOTIFICATIONS</h6>
-				<div class="d-flex align-items-center py-10px dropdown-item text-wrap fs-6 bg-inverse bg-opacity-15 text-inverse text-opacity-50 h-100px">
-					No record found
-				</div>
-				<hr class="my-0">
-				<div class="py-10px mb-n2 text-center">
-					<a href="#" class="text-decoration-none fw-bold">SEE ALL</a>
-				</div>
+				{% if user.notifications.all.exists %}
+					<div class="alert alert-info">
+						<h6 class="dropdown-header fs-10px mb-1">NOTIFICATIONS</h6>
+					<div class="dropdown-divider mt-1"></div>
+						
+							{% for notification in user.notifications.all %}
+							<a href="#" class="d-flex align-items-center py-10px dropdown-item text-wrap fw-semibold">
+								<div class="fs-20px">
+									<i class="bi bi-bag text-theme"></i>
+								</div>
+								<div class="flex-1 flex-wrap ps-3">
+									<div class="mb-1 text-inverse">{{ notification.verb }}</div>
+									<div class="small text-inverse text-opacity-50">{{ notification.description|truncatechars:50 }}</div>
+							
+									<span class="text-muted float-end">{{ notification.created_at }}</span>
+								
+								</div>
+								</a>
+								{% if notification != is_read %}
+									<div>
+										<button>Read</button>
+									</div>
+								{% endif %}
+							
+							{% endfor %}
+						
+					</div>
+				{% endif %}
+				
 			</div>
 		</div>
 		<div class="menu-item dropdown dropdown-mobile-full">

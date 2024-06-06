@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Create Restock Order{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
+	<script src="{% static 'js/demo/page-scrum-board.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+	<div class="d-flex align-items-center mb-md-3 mb-2">
+		<div class="flex-fill">
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">RESTOCK REQUESTS</a></li>
+				<li class="breadcrumb-item active">APPROVE RESTOCK ORDER</li>
+			</ul>
+
+			<h1 class="page-header mb-0">
+				Edit Re-stock Order
+			</h1>
+		</div>
+	
+	</div>
+
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="fa fa-store fa-fw fa-lg me-1 text-theme"></i> All Stores</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><i class="fa fa-users-cog fa-fw fa-lg me-1 text-theme"></i> General Inventory</div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}"><i class="far fa-folder fa-fw fa-lg me-1 text-theme"></i> View All Requests</a></div>
+	</div>
+
+	<!-- BEGIN row -->
+	<div class="row">
+		<!-- BEGIN col-4 -->
+		<div class="col-xl-4 col-lg-6">
+			<!-- BEGIN card -->
+			<form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                <button type="submit" class="btn btn-primary">Edit Request</button>
+            </form>
+			<!-- END card -->
+		</div>
+    </div>
+
+    
+{% endblock %}
+
+
+{% block outter_content %}
+    <!-- BEGIN row -->
+    
+	<!-- BEGIN modal -->
+
+	<!-- END modal -->
+{% endblock %}
