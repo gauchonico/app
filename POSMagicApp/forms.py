@@ -92,3 +92,6 @@ class EditStaffForm(forms.ModelForm):
             'specialization': forms.Select(attrs={'class':'form-control'}),
             'nin_no': forms.TextInput(attrs={'class':'form-control','placeholder':'CM960******'}),
         }
+        
+class GenerateReceiptForm(forms.Form):
+    confirmation = forms.BooleanField(label='Confirm Receipt Creation', required=True)

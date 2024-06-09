@@ -1,4 +1,5 @@
 import subprocess
+import uuid
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -11,11 +12,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 
 from .decorators import unauthenticated_user, allowed_users
-from payment.models import Transaction, StaffCommission
+from payment.models import Receipt, Transaction, StaffCommission
 from cart.cart import Cart
 from .models import *
 from django.contrib.auth.models import User
-from .forms import AddCustomerForm, AddProductForm, EditCustomerForm, EditProductForm, AddStaffForm, EditStaffForm
+from django.db import transaction
+from .forms import AddCustomerForm, AddProductForm, EditCustomerForm, EditProductForm, AddStaffForm, EditStaffForm, GenerateReceiptForm
 
 
 def index(request):
@@ -406,4 +408,43 @@ def error404(request):
 
 def handler404(request, exception = None):
 	return redirect('/404/')
+
+def generate_receipt(request, customer_id):
+    orders = Transaction.objects.filter(customer_id=customer_id, status='pending')  # Filter pending transactions
+    total_pay = sum(order.total_amount for order in orders)
+    if len(orders) == 0:
+        return redirect('DjangoHUDApp:posCustomerOrder')  # Redirect to POS page if no pending orders found
+    context = {'orders': orders,'form': GenerateReceiptForm(),'total_pay': total_pay }
+    
+    if request.method == 'POST':
+        form = GenerateReceiptForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():  # Wrap database operations in an atomic transaction
+                receipt_number = str(uuid.uuid4())[:5].upper()  # Generate 5-character alphanumeric string
+                # Create receipt object (assuming Receipt model exists)
+                customer = Customer.objects.get(pk=customer_id)
+                receipt = Receipt.objects.create(customer=customer,total_amount=total_pay,receipt_number=receipt_number)
+                for order in orders:
+                    receipt.transactions.add(order) #Add transaction to order
+                    order.status = 'paid'
+                    order.save()
+            return render(request, 'pages/receipt.html', context)
+        else:
+            # Handle form validation errors (optional)
+            pass
+
+    return render(request, 'pages/receipt.html', context)
+
+def view_receipt(request):
+    receipts = Receipt.objects.all().order_by('-created_at')  # Get all receipts ordered by creation date (descending)
+    context = {'receipts': receipts}
+    return render (request, 'pages/receipts.html',context)
+
+def customer_receipt(request,receipt_id):
+    
+    receipt = get_object_or_404(Receipt, pk=receipt_id)  # Retrieve receipt by ID (404 if not found)
+    total_bill = sum(transaction.total_amount for transaction in receipt.transactions.all())
+    context = {'receipt': receipt,'total_bill':total_bill}
+    return render (request, 'pages/customer_receipt.html',context)
+
 

@@ -31,4 +31,7 @@ urlpatterns = [
     path('page/product-details/<int:pk>/', views.pageProductDetails, name='pageProductDetails'),
     path('404/', views.error404, name='error404'),
     path('customer-order/', views.posCustomerOrder, name='customerOrder'),
+    path('reciept/<int:customer_id>/', views.generate_receipt, name='generate_receipt'),
+    path('page/reciepts/', views.view_receipt, name='view_receipt'),
+    path('receipt/<int:receipt_id>/', views.customer_receipt, name='customer_receipt'),
 ]

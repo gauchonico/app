@@ -621,9 +621,9 @@ def store_inventory_list(request):
     return render(request, 'general-stores.html', context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles='Finance')
+@allowed_users(allowed_roles=['Finance','Storemanager'])
 def create_production_order(request):
-    if not request.user.groups.filter(name='Finance').exists():
+    if not request.user.groups.filter(name='Storemanager').exists():
         messages.error(request, "You don't have permission to create production orders.")
         return redirect('store_inventory_list')  # Redirect to homepage on permission error
 

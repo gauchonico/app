@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Receitps Page{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block js %}
+{% endblock %}
+
+{% block content %}
+
+<h1>Order Details</h1>
+
+<p>Receipt No: {{ receipt.receipt_number }}</p>
+<p>Customer: {{ receipt.customer.first_name }} {{ receipt.customer.last_name }}</p>
+<p>Order Date: {{ receipt.created_at }}</p>
+<table class="table table-striped w-auto table-hover">
+  <thead>
+    <tr>
+      <th>Transaction ID</th>
+      <th>Product List</th>  # Goods or services consumed
+      <th>Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for transaction in receipt.transactions.all %}
+      <tr>
+        <td>{{ transaction.id }}</td>
+        <td>
+          <ul>  {% for product in transaction.products.all %}
+            <li>{{ product.name }}</li>
+          {% endfor %}
+          </ul>
+        </td>
+        <td>UGX {{ transaction.total_amount }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+        <th colspan="2">Total</th>
+        <td colspan="2">UGX {{ total_bill }}</td>
+    </tr>
+</tfoot>
+</table>
+
+{% endblock content %}

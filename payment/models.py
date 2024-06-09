@@ -81,5 +81,14 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f'Order Item - {str(self.id)}'
-        
 
+
+class Receipt(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)  # Assuming Customer model exists
+    created_at = models.DateTimeField(auto_now_add=True)
+    transactions = models.ManyToManyField(Transaction)
+    receipt_number = models.CharField(max_length=5)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)  # Total amount of the receipt
+
+    def __str__(self):
+        return f"Receipt for {self.customer.first_name} - {self.created_at}"
