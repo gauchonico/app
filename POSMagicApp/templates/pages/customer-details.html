@@ -58,15 +58,16 @@
 					<div class="profile-content">
 						<ul class="profile-tab nav nav-tabs nav-tabs-v2">
 							<li class="nav-item">
-								<a href="#orders" class="nav-link active" data-bs-toggle="tab">
-									<div class="nav-field">Orders</div>
-									<div class="nav-value">{{ transactions.count }}</div>
+								<a href="#all-orders" class="nav-link active" data-bs-toggle="tab">
+									<div class="nav-field">All Orders</div>
+									<div class="nav-value"><span>{{ transactions.count }}</span></div>
 								</a>
 							</li>
 							<li class="nav-item">
-								<a href="#profile-followers" class="nav-link" data-bs-toggle="tab">
-									<div class="nav-field">Points</div>
-									<div class="nav-value">0</div>
+								<a href="#unpaid-orders" class="nav-link" data-bs-toggle="tab">
+									<div class="nav-field">Unpaid Orders</div>
+									
+									<div class="nav-value"></div>
 								</a>
 							</li>
 							
@@ -76,7 +77,7 @@
 								<div class="col-xl-8">
 									<div class="tab-content p-0">
 										<!-- BEGIN tab-pane -->
-										<div class="tab-pane fade show active" id="orders">
+										<div class="tab-pane fade show active" id="all-orders">
                                             <div class="card">
                                                 <div class="card-body text-center">
                                                     <table id="datatableDefault" class="table text-nowrap w-100">
@@ -107,7 +108,43 @@
                                                     <div class="card-arrow-bottom-left"></div>
                                                     <div class="card-arrow-bottom-right"></div>
                                                 </div>
-                                                <a href="{% url 'DjangoHUDApp:generate_receipt' customer.id %}">Generate Receipt</a>
+                                                
+                                            </div>
+                                        </div>
+										<div class="tab-pane fade show active" id="unpaid-orders">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <table id="datatableDefault" class="table text-nowrap w-100">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="border-top-0 pt-0 pb-2">#</th>
+                                                                <th class="border-top-0 pt-0 pb-2">Order No.</th>
+                                                                <th class="border-top-0 pt-0 pb-2">Order Date</th>
+                                                                <th class="border-top-0 pt-0 pb-2">Bill</th>
+                                                                
+                                                            </tr>
+                                                        </thead>
+														{% for transaction in transactions %}
+														{% if transaction.status == 'pending' %}  <tbody>
+															<tr>
+																<td class="align-middle">{{ forloop.counter }}</td>
+																<td class="align-middle"><a href="{% url 'DjangoHUDApp:pageOrderDetails' transaction.id %}">{{ transaction.id }}</a></td>
+																<td class="align-middle">{{ transaction.created_at }}</td>
+																<td class="align-middle">UGX {{ transaction.total_amount }}</td>
+															</tr>
+															</tbody>
+														{% endif %}
+														{% endfor %}
+
+                                                    </table>
+                                                </div>
+                                                <div class="card-arrow">
+                                                    <div class="card-arrow-top-left"></div>
+                                                    <div class="card-arrow-top-right"></div>
+                                                    <div class="card-arrow-bottom-left"></div>
+                                                    <div class="card-arrow-bottom-right"></div>
+                                                </div>
+                                                <a href="{% url 'DjangoHUDApp:generate_receipt' customer.id %}" class="btn btn-outline-theme">Generate Receipt</a>
                                             </div>
                                         </div>
 										<!-- END tab-pane -->

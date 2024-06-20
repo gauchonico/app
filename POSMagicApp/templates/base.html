@@ -7,6 +7,7 @@
 	<meta name="description" content="">
 	<meta name="author" content="">
 	<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+	<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
 	
 	<!-- ================== BEGIN core-css ================== -->
 	{% load static %}
@@ -18,7 +19,7 @@
 	
 	{% block css %}{% endblock %}
 </head>
-<body class="{{ bodyClass }}{% if appHeaderHide is not None %} pace-top {% endif %}" {{ bodyAttr }}>
+<body class="{{ bodyClass }}{% if appHeaderHide is not None %} pace-top {% endif %}" {{ bodyAttr }} hx-headers='{"X-CSRFToken":"{{ csrf_token }}"}'>
 	
 	<div id="app" class="app 
 		{% if appSidebarHide is not None %}app-without-sidebar{% endif %}

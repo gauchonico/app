@@ -30,4 +30,6 @@ admin.site.register(RestockRequest)
 admin.site.register(ProductionOrder)
 admin.site.register(Notification)
 admin.site.register(Receipt)
+admin.site.register(SaleItem)
+admin.site.register(StoreSale)
 

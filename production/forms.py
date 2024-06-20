@@ -2,6 +2,7 @@ from django import forms
 from .models import *
 from django.forms import inlineformset_factory
 
+
 class AddSupplierForm(forms.ModelForm):
     raw_material = forms.ChoiceField(choices=[(rm.pk, rm.name) for rm in RawMaterial.objects.all()], required=False)
     class Meta:
@@ -98,35 +99,35 @@ ProductionIngredientFormSet = inlineformset_factory(
 )
 
 class ApprovePurchaseForm(forms.ModelForm):
-  class Meta:
-    model = PurchaseOrder
-    fields = ['status','supplier','raw_material','quantity','unit_price','total_cost','order_number']  # Only include the 'status' field
-    widgets = {
-      'status': forms.Select(attrs={'class':'form-control','disabled': False}),
-      'supplier': forms.TextInput(attrs={'class':'form-control','disabled': True}),
-      'raw_material': forms.TextInput(attrs={'class':'form-control','disabled': True}),
-      'quantity': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
-      'unit_price': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
-      'total_cost': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
-      'order_number': forms.TextInput(attrs={'class':'form-control','disabled': True}),
-      
-    }
+    class Meta:
+        model = PurchaseOrder
+        fields = ['status','supplier','raw_material','quantity','unit_price','total_cost','order_number']  # Only include the 'status' field
+        widgets = {
+        'status': forms.Select(attrs={'class':'form-control','disabled': False}),
+        'supplier': forms.TextInput(attrs={'class':'form-control','disabled': True}),
+        'raw_material': forms.TextInput(attrs={'class':'form-control','disabled': True}),
+        'quantity': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
+        'unit_price': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
+        'total_cost': forms.NumberInput(attrs={'class':'form-control','disabled': True}),
+        'order_number': forms.TextInput(attrs={'class':'form-control','disabled': True}),
+        
+        }
 
-  def clean_status(self):
-    data = self.cleaned_data['status']
-    if data != 'Approved':
-      raise forms.ValidationError('Order status can only be set to "Approved" on this page.')
-    return data
+    def clean_status(self):
+        data = self.cleaned_data['status']
+        if data != 'Approved':
+            raise forms.ValidationError('Order status can only be set to "Approved" on this page.')
+        return data
 
 
 class ProductionIngredientForm(forms.ModelForm):
-  class Meta:
-    model = ProductionIngredient
-    fields = ['raw_material', 'quantity_per_unit_product_volume']
-    widgets = {
-       'raw_material': forms.Select(attrs={'class': 'form-control'}),
-       'quantity_per_unit_product_volume': forms.NumberInput(attrs={'class': 'form-control', 'placeholder':'0'}),
-    }
+    class Meta:
+        model = ProductionIngredient
+        fields = ['raw_material', 'quantity_per_unit_product_volume']
+        widgets = {
+        'raw_material': forms.Select(attrs={'class': 'form-control'}),
+        'quantity_per_unit_product_volume': forms.NumberInput(attrs={'class': 'form-control', 'placeholder':'0'}),
+        }
 
 class ManufactureProductForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, label="Quantity to Manufacture", widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'e.g. 3'}))
@@ -169,23 +170,23 @@ class RestockRequestEditForm(forms.ModelForm):
             'status': forms.Select(attrs={'class':'form-control'}),
         }
 class RestockApproveForm(forms.ModelForm):
-  class Meta:
-    model = RestockRequest
-    fields = ['product','quantity','requested_by', 'status','comments','store']
-    widgets = {
-      'product': forms.TextInput(attrs={'disabled': True}),
-      'quantity': forms.NumberInput(attrs={'class':'form-control'}),
-      'requested_by': forms.TextInput(attrs={'disabled': True}),
-      'comments': forms.Textarea(attrs={'class':'form-control'}),
-      'status': forms.Select(attrs={'class':'form-control'}),
-      'store': forms.Select(attrs={'class':'form-control'}),
-    }
+    class Meta:
+        model = RestockRequest
+        fields = ['product','quantity','requested_by', 'status','comments','store']
+        widgets = {
+        'product': forms.TextInput(attrs={'disabled': True}),
+        'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+        'requested_by': forms.TextInput(attrs={'disabled': True}),
+        'comments': forms.Textarea(attrs={'class':'form-control'}),
+        'status': forms.Select(attrs={'class':'form-control'}),
+        'store': forms.Select(attrs={'class':'form-control'}),
+        }
 
-  def clean_status(self):
-    data = self.cleaned_data['status']
-    if data != 'Approved':
-      raise forms.ValidationError('Restock order can only be approved on this page.')
-    return data
+    def clean_status(self):
+        data = self.cleaned_data['status']
+        if data != 'Approved':
+            raise forms.ValidationError('Restock order can only be approved on this page.')
+        return data
 
 class ProductionOrderForm(forms.ModelForm):
     class Meta:
@@ -197,3 +198,38 @@ class ProductionOrderForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class':'form-control'}),
             'target_completion_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
         }
+
+class SaleOrderForm(forms.Form):
+    customer = forms.ModelChoiceField(queryset=Customer.objects.all())  # Replace Customer.objects.all() with your logic
+    withhold_tax = forms.BooleanField(required=False)
+    vat = forms.BooleanField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sale_items = []  # List to store sale items
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Basic validation (optional)
+        if not self.cleaned_data.get('customer'):
+            raise forms.ValidationError("Please select a customer.")
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = StoreSale(
+            customer=self.cleaned_data['customer'],
+            withhold_tax=self.cleaned_data['withhold_tax'],
+            vat=self.cleaned_data['vat'],
+        )
+        if commit:
+            instance.save()
+        for sale_item in self.sale_items:
+            # Assuming sale_item is a dictionary with 'product' and 'quantity' keys
+            item = SaleItem(
+                sale=instance,
+                product=sale_item['product'],
+                quantity=sale_item['quantity'],
+                unit_price=sale_item['unit_price'],
+            )
+            item.save()
+        return instance

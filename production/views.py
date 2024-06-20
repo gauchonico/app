@@ -1,17 +1,19 @@
 from decimal import Decimal
+import json
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
 from django.forms import ValidationError, inlineformset_factory, modelformset_factory
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 
 from POSMagicApp.decorators import allowed_users
+from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, StoreAlertForm, StoreForm
-from .models import ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, Store, StoreAlerts, StoreInventory, Supplier, PurchaseOrder
+from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, SaleOrderForm, StoreAlertForm, StoreForm
+from .models import ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, Supplier, PurchaseOrder
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -726,11 +728,8 @@ def approve_production_order(request, pk):
     return render(request, 'approve_production_order.html', context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles='Finance')
+@allowed_users(allowed_roles=['Finance','Production Manager'])
 def start_production_progress(request, pk):
-    if not request.user.groups.filter(name='Finance').exists():
-        messages.error(request, "You don't have permission to create production orders.")
-        return redirect('store_inventory_list')  # Redirect to homepage on permission error
     production_order = ProductionOrder.objects.get(pk=pk)
     if production_order.status == 'Approved':
         production_order.status = 'In Progress'  # Update status to In Progress
@@ -760,4 +759,36 @@ def finance_approve_restock_requests(request, pk):
 
     context = {'form': form}
     return render(request, 'approve_restock_order.html', context)
+
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['Finance','Storemanager'])
+def create_store_sale(request):
+    products = ManufacturedProductInventory.objects.select_related('product').all()  # Eager loading
+    products_data = [
+    {'id': product.id, 'name': product.product.product_name}  # Access data through foreign key
+    for product in products
+    ]
+    customers = Customer.objects.all()
+    if request.method == 'POST':
+        form = SaleOrderForm(request.POST)
+        if form.is_valid():
+            sale = form.save(commit=False) # Save without creating SaleItems yet
+            for sale_item in form.sale_items:
+                # Assuming sale_item is a dictionary with 'product' and 'quantity' keys
+                product = ManufacturedProductInventory.objects.get(pk=sale_item['product'])  # Fetch product object
+                if product.stock < sale_item['quantity']:
+                    messages.error(request, f"Insufficient stock for {product.name}. Available stock: {product.stock}")
+                    continue  # Skip saving this item if insufficient stock
+
+                sale_item['product'] = product  # Update dictionary with product object
+                sale.sale_items.append(sale_item)
+            sale.save()  # Now save the sale with sale items
+            messages.success(request, "Store sale created successfully!")
+            return redirect('list_store_sales')  # Redirect to sale list view (replace 'list_store_sales' with your actual URL pattern name)
+    else:
+        form = SaleOrderForm()
+        products = ManufacturedProductInventory.objects.all()  # Assuming to list all products
+    
+    context = {'form': form, 'products_data': products_data,'customers': customers}
+    return render(request, 'create_store_sale.html', context)
 

@@ -1,0 +1,22 @@
+<form>
+    {% csrf_token %}
+    <div class="row mb-3">
+        <div class="col-4 col-md-3">
+        <label for="{{ form.product.id_for_label }}">{{ form.product.label }}</label>
+        {{ form.product }}
+        </div>
+        <div class="col-4 col-md-3">
+        <label for="{{ form.quantity.id_for_label }}">{{ form.quantity.label }}</label>
+        {{ form.quantity }}
+        </div>
+        <div class="col-4 col-md-3">
+        <label for="{{ form.unit_price.id_for_label }}">{{ form.unit_price.label }}</label>
+        {{ form.unit_price }}
+        </div>
+        <div class="col-3 align-self-end">
+            <i class="bi bi-x-circle-fill"></i>
+        </div>
+    </div>
+
+</form>
+<ul class="error-list"></ul>

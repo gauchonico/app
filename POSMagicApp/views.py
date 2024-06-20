@@ -151,7 +151,7 @@ def createCustomer(request):
  
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','Finance'])
+@allowed_users(allowed_roles=['admin','Finance','Cashier'])
 def customer_details(request, customer_id):
 	customer = get_object_or_404(Customer, pk=customer_id) # fetch customer by id
 	transactions = Transaction.objects.filter(customer = customer)

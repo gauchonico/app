@@ -49,7 +49,7 @@ urlpatterns = [
     path('finance-purchase-orders/', views.finance_view_purchase_orders, name='financePurchase'),
     path('approve-purchase-orders/<int:purchaseo_id>', views.approve_purchase_order, name='approvePurchaseOrder'),
     path('finance-restock-requests/', views.finance_restock_requests, name='financeRestockRequests'),
-    path('finance_approve_restock_request/<int:pk>', views.approve_restock_request, name='approveRestockRequest'),
+    path('finance_approve_restock_request/<int:pk>', views.finance_approve_restock_requests, name='approveRestockRequest'),
+    path('create_store_sale/', views.create_store_sale, name='createStoreSale'),
     
-   
 ]

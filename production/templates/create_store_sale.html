@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}Create Store Sale Page{% endblock %}
+
+{% block css %}
+{% endblock %}
+
+{% block js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1>Create Store Sale</h1>
+<form method="POST">
+  {% csrf_token %} 
+    <label class="form-label" for="customer">Customer:</label>
+    <select class="form-select" name="customer" id="customer">
+        {% for customer in customers %}
+            <option value="{{ customer.0 }}">{{ customer.first_name }}</option>
+        {% endfor %}
+    </select>
+
+    <h5 class="py-2 text-theme">Sale Items: </h5>
+    <div id="sale-items-container"></div>
+    <button class="btn btn-primary mb-3" type="button" onclick="addSaleItem()">Add Sale Item</button>
+
+    <div class="form-check form-switch">
+      <label class="form-check-label" for="withhold_tax">Withhold Tax:</label>
+      <input type="checkbox" class="form-check-input" name="withhold_tax" id="withhold_tax">
+    </div>
+
+    <div class="form-check form-switch">
+      <label class="form-check-label" for="vat">Apply VAT:</label>
+      <input type="checkbox" class="form-check-input" name="vat" id="vat">
+    </div>
+    <button class="btn btn-outline-theme mt-3" type="submit">Create Sale</button>
+</form>
+
+<script>
+  const productsData = {{ products_data|safe }}; // Access products_data from template context
+</script>
+<script>
+  const form = document.querySelector('form');  // Access the form element
+  const container = document.getElementById("sale-items-container");
+
+  container.addEventListener("DOMContentLoaded", function() {
+    addSaleItem(); // Call addSaleItem after DOM is loaded
+  });
+  function addSaleItem() {
+    // Create a new div element to hold the new section of the form
+      // Create a new div element to hold the new section of the form
+    const newSaleItem = document.createElement("div");
+    newSaleItem.classList.add("sale-item");
+    newSaleItem.innerHTML = `
+        <div class="row">
+            <div class="col-xl-3">
+                <label class="form-label" for="product">Product:</label>
+                <select class="form-select" name="sale_items[][product]" id="product">
+                </select>
+            </div>
+            <div class="col-xl-3">
+                <label for="quantity">Quantity:</label>
+                <input class="col-2-sm-10 form-control" type="number" name="sale_items[][quantity]" id="quantity">
+            </div>
+            <div class="col-xl-3">
+                <label class="form-label" for="unit_price">Unit Price:</label>
+                <input class="form-control" type="number" name="sale_items[][unit_price]" id="unit_price">
+            </div>
+                <button class="btn btn-danger mb-3 me-2" type="button" onclick="removeSaleItem(this)">Remove</button>
+        </div>`;
+
+    container.appendChild(newSaleItem, function(productsData) {
+      // Access the product dropdown element within the newly added section
+      const productSelect = newSaleItem.querySelector('select[name$="product"]');
+      const products = productsData; // Use the passed argument
+      
+      // Populate the product dropdown with options from your data (replace with your logic)
+      products.forEach(product => {
+        const option = document.createElement('option');
+        option.value = product.id;
+        option.text = product.name;
+        productSelect.appendChild(option);
+      });
+      // Clear the quantity and unit price fields for the newly added section
+      newSaleItem.querySelector('#quantity').value = "";
+      newSaleItem.querySelector('#unit_price').value = "";
+    });
+  }
+
+
+  function removeSaleItem(button) {
+      button.parentNode.remove();
+  }
+</script>
+
+{% endblock %}
+{% block outter_content %}
+
+{% endblock outter_content %}

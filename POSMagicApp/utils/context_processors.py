@@ -139,6 +139,11 @@ def sidebar_menu(request):
                 'name': 'create_production_order'
             }]
         },{
+            'url': '/production/create_store_sale/',
+            'icon': 'bi bi-speedometer',
+            'text': 'Create Store Sale',
+            'name':'createStoreSale'    
+        },{
             'url': '/production/all-stores/',
             'icon': 'bi bi-shop',
             'text': 'All Stores',
@@ -195,7 +200,7 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','createStoreSale']]  # Replace with your store manager menu names
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

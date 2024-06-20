@@ -1,7 +1,13 @@
+from datetime import timedelta
+from time import timezone
 from django.db import models
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.contrib.auth import get_user_model 
+from django.contrib.auth import get_user_model
+
+from POSMagicApp.models import Customer 
+from django.db.models import Sum, F
+from django.utils import timezone
 
 # Create your models here.
 User = get_user_model()
@@ -167,7 +173,7 @@ class RestockRequest(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
-    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)  # Optional: User who requested
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name="requested_restocks")  # Optional: User who requested
     request_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=255, choices=[
         ("pending", "Pending"),
@@ -176,6 +182,7 @@ class RestockRequest(models.Model):
         ("rejected", "Rejected"),
     ], default="pending")
     comments = models.TextField(blank=True)  # Optional: Comments or reasons for rejection
+    approved_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name="approved_restocks")  # User who approved/rejected
 
     def __str__(self):
         return f"Restock Request for {self.quantity} units of {self.product.product_name} from {self.store.name} (requested by: {self.requested_by.username if self.requested_by else 'N/A'})"
@@ -239,3 +246,73 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"{self.verb} - {self.description[:20]}"
+    
+#### store sales
+    
+class StoreSale(models.Model):
+    VAT_RATE = 0.18  # Default VAT rate (18%)
+    WITHHOLDING_TAX_RATE = 0.06  # Default withholding tax rate (6%)
+    PAYMENT_DURATION = timedelta(days=45)  # Default payment duration (45 days)
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    sale_date = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(max_length=255, choices=[
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("overdue", "Overdue"),
+    ], default="pending")
+    due_date = models.IntegerField(blank=True, null=True)  # Calculated due date
+    # Additional sale statuses
+    STATUS_CHOICES = (
+        ("ordered", "Ordered"),
+        ("delivered", "Delivered"),
+    )
+    status = models.CharField(max_length=255, choices=STATUS_CHOICES, default="ordered")
+    withhold_tax = models.BooleanField(default=False)  # Option to withhold tax
+    vat = models.BooleanField(default=False)  # Option to apply VAT
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Total sale amount
+
+    def __str__(self):
+        return f"Store Sale for {self.customer.first_name} on {self.sale_date.strftime('%Y-%m-%d')}"
+
+    def calculate_total(self):
+        try:
+            subtotal = self.saleitem_set.aggregate(subtotal=Sum('quantity' * F('unit_price')))['subtotal'] or 0
+            total = subtotal
+
+            # Apply VAT if selected
+            if self.vat:
+                total += subtotal * self.VAT_RATE
+
+            # Apply withholding tax if selected
+            if self.withhold_tax:
+                total -= total * self.WITHHOLDING_TAX_RATE
+
+            return total
+        except (TypeError, ValueError):
+            # Handle potential data type or conversion errors
+            return 0  # Or return a more appropriate value (e.g., None)
+
+    def save(self, *args, **kwargs):
+        # Calculate total before saving
+        self.total_amount = self.calculate_total()
+        # Calculate due date based on sale date and payment duration
+        current_time = timezone.now()
+        countdown_duration = timedelta(days=self.PAYMENT_DURATION.days)  # Extract days from timedelta
+        self.due_date = current_time - countdown_duration
+        
+        super().save(*args, **kwargs)  # Call parent save method
+        
+class SaleItem(models.Model):
+    sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
+    product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)  # Link to product
+    quantity = models.IntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Calculated total price
+
+    def __str__(self):
+        return f"{self.quantity} units of {self.product} for Sale #{self.sale.id}"
+    
+    def save(self, *args, **kwargs):
+        self.total_price = (self.quantity * self.unit_price)
+        super().save(*args, **kwargs)  # Call parent save method
