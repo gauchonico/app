@@ -51,5 +51,10 @@ urlpatterns = [
     path('finance-restock-requests/', views.finance_restock_requests, name='financeRestockRequests'),
     path('finance_approve_restock_request/<int:pk>', views.finance_approve_restock_requests, name='approveRestockRequest'),
     path('create_store_sale/', views.create_store_sale, name='createStoreSale'),
+    path('list_store_sales/', views.list_store_sales, name='listStoreSales'),
+    path('test_sale/', views.create_store_test, name="SaleTest"),
+    path('update_order_status/<int:store_sale_id>/', views.update_order_status, name='update_order_status'),
+    path('finance_list_store_sales/', views.finance_list_store_sales, name="financeListStoreSales"),
+    path('pay_order_status/<int:store_sale_id>/', views.pay_order_status, name='pay_order_status'),
     
 ]

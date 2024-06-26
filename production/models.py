@@ -1,13 +1,17 @@
 from datetime import timedelta
+from decimal import Decimal
 from time import timezone
 from django.db import models
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.forms import DecimalField
 
 from POSMagicApp.models import Customer 
 from django.db.models import Sum, F
 from django.utils import timezone
+
+
 
 # Create your models here.
 User = get_user_model()
@@ -145,7 +149,7 @@ class ManufacturedProductInventory(models.Model):
     expiry_date = models.DateField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.product.product_name} ({self.quantity})- Last Updated: {self.last_updated}"
+        return f"{self.product.product_name} batch number{self.batch_number} ({self.quantity})- Last Updated: {self.last_updated}"
 
 
  ################### stores models   
@@ -261,11 +265,12 @@ class StoreSale(models.Model):
         ("paid", "Paid"),
         ("overdue", "Overdue"),
     ], default="pending")
-    due_date = models.IntegerField(blank=True, null=True)  # Calculated due date
+    due_date = models.DateField(blank=True, null=True)  # Calculated due date
     # Additional sale statuses
     STATUS_CHOICES = (
         ("ordered", "Ordered"),
         ("delivered", "Delivered"),
+        ("paid","Paid"),
     )
     status = models.CharField(max_length=255, choices=STATUS_CHOICES, default="ordered")
     withhold_tax = models.BooleanField(default=False)  # Option to withhold tax
@@ -274,11 +279,25 @@ class StoreSale(models.Model):
 
     def __str__(self):
         return f"Store Sale for {self.customer.first_name} on {self.sale_date.strftime('%Y-%m-%d')}"
-
+    
+    
     def calculate_total(self):
+
         try:
-            subtotal = self.saleitem_set.aggregate(subtotal=Sum('quantity' * F('unit_price')))['subtotal'] or 0
-            total = subtotal
+            quantity_values = self.saleitem_set.values_list('quantity')
+            unit_price_values = self.saleitem_set.values_list('unit_price')
+            
+            # Print the retrieved values for debugging
+            print(f"Quantity values: {quantity_values}")
+            print(f"Unit price values: {unit_price_values}")
+            
+            # Check if any values are non-numeric
+            if any(not isinstance(value, (int, float, Decimal)) for value in quantity_values + unit_price_values):
+                raise ValueError("Non-numeric values encountered in quantity or unit_price")
+
+            # Proceed with the calculation assuming numeric values
+            subtotal = self.saleitem_set.aggregate(subtotal=Sum(F('quantity') * F('unit_price')))['subtotal'] or 0
+            total = subtotal  # Set total to subtotal by default
 
             # Apply VAT if selected
             if self.vat:
@@ -296,19 +315,16 @@ class StoreSale(models.Model):
     def save(self, *args, **kwargs):
         # Calculate total before saving
         self.total_amount = self.calculate_total()
-        # Calculate due date based on sale date and payment duration
-        current_time = timezone.now()
-        countdown_duration = timedelta(days=self.PAYMENT_DURATION.days)  # Extract days from timedelta
-        self.due_date = current_time - countdown_duration
-        
+        if self.sale_date:  # Check if sale_date is not None
+            self.due_date = self.sale_date + self.PAYMENT_DURATION
         super().save(*args, **kwargs)  # Call parent save method
         
 class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
     product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)  # Link to product
-    quantity = models.IntegerField()
+    quantity = models.DecimalField(max_digits=10, decimal_places=0)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Calculated total price
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, default=0)  # Calculated total price
 
     def __str__(self):
         return f"{self.quantity} units of {self.product} for Sale #{self.sale.id}"
@@ -316,3 +332,4 @@ class SaleItem(models.Model):
     def save(self, *args, **kwargs):
         self.total_price = (self.quantity * self.unit_price)
         super().save(*args, **kwargs)  # Call parent save method
+        

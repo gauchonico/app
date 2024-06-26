@@ -144,6 +144,11 @@ def sidebar_menu(request):
             'text': 'Create Store Sale',
             'name':'createStoreSale'    
         },{
+            'url': '/production/list_store_sales',
+            'icon': 'bi bi-speedometer',
+            'text': 'All Store Sales',
+            'name':'listStoreSales'
+        },{
             'url': '/production/all-stores/',
             'icon': 'bi bi-shop',
             'text': 'All Stores',
@@ -166,6 +171,11 @@ def sidebar_menu(request):
             'icon': 'bi bi-bounding-box-circles',
             'text': 'Production Orders',
             'name': 'financeProduction',
+        },{
+            'url': '/production/finance_list_store_sales/',
+            'icon': 'bi bi-bounding-box-circles',
+            'text': 'Direct Store Orders',
+            'name': 'financeListStoreSales',
         },{
             'url': '/production/finance-purchase-orders/',
             'icon': 'bi bi-box-seam',
@@ -200,11 +210,11 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','createStoreSale']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','createStoreSale','listStoreSales']]  # Replace with your store manager menu names
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales']]
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

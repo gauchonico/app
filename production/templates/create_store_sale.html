@@ -8,14 +8,16 @@
 {% endblock %}
 
 {% block js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/decimal.js/latest/decimal.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 {% endblock %}
 
 {% block content %}
 <h1>Create Store Sale</h1>
-<form method="POST">
+
+<form method="POST" id="sale-item-form">
   {% csrf_token %} 
-    <label class="form-label" for="customer">Customer:</label>
+    <label class="form-label" for="customer">Select Customer:</label>
     <select class="form-select" name="customer" id="customer">
         {% for customer in customers %}
             <option value="{{ customer.0 }}">{{ customer.first_name }}</option>
@@ -23,16 +25,17 @@
     </select>
 
     <h5 class="py-2 text-theme">Sale Items: </h5>
+    {% csrf_token %}
     <div id="sale-items-container"></div>
     <button class="btn btn-primary mb-3" type="button" onclick="addSaleItem()">Add Sale Item</button>
 
     <div class="form-check form-switch">
-      <label class="form-check-label" for="withhold_tax">Withhold Tax:</label>
+      <label class="form-check-label" for="withhold_tax">Withhold Tax: 6%</label>
       <input type="checkbox" class="form-check-input" name="withhold_tax" id="withhold_tax">
     </div>
 
     <div class="form-check form-switch">
-      <label class="form-check-label" for="vat">Apply VAT:</label>
+      <label class="form-check-label" for="vat">Apply VAT: 18%</label>
       <input type="checkbox" class="form-check-input" name="vat" id="vat">
     </div>
     <button class="btn btn-outline-theme mt-3" type="submit">Create Sale</button>
@@ -40,8 +43,6 @@
 
 <script>
   const productsData = {{ products_data|safe }}; // Access products_data from template context
-</script>
-<script>
   const form = document.querySelector('form');  // Access the form element
   const container = document.getElementById("sale-items-container");
 
@@ -59,6 +60,7 @@
                 <label class="form-label" for="product">Product:</label>
                 <select class="form-select" name="sale_items[][product]" id="product">
                 </select>
+
             </div>
             <div class="col-xl-3">
                 <label for="quantity">Quantity:</label>
@@ -68,25 +70,27 @@
                 <label class="form-label" for="unit_price">Unit Price:</label>
                 <input class="form-control" type="number" name="sale_items[][unit_price]" id="unit_price">
             </div>
-                <button class="btn btn-danger mb-3 me-2" type="button" onclick="removeSaleItem(this)">Remove</button>
+                <button class="btn btn-sm btn-danger mb-3 mx-2" type="button" onclick="removeSaleItem(this)">Remove</button>
         </div>`;
 
-    container.appendChild(newSaleItem, function(productsData) {
-      // Access the product dropdown element within the newly added section
-      const productSelect = newSaleItem.querySelector('select[name$="product"]');
-      const products = productsData; // Use the passed argument
-      
+    container.appendChild(newSaleItem);
+    // Add delete functionality to the newly added row's delete link
+    const productSelect = newSaleItem.querySelector("#product");
+    const products = productsData // Use the passed argument
+
       // Populate the product dropdown with options from your data (replace with your logic)
-      products.forEach(product => {
-        const option = document.createElement('option');
-        option.value = product.id;
-        option.text = product.name;
-        productSelect.appendChild(option);
-      });
-      // Clear the quantity and unit price fields for the newly added section
-      newSaleItem.querySelector('#quantity').value = "";
-      newSaleItem.querySelector('#unit_price').value = "";
+    products.forEach(product => {
+      const option = document.createElement('option');
+      option.value = product.id;
+      // Check expiry and add badge class if applicable
+      //const today = new Date();
+      //if (product.expiry_date && product.expiry_date < today.setDate(today.getDate() + 100)) {
+        //option.classList.add('badge');  // Add Bootstrap or Materialize CSS badge class
+      //}
+      option.text = product.name;
+      productSelect.appendChild(option);
     });
+
   }
 
 

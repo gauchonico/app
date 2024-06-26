@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Store Sales{% endblock %}
+
+{% block css %}
+	
+{% endblock %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>  
+<script>
+$(document).ready(function() {
+    var formCount = $('#sale_item_formset').children().length; // Get initial form count
+    var totalForms = $('#id_form-TOTAL_FORMS'); // Get the hidden total forms field
+
+    $('#add_more_item').click(function() {
+    formCount++; // Increment form count
+
+    var newForm = $('#sale_item_formset').children().first().clone(true); // Clone the first form
+    newForm.find('input, select, textarea').each(function() {
+        var name = $(this).attr('name');
+        var new_name = name.replace(/-0-/, '-' + formCount + '-'); // Replace form index
+        $(this).attr('name', new_name); // Update name attribute with new index
+    });
+
+    newForm.appendTo('#sale_item_formset'); // Append the cloned form to the container
+    totalForms.val(formCount); // Update the total forms hidden field
+    });
+});
+</script>
+{% block js %}
+	
+{% endblock %}
+
+{% block content %}
+	<!-- BEGIN coming-soon -->
+	<div class="">
+		<div class="flex-1">
+			<div class="coming-soon-timer">
+				<div id="timer"></div>
+			</div>
+			<!-- BEGIN coming-soon-content -->
+            <h1>Create Store Sale</h1>
+            <h3>{{ product.product_name}}</h3>
+
+            <form method="post">
+                {% csrf_token %}
+                {{ form.as_p }}
+                {{ formset.management_form }}
+                <table id="sale_item_formset">
+                    <thead>
+                        <tr>
+                            <th>Raw Material</th>
+                            <th>Quantity Purchased </th>
+                            <th>Cost Per Unit </th>
+                            <th><button type="button" id="add_more_item" class="btn btn-outline-success btn-sm">Add Item</button>
+                            </th>
+
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        {% for form in formset %}
+                        
+                            {{ form.id }} <!-- Include the ID field as a hidden input -->
+                            <tr>
+                                <td>{{ form.product }}</td>
+                                <td>{{ form.quantity }}</td>
+                                <td>{{ form.unit_price }}</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td colspan="2">{{ form.errors }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="mt-3">
+                    <button class="btn btn-outline-theme" type="submit">Create Store Sale</button>
+                </div>
+            </form>
+			<!-- END coming-soon-content -->
+		</div>
+	</div>
+	<!-- END coming-soon -->
+    <script>
+        $(document).ready(function() {
+            var formCount = $('#formset').children().length; // Get initial form count
+            var totalForms = $('#id_form-TOTAL_FORMS'); // Get the hidden total forms field
+        
+            $('#add_more_item').click(function() {
+            formCount++; // Increment form count
+        
+            var newForm = $('#formset').children().first().clone(true); // Clone the first form
+            newForm.find('input, select, textarea').each(function() {
+                var name = $(this).attr('name');
+                var new_name = name.replace(/-0-/, '-' + formCount + '-'); // Replace form index
+                $(this).attr('name', new_name); // Update name attribute with new index
+            });
+        
+            newForm.appendTo('#formset'); // Append the cloned form to the container
+            totalForms.val(formCount); // Update the total forms hidden field
+            });
+        });
+        </script>
+{% endblock %}

@@ -1,4 +1,6 @@
+from datetime import date, timedelta
 from decimal import Decimal
+
 import json
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
@@ -12,7 +14,7 @@ from django.db import transaction
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, SaleOrderForm, StoreAlertForm, StoreForm
+from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, SaleOrderForm, StoreAlertForm, StoreForm, TestForm, TestItemFormset
 from .models import ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, Supplier, PurchaseOrder
 
 # Create your views here.
@@ -570,10 +572,14 @@ def create_restock_request(request):
 @login_required(login_url='/login/')
 def edit_restock_request(request, request_id):
     restock_request = get_object_or_404(RestockRequest, pk=request_id)
-    form = RestockRequestEditForm(instance=restock_request)
-    if request.method == 'POST':
+    form = RestockRequestEditForm(request.POST or None, instance=restock_request)
+    
+    if request.method == 'POST' and request.user.is_staff:
         if form.is_valid():
-            form.save()
+            restock_request.status = form.cleaned_data['status']
+            restock_request.save()
+            
+            messages.success(request, f"Restock Request {restock_request.id} Updated Successfully!")
             return redirect('restockRequests')
         else:
             form = RestockRequestEditForm(instance=restock_request)  # Create an empty form for GET requests
@@ -585,14 +591,14 @@ def edit_restock_request(request, request_id):
     return render(request, 'edit-restock-requests.html', context)
 
 def approve_restock_requests(request, request_id):
-  restock_request = get_object_or_404(RestockRequest, pk=request_id)
+    restock_request = get_object_or_404(RestockRequest, pk=request_id)
 
-  if restock_request.status == "approved":  # Check if request is pending
-    with transaction.atomic():
-      approve_restock_request(request_id)  # Call your approval function
-  
-  # Redirect to the restock request list view after approval (or display a message)
-  return redirect('restockRequests')
+    if restock_request.status == "approved":  # Check if request is pending
+        with transaction.atomic():
+            approve_restock_request(request_id)  # Call your approval function
+
+    # Redirect to the restock request list view after approval (or display a message)
+    return redirect('restockRequests')
 
 def finance_approve_request(request, request_id):
     restock_request = get_object_or_404(RestockRequest, pk=request_id)
@@ -603,14 +609,14 @@ def finance_approve_request(request, request_id):
     return redirect('restockRequests')
 
 def reject_restock_request(request, request_id):
-  restock_request = get_object_or_404(RestockRequest, pk=request_id)
+    restock_request = get_object_or_404(RestockRequest, pk=request_id)
 
-  if restock_request.status in ("pending","approved"):
-    restock_request.status = "rejected"
-    restock_request.save()
+    if restock_request.status in ("pending","approved"):
+        restock_request.status = "rejected"
+        restock_request.save()
 
-  # Redirect to the restock request list view after rejection (or display a message)
-  return redirect('restockRequests')
+    # Redirect to the restock request list view after rejection (or display a message)
+    return redirect('restockRequests')
 
 
 @login_required(login_url='/login/')
@@ -763,32 +769,115 @@ def finance_approve_restock_requests(request, pk):
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Storemanager'])
 def create_store_sale(request):
-    products = ManufacturedProductInventory.objects.select_related('product').all()  # Eager loading
+    products = ManufacturedProductInventory.objects.all()  # Eager loading
     products_data = [
-    {'id': product.id, 'name': product.product.product_name}  # Access data through foreign key
+    {'id': product.id, 'name': product.product.product_name }  # Access data through foreign key
     for product in products
     ]
     customers = Customer.objects.all()
+
     if request.method == 'POST':
         form = SaleOrderForm(request.POST)
-        if form.is_valid():
+        sale_items = form.sale_items
+        
+        if form.is_valid() and sale_items.is_valid():
             sale = form.save(commit=False) # Save without creating SaleItems yet
+            
             for sale_item in form.sale_items:
                 # Assuming sale_item is a dictionary with 'product' and 'quantity' keys
                 product = ManufacturedProductInventory.objects.get(pk=sale_item['product'])  # Fetch product object
-                if product.stock < sale_item['quantity']:
-                    messages.error(request, f"Insufficient stock for {product.name}. Available stock: {product.stock}")
+                if product.quantity < sale_item['quantity']:
+                    messages.error(request, f"Insufficient stock for {product.product.product_name}. Available stock: {product.quantity}")
                     continue  # Skip saving this item if insufficient stock
+                
+                today = date.today()
+                if product.expiry_date is not None and product.expiry_date < today:
+                    messages.error(request, f"Product {product.product.product_name} has expired on {product.expiry_date}.")
+                    continue  # Skip saving this item if product has expired
 
                 sale_item['product'] = product  # Update dictionary with product object
                 sale.sale_items.append(sale_item)
-            sale.save()  # Now save the sale with sale items
-            messages.success(request, "Store sale created successfully!")
-            return redirect('list_store_sales')  # Redirect to sale list view (replace 'list_store_sales' with your actual URL pattern name)
+                
+            if sale.sale_items.count() > 0:    
+                sale.save()  # Now save the sale with sale items
+                messages.success(request, "Store sale created successfully!")
+                return redirect('listStoreSales')  # Redirect to sale list view (replace 'list_store_sales' with your actual URL pattern name)
+            else:
+                messages.error(request, "No valid sale items. Please check product quantities and expiry dates.")
     else:
         form = SaleOrderForm()
         products = ManufacturedProductInventory.objects.all()  # Assuming to list all products
+        sale_items = form.sale_items
     
-    context = {'form': form, 'products_data': products_data,'customers': customers}
+    context = {'form': form,'sale_items':sale_items, 'products_data': products_data,'customers': customers}
     return render(request, 'create_store_sale.html', context)
+
+def list_store_sales(request):
+    sale_orders = StoreSale.objects.all().order_by('-sale_date')  # Order by creation date descending
+    today = date.today()
+    for sale_order in sale_orders:
+        if sale_order.sale_date:
+            sale_order.due_date = sale_order.sale_date + timedelta(days=sale_order.PAYMENT_DURATION.days)
+            remaining_days = 0 # to be worked on to show countdown.
+            if remaining_days < 0:
+                remaining_days = 0  # Set remaining days to 0 if past due date
+            sale_order.remaining_days = remaining_days
+    context = {'sale_orders': sale_orders}
+    return render(request, 'list_store_sales.html', context)
+
+# finance view of all direct store sales
+def finance_list_store_sales(request):
+    sale_orders = StoreSale.objects.all().order_by('-sale_date')  # Order by creation date descending
+    today = date.today()
+    for sale_order in sale_orders:
+        if sale_order.sale_date:
+            sale_order.due_date = sale_order.sale_date + timedelta(days=sale_order.PAYMENT_DURATION.days)
+            remaining_days = 0 # to be worked on to show countdown.
+            if remaining_days < 0:
+                remaining_days = 0  # Set remaining days to 0 if past due date
+            sale_order.remaining_days = remaining_days
+    context = {'sale_orders': sale_orders}
+    return render(request, 'finance_list_store_sales.html', context)
+
+# store manager creates direct store sale
+def create_store_test(request):
+    if request.method == 'POST':
+        form = TestForm(request.POST)
+        formset = TestItemFormset(request.POST, instance=StoreSale())  # Create a new StoreSale instance
+        if form.is_valid() and formset.is_valid():
+            # Save the form and formset data
+            store_sale = form.save(commit=False)  # Don't commit yet
+            store_sale.save()  # Save the StoreSale object
+            # Now save the formset with the saved StoreSale instance
+            formset.instance = store_sale  # Set the parent instance for the formset
+            formset.save()
+            return redirect('listStoreSales')
+    else:
+        form = TestForm()
+        formset = TestItemFormset(queryset=SaleItem.objects.none())  # Empty formset for initial rendering
+
+    context = {'form': form, 'formset': formset}
+    return render(request, 'testing.html', context)
+
+# store manager mark order as delivered
+def update_order_status(request, store_sale_id):
+    if request.method == 'POST':
+        order = StoreSale.objects.get(pk=store_sale_id)
+        order.status = 'delivered'
+        order.save()
+        messages.success(request, 'Order status updated successfully!')
+        # ... potentially add additional processing after updating status
+        return redirect('listStoreSales')  # Redirect to your store sale list view
+    else:
+        return redirect('listStoreSales')  # Redirect if not a POST request
+    
+def pay_order_status(request, store_sale_id):
+    if request.method == 'POST':
+        order = StoreSale.objects.get(pk=store_sale_id)
+        order.status = 'paid'
+        order.save()
+        # ... potentially add additional processing after updating status
+        return redirect('listStoreSales')  # Redirect to your store sale list view
+    else:
+        return redirect('listStoreSales')  # Redirect if not a POST request
 

@@ -49,6 +49,8 @@ class CreatePurchaseOrderForm(forms.ModelForm):
 
         if 'raw_material' in self.initial:
             raw = self.initial['raw_material']
+            # Find all raw materials supplied by the chosen supplier
+            
             self.fields['supplier'].queryset = Supplier.objects.filter(raw_materials=raw)
         # Filter supplier queryset if a raw material is preselected
 
@@ -161,7 +163,7 @@ class RestockRequestForm(forms.ModelForm):
 class RestockRequestEditForm(forms.ModelForm):
     class Meta:
         model = RestockRequest
-        fields = ['product', 'store', 'quantity', 'status', 'comments']
+        fields = ['status', 'comments']
         widgets = {
             'product': forms.Select(attrs={'class':'form-control'}),
             'quantity': forms.NumberInput(attrs={'class':'form-control'}),
@@ -198,38 +200,62 @@ class ProductionOrderForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class':'form-control'}),
             'target_completion_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
         }
+    
+class SaleOrderForm(forms.ModelForm):
+    class Meta:
+        model = StoreSale
+        fields = ['customer', 'withhold_tax', 'vat']
 
-class SaleOrderForm(forms.Form):
-    customer = forms.ModelChoiceField(queryset=Customer.objects.all())  # Replace Customer.objects.all() with your logic
-    withhold_tax = forms.BooleanField(required=False)
-    vat = forms.BooleanField(required=False)
+    sale_items = forms.inlineformset_factory(
+        parent_model=StoreSale,
+        model=SaleItem,
+        fk_name='sale',
+        fields=['product', 'quantity', 'unit_price'],
+        extra=1,  # Add one empty form initially
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.sale_items = []  # List to store sale items
-
-    def clean(self):
-        cleaned_data = super().clean()
-        # Basic validation (optional)
-        if not self.cleaned_data.get('customer'):
-            raise forms.ValidationError("Please select a customer.")
-        return cleaned_data
+        self.sale_items = self.sale_items(self.instance)  # Initialize formset with instance
 
     def save(self, commit=True):
-        instance = StoreSale(
-            customer=self.cleaned_data['customer'],
-            withhold_tax=self.cleaned_data['withhold_tax'],
-            vat=self.cleaned_data['vat'],
-        )
-        if commit:
-            instance.save()
-        for sale_item in self.sale_items:
-            # Assuming sale_item is a dictionary with 'product' and 'quantity' keys
-            item = SaleItem(
-                sale=instance,
-                product=sale_item['product'],
-                quantity=sale_item['quantity'],
-                unit_price=sale_item['unit_price'],
-            )
-            item.save()
+        instance = super().save(commit=commit)
+        self.sale_items.save(commit=commit)
         return instance
+
+
+class TestForm(forms.ModelForm):
+    class Meta:
+        model = StoreSale
+        fields = ['customer','withhold_tax','vat','due_date']
+        widgets = {
+            'customer': forms.Select(attrs={'class':'form-control'}),
+            'withhold_tax': forms.CheckboxInput(attrs={'class':'form-check-input'}),
+            'vat': forms.CheckboxInput(attrs={'class':'form-check-input'}),
+            'due_date': forms.DateInput(attrs={'class':'form-control', 'placeholder':"No. of days untill payment"}),
+            
+        }
+        def __init__(self, *args, **kwargs):
+            super(TestForm, self).__init__(*args, **kwargs)
+            # Get all customers
+            self.fields['customer'].queryset = Customer.objects.all()
+class TestItemForm(forms.ModelForm):
+    class Meta:
+        model = SaleItem
+        fields = '__all__'
+        quantity = forms.IntegerField(widget=forms.TextInput(attrs={'class': 'form-control'}), required=True)
+        product = forms.ModelChoiceField(queryset=ManufacturedProductInventory.objects.all()),
+        unit_price = forms.DecimalField(widget=forms.TextInput(attrs={'class': 'form-control'}), required=True)
+        
+TestItemFormset = inlineformset_factory(
+    parent_model = StoreSale,
+    model = SaleItem, 
+    form = TestItemForm,
+    extra=2, 
+    can_delete=False,
+    widgets ={
+        'quantity': forms.NumberInput(attrs={'class': 'form-control','placeholder':"Units Ordered"}),
+        'product': forms.Select(attrs={'class': 'form-control'}),
+        'unit_price': forms.NumberInput(attrs={'class': 'form-control','placeholder':"Cost Per Unit"}),
+    }
+)

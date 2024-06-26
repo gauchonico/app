@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Store Sales{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+    <!-- BEGIN page-header -->
+	<div class="d-flex align-items-center mb-3">
+		<div>
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">PAGES</a></li>
+				<li class="breadcrumb-item active">STORE ORDERS</li>
+			</ul>
+			<h1 class="page-header mb-0">Store Orders</h1>
+		</div>
+        
+		
+	</div>
+	
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-download fa-fw me-1 text-theme"></i> Export</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-upload fa-fw me-1 text-theme"></i> Bulk Import</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2 dropdown-toggle">
+			<a href="#" data-bs-toggle="dropdown" class="text-inverse text-opacity-75 text-decoration-none">More Actions</a>
+			<div class="dropdown-menu">
+				<a class="dropdown-item" href="#">Action</a>
+				<a class="dropdown-item" href="#">Another action</a>
+				<a class="dropdown-item" href="#">Something else here</a>
+				<div role="separator" class="dropdown-divider"></div>
+				<a class="dropdown-item" href="#">Separated link</a>
+			</div>
+		</div>
+	</div>
+	<div id="datatable" class="mb-5">
+		
+		<p>Normal Payment duration is 45 days</p>
+		<div class="card">
+			<div class="card-body text-center">
+				<table id="datatableDefault" class="table text-nowrap table-responsive">
+					<thead>
+						<tr class="align-middle">
+							<th class="border-top-0 pt-0 pb-2">#</th>
+							<th class="border-top-0 pt-0 pb-2">Customer</th>
+							<th class="border-top-0 pt-0 pb-2">Date ordered</th>
+                            <th class="border-top-0 pt-0 pb-2">Order Status</th>
+							<th class="border-top-0 pt-0 pb-2">Order Date</th>
+                        
+                
+							<th class="border-top-0 pt-0 pb-2">Withhold 6%:</th>
+							<th class="border-top-0 pt-0 pb-2">Vat 18%</th>
+                            <th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for sale_order in sale_orders %}
+						<tr class="align-start">
+							<td class="align-middle">{{forloop.counter}}</td>
+							<td class="col-3 w-10 text-truncate"><span class="col-5 text-truncate">{{ sale_order.customer.first_name }}</span></td>
+							<td class="align-middle">{{ sale_order.sale_date }}</td>
+							<td class="align-middle"><span class="badge {% if sale_order.status == 'ordered' %}border border-warning text-warning{% elif sale_order.status == 'paid' %}border border-success text-success{% elif sale_order.status == 'delivered' %}border border-primary text-primary{% else %}bg-white text-dark{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ sale_order.get_status_display }} </span></td>
+							<td class="align-middle">
+                                <ul class="list-group w-auto">
+                                    {% for sale_item in sale_order.saleitem_set.all %}
+                                    
+                                        <li class="list-group-item">
+                                            
+                                            <div class="flex-fill px-3">
+                                            <div class="fw-bold">{{ sale_item.product.product.product_name }} -{{ sale_item.quantity }} units</div>
+                                            <div class="small text-inverse text-opacity-50">-UGX {{ sale_item.unit_price }} </div>
+                                                
+                                            <span class="label bg-transparent border border-theme text-theme fs-12px fw-500 rounded-sm">
+                                                {{ sale_item.total_price }}
+                                            </span>
+                                            
+                                        </li>
+                                        </div>
+                                    
+                                    {% endfor %}
+                                </ul>
+							</td>
+                            
+                            
+                            <td>{{ sale_order.withhold_tax }}</td>
+                            <td>{{ sale_order.vat }}</td>
+                            <td>
+                                {% if sale_order.status == 'delivered' %}
+                                    <form method="post" action="{% url 'pay_order_status' sale_order.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="order_id" value="{{ sale_order.pk }}">
+                                        <button type="submit" class="btn btn-sm btn-primary">Mark as Paid</button>
+                                    </form>
+                                    
+                                    {% elif sale_order.status == 'ordered' %}
+                                        <span class="text-primary">Waiting for Delivery</span>
+                                    {% elif sale_order.status == 'paid' %}
+                                        <span class="text-success">Order is Paid</span>
+                                {% endif %}
+                            </td>
+						</tr>
+						{% endfor %}
+					</tbody>
+                    
+				</table>
+			</div>
+			<div class="card-arrow">
+				<div class="card-arrow-top-left"></div>
+				<div class="card-arrow-top-right"></div>
+				<div class="card-arrow-bottom-left"></div>
+				<div class="card-arrow-bottom-right"></div>
+			</div>
+			
+		</div>
+	</div>
+	
+	<!-- BEGIN container -->
+	
+	<!-- END container -->
+{% endblock %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Finance Approval</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}
