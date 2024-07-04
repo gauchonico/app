@@ -30,7 +30,8 @@ def cost_per_unit(self):
     ingredient_cost_data = {
         'name': ingredient.raw_material.name,
         'quantity': ingredient.quantity_per_unit_product_volume,
-        'cost_per_unit': cost_per_ingredient
+        'cost_per_unit': cost_per_ingredient,
+        'unit_measurement': ingredient.raw_material.unit_measurement
     }
     ingredient_costs.append(ingredient_cost_data)
     

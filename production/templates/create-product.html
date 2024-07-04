@@ -58,7 +58,7 @@
                                 {{ product_form.as_p }}
                             
                                 {{ formset.management_form }}
-                                <table>
+                                <table id="ingredient_item_formset">
                                     <thead>
                                         <tr>
                                             <th>Raw Material</th>
@@ -67,7 +67,7 @@
                                     </thead>
                                     <tbody>
                                         {% for form in formset %}
-                                            <tr>
+                                            <tr class="form-row">
                                                 <td>{{ form.raw_material }}</td>
                                                 <td>{{ form.quantity_per_unit_product_volume }}</td>
                                             </tr>
@@ -77,7 +77,7 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
- 
+                                <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
                                 <button class="btn btn-outline-theme" type="submit">Create Product</button>
                             </form>
                                 
@@ -104,7 +104,7 @@
             <!-- END row -->
         </div>
         <!-- END container -->
-  
+
 {% endblock %}
 {% block outter_content %}
 {% if messages %}

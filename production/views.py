@@ -2,9 +2,10 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import json
+from django import forms
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
-from django.forms import ValidationError, inlineformset_factory, modelformset_factory
+from django.forms import ValidationError, formset_factory, inlineformset_factory, modelformset_factory
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,13 +15,28 @@ from django.db import transaction
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, SaleOrderForm, StoreAlertForm, StoreForm, TestForm, TestItemFormset
+from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, SaleOrderForm, StoreAlertForm, StoreForm, TestForm, TestItemForm, TestItemFormset
 from .models import ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, Supplier, PurchaseOrder
 
 # Create your views here.
 @login_required(login_url='/login/')
 def productionPage(request):
-    return render(request, "production_index.html")
+    suppliers = Supplier.objects.count()
+    rawmaterials = RawMaterial.objects.all()
+    manufactured_products = ManufacturedProductInventory.objects.all()
+    approved_orders_count = ProductionOrder.objects.filter(status='Approved').count()
+    approved_rawmaterial_request_count = PurchaseOrder.objects.filter(status='approved').count()
+    
+    context ={
+        'rawmaterials': rawmaterials,
+        'total_suppliers': suppliers,
+        'manufactured_products': manufactured_products.count(),
+        'approved_orders': approved_orders_count,
+        'approved_rawmaterial_requests': approved_rawmaterial_request_count,
+    }
+    
+    return render(request, "production_index.html", context)
+
 
 
 @login_required(login_url='/login/')
@@ -191,7 +207,7 @@ def editPurchaseOrderDetails(request, purchase_order_id):
 def productsList(request):
     products = Production.objects.all()
     context = {
-       'products': products,
+        'products': products,
 
     }
     return render(request, "products-list.html", context)
@@ -216,7 +232,7 @@ def productDetails(request, product_id):
 
 @login_required(login_url='/login/')
 def create_product(request):
-    ingredient_formset =  inlineformset_factory(Production, ProductionIngredient, form=ProductionIngredientForm, extra=7)
+    ingredient_formset =  inlineformset_factory(Production, ProductionIngredient, form=ProductionIngredientForm, extra=1)
     if request.method == 'POST':
         product_form = ProductionForm(request.POST)
         formset = ingredient_formset(request.POST)
@@ -439,7 +455,7 @@ def manufacturedproduct_detail(request, product_id):
     cost_per_product = total_ingredient_cost + total_labour_cost
     total_production_cost = cost_per_product * quantity
 
-    
+    referer = request.META.get('HTTP_REFERER', '/')
     # Prepare data for ingredients used
     ingredients_used_data = []
     for ingredient_cost in ingredient_costs:
@@ -447,6 +463,7 @@ def manufacturedproduct_detail(request, product_id):
             'name': ingredient_cost['name'],
             'quantity': ingredient_cost['quantity'],
             'cost_per_unit': ingredient_cost['cost_per_unit'],
+            'unit_measurement': ingredient_cost.get('unit_measurement', 'N/A'),
         }
         ingredients_used_data.append(ingredient_used_data)
     context = {
@@ -459,6 +476,7 @@ def manufacturedproduct_detail(request, product_id):
         'total_labour_cost': total_labour_cost,
         'ingredient_costs': ingredient_costs,
         'total_production_cost':total_production_cost,
+        'referer':referer,
     }
     return render(request, 'manufactured-product-details.html', context)
 
@@ -840,25 +858,67 @@ def finance_list_store_sales(request):
     return render(request, 'finance_list_store_sales.html', context)
 
 # store manager creates direct store sale
+# def create_store_test(request):
+#     TestItemFormset = inlineformset_factory(
+#         parent_model=StoreSale,
+#         model=SaleItem,
+#         form=TestItemForm,
+#         extra=1,
+#         can_delete=True,
+#     )
+
+#     if request.method == 'POST':
+#         form = TestForm(request.POST)
+#         formset = TestItemFormset(request.POST, queryset=SaleItem.objects.none())
+
+#         if form.is_valid() and formset.is_valid():
+#             try:
+#                 with transaction.atomic():
+#                     store_sale = form.save()  # Save main form
+
+#                     for item_form in formset:
+#                         if item_form.is_valid() and not item_form.cleaned_data.get('DELETE', False):
+#                             sale_item = item_form.save(commit=False)
+#                             sale_item.sale = store_sale  # Assign Sale object to SaleItem
+#                             sale_item.save()
+
+#                 return redirect('listStoreSales')
+
+#             except ValidationError as e:
+#                 return render(request, 'testing.html', {'form': form, 'formset': formset, 'error_message': e.message})
+
+#     else:
+#         form = TestForm()
+#         # Initialize formset with existing instance or queryset data if available
+#         # Initialize formset with a queryset of SaleItems related to a specific StoreSale
+#         sale_items_queryset = SaleItem.objects.filter(sale__isnull=True)  # Example filter condition
+#         formset = TestItemFormset(queryset=sale_items_queryset)
+#         # formset = TestItemFormset(instance=StoreSale())  # Replace StoreSale() with your actual instance or queryset
+
+#     context = {'form': form, 'formset': formset}
+#     return render(request, 'testing.html', context)
 def create_store_test(request):
     if request.method == 'POST':
         form = TestForm(request.POST)
-        formset = TestItemFormset(request.POST, instance=StoreSale())  # Create a new StoreSale instance
+        formset = TestItemFormset(request.POST, queryset=SaleItem.objects.none())
+
         if form.is_valid() and formset.is_valid():
-            # Save the form and formset data
-            store_sale = form.save(commit=False)  # Don't commit yet
-            store_sale.save()  # Save the StoreSale object
-            # Now save the formset with the saved StoreSale instance
-            formset.instance = store_sale  # Set the parent instance for the formset
-            formset.save()
+            store_sale = form.save(commit=False)
+            store_sale.save()
+
+            for form in formset:
+                if form.cleaned_data:
+                    sale_item = form.save(commit=False)
+                    sale_item.sale = store_sale
+                    sale_item.save()
+
             return redirect('listStoreSales')
     else:
         form = TestForm()
-        formset = TestItemFormset(queryset=SaleItem.objects.none())  # Empty formset for initial rendering
+        formset = TestItemFormset(queryset=SaleItem.objects.none())
 
     context = {'form': form, 'formset': formset}
     return render(request, 'testing.html', context)
-
 # store manager mark order as delivered
 def update_order_status(request, store_sale_id):
     if request.method == 'POST':
@@ -880,4 +940,18 @@ def pay_order_status(request, store_sale_id):
         return redirect('listStoreSales')  # Redirect to your store sale list view
     else:
         return redirect('listStoreSales')  # Redirect if not a POST request
+
+def store_sale_order_details(request, pk):
+    sale_order = get_object_or_404(StoreSale, pk=pk)
+    # Calculate the total order amount
+    sale_items = SaleItem.objects.filter(sale=sale_order)
+    total_order_amount = sum(item.quantity * item.unit_price for item in sale_items)
+
+    referer = request.META.get('HTTP_REFERER')
+    context = {
+        'sale_order': sale_order,
+        'referer': referer,
+        'total_order_amount': total_order_amount,
+    }
+    return render(request,'store_sale_details.html', context)
 

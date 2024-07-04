@@ -1,9 +1,17 @@
 import subprocess
 import uuid
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponseRedirect, JsonResponse, FileResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.db.models import Q
+import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.units import inch
+from datetime import datetime
+
+
 from django.views import generic
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -340,6 +348,81 @@ def staff_commissions_view(request):
 
 	return render (request, 'pages/staff-commissions.html',context)
 
+def generate_staff_commissions_pdf(request):
+    
+    # Get date range from request parameters
+	start_date = request.GET.get('start_date')
+	end_date = request.GET.get('end_date')
+
+	# Validate date range
+	
+
+	# if start_date and end_date:
+	# 	try:
+	# 		start_date = datetime.date(start_date, '%Y-%m-%d')
+	# 		end_date = datetime.date(end_date, '%Y-%m-%d').date()
+	# 		date_filter &= Q(date__range=(start_date, end_date))
+	# 	except ValueError:
+	# 		pass  # Handle invalid date format
+    
+	# Retrieve all staff commissions (consider filtering based on needs)
+	commissions = StaffCommission.objects.all().select_related('staff', 'transaction').order_by('staff__id')
+
+	date_filter = Q()
+	if start_date and end_date:
+		date_filter &= Q(date__range=(start_date, end_date))
+	commissions = commissions.filter(date_filter)
+
+	# Group commissions by staff
+	commissions_by_staff = {}
+	for commission in commissions:
+		staff = commission.staff
+		if staff not in commissions_by_staff:
+			commissions_by_staff[staff] = []
+		commissions_by_staff[staff].append(commission)
+
+	# Create a PDF document
+	response = HttpResponse(content_type='application/pdf')
+	response['Content-Disposition'] = 'attachment; filename="staff_commissions.pdf"'
+
+	# Create a canvas
+	p = canvas.Canvas(response, pagesize=letter)
+	width, height = letter
+
+	# Set initial position and styles
+	font_size = 10
+	line_height = 14
+	x_margin = 40
+	y_position = height - 50
+
+	for staff, commissions in commissions_by_staff.items():
+		# Start a new page for each staff member
+		p.setFont("Helvetica-Bold", font_size + 2)
+		p.drawString(x_margin, y_position, f"Staff Name: {staff.first_name} {staff.last_name}")
+		p.setFont("Helvetica", font_size)
+		y_position -= 20
+		p.drawString(x_margin, y_position, "-" * 100)  # Line separator
+		y_position -= 20
+
+		# Add header
+		for commission in commissions:
+            # Display commission details
+			p.drawString(x_margin, y_position, f"Transaction ID: {commission.transaction.id}")
+			p.drawString(x_margin + 150, y_position, f"Commission Amount: {commission.commission_amount}")
+			p.drawString(x_margin + 300, y_position, f"Transaction Status: {commission.transaction.get_status_display()}")
+			p.drawString(x_margin + 450, y_position, f"Date: {commission.date}")
+			y_position -= line_height  # Adjust line spacing
+
+            # Check if we need to move to a new page
+			if y_position < 50:
+				p.showPage()
+				p.setFont("Helvetica", font_size)
+				y_position = height - 50
+		
+	p.showPage()
+	p.save()
+
+	return response
 
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Cashier'])

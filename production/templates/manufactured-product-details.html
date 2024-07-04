@@ -17,13 +17,14 @@
 
 {% block content %}
 <ul class="breadcrumb">
-    <li class="breadcrumb-item"><a href="#">PRODUCTS</a></li>
-    <li class="breadcrumb-item active">OUR PRODUCTS</li>
+    <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+    <li class="breadcrumb-item active">PRODUCTION PROCESS DETAILS</li>
 </ul>
 
 <h1 class="page-header">
     {{ manufactured_product.product.product_name }} <small>Batch Number: {{ manufactured_product.batch_number }}</small>
 </h1>
+<div><a href="{{ referer }}" class="btn btn-outline-theme">Back to Orders</a></div>
 
 <hr class="mb-4">
 	<!-- BEGIN row -->
@@ -206,83 +207,38 @@
 		
 		<!-- BEGIN col-6 -->
         <div class="col-xl-6">
-			<!-- BEGIN card -->
-			<div class="card mb-3">
-				<!-- BEGIN card-body -->
-				<div class="card-body">
-					<!-- BEGIN title -->
-					<div class="d-flex fw-bold small mb-3">
-						<span class="flex-grow-1">RAW MATERIALS USED</span>
-						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
-					</div>
-					<!-- END title -->
-					<!-- BEGIN table -->
-					<div class="table-responsive">
-						<table class="w-100 mb-0 small align-middle text-nowrap">
-							<tbody>
-                                {% for ingredient_used in ingredients_used %}
-								<tr>
-									<td>
-										<div class="d-flex">
-											<div class="position-relative mb-2">
-												<div class="bg-position-center bg-size-cover bg-repeat-no-repeat w-10px h-10px">
-												</div>
-												<div class="position-absolute top-0 start-0">
-													<span class="badge bg-secondary text-white rounded-0 d-flex align-items-center justify-content-center w-20px h-20px">{{ forloop.counter }}</span>
-												</div>
-											</div>
-											<div class="flex-1 ps-3">
-												<div class="mb-1"><small class="fs-9px fw-500 lh-1 d-inline-block rounded-0 badge bg-secondary bg-opacity-25 text-inverse text-opacity-75 pt-5px">SKU90400</small></div>
-												<div class="fw-500 text-inverse">{{ ingredient_used.name }}</div>
-												UGX 17000
-											</div>
-										</div>
-									</td>
-									<td>
-                                        
-										<table class="mb-2">
-											<tr>
-												<td class="pe-3">QTY USED:</td>
-												<td class="text-inverse text-opacity-75 fw-500">{{ ingredient_used.quantity }}</td>
-											</tr>
-											<tr>
-												<td class="pe-3">PRICE PER UNIT:</td>
-												<td class="text-inverse text-opacity-75 fw-500">{{ ingredient_used.cost_per_unit }}</td>
-											</tr>
-											<tr>
-												<td class="pe-3 text-nowrap">TOTAL COST:</td>
-												<td class="text-inverse text-opacity-75 fw-500">coming soon</td>
-												
-											</tr>
-											
-											<tr>
-
-											</tr>
-											
-                                        
-										</table>
-									</td>
-									<td><a href="#" class="text-decoration-none text-inverse"><i class="bi bi-search"></i></a></td>
-								</tr>
-                                {% endfor %}
-							</tbody>
-						</table>
-					</div>
-					<!-- END table -->
-				</div>
-				<!-- END card-body -->
+			
+			<div class="card">
+				<div class="card-header fw-bold">Raw Materials Used</div>
+				{% for ingredient_used in ingredients_used %}
+				<div class="widget-reminder">
+					<div class="widget-reminder-item">
+						<div class="widget-reminder-time">{{ ingredient_used.quantity }}<br>{{ ingredient_used.unit_measurement }}</div>
+						<div class="widget-reminder-divider bg-theme"></div>
+						<div class="widget-reminder-content">
+							<div class="fw-bold">{{ ingredient_used.name }}</div>
+							<div class="fs-13px">Price per unit: UGX {{ ingredient_used.cost_per_unit }}</div>
+							<div class="d-flex align-items-center fs-13px mt-2">
+							
 				
-				<!-- BEGIN card-arrow -->
+							</div>
+						</div>
+					</div>
+				</div>
+				{% endfor %}
+				
+				<!-- card-arrow -->
 				<div class="card-arrow">
 					<div class="card-arrow-top-left"></div>
 					<div class="card-arrow-top-right"></div>
 					<div class="card-arrow-bottom-left"></div>
 					<div class="card-arrow-bottom-right"></div>
 				</div>
-				<!-- END card-arrow -->
 			</div>
-			<!-- END card -->
+			
 		</div>
+
+		
 		<!-- END col-6 -->
 		
 		<!-- BEGIN col-6 -->

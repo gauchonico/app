@@ -34,4 +34,5 @@ urlpatterns = [
     path('reciept/<int:customer_id>/', views.generate_receipt, name='generate_receipt'),
     path('page/reciepts/', views.view_receipt, name='view_receipt'),
     path('receipt/<int:receipt_id>/', views.customer_receipt, name='customer_receipt'),
+    path('generate_staff_commissions_pdf/', views.generate_staff_commissions_pdf, name='generate_staff_commissions_pdf'),
 ]

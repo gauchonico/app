@@ -225,6 +225,7 @@ class SaleOrderForm(forms.ModelForm):
 
 
 class TestForm(forms.ModelForm):
+    total_items = forms.IntegerField(widget=forms.HiddenInput(), required=False)
     class Meta:
         model = StoreSale
         fields = ['customer','withhold_tax','vat','due_date']
@@ -235,27 +236,26 @@ class TestForm(forms.ModelForm):
             'due_date': forms.DateInput(attrs={'class':'form-control', 'placeholder':"No. of days untill payment"}),
             
         }
-        def __init__(self, *args, **kwargs):
-            super(TestForm, self).__init__(*args, **kwargs)
-            # Get all customers
-            self.fields['customer'].queryset = Customer.objects.all()
+    def __init__(self, *args, **kwargs):
+        super(TestForm, self).__init__(*args, **kwargs)
+        # Get all customers
+        self.fields['customer'].queryset = Customer.objects.all()
+        
 class TestItemForm(forms.ModelForm):
+    
     class Meta:
         model = SaleItem
         fields = '__all__'
-        quantity = forms.IntegerField(widget=forms.TextInput(attrs={'class': 'form-control'}), required=True)
-        product = forms.ModelChoiceField(queryset=ManufacturedProductInventory.objects.all()),
-        unit_price = forms.DecimalField(widget=forms.TextInput(attrs={'class': 'form-control'}), required=True)
+        widgets = {
+            'product': forms.Select(attrs={'class': 'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
+            'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cost Per Unit'}),
+        }
         
 TestItemFormset = inlineformset_factory(
     parent_model = StoreSale,
     model = SaleItem, 
     form = TestItemForm,
-    extra=2, 
-    can_delete=False,
-    widgets ={
-        'quantity': forms.NumberInput(attrs={'class': 'form-control','placeholder':"Units Ordered"}),
-        'product': forms.Select(attrs={'class': 'form-control'}),
-        'unit_price': forms.NumberInput(attrs={'class': 'form-control','placeholder':"Cost Per Unit"}),
-    }
+    extra=1, 
+    can_delete=True,
 )

@@ -56,5 +56,6 @@ urlpatterns = [
     path('update_order_status/<int:store_sale_id>/', views.update_order_status, name='update_order_status'),
     path('finance_list_store_sales/', views.finance_list_store_sales, name="financeListStoreSales"),
     path('pay_order_status/<int:store_sale_id>/', views.pay_order_status, name='pay_order_status'),
+    path('store_sale_order_details/<int:pk>/', views.store_sale_order_details, name='store_sale_order_details'),
     
 ]

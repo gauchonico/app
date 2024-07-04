@@ -42,9 +42,7 @@
     <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/jszip/dist/jszip.min.js' %}"></script>
-	<script src="{% static 'plugins/pdfmake/build/pdfmake.min.js' %}"></script>
-	<script src="{% static 'plugins/pdfmake/build/vfs_fonts.js' %}"></script>
+	
 	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
@@ -54,7 +52,7 @@
 	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-fixedcolumns/js/dataTables.fixedColumns.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-fixedcolumns-bs5/js/fixedColumns.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'js/demo/page-data-management.demo.js' %}"></script>
+	
     <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
     <script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
     <script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
@@ -65,6 +63,8 @@
     <script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
     <script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
     <script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 
 {% endblock %}
 
@@ -79,9 +79,35 @@
 </h1>
 
 <p>
-    Filter commissions according to Staff Name, Date, Transaction Status...
+    You can generate pdf reports with date range selector or filter view by Staff, Transaction Status or 
+    date
 </p>
-
+{% comment %} <button onclick="window.open('{% url 'DjangoHUDApp:generate_staff_commissions_pdf' %}', '_blank')" class="btn btn-outline-theme">Print</button>
+<a href="{% url 'DjangoHUDApp:generate_staff_commissions_pdf' %}">Print</a> {% endcomment %}
+<form method="GET" action="{% url 'DjangoHUDApp:generate_staff_commissions_pdf' %}">
+    <div class="row">
+        <div class="col-xl-3">
+            <div class="mb-3">
+                <label for="start_date" class="form-label">Start Date:</label>
+                <input type="date" class="form-control" id="start_date" name="start_date">
+            </div>
+        </div>
+        <div class="col-xl-3">
+            <div class="mb-3">
+                <label for="end_date" class="form-label">End Date:</label>
+                <input type="date" class="form-control" id="end_date" name="end_date">
+            </div>
+        </div>
+        <div class="col-xl-3">
+            <div class="mb-3">
+                <label class="form-label" for="filter">Generate PDF:</label>
+                <div>
+                    <button type="submit" class="btn btn-outline-theme">Generate PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
 <form method="GET">
     <div class="row">
         <div class="col-xl-3">
@@ -126,7 +152,7 @@
 </form>
     <div class="card">
         <div class="card-body text-center">
-            <table id="datatableDefault" class="table text-nowrap w-100">
+            <table class="table text-nowrap w-100">
                 <thead>
                     <tr>
                         <th>#</th>
@@ -160,7 +186,7 @@
             <div class="card-arrow-bottom-right"></div>
         </div>
     </div>
-<script>
+{% comment %} <script>
     $(document).ready(function() {
         // Initialize DataTables for printing and CSV export (refer to DataTables documentation for details)
         $('#datatableDefault').DataTable({
@@ -176,7 +202,7 @@ $('#print-btn').click(function() {
     $('#datatableDefault').DataTable().button('.buttons-print').trigger();
 });
 });
-</script>
+</script> {% endcomment %}
 
 
 
@@ -189,7 +215,7 @@ $('#print-btn').click(function() {
 {% block outter_content%}
 <script>
     $('#datepicker').datepicker({
-      autoclose: true
+    autoclose: true
     });
 </script>
 {% endblock outter_content %}

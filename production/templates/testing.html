@@ -6,101 +6,132 @@
 
 {% block css %}
 	
-{% endblock %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>  
-<script>
-$(document).ready(function() {
-    var formCount = $('#sale_item_formset').children().length; // Get initial form count
-    var totalForms = $('#id_form-TOTAL_FORMS'); // Get the hidden total forms field
-
-    $('#add_more_item').click(function() {
-    formCount++; // Increment form count
-
-    var newForm = $('#sale_item_formset').children().first().clone(true); // Clone the first form
-    newForm.find('input, select, textarea').each(function() {
-        var name = $(this).attr('name');
-        var new_name = name.replace(/-0-/, '-' + formCount + '-'); // Replace form index
-        $(this).attr('name', new_name); // Update name attribute with new index
-    });
-
-    newForm.appendTo('#sale_item_formset'); // Append the cloned form to the container
-    totalForms.val(formCount); // Update the total forms hidden field
-    });
-});
-</script>
+{% endblock %}  
 {% block js %}
-	
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
 {% endblock %}
 
 {% block content %}
 	<!-- BEGIN coming-soon -->
-	<div class="">
-		<div class="flex-1">
-			<div class="coming-soon-timer">
-				<div id="timer"></div>
-			</div>
-			<!-- BEGIN coming-soon-content -->
-            <h1>Create Store Sale</h1>
-            <h3>{{ product.product_name}}</h3>
-
-            <form method="post">
-                {% csrf_token %}
-                {{ form.as_p }}
-                {{ formset.management_form }}
-                <table id="sale_item_formset">
-                    <thead>
-                        <tr>
-                            <th>Raw Material</th>
-                            <th>Quantity Purchased </th>
-                            <th>Cost Per Unit </th>
-                            <th><button type="button" id="add_more_item" class="btn btn-outline-success btn-sm">Add Item</button>
-                            </th>
-
+	<div class="container">
+        <h1>Create Store Sale</h1>
+        <h3>{{ product.product_name }}</h3>
+        {% if error_message %}
+            <div class="alert alert-danger">{{ error_message }}</div>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            {{ formset.management_form }}
+            <table id="sale_item_formset">
+                <thead>
+                    <tr>
+                        <th>Raw Material</th>
+                        <th>Quantity Purchased</th>
+                        <th>Cost Per Unit</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in formset %}
+                        <tr class="form-row">
+                            <td>{{ form.product }}</td>
+                            <td>{{ form.quantity }}</td>
+                            <td>{{ form.unit_price }}</td>
+                            <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        
-                        {% for form in formset %}
-                        
-                            {{ form.id }} <!-- Include the ID field as a hidden input -->
-                            <tr>
-                                <td>{{ form.product }}</td>
-                                <td>{{ form.quantity }}</td>
-                                <td>{{ form.unit_price }}</td>
-                                <td></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2">{{ form.errors }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                <div class="mt-3">
-                    <button class="btn btn-outline-theme" type="submit">Create Store Sale</button>
-                </div>
-            </form>
-			<!-- END coming-soon-content -->
-		</div>
-	</div>
+                        <tr>
+                            <td colspan="4">{{ form.errors }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="mt-3">
+                <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
+                <button class="btn btn-outline-theme" type="submit">Create Store Sale</button>
+            </div>
+        </form>
+    </div>
 	<!-- END coming-soon -->
-    <script>
+    {% comment %} <script>
         $(document).ready(function() {
-            var formCount = $('#formset').children().length; // Get initial form count
-            var totalForms = $('#id_form-TOTAL_FORMS'); // Get the hidden total forms field
-        
-            $('#add_more_item').click(function() {
-            formCount++; // Increment form count
-        
-            var newForm = $('#formset').children().first().clone(true); // Clone the first form
-            newForm.find('input, select, textarea').each(function() {
-                var name = $(this).attr('name');
-                var new_name = name.replace(/-0-/, '-' + formCount + '-'); // Replace form index
-                $(this).attr('name', new_name); // Update name attribute with new index
+            var formCount = $('#sale_item_formset-TOTAL_FORMS').length; // Get initial form count
+            
+            $('#add_form').click(function() {
+                formCount++; // Increment form count
+                
+                var newForm = $('#sale_item_formset tbody tr:first').clone(true); // Clone the first form row
+                newForm.find('input, select').each(function() {
+                    var name = $(this).attr('name');
+                    var new_name = name.replace(/-\d+-/, '-' + formCount + '-'); // Update name attribute
+                    $(this).attr('name', new_name);
+                    $(this).val(''); // Clear input values if needed
+                });
+                newForm.find('td:last').html(''); // Clear any error messages
+                newForm.find('td:last').html('<button type="button" class="btn btn-danger btn-sm remove-form">Remove</button>'); // Add remove button
+                $('#sale_item_formset tbody').append(newForm); // Append the cloned form to the table body
+                $('#sale_item_formset-TOTAL_FORMS').val(++formCount); 
             });
-        
-            newForm.appendTo('#formset'); // Append the cloned form to the container
-            totalForms.val(formCount); // Update the total forms hidden field
+            // Remove formset row
+            $('#sale_item_formset').on('click', '.remove-form', function() {
+                $(this).closest('tr').remove(); // Remove the closest <tr> element
+                formCount--;
+                $('#id_saleitem_set-TOTAL_FORMS').val(formCount); // Decrement form count
             });
         });
-        </script>
+    </script> {% endcomment %}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script>
+        $(document).ready(function() {
+            var formCount = $('#id_saleitem_set-TOTAL_FORMS').val(); // Get initial form count
+            
+            $('#add_form').click(function() {
+                var formIdx = formCount;
+                formCount++;
+                
+                var newForm = $('#sale_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
+                newForm.find('input, select').each(function() {
+                    var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
+                    var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
+                    $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
+                });
+                newForm.find('.remove-form').remove(); // Remove any existing remove buttons
+                newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
+                $('#sale_item_formset tbody').append(newForm); // Append the cloned form to the table body
+                
+                $('#id_saleitem_set-TOTAL_FORMS').val(formCount); // Update the management form with the new form count
+            });
+        
+            // Remove formset row
+            $('#sale_item_formset').on('click', '.remove-form', function() {
+                $(this).closest('tr').remove(); // Remove the closest <tr> element
+                formCount--;
+                $('#id_saleitem_set-TOTAL_FORMS').val(formCount); // Decrement form count
+            });
+        });
+    </script>
+
 {% endblock %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Error Creating Sale</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}
