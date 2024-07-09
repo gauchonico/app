@@ -357,58 +357,70 @@ def manufacture_product(request, product_id):
 
             # Check for sufficient raw material stock (optional)
             sufficient_stock = True
-            for ingredient in product.productioningredients.all():
-                quantity_needed = ingredient.quantity_per_unit_product_volume * quantity
-                if ingredient.raw_material.current_stock < quantity_needed:
-                    sufficient_stock = False
-                    messages.error(request, f"Insufficient stock for {ingredient.raw_material.name}. Required: {quantity_needed}, Available: {ingredient.raw_material.current_stock}")
-                    break  # Exit loop if any ingredient has insufficient stock
+            with transaction.atomic():
+                for ingredient in product.productioningredients.all():
+                    quantity_needed = ingredient.quantity_per_unit_product_volume * quantity
+                    base_quantity_needed = convert_to_base_unit(quantity_needed, ingredient.raw_material.unit_measurement)
+                    if ingredient.raw_material.current_stock < base_quantity_needed:
+                        sufficient_stock = False
+                        messages.error(request, f"Insufficient stock for {ingredient.raw_material.name}. Required: {quantity_needed}, Available: {ingredient.raw_material.current_stock}")
+                        break  # Exit loop if any ingredient has insufficient stock
 
-            if sufficient_stock:
+                if sufficient_stock:
+                    #deduct raw materials
+                    deduct_raw_materials(product, quantity)
+                    manufacture_product = ManufactureProduct.objects.create(
+                        product=product,
+                        quantity=quantity,
+                        notes=notes,  # Add notes to model creation
+                        batch_number=batch_number,
+                        labor_cost_per_unit=labor_cost_per_unit,
+                        expiry_date = expiry_date,
+                    )
+                    #update manufactured product inventory
+                    manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
+                        product=product,
+                        batch_number=batch_number,
+                        defaults={'quantity': quantity,'expiry_date':expiry_date}  # Update or create with quantity
+                    )
+                    if not created:
+                        manufactured_product_inventory.quantity += quantity
+                        manufactured_product_inventory.save()  # Update existing inventory
+                    
+                    cost_per = cost_per_unit(product)
+                    # total_cost = (cost_per * quantity) + (labor_cost_per_unit * quantity)
+                    total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per) + (labor_cost_per_unit * quantity)
+                    
+                    context ={
+                        'cost_per': cost_per,
+                        'total_cost': total_cost,
+                    }
 
-                deduct_raw_materials(product, quantity)
-                manufacture_product = ManufactureProduct.objects.create(
-                    product=product,
-                    quantity=quantity,
-                    notes=notes,  # Add notes to model creation
-                    batch_number=batch_number,
-                    labor_cost_per_unit=labor_cost_per_unit,
-                    expiry_date = expiry_date,
-                )
-                #update manufactured product inventory
-                manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
-                    product=product,
-                    batch_number=batch_number,
-                    defaults={'quantity': quantity,'expiry_date':expiry_date}  # Update or create with quantity
-                )
-                if not created:
-                    manufactured_product_inventory.quantity += quantity
-                    manufactured_product_inventory.save()  # Update existing inventory
-                
-                cost_per = cost_per_unit(product)
-                # total_cost = (cost_per * quantity) + (labor_cost_per_unit * quantity)
-                total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per) + (labor_cost_per_unit * quantity)
-                
-                context ={
-                    'cost_per': cost_per,
-                    'total_cost': total_cost,
-                }
-
-                messages.success(request, f"Successfully manufactured {quantity} units of {product.product_name}")
-                return redirect('manufacturedProductList')  # Redirect to product list after success
+                    messages.success(request, f"Successfully manufactured {quantity} units of {product.product_name}")
+                    return redirect('manufacturedProductList')  # Redirect to product list after success
+                else:
+                    # Handle form validation errors
+                    messages.error(request, "Insufficient stock to manufacture the product. Please check the inventory and try again.")
         else:
-            # Handle form validation errors
-            messages.error(request, "Please correct the errors in the form.")
+                messages.error(request, "Please correct the errors in the form.")
     else:
         form = ManufactureProductForm()  # Create an empty form instance for GET requests
 
     return render(request, 'manufacture-product.html', {'product': product, 'form': form})
 
+def convert_to_base_unit(quantity, unit_of_measurement):
+    """ Convert quantity to base unit (liters for volume, kilograms for weight) """
+    if unit_of_measurement == 'Kilograms':
+        return quantity / 1000  # Convert ml to liters
+    elif unit_of_measurement == 'Liters':
+        return quantity / 1000  # Convert grams to kilograms
+    return quantity  # Return as is if already in base unit
 
 def deduct_raw_materials(product, quantity):
     for ingredient in product.productioningredients.all():
         quantity_needed = ingredient.quantity_per_unit_product_volume * quantity
-        ingredient.raw_material.remove_stock(quantity_needed)
+        base_quantity_needed = convert_to_base_unit(quantity_needed, ingredient.raw_material.unit_measurement)
+        ingredient.raw_material.remove_stock(base_quantity_needed)
 
 @login_required(login_url='/login/')
 def factory_inventory(request):
@@ -903,16 +915,38 @@ def create_store_test(request):
         formset = TestItemFormset(request.POST, queryset=SaleItem.objects.none())
 
         if form.is_valid() and formset.is_valid():
-            store_sale = form.save(commit=False)
-            store_sale.save()
-
-            for form in formset:
-                if form.cleaned_data:
-                    sale_item = form.save(commit=False)
-                    sale_item.sale = store_sale
-                    sale_item.save()
-
-            return redirect('listStoreSales')
+            with transaction.atomic():
+                store_sale = form.save(commit=False)
+                
+                #Check inventory before saving
+                sufficient_inventory = True
+                for item_form in formset:
+                    product = item_form.cleaned_data.get('product')
+                    quantity = item_form.cleaned_data.get('quantity')
+                    if product and quantity:
+                        if product.quantity < quantity:
+                            sufficient_inventory = False
+                            item_form.add_error('quantity', 'Insufficient quantity in store. Request for production.')
+                            
+                if sufficient_inventory:
+                    store_sale.save()
+                    for item_form in formset:
+                        if form.cleaned_data:
+                            sale_item = item_form.save(commit=False)
+                            sale_item.sale = store_sale
+                            sale_item.save()
+                        
+                        # Reduce the quantity in the inventory
+                        product.quantity -= sale_item.quantity
+                        product.save()
+                        
+                    return redirect('listStoreSales')
+                else:
+                # Add a general error message
+                    messages.error(request, "Insufficient quantity in one or more items. Please adjust the quantities or request for production.")
+        else:
+            messages.error(request, "There was an error with your submission. Please check the form and try again.")
+            
     else:
         form = TestForm()
         formset = TestItemFormset(queryset=SaleItem.objects.none())

@@ -12,6 +12,7 @@
 	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
 	<link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.css" />
+
 {% endblock %}
 
 {% block js %}
@@ -61,14 +62,14 @@
 									<thead>
 										<tr class="align-middle">
 											<th class="border-top-0 pt-0 pb-2">#</th>
-											<th class="border-top-0 pt-0 pb-2">Customer</th>
+											<th class="border-top-0 pt-0 pb-2 ">Customer</th>
 											<th class="border-top-0 pt-0 pb-2">Date</th>
 											<th class="border-top-0 pt-0 pb-2">Status</th>
 											<th class="border-top-0 pt-0 pb-2">Products</th>
 										
 								
-											<th class="border-top-0 pt-0 pb-2">Action Plan</th>
-											<th class="align-center border-top-0 pt-0 pb-2">View</th>
+											<th class="border-top-0 pt-0 pb-2">Delivery Status</th>
+											<th class="align-middle border-top-0 pt-0 pb-2">View</th>
 											
 										</tr>
 									</thead>
@@ -76,16 +77,16 @@
 										{% for sale_order in sale_orders %}
 										<tr class="align-middle">
 											<td class="align-middle">{{forloop.counter}}</td>
-											<td class="col-3 w-10 text-truncate"><span class="col-5 text-truncate">{{ sale_order.customer.first_name }}</span></td>
+											<td class="ext-truncate"><span class="col-5 text-truncate">{{ sale_order.customer.first_name }}</span></td>
 											<td class="align-middle col-sm-1">{{ sale_order.sale_date }}</td>
-											<td class="align-middle"><span class="badge {% if sale_order.status == 'ordered' %}border border-warning text-warning{% elif sale_order.status == 'paid' %}border border-success text-success{% elif sale_order.status == 'delivered' %}border border-primary text-primary{% else %}bg-white text-dark{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ sale_order.get_status_display }} </span></td>
+											<td class="col-1 align-middle"><span class="badge {% if sale_order.status == 'ordered' %}border border-warning text-warning{% elif sale_order.status == 'paid' %}border border-success text-success{% elif sale_order.status == 'delivered' %}border border-primary text-primary{% else %}bg-white text-dark{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ sale_order.get_status_display }} </span></td>
 											<td class="align-middle span-1">
 												<ul class="list-group">
 													{% for sale_item in sale_order.saleitem_set.all %}
-													<li class="list-group-item">{{ sale_item.product.product.product_name }} -{{ sale_item.quantity }} units -UGX {{ sale_item.unit_price }} {{ sale_item.total_price }}</li>
+													<li class="list-group-item">{{ sale_item.product.product.product_name }} -{{ sale_item.quantity }} units</li>
 													{% endfor %}
 												</ul>
-											</td>
+											</td class="align-middle">
 											<td>
 												{% if sale_order.status == 'ordered' %}
 													<form method="post" action="{% url 'update_order_status' sale_order.pk %}">
@@ -101,7 +102,7 @@
 												{% endif %}
 											</td>
 											
-											<td class="align-middle">
+											<td class="col-1 align-middle">
 												
                                                     <a href="{% url 'store_sale_order_details' sale_order.pk %}"><i class="fa fa-eye text-theme" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Click to preview"></i></a>
 													

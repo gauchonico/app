@@ -27,42 +27,44 @@
 	
 </div>
 	<!-- BEGIN row -->
-	<div class="row">
-        {% for product_inventory in inventory %}
-        <div class="col-xl-3 col-lg-6">
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="d-flex fw-bold small mb-3">
-                        <span class="flex-grow-1">{{ product_inventory.product.product_name }}</span>
-                        
-                        <a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
-                    </div>
-                    
-                    <div class="row align-items-center mb-2">
-                        <div class="col-7">
-                            <h3 class="mb-0">{{ product_inventory.quantity }} - Units</h3>  </div>
-                        <div class="col-5">
-                            <div class="mt-n2" data-render="apexchart" data-type="bar" data-title="Visitors" data-height="30"></div>
+<div class="row">
+    {% for product_inventory in inventory %}
+        {% if product_inventory.quantity > 0 %}
+            <div class="col-xl-3 col-lg-6">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex fw-bold small mb-3">
+                            <span class="flex-grow-1">{{ product_inventory.product.product_name }}</span>
+                            
+                            <a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
                         </div>
+                        
+                        <div class="row align-items-center mb-2">
+                            <div class="col-7">
+                                <h3 class="mb-0">{{ product_inventory.quantity }} - Units</h3>  </div>
+                            <div class="col-5">
+                                <div class="mt-n2" data-render="apexchart" data-type="bar" data-title="Visitors" data-height="30"></div>
+                            </div>
+                        </div>
+                        <div class="small text-inverse text-opacity-50 text-truncate mb-3">
+                            <i class="bi bi-clock fs-8px text-theme me-2"></i> Last Updated<br>
+                            {{ product_inventory.last_updated }}  </div>
+                            Batch No.  <p class="text-theme">{{ product_inventory.batch_number }}</p>
+                        </div>
+                        
+                        <div class="mb-3 px-3">
+                            <a href="{% url 'productInventoryDetails' product_inventory.id %}" class="btn btn-outline-warning">Inventory Details</a>
+                        </div>
+                    <div class="card-arrow">
+                        <div class="card-arrow-top-left"></div>
+                        <div class="card-arrow-top-right"></div>
+                        <div class="card-arrow-bottom-left"></div>
+                        <div class="card-arrow-bottom-right"></div>
                     </div>
-                    <div class="small text-inverse text-opacity-50 text-truncate mb-3">
-                        <i class="bi bi-clock fs-8px text-theme me-2"></i> Last Updated<br>
-                        {{ product_inventory.last_updated }}  </div>
-                        Batch No.  <p class="text-theme">{{ product_inventory.batch_number }}</p>
                     </div>
-                    
-                    <div class="mb-3 px-3">
-                        <a href="{% url 'productInventoryDetails' product_inventory.id %}" class="btn btn-outline-warning">Inventory Details</a>
-                    </div>
-                <div class="card-arrow">
-                    <div class="card-arrow-top-left"></div>
-                    <div class="card-arrow-top-right"></div>
-                    <div class="card-arrow-bottom-left"></div>
-                    <div class="card-arrow-bottom-right"></div>
-                </div>
-                </div>
             </div>
-        {% endfor %}
+        {% endif %}
+    {% endfor %}
 </div>
 		<!-- END col-3 -->
 		<!-- END col-3 -->
