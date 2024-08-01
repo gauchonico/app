@@ -13,6 +13,7 @@ from django.utils import timezone
 
 
 
+
 # Create your models here.
 User = get_user_model()
 
@@ -27,10 +28,10 @@ class Supplier(models.Model):
         return self.name
     
 class UnitOfMeasurement(models.Model):
-  name = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=50, unique=True)
 
-  def __str__(self):
-    return self.name
+    def __str__(self):
+        return self.name
 
 class RawMaterial(models.Model):
     name = models.CharField(max_length=255)
@@ -70,6 +71,7 @@ class PurchaseOrder(models.Model):
         ("pending", "Pending"),
         ("approved", "Approved"),
         ("fulfilled", "Fulfilled"),
+        ("rejected", "Rejected"),
         # Add more choices as needed (e.g., "rejected", "canceled")
     ], default="pending")
 
@@ -117,7 +119,7 @@ class ProductionIngredient(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE,related_name="productioningredients")
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
     # Instead of percentage, store quantity per unit product volume
-    quantity_per_unit_product_volume = models.DecimalField(max_digits=4, decimal_places=0) 
+    quantity_per_unit_product_volume = models.DecimalField(max_digits=4, decimal_places=2) 
 
     def __str__(self) -> str:
         return f"{self.raw_material} for {self.product} needed for {self.quantity_per_unit_product_volume}"
@@ -128,87 +130,6 @@ class ProductionBatch(models.Model):
     quantity = models.PositiveIntegerField(default=1)  # Number of bottles produced
     created_at = models.DateTimeField(auto_now_add=True)
     completed = models.BooleanField(default=False)
-
-class ManufactureProduct(models.Model):
-    product = models.ForeignKey(Production, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1)  # Number of units manufactured
-    manufactured_at = models.DateTimeField(auto_now_add=True)
-    notes = models.TextField(blank=True)
-    batch_number = models.CharField(max_length=8)
-    labor_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=0, default=0)
-    expiry_date = models.DateField(null=True,blank=True)
-
-    def __str__(self):
-        return f"{self.quantity} units of {self.product.product_name} manufactured on {self.manufactured_at.strftime('%Y-%m-%d')}"
-    
-class ManufacturedProductInventory(models.Model):
-    product = models.ForeignKey(Production, on_delete=models.CASCADE)
-    quantity = models.IntegerField()
-    batch_number = models.CharField(max_length=50,blank=True, null=True)
-    last_updated = models.DateTimeField(auto_now=True)
-    expiry_date = models.DateField(blank=True, null=True)
-
-    def __str__(self):
-        return f"{self.product.product_name} batch number{self.batch_number} ({self.quantity})- Last Updated: {self.last_updated}"
-
-
- ################### stores models   
-class Store(models.Model):
-    name = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)
-
-    def __str__(self):
-        return self.name
-    
-class StockTransfer(models.Model):
-    from_inventory = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE, related_name='from_transfers')
-    to_store = models.ForeignKey(Store, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
-    transfer_date = models.DateTimeField(auto_now_add=True)
-    processed_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)  # Optional: User who processed the transfer
-
-    def __str__(self):
-        return f"Transferred {self.quantity} units of {self.from_inventory.product.product_name} to {self.to_store} on {self.transfer_date.strftime('%Y-%m-%d')}"
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-
-class RestockRequest(models.Model):
-    product = models.ForeignKey(Production, on_delete=models.CASCADE)
-    store = models.ForeignKey(Store, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
-    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name="requested_restocks")  # Optional: User who requested
-    request_date = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=255, choices=[
-        ("pending", "Pending"),
-        ("approved", "Approved"),
-        ("delivered", "Delivered"),
-        ("rejected", "Rejected"),
-    ], default="pending")
-    comments = models.TextField(blank=True)  # Optional: Comments or reasons for rejection
-    approved_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name="approved_restocks")  # User who approved/rejected
-
-    def __str__(self):
-        return f"Restock Request for {self.quantity} units of {self.product.product_name} from {self.store.name} (requested by: {self.requested_by.username if self.requested_by else 'N/A'})"
-    
-class StoreInventory(models.Model):
-    product = models.ForeignKey(Production, on_delete=models.CASCADE)  # Link to manufactured product
-    store = models.ForeignKey(Store, on_delete=models.CASCADE)  # Link to store
-    quantity = models.PositiveIntegerField()
-    last_updated = models.DateTimeField(auto_now=True)  # Track last update
-
-    def __str__(self):
-        return f"{self.product.product_name} ({self.quantity}) in {self.store.name} - Last Updated: {self.last_updated.strftime('%Y-%m-%d')}"
-
-    class Meta:
-        unique_together = (('product', 'store'),)
-
-# what to add 
-# bottle top and bottle without affecting the total volume
-# add utilities and labour cost information to be added while manufacturing. utility cost information
-# total vo,ume of the product.
-# when creating a product  measurements litres make sure its capital or something
-# 
 
 class ProductionOrder(models.Model):
     product = models.ForeignKey(
@@ -240,6 +161,138 @@ class ProductionOrder(models.Model):
 
     class Meta:
         ordering = ['-created_at'] 
+class ManufactureProduct(models.Model):
+    product = models.ForeignKey(Production, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)  # Number of units manufactured
+    manufactured_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True)
+    batch_number = models.CharField(max_length=8)
+    labor_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    expiry_date = models.DateField(null=True,blank=True)
+    production_order = models.ForeignKey(ProductionOrder, on_delete=models.CASCADE, null=True, blank=True, related_name='manufactured_products')
+
+    def __str__(self):
+        return f"{self.quantity} units of {self.product.product_name} manufactured on {self.manufactured_at.strftime('%Y-%m-%d')}"
+    
+class ManufacturedProductInventory(models.Model):
+    product = models.ForeignKey(Production, on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+    batch_number = models.CharField(max_length=50,blank=True, null=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    expiry_date = models.DateField(blank=True, null=True)
+    
+
+    def __str__(self):
+        return f"{self.product.product_name} Btch No: {self.batch_number} Qty: ({self.quantity})"
+
+class WriteOff(models.Model):
+    manufactured_product_inventory = models.ForeignKey(
+        'ManufacturedProductInventory', on_delete=models.CASCADE, related_name='write_offs'
+    )
+    quantity = models.PositiveIntegerField()
+    reason = models.CharField(max_length=255)
+    date = models.DateField(auto_now_add=True)
+    initiated_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"WriteOff: {self.manufactured_product_inventory.product.product_name} - {self.quantity} units"
+
+################### stores models   
+class Store(models.Model):
+    name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255)
+    manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name='managed_stores', blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+    
+class StockTransfer(models.Model):
+    from_inventory = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE, related_name='from_transfers')
+    to_store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    transfer_date = models.DateTimeField(auto_now_add=True)
+    processed_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)  # Optional: User who processed the transfer
+
+    def __str__(self):
+        return f"Transferred {self.quantity} units of {self.from_inventory.product.product_name} to {self.to_store} on {self.transfer_date.strftime('%Y-%m-%d')}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+
+##### Main Store Transfer      
+class LivaraMainStore(models.Model):
+    product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    batch_number = models.CharField(max_length=50, null=True, blank=True)
+    quantity = models.PositiveIntegerField()
+    expiry_date = models.DateField(null=True, blank=True)
+    
+    def __str__ (self):
+        return f"{self.quantity} units of {self.product.product.product_name} in Main Store"
+    
+class StoreTransfer(models.Model):
+    notes = models.CharField(max_length=40, null=True, blank=True)
+    date = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Completed', 'Completed')], default='Pending')
+    
+    def __str__(self):
+        return f"Transfer {self.id} by {self.created_by}"
+
+class StoreTransferItem(models.Model):
+    transfer = models.ForeignKey(StoreTransfer, related_name='items', on_delete=models.CASCADE)
+    product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    
+
+
+##############################################
+
+class RestockRequest(models.Model):
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name="requested_restocks")  # Optional: User who requested
+    request_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=255, choices=[
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("delivered", "Delivered"),
+        ("rejected", "Rejected"),
+    ], default="pending")
+    comments = models.TextField(blank=True)  # Optional: Comments or reasons for rejection
+
+
+    def __str__(self):
+        return f"Restock Request for {self.store.name} (requested by: {self.requested_by.username if self.requested_by else 'N/A'})"
+    
+class RestockRequestItem(models.Model):
+    restock_request = models.ForeignKey(RestockRequest, related_name='items', on_delete=models.CASCADE)
+    product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"{self.quantity} units of {self.product.product.product.product_name} for restock request {self.restock_request}"
+    
+class StoreInventory(models.Model):
+    product = models.ForeignKey(Production, on_delete=models.CASCADE)  # Link to manufactured product
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)  # Link to store
+    quantity = models.PositiveIntegerField()
+    last_updated = models.DateTimeField(auto_now=True)  # Track last update
+
+    def __str__(self):
+        return f"{self.product.product_name} ({self.quantity}) in {self.store.name} - Last Updated: {self.last_updated.strftime('%Y-%m-%d')}"
+
+    class Meta:
+        unique_together = (('product', 'store'),)
+
+# what to add 
+# bottle top and bottle without affecting the total volume
+# add utilities and labour cost information to be added while manufacturing. utility cost information
+# total vo,ume of the product.
+# when creating a product  measurements litres make sure its capital or something
+# 
+
+
 
 class Notification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
@@ -321,7 +374,7 @@ class StoreSale(models.Model):
         
 class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
-    product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)  # Link to product
+    product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)  # Link to product
     quantity = models.DecimalField(max_digits=10, decimal_places=0)
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, default=0)  # Calculated total price

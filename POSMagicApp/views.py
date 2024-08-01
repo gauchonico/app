@@ -133,7 +133,7 @@ def generate_pdf(request, transaction_id):
 ## Customer ###
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Finance','Cashier'])
+@allowed_users(allowed_roles=['Finance','Cashier','Managers'])
 def pageCustomer(request):
 	# get all customers
 	customers = Customer.objects.all()

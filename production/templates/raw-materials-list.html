@@ -65,7 +65,11 @@
 					</div>
                     {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
                     <div class="mt-10">
-                        <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-outline-theme">Purchase order</a>
+                        <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-danger">Purchase order</a>
+                    </div>
+					{% else %}
+					<div class="mt-10">
+                        <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-success">Purchase order</a>
                     </div>
                     {% endif %}
 					<!-- END stat-sm -->

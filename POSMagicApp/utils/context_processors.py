@@ -1,6 +1,19 @@
 from urllib import request
 from django.urls import resolve
 from django.contrib.auth.models import Group
+from django.utils.safestring import mark_safe
+
+from production.models import LivaraMainStore, ProductionOrder, RestockRequest, StoreTransfer
+
+
+def get_created_production_orders_count():
+    return ProductionOrder.objects.filter(status='Created').count()
+
+def get_pending_livara_store_orders():
+    return StoreTransfer.objects.filter(status='Pending').count()
+
+def get_new_restock_requests_count():
+    return RestockRequest.objects.filter(status='pending').count()
 
 def mark_active_link(menu, current_path_name):
     for item in menu:
@@ -16,6 +29,9 @@ def mark_active_link(menu, current_path_name):
 
 
 def sidebar_menu(request):
+    created_production_orders_count = get_created_production_orders_count()  # Get the count of created production orders
+    created_livara_store_orders = get_pending_livara_store_orders()
+    restock_requests_count= get_new_restock_requests_count()
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -75,12 +91,14 @@ def sidebar_menu(request):
         },{
             'url': '/production/products-list/',
             'icon': 'bi bi-upc-scan',
-            'text': 'Products',
+            'text': 'Products / Manufacture',
             'name': 'productsList'
         },{
             'url': '/production/production-production-orders/',
             'icon': 'bi bi-node-plus-fill',
-            'text': 'Production Orders',
+            'text': mark_safe(
+                f'Production Orders <span class="badge rounded-circle bg-danger">{created_production_orders_count}</span>' 
+                if created_production_orders_count > 0 else 'Production Orders'),
             'name': 'productionProduction'
         },{
             'url': '/production/store-requests',
@@ -90,7 +108,7 @@ def sidebar_menu(request):
         },{
             'url': '/production/manufactured-product-list/',
             'icon': 'bi bi-speedometer',
-            'text': 'Production Center',
+            'text': 'Production Reports',
             'name': 'manufacturedProductList'
         },{
             'url': '/production/factory-inventory/',
@@ -151,13 +169,44 @@ def sidebar_menu(request):
         },{
             'url': '/production/restock-requests/',
             'icon': 'bi bi-recycle',
-            'text': 'Restock Requests',
+            'text': mark_safe (
+                f'Restock Requests <span class="badge rounded-circle bg-danger">{restock_requests_count}</span>'
+                if restock_requests_count > 0 else 'Restock Requests' 
+            ),
             'name': 'restockRequests',
         },{
             'url': '/production/general-stores/',
             'icon': 'bi bi-boxes',
             'text': 'General Stores',
             'name': 'store_inventory_list',
+        },{
+            'url': '/production/main_stock_transfers/',
+            'icon': 'bi bi-truck',
+            'text': mark_safe (
+                f'Main Store Transfers <span class="badge rounded-circle bg-danger">{created_livara_store_orders}</span>'
+                if created_livara_store_orders > 0 else 'Main Store'
+            ),
+            'name':'main_stock_transfers'
+        },{
+            'url': '/production/livara_main_store_inventory',
+            'icon': 'bi bi-folder',
+            'text': 'Livara Main Store',
+            'name':'livara_main_store_inventory'
+        },{
+            'url': '/production/write_offs',
+            'icon': 'bi bi-box-seam',
+            'text': 'Production Store Writeoffs',
+            'name': 'writeoffs',
+        },{
+            'url': '/production/manufacture_products_report',
+            'icon': 'bi bi-folder-fill',
+            'text': 'Manufacture Products Report',
+            'name':'manufacture_products_report',
+        },{
+            'url': '/production/raw_material_utilization_report/',
+            'icon': 'bi bi-folder',
+            'text': 'Raw Material Utilization Report',
+            'name': 'raw_material_utilization_report',
         },{
             'text': 'FINANCE',
             'is_header': 1
@@ -181,6 +230,17 @@ def sidebar_menu(request):
             'icon': 'bi bi-receipt',
             'text': 'Restock Requests',
             'name': 'financeRestockRequests',
+        },{
+            'text': 'MANAGERS',
+            'is_header': 1
+        },{
+            'url': '/production/store_manager/',
+            'icon': 'bi bi-bounding-box-circles',
+            'text': 'My Inventory',
+            'name': 'managers_store_inventory_view',
+        },{
+        
+            
     }
         # ... your existing menu definition ...
     ]
@@ -205,15 +265,18 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory']]  # Replace with your store manager menu names
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales','writeoffs']]
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs']]
+        elif 'Managers' in group_names:
+            sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['managers_store_inventory_view','pageCustomer']]
             # Add store management menu if user has permission
             if request.user.has_perm('production.store_access'):  # Replace 'production.store_access' with your permission name
                 sidebar_menu.append({

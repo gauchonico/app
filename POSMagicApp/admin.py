@@ -32,4 +32,11 @@ admin.site.register(Notification)
 admin.site.register(Receipt)
 admin.site.register(SaleItem)
 admin.site.register(StoreSale)
+admin.site.register(StoreTransfer)
+admin.site.register(StoreTransferItem)
+admin.site.register(LivaraMainStore)
+admin.site.register(WriteOff)
+admin.site.register(RestockRequestItem)
+
+
 

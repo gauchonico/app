@@ -67,11 +67,11 @@
 							<th class="border-top-0 pt-0 pb-2">#</th>
 							<th class="border-top-0 pt-0 pb-2">Name</th>
 							<th class="border-top-0 pt-0 pb-2">Qty. Req.</th>
-                            <th class="border-top-0 pt-0 pb-2">Qty. Approved.</th>
+                            <th class="border-top-0 pt-0 pb-2">Qty.Produced.</th>
 							<th class="border-top-0 pt-0 pb-2">Status</th>
-							<th class="border-top-0 pt-0 pb-2">Requested by:</th>
+							<th class="border-top-0 pt-0 pb-2">Request by:</th>
 							<th class="border-top-0 pt-0 pb-2">Created At:</th>
-                            <th>Target</th>
+                            
 							<th class="border-top-0 pt-0 pb-2">Edit</th>
 						</tr>
 					</thead>
@@ -85,13 +85,13 @@
                                 {% if order.approved_quantity %}
                                     {{ order.approved_quantity }}
                                 {% else %}
-                                    Not Yet Approved
+                                    Waiting Approval
                                 {% endif %}
                             </td>
 							<td class="align-middle"><span class="badge {% if order.status == 'Created' %}border border-warning text-warning{% elif order.status == 'Approved' %}border border-success text-success{% elif order.status == 'In Progress' %}border border-primary text-primary{% else %}bg-white text-dark{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ order.status}}</span></td>
 							<td class="align-middle"><i class="bi bi-person-circle text-theme px-2"></i>{{ order.requested_by.username }}</td>
 							<td class="align-middle">{{ order.created_at }}</td>
-                            <td class="align-middle">{{ order.target_completion_date }}</td>
+                            
 							<td class="align-middle">
                                 {% if order.status == 'Approved' %}
                                     <p class="text-success">Order sent to Production</p>
@@ -99,9 +99,9 @@
                                     <p class="text-info">Order In Production Process</p>
                                 {% else %}
                                     <div class="col-md-6 col-sm-6 col-xs-6 mb-1">
-                                    <a href="{% url 'approveProduction' order.pk %}"><button class="btn btn-indigo">Approve</button></a>
+                                    <a href="{% url 'approveProduction' order.pk %}"><button class="btn btn-indigo" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Approve how much you can produce">Approve</button></a>
                                     <span></span>
-                                    <button class="btn btn-danger">Reject</button>
+                                    <button class="btn btn-danger" data-bs-placement="top" data-bs-title="A">Reject</button>
                                     
                                     <span></span>
                                     </div>

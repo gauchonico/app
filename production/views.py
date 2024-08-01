@@ -1,22 +1,27 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from django.contrib.auth.models import Group
+from django.views.decorators.http import require_POST
+from django.db.models import Sum, F
+from django.utils import timezone
 
+from itertools import product
 import json
 from django import forms
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
 from django.forms import ValidationError, formset_factory, inlineformset_factory, modelformset_factory
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-
+from django.db.models.functions import TruncMonth, TruncWeek, TruncDay
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockApproveForm, RestockRequestEditForm, RestockRequestForm, SaleOrderForm, StoreAlertForm, StoreForm, TestForm, TestItemForm, TestItemFormset
-from .models import ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, Supplier, PurchaseOrder
+from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
+from .models import LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -154,9 +159,11 @@ def productionProcess(request):
 def purchaseOderList(request):
     return render(request, "purchase-order-list.html")
 
-
-
-### Purchase Orders #########################################################################
+##############################################################
+##############################################################
+### Purchase Orders for raw materials #########################################################################
+##############################################################
+##############################################################
 @login_required(login_url='/login/')
 def createPurchaseOrder(request, rawmaterial_id):
 
@@ -203,6 +210,29 @@ def editPurchaseOrderDetails(request, purchase_order_id):
     context = {'form': form}
     return render(request, "edit-purchase-order-details.html", context)
 
+def approve_order(request, order_id):
+    order = get_object_or_404(PurchaseOrder, id=order_id)
+    if request.method == 'POST':
+        order.status = 'approved'
+        order.save()
+        messages.success(request, 'Order approved successfully.')
+    else:
+        messages.error(request, 'Invalid request method.')
+    return redirect('financePurchase')
+
+def reject_order(request, order_id):
+    order = get_object_or_404(PurchaseOrder, id=order_id)
+    if request.method == 'POST':
+        order.status = 'rejected'
+        order.save()
+        messages.success(request, 'Order rejected successfully.')
+    else:
+        messages.error(request, 'Invalid request method.')
+    return redirect('financePurchase')
+
+##############################################################
+##############################################################
+
 @login_required(login_url='/login/')
 def productsList(request):
     products = Production.objects.all()
@@ -224,25 +254,21 @@ def productDetails(request, product_id):
     }
     return render(request, "product-details.html", context)
 
-# class ProductionIngredientFormSet(BaseFormSet):
-#     def get_queryset(self):
-#         # Always return a queryset with empty forms
-#         return super().get_queryset().none()
-
 
 @login_required(login_url='/login/')
 def create_product(request):
-    ingredient_formset =  inlineformset_factory(Production, ProductionIngredient, form=ProductionIngredientForm, extra=1)
+    
     if request.method == 'POST':
         product_form = ProductionForm(request.POST)
-        formset = ingredient_formset(request.POST)
+        formset = ProductionIngredientFormSet(request.POST)
 
         if product_form.is_valid() and formset.is_valid():
             excluded_materials = ["Bottle Tops", "Bottle 250 ml", "Bottle 150 ml","Label for Product"] 
             
             total_ingredient_volume = sum(
-                form.cleaned_data.get('quantity_per_unit_product_volume', 0) for form in formset if form.is_valid() and form.cleaned_data['raw_material'].name not in excluded_materials
-                )
+                form.cleaned_data.get('quantity_per_unit_product_volume', 0) 
+                for form in formset if form.is_valid() and form.cleaned_data['raw_material'].name not in excluded_materials
+            )
             product = product_form.save(commit=False)
             if total_ingredient_volume != product.total_volume:
                 messages.error(request, "Sum of ingredient quantities must equal product volume<br>Check your Formula Again")
@@ -255,10 +281,11 @@ def create_product(request):
                 return redirect('productsList')  # Redirect to product list view after creation
         else:
             # Handle form validation errors (optional: display them in the template)
+            messages.error(request, "There were errors in your form submission. Please correct them and try again.")
             pass
     else:
         product_form = ProductionForm()
-        formset = ingredient_formset()
+        formset = ProductionIngredientFormSet()
     return render(request, 'create-product.html', {'product_form': product_form, 'formset': formset})
 
 
@@ -278,33 +305,6 @@ def testProduct(request, product_id):
     else:
         formset = ProductionIngredientFormSet(instance=product)
     return render(request, 'test.html', {'product': product, 'raw_materials': raw_materials, 'formset': formset})
-
-
-# def addIngredients(request):
-#     # form submissions for new produc
-
-#     production_form = ProductionForm(request.POST)
-#     ingredient_formset = ProductionIngredientFormSet(request.POST)
-
-#     if production_form.is_valid() and ingredient_formset.is_valid():
-#         # Save the product
-#         product = production_form.save()
-
-#         # Save the ingredients associated with the product
-#         ingredients = ingredient_formset.save(commit=False)
-#         for ingredient in ingredients:
-#             ingredient.product = product
-#             ingredient.save()
-
-#         return redirect('productsList')
-#     else:
-#         print(production_form.errors)
-#         print(ingredient_formset.errors)
-#         # Render the form for creating a new product and its ingredients
-#         production_form = ProductionForm()
-#         ingredient_formset = ProductionIngredientFormSet()
-
-#     return render(request, 'add-ingredients.html', {'production_form': production_form, 'ingredient_formset': ingredient_formset})
 
 
 @login_required(login_url='/login/')
@@ -346,13 +346,14 @@ def manufacture_product(request, product_id):
         return redirect('productsList')  # Redirect to product list on error
 
     if request.method == 'POST':
-        form = ManufactureProductForm(request.POST)  # Create form instance with POST data
+        form = ManufactureProductForm(request.POST, product=product)  # Create form instance with POST data
         if form.is_valid():
             quantity = form.cleaned_data['quantity']
             notes = form.cleaned_data['notes']
             batch_number = form.cleaned_data['batch_number']
             labor_cost_per_unit = form.cleaned_data['labor_cost_per_unit']  # Access labor cost
             expiry_date = form.cleaned_data['expiry_date']
+            production_order = form.cleaned_data['production_order']
             
 
             # Check for sufficient raw material stock (optional)
@@ -376,6 +377,7 @@ def manufacture_product(request, product_id):
                         batch_number=batch_number,
                         labor_cost_per_unit=labor_cost_per_unit,
                         expiry_date = expiry_date,
+                        production_order=production_order
                     )
                     #update manufactured product inventory
                     manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
@@ -391,6 +393,11 @@ def manufacture_product(request, product_id):
                     # total_cost = (cost_per * quantity) + (labor_cost_per_unit * quantity)
                     total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per) + (labor_cost_per_unit * quantity)
                     
+                    #update Production Order Status
+                    if production_order:
+                        production_order.status = 'Completed'
+                        production_order.save()  # Update production order status to 'Manufactured'
+                    
                     context ={
                         'cost_per': cost_per,
                         'total_cost': total_cost,
@@ -404,9 +411,121 @@ def manufacture_product(request, product_id):
         else:
                 messages.error(request, "Please correct the errors in the form.")
     else:
-        form = ManufactureProductForm()  # Create an empty form instance for GET requests
+        form = ManufactureProductForm(product=product)  # Create an empty form instance for GET requests
 
     return render(request, 'manufacture-product.html', {'product': product, 'form': form})
+
+def manufactured_products_report(request):
+    period = request.GET.get('period', 'month')  # 'month', 'week', 'day'
+    
+    if period == 'month':
+        truncate_func = TruncMonth
+    elif period == 'week':
+        truncate_func = TruncWeek
+    elif period == 'day':
+        truncate_func = TruncDay
+    else:
+        truncate_func = TruncMonth
+    
+    now = timezone.now()
+    start_date = now - timezone.timedelta(days=365)  # Last year
+    manufactured_products = ManufactureProduct.objects.filter(
+        manufactured_at__gte=start_date
+    ).annotate(
+        period=truncate_func('manufactured_at')
+    ).values('period').annotate(
+        total_quantity=Sum('quantity')
+    ).order_by('period')
+    
+    context = {
+        'manufactured_products': manufactured_products,
+        'period': period
+    }
+    
+    return render(request, 'manufactured_products_report.html', context)
+
+def raw_material_utilization_report(request):
+    # Get custom start and end dates from query parameters
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    # Default to last month if no dates are provided
+    if not start_date_str or not end_date_str:
+        start_date = timezone.now() - timedelta(days=30)
+        end_date = timezone.now()
+    else:
+        # Convert strings to date objects
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            # Handle invalid date formats
+            start_date = timezone.now() - timedelta(days=30)
+            end_date = timezone.now()
+
+    # Aggregate data based on the specified date range
+    utilization_data = ProductionIngredient.objects.filter(
+        product__manufacturedproductinventory__last_updated__range=[start_date, end_date]
+    ).values(
+        'raw_material__name', 'raw_material__unit_measurement'
+    ).annotate(
+        total_quantity=Sum(F('quantity_per_unit_product_volume') * F('product__manufacturedproductinventory__quantity'))
+    )
+    
+    context = {
+        'raw_material_utilization': utilization_data,
+        'start_date': start_date,
+        'end_date': end_date
+    }
+    
+    return render(request, 'raw_material_utilization_report.html', context)
+
+
+def write_off_product(request, inventory_id):
+    manufactured_product_inventory = get_object_or_404(ManufacturedProductInventory, pk=inventory_id)
+    
+    if request.method == 'POST':
+        form = WriteOffForm(request.POST)
+        if form.is_valid():
+            quantity = form.cleaned_data['quantity']
+            reason = form.cleaned_data['reason']
+            
+            # Check if there is enough quantity in the inventory
+            if manufactured_product_inventory.quantity >= quantity:
+                with transaction.atomic():
+                    # Update the inventory
+                    manufactured_product_inventory.quantity -= quantity
+                    manufactured_product_inventory.save()
+                    
+                    # Create the write-off record
+                    WriteOff.objects.create(
+                        manufactured_product_inventory=manufactured_product_inventory,
+                        quantity=quantity,
+                        reason=reason,
+                        initiated_by=request.user
+                    )
+                    
+                    messages.success(request, f"Successfully wrote off {quantity} units of {manufactured_product_inventory.product.product_name}")
+                    return redirect('manufacturedProductList')  # Redirect to product list after success
+            else:
+                messages.error(request, "Not enough quantity in inventory to write off the requested amount.")
+        else:
+            messages.error(request, "Please correct the errors in the form.")
+    else:
+        form = WriteOffForm()
+
+    return render(request, 'write-off-product.html', {'manufactured_product_inventory': manufactured_product_inventory, 'form': form})
+
+def write_offs(request):
+    """
+    View to display a list of all write-offs.
+    """
+    write_offs = WriteOff.objects.all()  # Optimize query
+
+    context = {
+        'write_offs': write_offs,
+    }
+    return render(request, "production_writeoffs.html", context)
 
 def convert_to_base_unit(quantity, unit_of_measurement):
     """ Convert quantity to base unit (liters for volume, kilograms for weight) """
@@ -466,6 +585,9 @@ def manufacturedproduct_detail(request, product_id):
     total_labour_cost = manufactured_product.labor_cost_per_unit * quantity
     cost_per_product = total_ingredient_cost + total_labour_cost
     total_production_cost = cost_per_product * quantity
+    
+    # Get the associated production order, if any
+    production_order = manufactured_product.production_order if manufactured_product.production_order else None
 
     referer = request.META.get('HTTP_REFERER', '/')
     # Prepare data for ingredients used
@@ -488,6 +610,7 @@ def manufacturedproduct_detail(request, product_id):
         'total_labour_cost': total_labour_cost,
         'ingredient_costs': ingredient_costs,
         'total_production_cost':total_production_cost,
+        'production_order': production_order,
         'referer':referer,
     }
     return render(request, 'manufactured-product-details.html', context)
@@ -519,6 +642,102 @@ def product_inventory_details(request, inventory_id):
         'product':product,
     }
     return render (request, 'product-inventory-details.html', context)
+
+
+def bulk_stock_transfer(request):
+    initial_form_count = 1
+    StockTransferItemFormSet = formset_factory(
+        StoreTransferItemForm,
+        extra=initial_form_count,
+        min_num=initial_form_count,  # Minimum number of forms
+        max_num=1000,
+        )
+
+    if request.method == 'POST':
+        formset = StockTransferItemFormSet(request.POST, prefix='stock_item')
+        transfer_form = StoreTransferForm(request.POST, prefix='transfer')
+        
+        print(f"Transfer Form Data: {transfer_form.data}")
+        print(f"Formset Data: {formset.data}")
+
+        if formset.is_valid() and transfer_form.is_valid():
+            with transaction.atomic():
+                transfer = transfer_form.save(commit=False)
+                transfer.created_by = request.user
+                transfer.save()
+                
+                for form in formset:
+                    product_id = form.cleaned_data['product']
+                    quantity = form.cleaned_data['quantity']
+
+                    # Create StoreTransferItem
+                    StoreTransferItem.objects.create(
+                        transfer=transfer,
+                        product=product_id,
+                        quantity=quantity
+                    )
+
+                # Redirect after successful creation
+                return redirect('main_stock_transfer')  # Adjust to your URL name for the transfer list view
+    else:
+        formset = StockTransferItemFormSet(prefix='stock_item')
+        transfer_form = StoreTransferForm(prefix='transfer')
+
+    context = {
+        'formset': formset,
+        'transfer_form':transfer_form,
+    }
+
+    return render(request, 'bulk_stock_transfer.html', context)
+
+def main_stock_transfer (request):
+    store_transfers = StoreTransfer.objects.all()
+    context = {
+        'store_transfers': store_transfers
+    }
+    return render(request, 'main_stock_transfers.html', context)
+
+def mark_transfer_completed (request, transfer_id):
+    transfer = get_object_or_404(StoreTransfer, pk=transfer_id)
+    if transfer.status != 'completed':
+        with transaction.atomic():
+            transfer.status = 'completed'
+            transfer.save()
+
+            transfer_items = StoreTransferItem.objects.filter(transfer=transfer)
+            for item in transfer_items:
+                manufactured_product_inventory = item.product
+                quantity = item.quantity
+                batch_number = manufactured_product_inventory.batch_number
+                expiry_date = manufactured_product_inventory.expiry_date
+
+                # Update ManufacturedProductInventory
+                if manufactured_product_inventory.quantity >= quantity:
+                    manufactured_product_inventory.quantity -= quantity
+                    manufactured_product_inventory.save()
+                else:
+                    # Handle the case where there isn't enough stock
+                    raise ValueError(f"Not enough stock in manufacture inventory for {manufactured_product_inventory.product}")
+
+                # Update LivaraMainStore
+                livara_inventory, created = LivaraMainStore.objects.get_or_create(
+                    product=manufactured_product_inventory,
+                    batch_number=batch_number,
+                    expiry_date=expiry_date,
+                    defaults={'quantity': quantity}
+                )
+                
+                if not created:
+                    livara_inventory.quantity += quantity
+                    livara_inventory.save()
+
+    return redirect('main_stock_transfer')
+def livara_main_store_inventory(request):
+    main_store_inventory = LivaraMainStore.objects.all()
+    context = {
+        'main_store_inventory': main_store_inventory
+    }
+    return render(request, 'livara_main_store_inventory.html', context)
 
 @login_required(login_url='/login/')
 def all_stores(request):
@@ -570,55 +789,91 @@ def delete_store(request, store_id):
 
 
 @login_required(login_url='/login/')
+def create_restock_request(request):
+
+    RestockRequestItemFormset = inlineformset_factory(
+        RestockRequest, RestockRequestItem,
+        form=RestockRequestItemForm, extra=1, can_delete=True
+    )
+
+    if request.method == 'POST':
+        form = RestockRequestForm(request.POST, prefix="restock")
+        formset = RestockRequestItemFormset(request.POST, prefix="restock_item")
+
+        if form.is_valid() and formset.is_valid():
+            restock = form.save(commit=False)
+            restock.requested_by = request.user  # Set the user who made the request
+            restock.save()
+
+            for item_form in formset:
+                restock_item = item_form.save(commit=False)
+                restock_item.restock_request = restock
+                restock_item.save()
+
+            messages.success(request, 'Restock request created successfully!')
+
+            return redirect('restockRequests')  # Adjust this to your success URL name
+        else:
+            print(form.errors)
+            print(formset.errors)
+    else:
+        form = RestockRequestForm(prefix="restock")
+        formset = RestockRequestItemFormset(prefix="restock_item")
+
+    context = {
+        'form': form,
+        'formset': formset,
+    }
+    
+    return render(request, 'create-restock-requests.html', context)
+
+@login_required(login_url='/login/')
 def restock_requests (request):
-    restock_requests = RestockRequest.objects.all().order_by('-request_date')
+    restock_requests = RestockRequest.objects.all().prefetch_related('items__product').order_by('-request_date')
 
     user_groups = request.user.groups.all()  # This retrieves all groups the user belongs to
     user_group = user_groups.first()
 
     context = {
-       'restock_requests': restock_requests,
-       'user_group': user_group,
+        'restock_requests': restock_requests,
+        'user_group': user_group,
     }
     
     return render(request, 'restock-requests.html', context)
 
+@require_POST
+@transaction.atomic
+def mark_restock_as_delivered(request, restock_id):
+    restock_request = get_object_or_404(RestockRequest, id=restock_id)
 
-@login_required(login_url='/login/')
-def create_restock_request(request):
-    if request.method == 'POST':
-        form = RestockRequestForm(request.POST)
-        if form.is_valid():
-            form.save()  # Save the new restock request
-            return redirect('restockRequests')  # Redirect to list view on success
-    else:
-        form = RestockRequestForm()  # Create an empty form
+    # Ensure the request is still pending
+    if restock_request.status != 'pending':
+        messages.error(request, 'This restock request has already been processed.')
+        return redirect('restockRequests')
 
-    context = {'form': form}
-    
-    return render(request, 'create-restock-requests.html', context)
+    # Update the status to 'delivered'
+    restock_request.status = 'delivered'
+    restock_request.save()
 
+    # Update the inventory in LivaraMainStore and StoreInventory
+    for item in restock_request.items.all():
+        livara_store_product = item.product
+        livara_store_product.quantity -= item.quantity
+        livara_store_product.save()
 
-@login_required(login_url='/login/')
-def edit_restock_request(request, request_id):
-    restock_request = get_object_or_404(RestockRequest, pk=request_id)
-    form = RestockRequestEditForm(request.POST or None, instance=restock_request)
-    
-    if request.method == 'POST' and request.user.is_staff:
-        if form.is_valid():
-            restock_request.status = form.cleaned_data['status']
-            restock_request.save()
-            
-            messages.success(request, f"Restock Request {restock_request.id} Updated Successfully!")
-            return redirect('restockRequests')
-        else:
-            form = RestockRequestEditForm(instance=restock_request)  # Create an empty form for GET requests
-            # Form is already defined, no need to re-initialize here
+        # Update or create the store inventory record
+        store_inventory, created = StoreInventory.objects.get_or_create(
+            product=livara_store_product.product.product,  # Assuming this is the production product
+            store=restock_request.store,
+            defaults={'quantity': item.quantity}
+        )
+        if not created:
+            store_inventory.quantity += item.quantity
+            store_inventory.save()
 
-    context = {
-        'form': form,
-    }
-    return render(request, 'edit-restock-requests.html', context)
+    messages.success(request, 'Restock request marked as delivered and inventory updated successfully.')
+    return redirect('restockRequests')
+
 
 def approve_restock_requests(request, request_id):
     restock_request = get_object_or_404(RestockRequest, pk=request_id)
@@ -659,7 +914,23 @@ def store_inventory_list(request):
     return render(request, 'general-stores.html', context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Finance','Storemanager'])
+def managers_store_inventory_view (request):
+    user = request.user
+    managers = Group.objects.get(name='Managers')
+    if user.groups.filter(name='Managers').exists():
+        managed_stores = user.managed_stores.all()
+    else:
+        return HttpResponseForbidden("You do not have permission to view any store inventories.")
+    store_inventories = StoreInventory.objects.filter(store__in=managed_stores)
+    
+    context = {
+        'store_inventories':store_inventories,
+        'managed_stores': managed_stores,
+    }
+    return render(request, 'store_manager.html', context)
+
+@login_required(login_url='/login/')
+@allowed_users(allowed_roles=['Finance','Storemanager','Production Manager'])
 def create_production_order(request):
     if not request.user.groups.filter(name='Storemanager').exists():
         messages.error(request, "You don't have permission to create production orders.")
@@ -701,6 +972,7 @@ def finance_view_production_orders(request):
     production_orders = ProductionOrder.objects.all().order_by('-created_at')  # Order by creation date descending
     context = {'production_orders': production_orders}
     return render(request, 'finance_production_order.html', context)
+
 def finance_view_purchase_orders(request):
     statuses = ['pending','approved']
     purchase_orders = PurchaseOrder.objects.filter(status__in = statuses).order_by('-created_at')  # Order by creation date descending
@@ -725,16 +997,16 @@ def approve_purchase_order(request, purchaseo_id):
     return render(request, 'approve_purchase_order.html', context)
 
 def productions_view_production_orders(request):
-    production_orders = ProductionOrder.objects.filter(status__in=['Approved', 'In Progress', 'Completed']).order_by('-created_at')  # Order by creation date descending
+    production_orders = ProductionOrder.objects.filter(status__in=['Created','Approved', 'In Progress', 'Completed']).order_by('-created_at')  # Order by creation date descending
     context = {'production_orders': production_orders}
     return render(request, 'production_production_orders.html', context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles='Finance')
+@allowed_users(allowed_roles=['Finance','Production Manager'])
 def approve_production_order(request, pk):
-    if not request.user.groups.filter(name='Finance').exists():
-        messages.error(request, "You don't have permission to create production orders.")
-        return redirect('store_inventory_list')  # Redirect to homepage on permission error
+    # if not request.user.groups.filter(name=['Production Manager']).exists():
+    #     messages.error(request, "You don't have permission to create production orders.")
+    #     return redirect('store_inventory_list')  # Redirect to homepage on permission error
     
     production_order = ProductionOrder.objects.get(pk=pk)
     if request.method == 'POST':
@@ -757,7 +1029,7 @@ def approve_production_order(request, pk):
                         verb='Your production order has been approved!',
                         description=f"Order #{production_order.pk} for '{production_order.product.product_name}' has been approved and is ready for production (approved quantity: {approved_quantity} units).",
                     )
-                    return redirect('financeProduction')
+                    return redirect('productionProduction')
             except ValueError:
                 messages.error(request, "Invalid approved quantity. Please enter a number.")
     context = {'production_order': production_order}
@@ -782,24 +1054,10 @@ def finance_restock_requests(request):
     context = {'restock_requests': restock_requests}
     return render(request, 'finance_restock_requests.html', context)
 
-def finance_approve_restock_requests(request, pk):
-    restock_request = RestockRequest.objects.get(pk=pk)  # Order by creation date descending
-    form = RestockApproveForm(request.POST, instance=restock_request)
-    if request.method == 'POST':  
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Restock Request Details have been updated successfully")
-            return redirect ('financeRestockRequests')
-        else:
-            form = RestockApproveForm(instance=restock_request)
-
-    context = {'form': form}
-    return render(request, 'approve_restock_order.html', context)
-
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Storemanager'])
 def create_store_sale(request):
-    products = ManufacturedProductInventory.objects.all()  # Eager loading
+    products = LivaraMainStore.objects.all()  # Eager loading
     products_data = [
     {'id': product.id, 'name': product.product.product_name }  # Access data through foreign key
     for product in products
@@ -815,7 +1073,7 @@ def create_store_sale(request):
             
             for sale_item in form.sale_items:
                 # Assuming sale_item is a dictionary with 'product' and 'quantity' keys
-                product = ManufacturedProductInventory.objects.get(pk=sale_item['product'])  # Fetch product object
+                product = LivaraMainStore.objects.get(pk=sale_item['product'])  # Fetch product object
                 if product.quantity < sale_item['quantity']:
                     messages.error(request, f"Insufficient stock for {product.product.product_name}. Available stock: {product.quantity}")
                     continue  # Skip saving this item if insufficient stock
@@ -836,7 +1094,7 @@ def create_store_sale(request):
                 messages.error(request, "No valid sale items. Please check product quantities and expiry dates.")
     else:
         form = SaleOrderForm()
-        products = ManufacturedProductInventory.objects.all()  # Assuming to list all products
+        products = LivaraMainStore.objects.all()  # Assuming to list all products
         sale_items = form.sale_items
     
     context = {'form': form,'sale_items':sale_items, 'products_data': products_data,'customers': customers}
@@ -869,46 +1127,7 @@ def finance_list_store_sales(request):
     context = {'sale_orders': sale_orders}
     return render(request, 'finance_list_store_sales.html', context)
 
-# store manager creates direct store sale
-# def create_store_test(request):
-#     TestItemFormset = inlineformset_factory(
-#         parent_model=StoreSale,
-#         model=SaleItem,
-#         form=TestItemForm,
-#         extra=1,
-#         can_delete=True,
-#     )
-
-#     if request.method == 'POST':
-#         form = TestForm(request.POST)
-#         formset = TestItemFormset(request.POST, queryset=SaleItem.objects.none())
-
-#         if form.is_valid() and formset.is_valid():
-#             try:
-#                 with transaction.atomic():
-#                     store_sale = form.save()  # Save main form
-
-#                     for item_form in formset:
-#                         if item_form.is_valid() and not item_form.cleaned_data.get('DELETE', False):
-#                             sale_item = item_form.save(commit=False)
-#                             sale_item.sale = store_sale  # Assign Sale object to SaleItem
-#                             sale_item.save()
-
-#                 return redirect('listStoreSales')
-
-#             except ValidationError as e:
-#                 return render(request, 'testing.html', {'form': form, 'formset': formset, 'error_message': e.message})
-
-#     else:
-#         form = TestForm()
-#         # Initialize formset with existing instance or queryset data if available
-#         # Initialize formset with a queryset of SaleItems related to a specific StoreSale
-#         sale_items_queryset = SaleItem.objects.filter(sale__isnull=True)  # Example filter condition
-#         formset = TestItemFormset(queryset=sale_items_queryset)
-#         # formset = TestItemFormset(instance=StoreSale())  # Replace StoreSale() with your actual instance or queryset
-
-#     context = {'form': form, 'formset': formset}
-#     return render(request, 'testing.html', context)
+##################### Store Sale #################
 def create_store_test(request):
     if request.method == 'POST':
         form = TestForm(request.POST)
@@ -924,6 +1143,7 @@ def create_store_test(request):
                     product = item_form.cleaned_data.get('product')
                     quantity = item_form.cleaned_data.get('quantity')
                     if product and quantity:
+                        
                         if product.quantity < quantity:
                             sufficient_inventory = False
                             item_form.add_error('quantity', 'Insufficient quantity in store. Request for production.')
@@ -936,7 +1156,9 @@ def create_store_test(request):
                             sale_item.sale = store_sale
                             sale_item.save()
                         
-                        # Reduce the quantity in the inventory
+                        # Reduce the quantity in the LivaraMainStore inventory
+                        product = sale_item.product
+                        
                         product.quantity -= sale_item.quantity
                         product.save()
                         
@@ -953,6 +1175,7 @@ def create_store_test(request):
 
     context = {'form': form, 'formset': formset}
     return render(request, 'testing.html', context)
+
 # store manager mark order as delivered
 def update_order_status(request, store_sale_id):
     if request.method == 'POST':

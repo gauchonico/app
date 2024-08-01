@@ -24,6 +24,9 @@
 		</ul>
 		<h1 class="page-header mb-0">FACTORY STORE</h1>
 	</div>
+    <div class="ms-auto">
+        <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>
+    </div>
 	
 </div>
 	<!-- BEGIN row -->
@@ -54,7 +57,12 @@
                         
                         <div class="mb-3 px-3">
                             <a href="{% url 'productInventoryDetails' product_inventory.id %}" class="btn btn-outline-warning">Inventory Details</a>
+                            
                         </div>
+                        <div class="mb-3 px-3">
+                            <a href="{% url 'write_off_inventory' product_inventory.id %}" class="btn btn-danger">Write Off</a>
+                        </div>
+                        
                     <div class="card-arrow">
                         <div class="card-arrow-top-left"></div>
                         <div class="card-arrow-top-right"></div>

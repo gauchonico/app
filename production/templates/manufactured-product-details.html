@@ -235,8 +235,50 @@
 					<div class="card-arrow-bottom-right"></div>
 				</div>
 			</div>
-			
 		</div>
+		<div class="col-xl-6">
+			
+			<div class="card">
+				<div class="card-header fw-bold">Production Order: </div>
+				{% if production_order %}
+				<div class="widget-reminder">
+					<div class="widget-reminder-item text-theme">
+						<div class="widget-reminder-time">{{ production_order.requested_by }}</div>
+						<div class="widget-reminder-divider bg-theme"></div>
+						<div class="widget-reminder-content">{{ production_order }} </div>
+					</div>
+				</div>
+				{% else %}
+					<div class="widget-reminder">
+						<div class="widget-reminder-item">
+							<div class="widget-reminder-time">N/A </div>
+							<div class="widget-reminder-divider bg-warning"></div>
+							<div class="widget-reminder-content">No Production Order Associated with this Produciton </div>
+						</div>
+						
+					</div>
+					
+				{% endif %}	
+				
+				
+				
+				
+				<!-- card-arrow -->
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+			</div>
+		</div>
+		<p><strong>Production Order:</strong> 
+			{% if production_order %}
+				{{ production_order.order_number }}
+			{% else %}
+				Does not have
+			{% endif %}
+		</p>
 
 		
 		<!-- END col-6 -->

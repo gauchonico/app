@@ -137,6 +137,46 @@ class ManufactureProductForm(forms.Form):
     batch_number = forms.CharField(required=True, label="Batch Number", widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'e.g. EMR001'}))
     expiry_date = forms.DateField(required=True, label="Expiry Date", widget=forms.TextInput(attrs={'type':'date','class': 'form-control'}))
     labor_cost_per_unit = forms.DecimalField(required=True, label="Labor Cost per Unit", widget=forms.TextInput(attrs={'class': 'form-control'}))
+    production_order = forms.ModelChoiceField(queryset=ProductionOrder.objects.none(), required=False, label="Production Order", widget=forms.Select(attrs={'class': 'form-control'}))
+    
+    def __init__(self, *args, **kwargs):
+        product = kwargs.pop('product', None)
+        super().__init__(*args, **kwargs)
+        if product:
+            self.fields['production_order'].queryset = ProductionOrder.objects.filter(product=product, status='In Progress')
+            
+
+class WriteOffForm(forms.Form):
+    quantity = forms.IntegerField(min_value=1, label="Quantity to Write Off", widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'e.g. 3'}))
+    reason = forms.CharField(required=True, label="Reason for Write Off", widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'e.g. Expired'}))
+    
+
+#######################################################
+
+class StoreTransferForm(forms.ModelForm):
+    class Meta:
+        model = StoreTransfer
+        fields = ['notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={'class':'form-control', 'placeholder':'Notes about the Transfer'}),
+        }
+
+class StoreTransferItemForm(forms.ModelForm):
+    class Meta:
+        model = StoreTransferItem
+        fields = ['product', 'quantity']
+        widgets = {
+            'product': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Example: Limit queryset to active ManufacturedProductInventory instances
+        self.fields['product'].queryset = ManufacturedProductInventory.objects.all()
+        
+        
+#######################################################
 
 class StoreForm(forms.ModelForm):
     class Meta:
@@ -150,45 +190,31 @@ class StoreForm(forms.ModelForm):
 class RestockRequestForm(forms.ModelForm):
     class Meta:
         model = RestockRequest
-        fields = ['product','store','status', 'comments','quantity', 'requested_by']
+        fields = ['store', 'comments']
         widgets = {
-            'product': forms.Select(attrs={'class':'form-control'}),
-            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
-            'comments': forms.Textarea(attrs={'class':'form-control'}),
+            'comments': forms.TextInput(attrs={'class':'form-control'}),
             'store': forms.Select(attrs={'class':'form-control'}),
-            'status': forms.Select(attrs={'class':'form-control'}),
-            'requested_by': forms.HiddenInput(),
 
         }
-class RestockRequestEditForm(forms.ModelForm):
+class RestockRequestItemForm(forms.ModelForm):
+    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.all())
+
     class Meta:
-        model = RestockRequest
-        fields = ['status', 'comments']
+        model = RestockRequestItem
+        fields = ['product', 'quantity']
         widgets = {
-            'product': forms.Select(attrs={'class':'form-control'}),
+            
             'quantity': forms.NumberInput(attrs={'class':'form-control'}),
-            'comments': forms.Textarea(attrs={'class':'form-control'}),
-            'store': forms.Select(attrs={'class':'form-control'}),
-            'status': forms.Select(attrs={'class':'form-control'}),
-        }
-class RestockApproveForm(forms.ModelForm):
-    class Meta:
-        model = RestockRequest
-        fields = ['product','quantity','requested_by', 'status','comments','store']
-        widgets = {
-        'product': forms.TextInput(attrs={'disabled': True}),
-        'quantity': forms.NumberInput(attrs={'class':'form-control'}),
-        'requested_by': forms.TextInput(attrs={'disabled': True}),
-        'comments': forms.Textarea(attrs={'class':'form-control'}),
-        'status': forms.Select(attrs={'class':'form-control'}),
-        'store': forms.Select(attrs={'class':'form-control'}),
         }
 
-    def clean_status(self):
-        data = self.cleaned_data['status']
-        if data != 'Approved':
-            raise forms.ValidationError('Restock order can only be approved on this page.')
-        return data
+RestockRequestItemFormset = forms.inlineformset_factory(
+    RestockRequest, 
+    RestockRequestItem, 
+    form=RestockRequestItemForm, 
+    extra=1, 
+    can_delete=True
+)
+
 
 class ProductionOrderForm(forms.ModelForm):
     class Meta:
@@ -222,8 +248,11 @@ class SaleOrderForm(forms.ModelForm):
         instance = super().save(commit=commit)
         self.sale_items.save(commit=commit)
         return instance
+    
 
+    
 
+######## Form for creating store sale #################################
 class TestForm(forms.ModelForm):
     total_items = forms.IntegerField(widget=forms.HiddenInput(), required=False)
     class Meta:
@@ -242,7 +271,7 @@ class TestForm(forms.ModelForm):
         self.fields['customer'].queryset = Customer.objects.all()
         
 class TestItemForm(forms.ModelForm):
-    
+    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.all())
     class Meta:
         model = SaleItem
         fields = '__all__'

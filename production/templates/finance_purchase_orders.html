@@ -131,13 +131,20 @@
 								<td class="align-middle"><a href="{% url 'purchase_order_details' porder.id %}">#{{porder.order_number}}</a></td>
 								<td class="align-middle">{{porder.created_at}}</td>
 								<td class="align-middle">{{ porder.raw_material }}</td>
-								<td>{{porder.fullfilled_qty}} {{ porder.raw_material.unit_measurement }}</td>
+								<td>{{porder.quantity }} {{ porder.raw_material.unit_measurement }}</td>
 								<td class="py-1 align-middle">{{porder.supplier}}</td>
-								<td class="align-middle"><span class="badge {% if porder.status == 'pending' %}border border-success text-success{% elif porder.status == 'approved' %}border border-primary text-primary{% elif porder.status == 'fulfilled' %}border border-info text-info{% else %}border border-secondary text-secondary{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{porder.status}}</span></td>
+								<td class="align-middle"><span class="badge {% if porder.status == 'pending' %}border border-success text-success{% elif porder.status == 'approved' %}border border-primary text-primary{% elif porder.status == 'fulfilled' %}border border-info text-info{% elif porder.status == 'rejected' %}border border-danger text-white{% else %}border border-secondary text-secondary{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{porder.status}}</span></td>
 								<td class="align-middle">{{porder.total_cost}}</td>
 								<td class="align-middle">
 									{% if porder.status == 'pending' %}
-                                    <a href="{% url 'approvePurchaseOrder' porder.id %}" class="btn btn-sm btn-success">Approve</a>
+									<form action="{% url 'approve_order' porder.id %}" method="post" style="display:inline;">
+										{% csrf_token %}
+										<button type="submit" class="btn btn-sm btn-success">Approve</button>
+									</form>
+									<form action="{% url 'reject_order' porder.id %}" method="post" style="display:inline;">
+										{% csrf_token %}
+										<button type="submit" class="btn btn-sm btn-danger">Reject Request</button>
+									</form>
 									{% elif porder.status == 'approved' %}
 										<span>Ready for Delivery</span>
 									{% endif %}

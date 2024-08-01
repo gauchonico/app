@@ -29,15 +29,21 @@ urlpatterns = [
     path('factory-inventory/', views.factory_inventory, name='factoryInventory'),
     path('manufactured-product-details/<int:product_id>/', views.manufacturedproduct_detail, name="manufacturedProductDetails"),
     path('product-inventory-details/<int:inventory_id>/', views.product_inventory_details, name="productInventoryDetails"),
+    path('write_off_inventory/<int:inventory_id>/', views.write_off_product, name="write_off_inventory"),
     path('all-stores/', views.all_stores, name="allStores"),
     path('add-store/', views.add_store, name="addStore"),
     path('edit-store/<int:store_id>', views.edit_store, name="editStore"),
     path('delete-store/<int:store_id>/', views.delete_store, name="deleteStore"),
     path('restock-requests/', views.restock_requests, name="restockRequests"),
     path('create-restock-request/', views.create_restock_request, name="createRestockRequest"),
-    path('edit-restock-request/<int:request_id>/', views.edit_restock_request, name="editRestockRequests"),
+    path('mark_restock_as_delivered/<int:restock_id>', views.mark_restock_as_delivered, name="restock_delivered"),
+
     path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),
     path('general-stores/', views.store_inventory_list, name="store_inventory_list"),
+    path('bulk_stock_tansfer/', views.bulk_stock_transfer, name="bulk_stock_transfer"),
+    path('main_stock_transfers/', views.main_stock_transfer, name="main_stock_transfer"),
+    path('livara_main_store_inventory', views.livara_main_store_inventory, name="livara_main_store_inventory"),
+    
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
     path('finance-approval/<int:request_id>', views.finance_approve_request, name="finance_approval"),
     path('create_production_order/', views.create_production_order, name="create_production_order"),
@@ -47,9 +53,12 @@ urlpatterns = [
     path('production-production-orders/', views.productions_view_production_orders, name='productionProduction'),
     path('start-progress/<int:pk>/', views.start_production_progress, name='startProgress'),
     path('finance-purchase-orders/', views.finance_view_purchase_orders, name='financePurchase'),
+    path('orders/approve/<int:order_id>/', views.approve_order, name='approve_order'),
+    path('orders/reject/<int:order_id>/', views.reject_order, name='reject_order'),
+    
     path('approve-purchase-orders/<int:purchaseo_id>', views.approve_purchase_order, name='approvePurchaseOrder'),
     path('finance-restock-requests/', views.finance_restock_requests, name='financeRestockRequests'),
-    path('finance_approve_restock_request/<int:pk>', views.finance_approve_restock_requests, name='approveRestockRequest'),
+    
     path('create_store_sale/', views.create_store_sale, name='createStoreSale'),
     path('list_store_sales/', views.list_store_sales, name='listStoreSales'),
     path('test_sale/', views.create_store_test, name="SaleTest"),
@@ -57,5 +66,13 @@ urlpatterns = [
     path('finance_list_store_sales/', views.finance_list_store_sales, name="financeListStoreSales"),
     path('pay_order_status/<int:store_sale_id>/', views.pay_order_status, name='pay_order_status'),
     path('store_sale_order_details/<int:pk>/', views.store_sale_order_details, name='store_sale_order_details'),
+    path('mark_transfer_completed/<int:transfer_id>/', views.mark_transfer_completed, name='mark_transfer_completed'),
+    
+    path('write_offs', views.write_offs, name="writeoffs"),
+    path('manufacture_products_report', views.manufactured_products_report, name="manufactured_products_report"),
+    path('raw_material_utilization_report/', views.raw_material_utilization_report, name='raw_material_utilization_report'),
+    
+    ## Store Manager View
+    path('store_manager/', views.managers_store_inventory_view, name='managers_store_inventory_view'),
     
 ]

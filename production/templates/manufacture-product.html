@@ -64,6 +64,10 @@
                             <form method="post">
                                 {% csrf_token %}
                                 <div class="mb-3">
+                                    <label class="form-label">Production Order <span class="text-danger">*</span></label>
+                                    {{ form.production_order }}
+                                </div>
+                                <div class="mb-3">
                                     <label class="form-label">Quantity <span class="text-danger">*</span></label>
                                     {{ form.quantity }}
                                 </div>

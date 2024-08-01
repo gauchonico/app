@@ -133,13 +133,13 @@
 								<td class="align-middle">{{porder.raw_material}}</td>
 								<td>{{porder.fullfilled_qty}} {{ porder.raw_material.unit_measurement }}</td>
 								<td class="py-1 align-middle">{{porder.supplier}}</td>
-								<td class="align-middle"><span class="badge {% if porder.status == 'pending' %}border border-success text-success{% elif porder.status == 'approved' %}border border-primary text-primary{% elif porder.status == 'fulfilled' %}border border-info text-info{% else %}border border-secondary text-secondary{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{porder.status}}</span></td>
+								<td class="align-middle"><span class="badge {% if porder.status == 'pending' %}border border-dark text-dark{% elif porder.status == 'approved' %}border border-warning text-warning{% elif porder.status == 'fulfilled' %}border border-success text-success{% else %}border border-secondary text-secondary{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{porder.status}}</span></td>
 								<td class="align-middle">{{porder.total_cost}}</td>
 								<td class="align-middle">
 									{% if porder.status == 'pending' %}
 										<span class="text-muted">Waiting for approval</span>
 									{% elif porder.status == 'approved' %}
-										<a href="{% url 'purchase_order_details' porder.id %}" class="btn btn-sm btn-primary">Deliver</a>
+										<a href="{% url 'purchase_order_details' porder.id %}" class="btn btn-sm btn-primary">Fullfill Order</a>
 									{% elif porder.status == 'fulfilled' %}
 										<span class="text-success">Stock is up to date</span>
 									{% endif %}

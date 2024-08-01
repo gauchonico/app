@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Livara Main Store Inventory{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Livara Main Store Inventory</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">Product</th>
+                <th scope="col">Batch Number</th>
+                <th scope="col">Quantity</th>
+                <th scope="col">Expiry Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in main_store_inventory %}
+            <tr>
+                <th scope="row">{{ forloop.counter }}</th>
+                <td>{{ item.product.product.product_name }}</td>
+                <td>{{ item.batch_number }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.expiry_date }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No inventory items found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

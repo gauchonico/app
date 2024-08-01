@@ -62,7 +62,7 @@
                                     <thead>
                                         <tr>
                                             <th>Raw Material</th>
-                                            <th>Quantity per Unit Product Volume</th>
+                                            <th>Quantity per Unit Product Volume(mls)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -77,11 +77,12 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
-                                <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
-                                <button class="btn btn-outline-theme" type="submit">Create Product</button>
+                                <div class="mt-3">
+                                    <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
+                                    <button class="btn btn-outline-theme" type="submit">Create Product</button>
+                                </div>
                             </form>
-                                
-                            <!-- END #datatable -->
+                            
                         </div>
                         <!-- END col-9-->
                         <!-- BEGIN col-3 -->
@@ -104,6 +105,36 @@
             <!-- END row -->
         </div>
         <!-- END container -->
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                var formCount = parseInt ($('#id_productioningredients-TOTAL_FORMS').val()); // Get initial form count
+                
+                $('#add_form').click(function() {
+                    var formIdx = formCount;
+                    formCount++;
+                    
+                    var newForm = $('#ingredient_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
+                    newForm.find('input, select').each(function() {
+                        var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
+                        var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
+                        $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
+                    });
+                    newForm.find('.remove-form').remove(); // Remove any existing remove buttons
+                    newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
+                    $('#ingredient_item_formset tbody').append(newForm); // Append the cloned form to the table body
+                    
+                    $('#id_productioningredients-TOTAL_FORMS').val(formCount); // Update the management form with the new form count
+                });
+            
+                // Remove formset row
+                $('#ingredient_item_formset').on('click', '.remove-form', function() {
+                    $(this).closest('tr').remove(); // Remove the closest <tr> element
+                    formCount--;
+                    $('#id_productioningredients-TOTAL_FORMS').val(formCount); // Decrement form count
+                });
+            });
+        </script>
 
 {% endblock %}
 {% block outter_content %}

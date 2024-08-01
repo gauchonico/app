@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}WriteOff List{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>WriteOff List</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Reason</th>
+                <th>Date</th>
+                <th>Initiated By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for write_off in write_offs %}
+            <tr>
+                <td>{{ write_off.manufactured_product_inventory.product.product_name }}</td>
+                <td>{{ write_off.quantity }}</td>
+                <td>{{ write_off.reason }}</td>
+                <td>{{ write_off.date }}</td>
+                <td>{{ write_off.initiated_by.username }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No writeoffs found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
