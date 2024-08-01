@@ -40,7 +40,7 @@ class AddRawmaterialForm(forms.ModelForm):
             'supplier': forms.Select(attrs={'class':'form-control'}),
             'quantity': forms.NumberInput(attrs={'class':'form-control'}),
             'reorder_point': forms.NumberInput(attrs={'class':'form-control'}),
-            'unit_measurement': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Kgs | Pcs | mltrs | ltrs'}),
+            'unit_measurement': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Kilograms | Pieces | Liters| Units Write units in full format'}),
             
         }
 class CreatePurchaseOrderForm(forms.ModelForm):

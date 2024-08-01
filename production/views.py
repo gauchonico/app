@@ -4,6 +4,7 @@ from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.db.models import Sum, F
 from django.utils import timezone
+from django.views.generic.edit import DeleteView
 
 from itertools import product
 import json
@@ -13,7 +14,7 @@ from django.forms.formsets import BaseFormSet
 from django.forms import ValidationError, formset_factory, inlineformset_factory, modelformset_factory
 from django.http import HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models.functions import TruncMonth, TruncWeek, TruncDay
@@ -21,7 +22,7 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
 from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
-from .models import LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
+from .models import LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -84,9 +85,22 @@ def editSupplier(request, supplier_id):
 
 def deleteSupplier(request, supplier_id):
     supplier = get_object_or_404(Supplier, pk=supplier_id)
-    supplier.delete()
-    messages.success(request, "Supplier has been deleted successfully")
-    return redirect('supplierList')
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Delete related raw materials and their associated records
+                raw_materials = RawMaterial.objects.filter(supplier=supplier)
+                for raw_material in raw_materials:
+                    PurchaseOrder.objects.filter(raw_material=raw_material).delete()
+                    ProductionIngredient.objects.filter(raw_material=raw_material).delete()
+                    RawMaterialInventory.objects.filter(raw_material=raw_material).delete()
+                    raw_material.delete()
+            supplier.delete()
+            messages.success(request, "Supplier and related raw materials have been deleted successfully")
+        except Exception as e:
+            messages.error(request, f"An error occurred: {e}")
+        return redirect ('supplierList')
+    return render(request, 'confirm_supplier_deletion.html')
 
 
 @login_required(login_url='/login/')
@@ -112,6 +126,21 @@ def addRawmaterial(request):
 
 def storeManagement(request):
     return render(request, "store-management.html")
+
+def delete_rawmaterial (request, raw_material_id):
+    raw_material = get_object_or_404(RawMaterial, pk=raw_material_id)
+    if request.method == 'POST':
+        # Delete related records
+        PurchaseOrder.objects.filter(raw_material=raw_material).delete()
+        ProductionIngredient.objects.filter(raw_material=raw_material).delete()
+        RawMaterialInventory.objects.filter(raw_material=raw_material).delete()
+        
+        # Delete the raw material
+        raw_material.delete()
+        messages.success(request, "Raw Material has been deleted successfully")
+        return redirect('rawmaterialsList')
+    return render (request, 'rawmaterial_confirm_delete.html', {'object': raw_material})
+        
 
 @login_required(login_url='/login/')
 def storeRequests(request):

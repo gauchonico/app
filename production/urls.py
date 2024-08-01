@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import purhcaseOrderDetails
+from .views import delete_rawmaterial, purhcaseOrderDetails
 from . import views
 
 urlpatterns = [
@@ -10,6 +10,7 @@ urlpatterns = [
     path('delete-supplier/<int:supplier_id>/', views.deleteSupplier, name='deleteSupplier'),
     path('raw-materials/', views.rawmaterialsList, name='rawmaterialsList'),
     path('add-raw-materials/', views.addRawmaterial, name='addRawmaterial'),
+    path('delete_rawmaterial/<int:raw_material_id>/', delete_rawmaterial, name='delete_rawmaterial'),
     path('store-management/', views.storeManagement, name='storeManagement'),
     path('dispatch-list/', views.dispatchList, name='dispatchList'),
     path('store-products/', views.storeProducts, name='storeProducts'),

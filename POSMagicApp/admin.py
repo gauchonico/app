@@ -17,8 +17,8 @@ admin.site.register(PurchaseOrder)
 admin.site.register(StoreAlerts)
 admin.site.register(Transaction)
 admin.site.register(ProductionBatch)
-admin.site.register(Production)
-admin.site.register(ProductionIngredient)
+# admin.site.register(Production)
+# admin.site.register(ProductionIngredient)
 admin.site.register(ManufactureProduct)
 admin.site.register(ManufacturedProductInventory)
 admin.site.register(CommissionRate)
@@ -37,6 +37,22 @@ admin.site.register(StoreTransferItem)
 admin.site.register(LivaraMainStore)
 admin.site.register(WriteOff)
 admin.site.register(RestockRequestItem)
+class ProductionIngredientInline(admin.TabularInline):
+    model = ProductionIngredient
+    extra = 1
+
+class ProductionAdmin(admin.ModelAdmin):
+    inlines = [ProductionIngredientInline]
+    list_display = ['product_name', 'total_volume']
+    search_fields = ['product_name']
+
+admin.site.register(Production, ProductionAdmin)
+
+class ProductionIngredientAdmin(admin.ModelAdmin):
+    list_display = ['product', 'raw_material', 'quantity_per_unit_product_volume']
+    search_fields = ['product__product_name', 'raw_material__name']
+
+admin.site.register(ProductionIngredient, ProductionIngredientAdmin)
 
 
 

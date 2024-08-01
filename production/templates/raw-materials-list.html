@@ -40,7 +40,7 @@
 				<div class="card-body">
 					<!-- BEGIN title -->
 					<div class="d-flex fw-bold small mb-3">
-						<span class="flex-grow-1">{{ rawmaterial.name}}</span>
+						<span class="flex-grow-1">{{ rawmaterial.name}} - <a href="{% url 'delete_rawmaterial' rawmaterial.id %}">Delete</a></span>
 						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
 					</div>
 					<!-- END title -->
@@ -63,6 +63,7 @@
 						<i class="bi bi-circle-fill fs-8px text-theme me-2"></i> Re-Order Point<br>
 						{{rawmaterial.reorder_point}} {{ rawmaterial.unit_measurement}}
 					</div>
+					
                     {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
                     <div class="mt-10">
                         <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-danger">Purchase order</a>
@@ -72,6 +73,7 @@
                         <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-success">Purchase order</a>
                     </div>
                     {% endif %}
+					
 					<!-- END stat-sm -->
 				</div>
 				<!-- END card-body -->
