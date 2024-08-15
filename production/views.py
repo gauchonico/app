@@ -1,10 +1,13 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+import os
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.db.models import Sum, F
 from django.utils import timezone
 from django.views.generic.edit import DeleteView
+import csv
+from django.templatetags.static import static
 
 from itertools import product
 import json
@@ -12,16 +15,17 @@ from django import forms
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
 from django.forms import ValidationError, formset_factory, inlineformset_factory, modelformset_factory
-from django.http import HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models.functions import TruncMonth, TruncWeek, TruncDay
+from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
+from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
 from .models import LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
@@ -56,14 +60,54 @@ def supplierList(request):
 @login_required(login_url='/login/')
 def addSupplier(request):
     if request.method == 'POST':
-        form = AddSupplierForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "New Supplier Successfully added")
-            return redirect('supplierList')
+        if 'bulk_upload' in request.POST:
+            form = BulkUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                file = request.FILES['file']
+                # Handle CSV file
+                if file.name.endswith('.csv'):
+                    data = file.read().decode('utf-8')
+                    print("File Content:")
+                    print(data)
+                    csv_reader = csv.DictReader(data.splitlines())
+                    # next(csv_reader)  # Skip header row if there's one
+
+                    for row in csv_reader:
+                        print("Row Data:")
+                        print(row)
+                        # Assuming your CSV file has columns for supplier details
+                        # Adjust the indexing based on your CSV structure
+                        try:
+                            Supplier.objects.create(
+                                name=row.get('name',''),
+                                company_name=row.get('company',''),
+                                email=row.get('email',''),
+                                address=row.get('address', ''),
+                                contact_number=row.get('contact',''),
+                                # Add other fields as needed
+                            )
+                        except Exception as e:
+                            print(f"Error creating supplier: {e}")
+                            messages.error(request, f"Error processing row: {e}")
+                            
+                    messages.success(request, "Suppliers successfully added.")
+                    return redirect('supplierList')
+                else:
+                    messages.error(request, "Invalid file format. Please upload a CSV file.")
+        else:
+            form = AddSupplierForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "New Supplier successfully added.")
+                return redirect('supplierList')
     else:
         form = AddSupplierForm()
-        context = {'form': form}
+        bulk_form = BulkUploadForm()
+
+    context = {
+        'form': form,
+        'bulk_form': bulk_form
+    }
     return render(request, "add-supplier.html", context)
 
 @login_required(login_url='/login/')
@@ -114,15 +158,58 @@ def rawmaterialsList(request):
 @login_required(login_url='/login/')
 def addRawmaterial(request):
     if request.method == 'POST':
-        form = AddRawmaterialForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "New Raw Material Successfully added")
-            return redirect('rawmaterialsList')
+        if 'bulk_upload' in request.POST:
+            form = BulkUploadRawMaterialForm(request.POST, request.FILES)
+            if form.is_valid():
+                file = request.FILES['file']
+                if file.name.endswith('.csv'):
+                    data = file.read().decode('utf-8')
+                    csv_reader = csv.DictReader(data.splitlines())
+
+                    for row in csv_reader:
+                        try:
+                            supplier = Supplier.objects.get(name=row['supplier'])
+                            RawMaterial.objects.create(
+                                name=row['name'],
+                                supplier=supplier,
+                                quantity=int(row.get('quantity', 0)),
+                                reorder_point=int(row.get('reorder_point', 0)),
+                                unit_measurement=row.get('unit_measurement', '')
+                            )
+                        except Supplier.DoesNotExist:
+                            messages.error(request, f"Supplier '{row['supplier']}' not found.")
+                        except Exception as e:
+                            print(f"Error processing row: {e}")
+                            messages.error(request, f"Error processing row: {e}")
+
+                    messages.success(request, "Raw Materials successfully added.")
+                    return redirect('rawmaterialsList')
+                else:
+                    messages.error(request, "Invalid file format. Please upload a CSV file.")
+        else:
+            form = AddRawmaterialForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "New Raw Material Successfully added")
+                return redirect('rawmaterialsList')
     else:
         form = AddRawmaterialForm()
-        context = {'form': form}
+        bulk_form = BulkUploadRawMaterialForm()
+
+    context = {
+        'form': form,
+        'bulk_form': bulk_form
+    }
     return render(request, "add-rawmaterial.html", context)
+
+@login_required(login_url='/login/')
+def download_example_csv(request):
+    file_path = os.path.join(settings.BASE_DIR, 'POSMagicApp/static/files/raw_materials_upload.csv')
+    return FileResponse(open(file_path, 'rb'), content_type='text/csv', as_attachment=True, filename='raw_materials_upload.csv')
+
+def download_supplier_csv(request):
+    file_path = os.path.join(settings.BASE_DIR, 'POSMagicApp/static/files/supplier_upload.csv')
+    return FileResponse(open(file_path, 'rb'), content_type='text/csv', as_attachment=True, filename='supplier_upload.csv')
 
 def storeManagement(request):
     return render(request, "store-management.html")

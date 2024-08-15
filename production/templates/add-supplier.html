@@ -49,18 +49,25 @@
 {% endblock %}
 
 {% block content %}
-	<ul class="breadcrumb">
-		<li class="breadcrumb-item"><a href="#">SUPPLIERS</a></li>
-		<li class="breadcrumb-item active">ADD SUPPLIER</li>
-	</ul>
-	
-	<h1 class="page-header">
-		Create New Livara Supplier <small>Get started</small>
-	</h1>
-	
-	<ul>
-		<!-- <li>Member must have National ID / Passport</li> -->
-    </ul>
+<div class="d-flex align-items-center mb-3">
+	<div>
+		<ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">SUPPLIERS</a></li>
+            <li class="breadcrumb-item active">ADD SUPPLIER</li>
+        </ul>
+		<h1 class="page-header">
+            Create New Livara Supplier <small>Get started</small>
+        </h1>
+        <h6>For Bulk Uploads<span class="text-theme"> Download </span><a href="{% url 'download_supplier_csv' %}">supplier_bulk_upload csv</a></h6>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ bulk_form.as_p }}
+            <button class="btn btn-outline-theme" type="submit" name="bulk_upload">Upload CSV</button>
+        </form>
+	</div>
+
+</div>
+   
 
 <div class="card">
     <div class="card-body pb-2">

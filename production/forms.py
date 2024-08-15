@@ -17,6 +17,9 @@ class AddSupplierForm(forms.ModelForm):
             'raw_material': forms.Select(attrs={'class':'form-control'}),
         }
 
+class BulkUploadForm(forms.Form):
+    file = forms.FileField()
+
 class EditSupplierForm(forms.ModelForm):
     raw_material = forms.ChoiceField(choices=[(rm.pk, rm.name) for rm in RawMaterial.objects.all()], required=False)
     class Meta:
@@ -43,6 +46,9 @@ class AddRawmaterialForm(forms.ModelForm):
             'unit_measurement': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Kilograms | Pieces | Liters| Units Write units in full format'}),
             
         }
+
+class BulkUploadRawMaterialForm(forms.Form):
+    file = forms.FileField()
 class CreatePurchaseOrderForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
