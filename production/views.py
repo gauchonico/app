@@ -25,7 +25,7 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
+from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
 from .models import LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
@@ -201,6 +201,24 @@ def addRawmaterial(request):
         'bulk_form': bulk_form
     }
     return render(request, "add-rawmaterial.html", context)
+
+def update_raw_material_quantity(request, pk):
+    raw_material = get_object_or_404(RawMaterial, pk=pk)
+
+    if request.method == 'POST':
+        form = RawMaterialQuantityForm(request.POST)
+        if form.is_valid():
+            new_quantity = form.cleaned_data['new_quantity']
+            try:
+                raw_material.set_quantity(new_quantity)
+                messages.success(request, f"Quantity for {raw_material.name} updated successfully.")
+                return redirect('rawmaterialsList')
+            except ValueError as e:
+                form.add_error(None, str(e))
+    else:
+        form = RawMaterialQuantityForm(initial={'new_quantity': raw_material.current_stock})
+
+    return render(request, 'update_raw_material_quantity.html', {'form': form, 'raw_material': raw_material})
 
 @login_required(login_url='/login/')
 def download_example_csv(request):

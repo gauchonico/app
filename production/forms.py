@@ -46,6 +46,22 @@ class AddRawmaterialForm(forms.ModelForm):
             'unit_measurement': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Kilograms | Pieces | Liters| Units Write units in full format'}),
             
         }
+        
+class RawMaterialQuantityForm(forms.ModelForm):
+    new_quantity = forms.IntegerField(label="New Quantity")
+
+    class Meta:
+        model = RawMaterial
+        fields = ['new_quantity']
+        widgets ={
+            'new_quantity': forms.NumberInput(attrs={'class':'form-control'}),
+        }
+
+    def clean_new_quantity(self):
+        new_quantity = self.cleaned_data.get('new_quantity')
+        if new_quantity < 0:
+            raise forms.ValidationError("Quantity cannot be negative.")
+        return new_quantity
 
 class BulkUploadRawMaterialForm(forms.Form):
     file = forms.FileField()

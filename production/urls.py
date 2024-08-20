@@ -13,6 +13,8 @@ urlpatterns = [
     path('download-example-csv/', views.download_example_csv, name='download_example_csv'),
     path('download-supplier-csv,', views.download_supplier_csv, name="download_supplier_csv"),
     path('delete_rawmaterial/<int:raw_material_id>/', delete_rawmaterial, name='delete_rawmaterial'),
+    path('raw-material/<int:pk>/', views.update_raw_material_quantity, name="update_raw_material_quantity"),
+    
     path('store-management/', views.storeManagement, name='storeManagement'),
     path('dispatch-list/', views.dispatchList, name='dispatchList'),
     path('store-products/', views.storeProducts, name='storeProducts'),

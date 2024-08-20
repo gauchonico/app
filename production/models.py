@@ -57,6 +57,18 @@ class RawMaterial(models.Model):
     def current_stock(self):
         return self.rawmaterialinventory_set.all().aggregate(models.Sum('adjustment'))['adjustment__sum'] or 0
     
+    def update_quantity(self):
+        self.quantity = self.current_stock
+        self.save()
+
+    def set_quantity(self, new_quantity):
+        if new_quantity < 0:
+            raise ValueError("Quantity cannot be negative.")
+        adjustment = new_quantity - self.current_stock
+        with transaction.atomic():
+            RawMaterialInventory.objects.create(raw_material=self, adjustment=adjustment)
+            self.update_quantity()
+    
 
 class PurchaseOrder(models.Model):
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)

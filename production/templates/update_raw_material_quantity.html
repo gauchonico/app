@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Update Quantity for {{ raw_material.name }}</h2>
+  
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class=" mb-3 btn btn-primary">Update</button>
+  </form>
+
+  <a class="mt-5" href="{% url 'rawmaterialsList' %}">Back to List</a>
+{% endblock %}

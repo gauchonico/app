@@ -33,15 +33,20 @@
 	<div class="row">
 		<!-- BEGIN col-3 -->
         {% for rawmaterial in rawmaterials %}
+		
 		<div class="col-xl-3 col-lg-6">
 			<!-- BEGIN card -->
 			<div class="card mb-3">
 				<!-- BEGIN card-body -->
 				<div class="card-body">
+					
 					<!-- BEGIN title -->
 					<div class="d-flex fw-bold small mb-3">
 						<span class="flex-grow-1">{{ rawmaterial.name}} - <a href="{% url 'delete_rawmaterial' rawmaterial.id %}">Delete</a></span>
-						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
+						
+						<a class="text-warning" href="{% url 'update_raw_material_quantity' rawmaterial.pk %}">Update</a>
+						
+						
 					</div>
 					<!-- END title -->
 					<!-- BEGIN stat-lg -->
