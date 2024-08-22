@@ -131,7 +131,7 @@ class ProductionIngredient(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE,related_name="productioningredients")
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
     # Instead of percentage, store quantity per unit product volume
-    quantity_per_unit_product_volume = models.DecimalField(max_digits=4, decimal_places=2) 
+    quantity_per_unit_product_volume = models.DecimalField(max_digits=4, decimal_places=4) 
 
     def __str__(self) -> str:
         return f"{self.raw_material} for {self.product} needed for {self.quantity_per_unit_product_volume}"
