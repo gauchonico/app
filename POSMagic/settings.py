@@ -35,6 +35,7 @@ CSRF_TRUSTED_ORIGINS=['https://app.mylivara.com']
 
 INSTALLED_APPS = [
 	'POSMagicApp.apps.POSMagicappConfig',
+    'django.contrib.humanize',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -130,7 +131,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'POSMagicApp/static'),
 ]
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type

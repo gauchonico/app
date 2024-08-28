@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% load custom_filters %}
+
+{% block title %}LPO Details{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>LPO Details: {{ lpo.requisition.requisition_no }}</h2>
+    <table class="table table-bordered">
+        <tr>
+            <th>Requisition Number</th>
+            <td>{{ lpo.requisition.requisition_no }}</td>
+        </tr>
+        <tr>
+            <th>Created At</th>
+            <td>{{ lpo.created_at }}</td>
+        </tr>
+        <tr>
+            <th>Status</th>
+            <td>
+                <span class="badge 
+                    {% if lpo.status == 'pending' %}
+                        border border-warning text-warning 
+                    {% elif lpo.status == 'verified' %} 
+                        border border-success text-success
+                    {% elif lpo.status == 'rejected' %} 
+                        border border-primary text-primary
+                    {% else %}
+                        bg-white text-dark
+                    {% endif %} 
+                    px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center">
+                    <i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ lpo.status }}
+                </span>
+            </td>
+        </tr>
+        <tr>
+            <th>Payment Option</th>
+            <td>{{ lpo.payment_option }}</td>
+        </tr>
+        <tr>
+            <th>Payment Duration</th>
+            <td>{{ lpo.payment_duration }} Days</td>
+        </tr>
+        <tr>
+            <th>Attachment</th>
+            <td>
+                {% if lpo.invoice_document %}
+                    <a href="{{ lpo.invoice_document.url }}" target="_blank">View Attachment</a>
+                    <br><br>
+                    <!-- PDF Preview -->
+                    {% if lpo.invoice_document.url|is_pdf %}
+                        <embed src="{{ lpo.invoice_document.url }}" type="application/pdf" width="100%" height="600px" />
+                    {% elif lpo.invoice_document.url|is_image %}
+                        <img src="{{ lpo.invoice_document.url }}" alt="Attachment Image" style="max-width: 100%; height: auto;" />
+                    {% endif %}
+                    
+                {% else %}
+                    No attachment uploaded.
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+    <a href="{% url 'lpos_list' %}" class="btn btn-primary">Back to LPO List</a>
+</div>
+{% endblock %}
+{% block outter_content %}
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Error Creating Sale</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock outter_content %}

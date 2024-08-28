@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Discrepancy Delivery Report Detail{% endblock %}
+
+{% block content %}
+<h4>Discrepancy Delivery Report Detail</h4>
+
+<p><strong>Report ID:</strong> {{ report.id }}</p>
+<p><strong>Goods Received Note:</strong> {{ report.goods_received_note.id }}</p>
+<p><strong>Reason for Discrepancey:</strong> {{ report.goods_received_note.reason}}</p>
+<p><strong>Action Suggested:</strong> 
+    <span class="badge rounded-pill {% if report.action_taken == 'refund' %}text-bg-pink{% elif report.action_taken == 'replace' %}text-bg-black{% endif %}">
+        {{ report.get_action_taken_display }}
+    </span>
+</p>
+<p><strong>Description:</strong> {{ report.description }}</p>
+<p><strong>Date Reported:</strong> {{ report.date_reported|date:"Y-m-d H:i:s" }}</p>
+<p><strong>Goods Recieved Note: </strong><a href="{% url 'goods_received_note_detail' report.goods_received_note.id %}"> View Goods Received Note</a></p>
+
+
+<div class="mt-4">
+    <a href="{% url 'discrepancy_delivery_report_list' %}">Back to Discrepancey Reports List</a>
+</div>
+{% endblock %}

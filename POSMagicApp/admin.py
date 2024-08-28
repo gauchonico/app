@@ -53,6 +53,11 @@ class ProductionIngredientAdmin(admin.ModelAdmin):
     search_fields = ['product__product_name', 'raw_material__name']
 
 admin.site.register(ProductionIngredient, ProductionIngredientAdmin)
+admin.site.register(Requisition)
+admin.site.register(RequisitionItem)
+admin.site.register(LPO)
+admin.site.register(GoodsReceivedNote)
+admin.site.register(DiscrepancyDeliveryReport)
 
 
 

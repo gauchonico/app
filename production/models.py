@@ -18,7 +18,7 @@ from django.utils import timezone
 User = get_user_model()
 
 class Supplier(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, unique=True)
     company_name = models.CharField(max_length=255)
     email = models.EmailField(blank=True)
     address = models.TextField(blank=True)
@@ -43,7 +43,7 @@ class RawMaterial(models.Model):
     
 
     def __str__(self):
-        return self.name
+        return f"{self.name} in {self.unit_measurement}"
     
     def add_stock(self, quantity):
         RawMaterialInventory.objects.create(raw_material=self, adjustment=quantity)
@@ -78,7 +78,7 @@ class PurchaseOrder(models.Model):
     unit_price = models.DecimalField(max_digits=10, decimal_places=0)  # Consider currency
     total_cost = models.DecimalField(max_digits=10, decimal_places=0, blank=True)  # Auto-calculate
     created_at = models.DateTimeField(auto_now_add=True)
-    order_number = models.CharField(max_length=10)
+    order_number = models.CharField(max_length=10, unique=True)
     status = models.CharField(max_length=255, choices=[  # Add choices for different statuses
         ("pending", "Pending"),
         ("approved", "Approved"),
@@ -398,3 +398,120 @@ class SaleItem(models.Model):
         self.total_price = (self.quantity * self.unit_price)
         super().save(*args, **kwargs)  # Call parent save method
         
+        
+################### Requsition models
+class Requisition(models.Model):
+    STATUS_CHOICES = [
+        ('created', 'Created'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('checking', 'Checking'),
+        ('delivered', 'Delivered'),
+    ]
+    
+    requisition_no = models.CharField(max_length=50, unique=True)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    items = models.ManyToManyField(RawMaterial, through='RequisitionItem')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f'Requisition {self.requisition_no}'
+
+    def save(self, *args, **kwargs):
+        previous_status = None
+        if self.pk:
+            previous_status = Requisition.objects.get(pk=self.pk).status
+        
+        super().save(*args, **kwargs)
+        
+        # Only create LPO if the status transitions from 'created' to 'approved'
+        if previous_status == 'created' and self.status == 'approved':
+            LPO.objects.create(requisition=self)
+            
+class RequisitionItem(models.Model):
+    requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2,default=0)
+    delivered_quantity = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f'{self.raw_material.name} - {self.quantity}'
+    
+    @property
+    def total_cost(self):
+        return sum(item.raw_material.price_per_unit * item.quantity for item in self.requisitionitem_set.all())
+    
+class LPO(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
+    ]
+    PAYMENT_DURATION_CHOICES = [
+        (0, '0 days'),
+        (10, '10 days'),
+        (20, '20 days'),
+        (30, '30 days'),
+    ]
+
+    PAYMENT_OPTIONS_CHOICES = [
+        ('bank', 'Bank Transfer'),
+        ('mobile_money', 'Mobile Money'),
+        ('cash', 'Cash'),
+    ]
+    
+    requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    invoice_document = models.FileField(upload_to='uploads/products/')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    payment_duration = models.IntegerField(choices=PAYMENT_DURATION_CHOICES, default=10)
+    payment_option = models.CharField(max_length=20, choices=PAYMENT_OPTIONS_CHOICES, default='cash')
+
+    def __str__(self):
+        return f'LPO for {self.requisition.requisition_no}'
+
+    def verify(self):
+        if self.status == 'pending':
+            print("Verifying LPO...")
+            self.status = 'verified'
+            self.save()
+            
+            # Update the corresponding requisition status to 'checking'
+            if self.requisition.status == 'approved':
+                print(f"Updating requisition {self.requisition.requisition_no} to checking...")
+                self.requisition.status = 'checking'
+                self.requisition.save()
+
+    def reject(self):
+        if self.status == 'pending':
+            self.status = 'rejected'
+            self.save()
+            
+class GoodsReceivedNote(models.Model):
+    requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
+    lpo = models.ForeignKey(LPO, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reason = models.CharField(max_length=255, blank=True, null=True)
+    comment = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f'Goods Received Note for {self.requisition.requisition_no}'
+    
+class DiscrepancyDeliveryReport(models.Model):
+    ACTION_CHOICES = [
+        ('refund', 'Refund from Supplier'),
+        ('replace', 'Replace Missing Items'),
+    ]
+
+    goods_received_note = models.ForeignKey(GoodsReceivedNote, on_delete=models.CASCADE)
+    action_taken = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    description = models.TextField(blank=True, null=True)
+    date_reported = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.get_action_taken_display()} - {self.goods_received_note.id}"

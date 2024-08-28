@@ -1,0 +1,39 @@
+
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Modal & Notifications{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+	<script src="{% static 'js/demo/ui-modal-notification.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+  <div class="">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Cofirm delete!</h3>
+            
+            </div>
+            <div class="modal-body">
+                
+                    <form method="post" action="{% url 'delete_requisition' requisition.id %}">
+                        {% csrf_token %}
+                        <p>Are you sure you want to permanently delete this record ?!</p>
+                        
+                        <button type="submit" class="btn btn-danger btn-lg btn-block">Delete</button>
+                        <a href="{% url 'all_requisitions' %}" class="btn btn-secondary">Cancel</a>
+                    </form>
+                <div class="pt-3">
+                    <a href="#" class="text-muted fs-12px">What is it? Terms and conditions</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

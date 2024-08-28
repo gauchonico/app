@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h4>Goods Recieved Note</h4>
+    <h6>Requisition Order: <span class="text-theme">{{ requisition.requisition_no }}</span></h6>
+    <h6>Supplier: <span class="text-theme">{{ requisition.supplier }}</span></h6>
+    {% for item in requisition_items %}
+    <h6>Requisition Order: <span class="text-theme">{{ item.raw_material.name }}</span></h6>
+    {% endfor %}
+    <form method="POST">
+        {% csrf_token %}
+        <p>Perform a thorough check on the rawmaterials delivered against spillage, breakeage or any other damange.
+            After checking measure or count the amount and fill in the deliverd amount of items
+        </p>
+        {{ goods_received_form.as_p }}
+        
+        <p>Perform a thorough check on the rawmaterials delivered against spillage, breakeage or any other damange.
+            After checking measure or count the amount and fill in the deliverd amount of items
+        </p>
+        {{ formset.management_form }}
+        <ul>
+            {% for form in formset %}
+                <li>
+                    {{ form.as_p }}
+                    {% if form.non_field_errors %}
+                        <div class="errors">{{ form.non_field_errors }}</div>
+                    {% endif %}
+                    {% for field in form %}
+                        {% if field.errors %}
+                            <div class="errors">{{ field.errors }}</div>
+                        {% endif %}
+                    {% endfor %}
+                </li>
+            {% endfor %}
+        </ul>
+    
+        <button class="btn btn-theme" type="submit">Submit</button>
+    </form>
+    
+    
+{% endblock %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Info</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}

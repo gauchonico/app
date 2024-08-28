@@ -1,6 +1,6 @@
 from django import forms
 from .models import *
-from django.forms import inlineformset_factory
+from django.forms import inlineformset_factory, modelformset_factory
 
 
 class AddSupplierForm(forms.ModelForm):
@@ -310,3 +310,91 @@ TestItemFormset = inlineformset_factory(
     extra=1, 
     can_delete=True,
 )
+
+class RequisitionForm(forms.ModelForm):
+    class Meta:
+        model = Requisition
+        fields = ['requisition_no', 'supplier']
+        widgets = {
+            'requisition_no': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Requisition Number'}),
+            'supplier': forms.Select(attrs={
+                'class': 'form-control selectpicker',
+                'data-live-search':'true',
+                'id':'supplier-select',
+                'data-size':'5',
+                'data-live-search-placeholder':'Search Suppliers',
+                
+            
+            }),
+        }
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.fields['raw_material'].widget = forms.Select(choices=self.get_raw_material_choices())
+            
+        def get_raw_material_choices(self):
+            choices = [(rm.id, f"{rm.name} ({rm.unit_measurement})") for rm in RawMaterial.objects.all()]
+            return choices
+
+class RequisitionItemForm(forms.ModelForm):
+    class Meta:
+        model = RequisitionItem
+        fields = ['raw_material', 'quantity','price_per_unit']
+        widgets = {
+            'raw_material': forms.Select(attrs={'class': 'form-control','id':'id_raw_material'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
+            'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Price per Unit (Kg, Liter, Piece)'}),
+        }
+        
+class LPOForm(forms.ModelForm):
+    class Meta:
+        model = LPO
+        fields = ['invoice_document', 'payment_duration', 'payment_option']  # Exclude requisition
+        widgets = {
+            'invoice_document': forms.FileInput(attrs={'class': 'form-control'}),
+            'payment_duration': forms.Select(attrs={'class': 'form-control', 'placeholder': 'Days (e.g. 30)'}),
+            'payment_option': forms.Select(attrs={'class': 'form-control'}),
+        }
+        
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Check that all required fields are filled
+        invoice_document = cleaned_data.get('invoice_document')
+        payment_duration = cleaned_data.get('payment_duration')
+        payment_option = cleaned_data.get('payment_option')
+        
+        if not invoice_document:
+            self.add_error('invoice_document', 'This field is required.')
+        
+        if not payment_duration:
+            self.add_error('payment_duration', 'This field is required.')
+        
+        if not payment_option:
+            self.add_error('payment_option', 'This field is required.')
+        
+        return cleaned_data
+    
+class GoodsReceivedNoteForm(forms.ModelForm):
+    class Meta:
+        model = GoodsReceivedNote
+        fields = ['reason', 'comment']  # Include other fields as necessary
+        widgets = {
+            'reason': forms.TextInput(attrs={'class': 'form-control', 'placeholder':'Carefully Inspect the delivered rawmaterials'}),
+            'comment': forms.Textarea(attrs={'class': 'form-control','placeholder':'Give a detailed explanation of the state of the goods recieved'}),
+        }
+        
+class DeliveredRequisitionItemForm(forms.ModelForm):
+    class Meta:
+        model = RequisitionItem
+        fields = ['raw_material', 'price_per_unit', 'quantity', 'delivered_quantity']  # Include only the fields you want to render
+        widgets = {
+            'raw_material': forms.TextInput(attrs={'readonly': 'readonly'}),
+            'price_per_unit': forms.TextInput(attrs={'readonly': 'readonly'}),
+            'quantity': forms.TextInput(attrs={'readonly': 'readonly'}),
+        }
+# DeliveredRequisitionItemFormSet = modelformset_factory(
+#     RequisitionItem,
+#     form=DeliveredRequisitionItemForm,
+#     extra=0,  # No extra forms
+# )
+

@@ -3,7 +3,7 @@ from django.urls import resolve
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 
-from production.models import LivaraMainStore, ProductionOrder, RestockRequest, StoreTransfer
+from production.models import LPO, LivaraMainStore, ProductionOrder, Requisition, RestockRequest, StoreTransfer
 
 
 def get_created_production_orders_count():
@@ -14,6 +14,12 @@ def get_pending_livara_store_orders():
 
 def get_new_restock_requests_count():
     return RestockRequest.objects.filter(status='pending').count()
+
+def get_new_requisitions_count():
+    return Requisition.objects.filter(status='created').count()
+
+def get_new_lpo_count():
+    return LPO.objects.filter(status='pending').count()
 
 def mark_active_link(menu, current_path_name):
     for item in menu:
@@ -32,6 +38,8 @@ def sidebar_menu(request):
     created_production_orders_count = get_created_production_orders_count()  # Get the count of created production orders
     created_livara_store_orders = get_pending_livara_store_orders()
     restock_requests_count= get_new_restock_requests_count()
+    requisitions_count = get_new_requisitions_count()
+    lpo_count = get_new_lpo_count()
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -127,17 +135,27 @@ def sidebar_menu(request):
             'name': 'create_production_order'
         },{
             'icon': 'bi bi-inboxes-fill',
-            'text': 'Store Management',
+            'text': 'Raw material Purchases',
             'children': [{
-                'url': '/production/store-requests',
+                'url': '/production/all_requisitions',
                 'icon': 'bi bi-inboxes-fill',
-                'text': 'Store Requests',
-                'name':'storeRequests'
+                'text': 'Requisitions',
+                'name':'all_requisitions'
             },{
                 'url': '/production/raw-materials/',
                 'icon': 'bi bi-egg-fried',
                 'text': 'Raw Materials',
-                'name': 'rawmaterialsList'
+                'name': 'rawmaterialsList' 
+            },{
+                'url': '/production/goods-received-notes/',
+                'icon': 'bi bi-receipt',
+                'text': 'Goods Received Note List',
+                'name': 'goods_received_note_list'
+            },{
+                'url': '/production/discrepancy_delivery_report_list/',
+                'icon': 'bi bi-box-fill',
+                'text': 'Discrepancy Delivery Report List',
+                'name': 'discrepancy_delivery_report_list'
             }]
         },{
             'text': 'STORES',
@@ -269,11 +287,50 @@ def sidebar_menu(request):
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales','writeoffs']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales','writeoffs','discrepancy_delivery_report_list','goods_received_note_list']]
+            sidebar_menu.append({
+                'icon': 'bi bi-inboxes-fill',
+                'text': 'Raw material Purchases',
+                'children': [{
+                    'url': '/production/all_requisitions',
+                    'icon': 'bi bi-inboxes-fill',
+                    'text': mark_safe(
+                        f'Requisitions <span class="badge rounded-circle bg-danger">{requisitions_count}</span>' 
+                        if requisitions_count > 0 else 'Requisitions'),
+                    'name': 'all_requisitions'
+                },{
+                    'url': '/production/lpos_list/',
+                    'icon': 'bi bi-egg-fried',
+                    'text': mark_safe(f'LPOrders <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
+                            if lpo_count > 0 else 'LPOrders'
+                            ),
+                    'name': 'lpos_list'
+                },{
+                    'url': '/production/discrepancy_delivery_report_list/',
+                    'icon': 'bi bi-box-fill',
+                    'text': 'Discrepancy Delivery Report List',
+                    'name': 'discrepancy_delivery_report_list'
+                }]
+            })
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs','manufacture_products_report','raw_material_utilization_report',]]
+            sidebar_menu.append({
+                'icon': 'bi bi-inboxes-fill',
+                'text': 'Raw material Purchases',
+                'children': [{
+                    'url': '/production/all_requisitions',
+                    'icon': 'bi bi-inboxes-fill',
+                    'text': 'Requisitions',
+                    'name': 'all_requisitions'
+                },{
+                    'url': '/production/goods-received-notes/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Goods Received Note List',
+                    'name': 'goods_received_note_list'
+                }]
+            })
         elif 'Managers' in group_names:
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['managers_store_inventory_view','pageCustomer']]

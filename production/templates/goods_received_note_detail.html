@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Goods Recieved Notes Details{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<h4>Goods Received Note Details</h4>
+
+<p><strong>ID:</strong> {{ note.id }}</p>
+<p><strong>Requisition:</strong> {{ note.requisition }}</p>
+<p><strong>LPO:</strong> {{ note.lpo }}</p>
+<p><strong>Date Created:</strong> {{ note.created_at|date:"Y-m-d" }}</p>
+
+<h5>Requisition Items</h5>
+    <table border="1" id="datatableDefault" class="table text-nowrap w-50">
+        <thead>
+            <tr>
+                <th>Raw Material</th>
+                <th>Ordered Quantity</th>
+                <th>Delivered Quantity</th>
+                <th>Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in requisition_items %}
+                <tr>
+                    <td>{{ item.raw_material.name }}</td>
+                    <td>{{ item.quantity }}</td> <!-- Ordered Quantity -->
+                    <td>{{ item.delivered_quantity }}</td> <!-- Delivered Quantity -->
+                    <td>{{ item.difference }}</td> <!-- Difference -->
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h6>Actions</h6>
+    <p>If the delivered quantity is less than the ordered quantity, choose an action:</p>
+    
+    {% if discrepancies_exist and not report_exists %}
+   
+    <p>If the delivered quantity is less than the ordered quantity, choose an action:</p>
+    <form method="post" action="{% url 'handle_discrepancy' note.id %}">
+        {% csrf_token %}
+        <div class="form-check form-check-inline">
+            <label>
+                <input class="form-check-input" type="radio" name="action" value="refund"> Refund from Supplier
+            </label><br>
+            <label>
+                <input class="form-check-input" type="radio" name="action" value="replace"> Replace Missing Items
+            </label><br>
+        </div>
+        <button class="btn btn-theme" type="submit">Submit Action</button>
+    </form>
+    {% elif report_exists %}
+        <p>A discrepancy report has already been created. <a href="#">View Report</a></p>
+    {% else %}
+        <p>No discrepancies found. All items were delivered as expected.</p>
+    {% endif %}
+
+
+    
+
+    <h5>Recorded Actions</h5>
+    <ul>
+        {% for report in note.discrepancydeliveryreport_set.all %}
+            <li>{{ report.get_action_taken_display }} - {{ report.date_reported }}{% if report.description %}: {{ report.description }}{% endif %}</li>
+        {% empty %}
+            <li>No actions recorded.</li>
+        {% endfor %}
+    </ul>
+
+
+<!-- Add more fields as necessary -->
+<div class="mt-4">
+    <a href="{% url 'goods_received_note_list' %}">Back to list</a>
+</div>
+{% endblock %}
+{% block outter_content %}
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Error Creating Sale</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock outter_content %}

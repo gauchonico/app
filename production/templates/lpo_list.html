@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Supplier List{% endblock %}
+{% block title %}Local Production Orders{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -35,82 +35,77 @@
 		<div>
 			<ul class="breadcrumb">
 				<li class="breadcrumb-item"><a href="#">PAGES</a></li>
-				<li class="breadcrumb-item active">SUPPLIERS</li>
+				<li class="breadcrumb-item active">LOCAL PRODUCTION ORDERS</li>
 			</ul>
-			<h1 class="page-header mb-0">Suppliers</h1>
+			<h1 class="page-header mb-0">Local Production Orders</h1>
 		</div>
 		
-		<div class="ms-auto">
-			<a href="{% url 'addSupplier' %}" class="btn btn-outline-theme me-2">Add New Supplier</a>
-		</div>
 	</div>
 	
-	<div class="mb-md-4 mb-3 d-md-flex">
-		<div class="mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-download fa-fw me-1 text-theme"></i> Export</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-upload fa-fw me-1 text-theme"></i> Bulk Import</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2 dropdown-toggle">
-			<a href="#" data-bs-toggle="dropdown" class="text-inverse text-opacity-75 text-decoration-none">More Actions</a>
-			<div class="dropdown-menu">
-				<a class="dropdown-item" href="#">Action</a>
-				<a class="dropdown-item" href="#">Another action</a>
-				<a class="dropdown-item" href="#">Something else here</a>
-				<div role="separator" class="dropdown-divider"></div>
-				<a class="dropdown-item" href="#">Separated link</a>
-			</div>
-		</div>
-	</div>
-	<div id="datatable" class="mb-5">
 		
-		<p>A list of all our suppliers and their contact information.</p>
+		<p>Request Factory to create products</p>
 		<div class="card">
 			<div class="card-body text-center">
 				<table id="datatableDefault" class="table text-nowrap w-100">
-					<thead>
+					<thead class="align-middle">
 						<tr>
 							<th class="border-top-0 pt-0 pb-2">#</th>
-							<th class="border-top-0 pt-0 pb-2">Full Names</th>
-							<th class="border-top-0 pt-0 pb-2">Company Name</th>
-							<th class="border-top-0 pt-0 pb-2">Supplies</th>
-							<th class="border-top-0 pt-0 pb-2">Email</th>
-							<th class="border-top-0 pt-0 pb-2">Located At</th>
-							<th class="border-top-0 pt-0 pb-2">Telephone No.</th>
-							<th class="border-top-0 pt-0 pb-2">Is Active</th>
+							<th class="border-top-0 pt-0 pb-2">Req. No.</th>
+							<th class="border-top-0 pt-0 pb-2">Created At</th>
+                            <th class="border-top-0 pt-0 pb-2">M.O.P</th>
+							<th class="border-top-0 pt-0 pb-2">Status</th>
+							
+							<th class="border-top-0 pt-0 pb-2">Payment Duration</th>
+                            
 							<th class="border-top-0 pt-0 pb-2">Edit</th>
 						</tr>
 					</thead>
-					<tbody>
-						{% for supplier in suppliers %}
+					<tbody class="align-middle">
+						{% for lpo in lpos %}
 						<tr>
 							<td class="align-middle">{{forloop.counter}}</td>
-							<td class="align-middle"><a href="#">{{ supplier.name }}</a></td>
-							<td class="align-middle">{{ supplier.company_name }}</td>
+							<td class="align-middle"><a href="#">{{ lpo.requisition }}</a></td>
+							<td class="align-middle">{{ lpo.created_at }}</td>
+									
+                            <td class=""data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Click to preview">
+                                    {{ lpo.payment_option }}
+									
+    
+                            </td>
+							<td class="align-middle">
+								<span class="badge 
+									{% if lpo.status == 'pending' %}
+										border border-warning text-warning 
+									{% elif lpo.status == 'verified' %} 
+										border border-success text-success
+									{% elif lpo.status == 'rejected' %} 
+										border border-primary text-primary
+									{% else %}
+										bg-white text-dark
+									{% endif %} 
+									px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"
+									data-bs-toggle="tooltip" data-bs-placement="top"
+									data-bs-title="{% if lpo.status == 'pending' %}Waiting Document Verification{% elif lpo.status == 'verified' %}Verified and ready for Delivery{% elif lpo.status == 'rejected' %}Failed Verication Process{% else %}This order has an unknown status{% endif %}">
+									<i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ lpo.status}}
+								</span>
+							</td>
 							
 							<td class="align-middle">
-								<ul class="list-group">
-								{% for raw_material in supplier.raw_materials.all %}
-										
-									<li class="list-group-item d-flex align-items-center small">{{ raw_material.name }}</li>
-										
-									{% empty %}
-									<li class="list-group-item d-flex align-items-center">No raw materials</li>
-								{% endfor %}
-								</ul>
+								{% if lpo.status == 'pending' %}
+									<a href="{% url 'lpo_verify' lpo.id %}" class="btn btn-success btn-sm">Verify</a>
+								{% elif lpo.status == 'verified' %}
+									<span class="text-success">Ready for Delivery</span>
+								{% elif lpo.status == 'rejected' %}
+									<span class="badge bg-danger">Rejected</span>
+								{% endif %}
 							</td>
-	
-							<td class="align-middle">{{ supplier.email }}</td>
-							<td class="align-middle">{{ supplier.address }}</td>
-							<td class="align-middle">{{ supplier.contact_number }}</td>
-							<td class="align-middle">
-								<div class="form-check form-switch">
-									<input type="checkbox" class="form-check-input" checked id="customSwitch2">
-								</div>
-							</td>
+							
                             
 							<td class="align-middle">
 								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
-									<a href="{% url 'editSupplier' supplier.id %}"><i class="far fa-lg fa-fw me-2 fa-edit"></i></a>
+									<a href="{% url 'lpo_detail' lpo.id %}"><i class="far fa-lg fa-fw me-2 fa-edit"></i></a>
 									<span></span>
-									<a href="{% url 'deleteSupplier' supplier.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a>
+									<a href="#"><i class="far fa-lg fa-fw me-2 fa-trash-alt"></i></a>
 									<span></span>
 								</div>
 							</td>
@@ -133,7 +128,7 @@
 	
 	<!-- END container -->
 {% endblock %}
-<!-- {% block outter_content %}
+{% block outter_content %}
 
 {% if messages %}
     <div class="toasts-container">
@@ -141,7 +136,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Customer Actions</strong>
+                    <strong class="me-auto">Actions</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">
@@ -154,4 +149,4 @@
 
 {% if form.errors %}  {% endif %}
 
-{% endblock outter_content %} -->
+{% endblock outter_content %}

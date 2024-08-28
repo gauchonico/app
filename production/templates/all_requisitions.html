@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}All Requisitions{% endblock %}
+{% block css %}
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-slider/dist/css/bootstrap-slider.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-slider/dist/bootstrap-slider.min.js' %}"></script>
+	<script src="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.js' %}"></script>
+	<script src="{% static 'plugins/jquery.maskedinput/src/jquery.maskedinput.js' %}"></script>
+	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/vendor/jquery.ui.widget.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-tmpl/js/tmpl.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-load-image/js/load-image.all.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-canvas-to-blob/js/canvas-to-blob.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-gallery/js/jquery.blueimp-gallery.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.iframe-transport.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-process.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-image.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-audio.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-video.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-validate.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-ui.js' %}"></script>
+	<script src="{% static 'plugins/summernote/dist/summernote-lite.min.js' %}"></script>
+	<script src="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.js' %}"></script>
+	<script src="{% static 'plugins/select-picker/dist/picker.min.js' %}"></script>
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'js/demo/form-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">REQUISITION ORDERS</a></li>
+            <li class="breadcrumb-item active">ALL REQUISITIONS</li>
+        </ul>
+        <h1 class="page-header mb-0">
+            All Requisitions
+        </h1>
+    <div>
+    {% if user_is_production_manager %}
+	<div class="ms-auto mt-4">
+		<a href="{% url 'create_requisition' %}" class="btn btn-outline-theme me-2">Generate Requisition</a>
+	</div>
+    {% endif %}
+</div>
+
+<div id="datatable" class="mb-5 mt-4">
+		
+    <p>A list of all our suppliers and their contact information.</p>
+    
+    <div class="card">
+        <div class="card-body text-center">
+            <table id="datatableDefault" class="table text-nowrap w-100">
+                <thead>
+                    <tr>
+                        <th class="border-top-0 pt-0 pb-2">#</th>
+                        <th class="border-top-0 pt-0 pb-2">Requisition Number</th>
+                        <th class="border-top-0 pt-0 pb-2">Supplier</th>
+                        <th class="border-top-0 pt-0 pb-2">Status</th>
+                        <th class="border-top-0 pt-0 pb-2">Created Date</th>
+                        <th class="border-top-0 pt-0 pb-2">Total Cost</th>
+                        <th class="border-top-0 pt-0 pb-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for requisition in requisitions %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ requisition.requisition_no }}</td>
+                        <td>{{ requisition.supplier.name }}</td>
+                        <td>
+                            {% if requisition.status == 'created' %}
+                                <span class="badge bg-secondary">{{ requisition.get_status_display }}</span>
+                            {% elif requisition.status == 'approved' %}
+                                <span class="badge bg-info">{{ requisition.get_status_display }}</span>
+                            {% elif requisition.status == 'rejected' %}
+                                <span class="badge bg-danger">{{ requisition.get_status_display }}</span>
+                            {% elif requisition.status == 'checking' %}
+                                <span class="badge bg-warning">{{ requisition.get_status_display }}</span>
+                            {% elif requisition.status == 'delivered' %}
+                                <span class="badge bg-success">{{ requisition.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge badge-status-default">{{ requisition.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ requisition.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>{{ requisition.total_cost }}</td>
+                        <td>
+                            <a href="{% url 'requisition_details' requisition.id %}">View</a> |
+                            {% comment %} <a href="{% url 'requisition_edit' requisition.id %}">Edit</a> | {% endcomment %}
+                            <a class="text-danger" href="{% url 'delete_requisition' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6">No requisitions found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-arrow">
+            <div class="card-arrow-top-left"></div>
+            <div class="card-arrow-top-right"></div>
+            <div class="card-arrow-bottom-left"></div>
+            <div class="card-arrow-bottom-right"></div>
+        </div>
+        
+    </div>
+</div>
+
+{% endblock %}
+{% block outter_content %}
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Requisition Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% if form.errors %}
+    <div class="toasts-container">
+        <div class="toast fade show">
+            <div class="toast-header">
+                <i class="far fa-bell text-muted me-2"></i>
+                <strong class="me-auto">Form Validation Error</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                {% for field, error_msgs in form.errors.items %}
+                    {% for error_msg in error_msgs %}
+                    <ul>
+                        <li>{{ error_msg }}</li>
+                    </ul>
+                        
+                        <br>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock outter_content %}

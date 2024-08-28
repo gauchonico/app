@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import delete_rawmaterial, purhcaseOrderDetails
+from .views import  LpoDetailView, ProDeView, delete_rawmaterial, purhcaseOrderDetails
 from . import views
 
 urlpatterns = [
@@ -14,6 +14,27 @@ urlpatterns = [
     path('download-supplier-csv,', views.download_supplier_csv, name="download_supplier_csv"),
     path('delete_rawmaterial/<int:raw_material_id>/', delete_rawmaterial, name='delete_rawmaterial'),
     path('raw-material/<int:pk>/', views.update_raw_material_quantity, name="update_raw_material_quantity"),
+    
+    path('create_requisition/', views.create_requisition, name='create_requisition'),
+    path('get_raw_materials/', views.get_raw_materials_by_supplier, name='get_raw_materials'),
+    path('all_requisitions/', views.all_requisitions, name='all_requisitions'),
+    path('requisition_details/<int:requisition_id>/', views.requisition_details, name='requisition_details'),
+    path('delete_requisition/<int:requisition_id>/', views.delete_requisition, name='delete_requisition'),
+    path('approve-requisition/<int:requisition_id>/', views.approve_requisition, name='approve_requisition'),
+    # path('reject-requisition/<int:requisition_id>/', views.reject_requisition, name='reject_requisition'),
+    
+    path('lpos_list/', views.lpo_list, name='lpos_list'),
+    path('lpo<int:pk>/', views.lpo_verify, name='lpo_verify'),
+    path('lpo/<int:pk>/', LpoDetailView.as_view(), name='lpo_detail'),
+    # path('process_delivery/<int:requisition_id>/', views.process_delivery, name='process_delivery'),
+    path('process_delivery/<int:requisition_id>/', ProDeView.as_view(), name='process_del'),
+    
+    path('goods-received-notes/', views.goods_recieved_notes, name='goods_received_note_list'),
+    path('goods_received_note_detail/<int:note_id>', views.goods_received_note_detail, name='goods_received_note_detail'),
+    path('goods-received-notes/<int:note_id>/handle-discrepancy/', views.handle_discrepancy, name='handle_discrepancy'),
+    
+    path('discrepancy_delivery_report_detail/<int:report_id>/', views.discrepancy_delivery_report_detail, name='discrepancy_delivery_report_detail'),
+    path('discrepancy_delivery_report_list/', views.discrepancy_delivery_report_list, name='discrepancy_delivery_report_list'),
     
     path('store-management/', views.storeManagement, name='storeManagement'),
     path('dispatch-list/', views.dispatchList, name='dispatchList'),

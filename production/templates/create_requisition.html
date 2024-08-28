@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Generate Requisition{% endblock %}
+{% block css %}
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-slider/dist/css/bootstrap-slider.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
+    <link href="/assets/plugins/select-picker/dist/picker.min.css" rel="stylesheet">
+    
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-slider/dist/bootstrap-slider.min.js' %}"></script>
+	<script src="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.js' %}"></script>
+	<script src="{% static 'plugins/jquery.maskedinput/src/jquery.maskedinput.js' %}"></script>
+	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/vendor/jquery.ui.widget.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-tmpl/js/tmpl.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-load-image/js/load-image.all.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-canvas-to-blob/js/canvas-to-blob.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-gallery/js/jquery.blueimp-gallery.min.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.iframe-transport.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-process.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-image.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-audio.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-video.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-validate.js' %}"></script>
+	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-ui.js' %}"></script>
+	<script src="{% static 'plugins/summernote/dist/summernote-lite.min.js' %}"></script>
+	<script src="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.js' %}"></script>
+	<script src="{% static 'plugins/select-picker/dist/picker.min.js' %}"></script>
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'js/demo/form-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+    <script src="/assets/plugins/select-picker/dist/picker.min.js"></script>
+{% endblock %}
+
+{% block content %}
+	<ul class="breadcrumb">
+		<li class="breadcrumb-item"><a href="#">PURCHASE ORDERS</a></li>
+		<li class="breadcrumb-item active">CREATE RAWMATERIAL REQUISITION</li>
+	</ul>
+	
+	<h1 class="page-header">
+		Create New Requisition
+	</h1>
+	
+	<ul>
+		<!-- <li>Member must have National ID / Passport</li> -->
+    </ul>
+
+<div class="card">
+    <div class="card-body pb-2">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+        
+            <div class="row">
+                <div class="col-xl-6">
+                    <div class="form-group mb-3">
+            
+                        {{ requisition_form.as_p }}
+                    </div>
+                    
+                
+                </div>
+                <h5>Requisition Items</h5>
+                <div id="requisition-items">
+                    {{ item_formset.management_form }}
+                    {% for form in item_formset %}
+                        <div class="requisition-item-form">
+                            {{ form.as_p }}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div id="total-cost-container">
+                    <label class="form-label">Total Cost</label>
+                    <input type="text" id="total-cost" class="form-control" readonly />
+                </div>
+            </div>
+            <div class="ms-auto mt-5">
+                <button type="submit" class="btn btn-outline-theme me-2">Generate LPO</button>
+            </div>
+            
+        </form>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const quantityInput = document.getElementById('id_quantity');
+                const priceInput = document.getElementById('id_price_per_unit');
+                const totalCostInput = document.getElementById('total-cost');
+            
+                function updateTotalCost() {
+                    const quantity = parseFloat(quantityInput.value) || 0;
+                    const pricePerUnit = parseFloat(priceInput.value) || 0;
+                    const totalCost = quantity * pricePerUnit;
+                    totalCostInput.value = totalCost.toFixed(2);
+                }
+            
+                quantityInput.addEventListener('input', updateTotalCost);
+                priceInput.addEventListener('input', updateTotalCost);
+            
+                // Initial calculation in case values are pre-filled
+                updateTotalCost();
+            });
+            </script>
+    </div>
+    <div class="card-arrow">
+        <div class="card-arrow-top-left"></div>
+        <div class="card-arrow-top-right"></div>
+        <div class="card-arrow-bottom-left"></div>
+        <div class="card-arrow-bottom-right"></div>
+    </div>
+
+</div>
+
+{% endblock %}
+{% block outter_content %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const supplierSelect = document.getElementById('supplier_select');
+        const rawMaterialSelect = document.getElementById('id_raw_material');
+        
+        supplierSelect.addEventListener('change', function() {
+            const supplierId = supplierSelect.value;
+            fetch(`/get_raw_materials/?supplier_id=${supplierId}`)
+                .then(response => response.json())
+                .then(data => {
+                    rawMaterialSelect.innerHTML = '';
+                    data.raw_materials.forEach(rawMaterial => {
+                        const option = document.createElement('option');
+                        option.value = rawMaterial.id;
+                        option.textContent = `${rawMaterial.name} (${rawMaterial.unit_measurement})`;
+                        rawMaterialSelect.appendChild(option);
+                    });
+                });
+        });
+    });
+</script>
+<script type="text/javascript">
+    $(document).ready(function () {
+        console.log("Document ready and initializing selectpicker");
+        $('.selectpicker').selectpicker();
+    });
+</script>
+{% if form.errors %}
+    <div class="toasts-container">
+        <div class="toast fade show">
+            <div class="toast-header">
+                <i class="far fa-bell text-muted me-2"></i>
+                <strong class="me-auto">Form Validation Error</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                {% for field, error_msgs in form.errors.items %}
+                    {% for error_msg in error_msgs %}
+                    <ul>
+                        <li>{{ error_msg }}</li>
+                    </ul>
+                        
+                        <br>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock outter_content %}

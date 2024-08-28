@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 from django.db.models import Sum, F
 from django.utils import timezone
 from django.views.generic.edit import DeleteView
+from django.views.generic import DetailView, FormView, ListView
 import csv
 from django.templatetags.static import static
 
@@ -15,7 +16,7 @@ from django import forms
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
 from django.forms import ValidationError, formset_factory, inlineformset_factory, modelformset_factory
-from django.http import FileResponse, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.contrib.auth.decorators import login_required
@@ -25,8 +26,8 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
-from .models import LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
+from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
+from .models import LPO, DiscrepancyDeliveryReport, GoodsReceivedNote, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -1346,3 +1347,323 @@ def store_sale_order_details(request, pk):
     }
     return render(request,'store_sale_details.html', context)
 
+
+################REQUISITIONS#########
+def create_requisition(request):
+    RequisitionItemFormSet = modelformset_factory(RequisitionItem, form=RequisitionItemForm, extra=1)
+
+    if request.method == 'POST':
+        requisition_form = RequisitionForm(request.POST)
+        item_formset = RequisitionItemFormSet(request.POST, queryset=RequisitionItem.objects.none())
+
+        if requisition_form.is_valid() and item_formset.is_valid():
+            requisition = requisition_form.save()
+            
+            for form in item_formset:
+                requisition_item = form.save(commit=False)
+                requisition_item.requisition = requisition
+                requisition_item.save()
+            
+
+            # Redirect to a success page or requisition detail page
+            return redirect('requisition_details', requisition_id=requisition.id)
+
+    else:
+        requisition_form = RequisitionForm()
+        item_formset = RequisitionItemFormSet(queryset=RequisitionItem.objects.none())
+
+    return render(request, 'create_requisition.html', {
+        'requisition_form': requisition_form,
+        'item_formset': item_formset,
+    })
+    
+def get_raw_materials_by_supplier(request):
+    supplier_id = request.GET.get('supplier_id')
+    raw_materials = RawMaterial.objects.filter(supplier_id=supplier_id)
+    data = {
+        'raw_materials': [
+            {'id': rm.id, 'name': rm.name, 'unit_measurement': rm.unit_measurement}
+            for rm in raw_materials
+        ]
+    }
+    return JsonResponse(data, safe=False)
+
+def all_requisitions(request):
+    requisitions = Requisition.objects.all().order_by('-created_at')
+    user_is_production_manager = request.user.groups.filter(name='Production Manager').exists()
+    context ={
+        'requisitions': requisitions,
+        'user_is_production_manager':user_is_production_manager
+    }
+    return render(request, 'all_requisitions.html', context)
+
+def requisition_details(request, requisition_id):
+    requisition = get_object_or_404(Requisition, pk=requisition_id)
+    requisition_items = RequisitionItem.objects.filter(requisition=requisition)
+    user_is_finance = request.user.groups.filter(name='Finance').exists()
+    # Calculate total cost
+    total_cost = sum(item.quantity * item.price_per_unit for item in requisition_items)
+    context = {
+        'requisition': requisition,
+        'requisition_items': requisition_items,
+        'total_cost':total_cost,
+        'status': requisition.status,
+        'user_is_finance': user_is_finance,
+    }
+    return render(request, 'requisition_details.html',context)
+
+def delete_requisition(request, requisition_id):
+    # Retrieve the Requisition object or raise 404 if not found
+    requisition = get_object_or_404(Requisition, pk=requisition_id)
+    
+    # Check if the request method is POST to confirm deletion
+    if request.method == 'POST':
+        requisition.delete()
+        messages.success(request, 'Request deleted successfully.')
+        return redirect('all_requisitions')  # Redirect to the list of requisitions
+    # Optionally render a confirmation page if needed
+    return render(request, 'confirm_delete.html', {'requisition': requisition})
+        
+
+def approve_requisition(request, requisition_id):
+    requisition = Requisition.objects.get(pk=requisition_id)
+    requisition.status = 'approved'
+    requisition.save()
+    messages.success(request, 'Request approved successfully')
+    return redirect('all_requisitions')
+
+################LPOS###########################
+def lpo_list(request):
+    lpos = LPO.objects.all().order_by('-created_at')
+    context = {'lpos': lpos}
+    return render(request, 'lpo_list.html', context)
+
+def lpo_verify(request, pk):
+    lpo = get_object_or_404(LPO, pk=pk)
+
+    if lpo.status != 'pending':
+        messages.error(request, "You can't verify this LPO.")
+        return redirect('lpos_list')
+
+    if request.method == 'POST':
+        form = LPOForm(request.POST, request.FILES, instance=lpo)
+        if form.is_valid():
+            lpo = form.save(commit=False)
+            lpo.status = 'verified'  # Update the status to 'verified'
+            lpo.save()
+            
+            # Update the corresponding requisition status to 'checking'
+            if lpo.requisition.status == 'approved':
+                lpo.requisition.status = 'checking'
+                lpo.requisition.save()
+                
+            messages.success(request, "LPO has been verified and is ready for delivery.")
+            
+            return redirect('lpos_list')
+    else:
+        form = LPOForm(instance=lpo)
+
+    return render(request, 'lpo_verify.html', {'form': form, 'lpo': lpo})
+
+class LpoDetailView(DetailView):
+    model = LPO
+    template_name = 'lpo_detail.html'
+    context_object_name = 'lpo'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+    
+# def process_delivery(request, requisition_id):
+#     requisition = get_object_or_404(Requisition, id=requisition_id)
+#     requisition_items = RequisitionItem.objects.filter(requisition=requisition)
+    
+#     # Define the formset factory
+#     DeliveredRequisitionItemFormSet = modelformset_factory(
+#         RequisitionItem,
+#         form=DeliveredRequisitionItemForm,
+#         extra=0  # No extra forms
+#     )
+
+#     if request.method == 'POST':
+#         goods_received_form = GoodsReceivedNoteForm(request.POST)
+#         formset = DeliveredRequisitionItemFormSet(request.POST, request.FILES, queryset=requisition.requisitionitem_set.all())
+
+#         # Debugging Output
+#         print(f"Formset POST Data: {request.POST}")
+#         print(f"Formset TOTAL_FORMS: {request.POST.get('form-TOTAL_FORMS')}")
+#         print(f"Formset INITIAL_FORMS: {request.POST.get('form-INITIAL_FORMS')}")
+        
+#         if goods_received_form.is_valid() and formset.is_valid():
+#             goods_received_note = goods_received_form.save(commit=False)
+#             goods_received_note.requisition = requisition
+#             goods_received_note.lpo = requisition.lpo_set.first()  # Assuming the LPO is related to the requisition
+#             goods_received_note.save()
+
+#             # Process each item in the formset
+#             for form in formset:
+#                 delivered_quantity = form.cleaned_data.get('delivered_quantity')
+#                 if delivered_quantity:
+#                     item = form.instance
+#                     # Update the delivered_quantity for the item
+#                     item.delivered_quantity = delivered_quantity
+#                     item.save()
+
+#             messages.success(request, "Goods Received Note created successfully.")
+#             return redirect('requisition_detail', requisition_id=requisition.id)
+#     else:
+#         goods_received_form = GoodsReceivedNoteForm()
+#         formset = DeliveredRequisitionItemFormSet(queryset=requisition.requisitionitem_set.all())
+        
+#         # Debugging Output for GET
+#         print(f"Formset Queryset on GET: {formset.queryset}")
+#         print(f"Formset Forms: {formset.forms}")
+
+#     return render(request, 'process_delivery.html', {
+#         'goods_received_form': goods_received_form,
+#         'formset': formset, 
+#         'requisition': requisition,
+#         'requisition_items': requisition_items
+#     })
+    
+class ProDeView(FormView):
+    template_name = 'process_delivery.html'
+    form_class = GoodsReceivedNoteForm
+
+    def get_requisition(self):
+        return get_object_or_404(Requisition, id=self.kwargs['requisition_id'])
+
+    def get_formset(self, data=None, files=None):
+        DeliveredRequisitionItemFormSet = modelformset_factory(
+            RequisitionItem,
+            form=DeliveredRequisitionItemForm,
+            extra=0
+        )
+        return DeliveredRequisitionItemFormSet(
+            data=data, files=files, queryset=self.get_requisition().requisitionitem_set.all()
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['goods_received_form'] = GoodsReceivedNoteForm
+        context['requisition'] = self.get_requisition()
+        context['formset'] = self.get_formset()
+        context['requisition_items'] = RequisitionItem.objects.filter(requisition=context['requisition'])
+        return context
+
+    def form_valid(self, form):
+        formset = self.get_formset(self.request.POST, self.request.FILES)
+        
+        if formset.is_valid():
+            requisition = self.get_requisition()
+            goods_received_note = form.save(commit=False)
+            goods_received_note.requisition = requisition
+            goods_received_note.lpo = requisition.lpo_set.first()
+            goods_received_note.save()
+
+            # Process each item in the formset
+            for item_form in formset:
+                delivered_quantity = item_form.cleaned_data.get('delivered_quantity')
+                if delivered_quantity:
+                    item = item_form.instance
+                    item.delivered_quantity = delivered_quantity
+                    item.save()
+                    
+            # Update the requisition status to "delivered"
+            requisition.status = 'delivered'
+            requisition.save()
+
+            messages.success(self.request, "Goods Received Note created successfully.")
+            return redirect('requisition_details', requisition_id=requisition.id)
+        else:
+            return self.form_invalid(form)
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+        formset = self.get_formset(request.POST, request.FILES)
+        
+        if form.is_valid() and formset.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+        
+
+def goods_recieved_notes(request):
+    notes = GoodsReceivedNote.objects.all().order_by('-created_at')
+    context = {'notes': notes}
+    return render(request, 'goods_received_notes.html', context)
+
+def goods_received_note_detail(request, note_id):
+    
+    note = get_object_or_404(GoodsReceivedNote, id=note_id)
+    # Get the related requisition items
+    requisition_items = RequisitionItem.objects.filter(requisition=note.requisition)
+    # Check if a discrepancy report already exists
+    report_exists = DiscrepancyDeliveryReport.objects.filter(goods_received_note=note).exists()
+    
+    # Calculate differences
+    discrepancies_exist = False
+    for item in requisition_items:
+        item.difference = item.quantity - item.delivered_quantity
+        if item.difference > 0:
+            discrepancies_exist = True
+            
+    context = {
+        'note': note,
+        'discrepancies_exist': discrepancies_exist,
+        'requisition_items':requisition_items,
+        'report_exists':report_exists
+        
+        }
+    return render(request, 'goods_received_note_detail.html', context)
+
+def handle_discrepancy(request, note_id):
+    note = get_object_or_404(GoodsReceivedNote, id=note_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        description = request.POST.get('description', '')
+
+        if action in ['refund', 'replace']:
+            DiscrepancyDeliveryReport.objects.create(
+                
+                goods_received_note=note,
+                action_taken=action,
+                description=description
+            )
+            # Add logic to handle the specific action
+            if action == 'refund':
+                # Process refund logic here
+                pass
+            elif action == 'replace':
+                # Process replacement logic here
+                pass
+
+            messages.success(request, f"Discrepancy action '{action}' has been recorded.")
+            return redirect('discrepancy_delivery_report_list')
+        else:
+            messages.error(request, "Invalid action selected.")
+
+        return redirect('goods_received_note_detail', note_id=note_id)
+    
+    return redirect('goods_received_note_detail', note_id=note_id)
+
+def discrepancy_delivery_report_detail(request, report_id):
+    report = get_object_or_404(DiscrepancyDeliveryReport, pk=report_id)
+    
+    # Get the related goods received note and requisition items
+    goods_received_note = report.goods_received_note
+    
+    
+    context = {
+        'report': report,
+        'goods_received_note': goods_received_note,
+        
+    }
+    
+    return render(request, 'discrepancy_delivery_report_detail.html', context)
+
+def discrepancy_delivery_report_list(request):
+    reports = DiscrepancyDeliveryReport.objects.all().order_by('-date_reported')
+    context = {'reports': reports}
+    return render(request, 'discrepancy_delivery_report_list.html', context)
