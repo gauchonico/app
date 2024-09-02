@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Table Plugins{% endblock %}
+{% block title %}Livara Product Catalogue{% endblock %}
 
 {% block css %}
     <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -46,7 +46,7 @@
                             </ul>
                             
                             <h1 class="page-header">
-                                Livara Products <small>page header description goes here...</small>
+                                Livara Products <small>A list of our beauty products. You can Enroll a new product or Manufacture units of a product</small>
                             </h1>
                             
                             <hr class="mb-4">
@@ -60,7 +60,7 @@
                                                 <tr>
                                                     <th>#</th>
                                                     <th>Product Name</th>
-                                                    <th>Quantity (ML)</th>
+                                                    <th>Quantity</th>
                                                     <th>Details</th>
                                                     <th>Process</th>
                                                 </tr>
@@ -70,7 +70,7 @@
                                                 <tr>
                                                     <td>{{ forloop.counter }}.</td>
                                                     <td>{{ product.product_name}}</td>
-                                                    <td>{{product.total_volume}} ml</td>
+                                                    <td>{{product.total_volume}} {{ product.unit_of_measure}}</td>
                                                     <td><a href="{% url 'productDetailsPage' product_id=product.id %}">
                                                         <button class="btn small btn-outline-theme">View Details</button></td>
                                                     <td><a href="{% url 'manufactureProduct' product_id=product.id %}">

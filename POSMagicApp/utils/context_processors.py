@@ -142,10 +142,12 @@ def sidebar_menu(request):
                 'text': 'Requisitions',
                 'name':'all_requisitions'
             },{
-                'url': '/production/raw-materials/',
+                'url': '/production/lpos_list/',
                 'icon': 'bi bi-egg-fried',
-                'text': 'Raw Materials',
-                'name': 'rawmaterialsList' 
+                'text': mark_safe(f'LPOrders <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
+                        if lpo_count > 0 else 'LPOrders'
+                        ),
+                'name': 'lpos_list' 
             },{
                 'url': '/production/goods-received-notes/',
                 'icon': 'bi bi-receipt',

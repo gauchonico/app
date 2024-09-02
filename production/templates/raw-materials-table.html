@@ -2,9 +2,10 @@
 
 {% load static %}
 
-{% block title %}Goods Recieved Notes List{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block css %}
+	
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -12,6 +13,10 @@
 {% endblock %}
 
 {% block js %}
+	<script src="{% static 'plugins/jvectormap-next/jquery-jvectormap.min.js' %}"></script>
+	<script src="{% static 'plugins/jvectormap-content/world-mill.js' %}"></script>
+	<script src="{% static 'plugins/apexcharts/dist/apexcharts.min.js' %}"></script>
+	<script src="{% static 'js/demo/dashboard.demo.js' %}"></script>
 	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
 	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
@@ -28,75 +33,59 @@
 	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
+
 {% block content %}
-<h1>Goods Received Notes</h1>
+<div class="d-flex align-items-center mb-3">
+	<div>
+		<ul class="breadcrumb">
+			<li class="breadcrumb-item"><a href="#">PAGES</a></li>
+			<li class="breadcrumb-item active">RAW MATERIALS</li>
+		</ul>
+		<h1 class="page-header mb-0">RAW MATERIALS LIST</h1>
+	</div>
+</div>
 
-<table id="datatableDefault" class="table text-nowrap w-100">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>GCR No.</th>
-            <th>Date</th>
-            <th>Reason</th>
-            <th>Raw Material</th>
-            <th>...</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for note in goods_received_notes %}
-            
-        <tr>
-            <td>{{ note.id }}</td>
-            <td>{{ note.gcr_number }}</td>
-            <td>{{ note.created_at|date:"Y-m-d" }}</td>
-            <td>{{ note.reason }}</td>
-            
-            <td>
-                <ul class="list-group">
-                    {% for item in note.requisition.requisitionitem_set.all %}
-                    <li class="list-group-item">{{ item.raw_material.name }}<span class="text-theme"> {{ item.delivered_quantity }}</span></li>
-                    {% endfor %}
-                </ul>
-            </td>
-            
-            
-
-            
-            <td>
-                <a href="{% url 'goods_received_note_detail' note.id %}">View</a>
-                <!-- Add more actions here if needed -->
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="5">No goods received notes found.</td>
-        </tr>
-            
-        {% endfor %}
-    </tbody>
-</table>
-
-{% if is_paginated %}
-  <div class="pagination">
-    <span class="step-links">
-        {% if page_obj.has_previous %}
-            <a href="?page=1">&laquo; first</a>
-            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-        {% endif %}
-
-        <span class="current">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
-        </span>
-
-        {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}">next</a>
-            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
-        {% endif %}
-    </span>
-  </div>
-{% endif %}
+<!-- BEGIN table -->
+<div class="table-responsive">
+    <table id="datatableDefault" class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Current Stock</th>
+                <th>Unit Measurement</th>
+                <th>Supplier</th>
+                <th>Re-Order Point</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rawmaterial in rawmaterials %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ rawmaterial.name }}</td>
+                <td>{{ rawmaterial.current_stock|floatformat:2 }}</td>
+                <td>{{ rawmaterial.unit_measurement }}</td>
+                <td>{{ rawmaterial.supplier }}</td>
+                <td>{{ rawmaterial.reorder_point }} {{ rawmaterial.unit_measurement }}</td>
+                <td>
+                    <a href="{% url 'delete_rawmaterial' rawmaterial.id %}" class="btn btn-danger btn-sm">Delete</a>
+                    <a href="{% url 'update_raw_material_quantity' rawmaterial.pk %}" class="btn btn-warning btn-sm">Update</a>
+                    {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
+                    <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-danger btn-sm">Purchase Order</a>
+                    {% else %}
+                    <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-success btn-sm">Purchase Order</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<!-- END table -->
 
 {% endblock %}
+
 {% block outter_content %}
 {% if messages %}
     <div class="toasts-container">
@@ -104,7 +93,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Error Creating Sale</strong>
+                    <strong class="me-auto">Raw Material Action</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">

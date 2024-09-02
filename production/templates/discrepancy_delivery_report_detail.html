@@ -14,6 +14,11 @@
         {{ report.get_action_taken_display }}
     </span>
 </p>
+{% if report.action_taken == 'refund' %}
+    <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Deduct amount of un-delivered goods">Create Debit Note</button>
+{% elif report.action_taken == 'replace' %}
+    <p><strong>Replacement Product:</strong> <button class="btn btn-sm btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="A note to track when these goods will be replaced">Create Replace Note</button></p>
+{% endif %}
 <p><strong>Description:</strong> {{ report.description }}</p>
 <p><strong>Date Reported:</strong> {{ report.date_reported|date:"Y-m-d H:i:s" }}</p>
 <p><strong>Goods Recieved Note: </strong><a href="{% url 'goods_received_note_detail' report.goods_received_note.id %}"> View Goods Received Note</a></p>

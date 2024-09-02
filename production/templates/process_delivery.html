@@ -1,11 +1,24 @@
 {% extends 'base.html' %}
 
 {% block content %}
+{% if formset.errors %}
+    <div class="alert alert-danger">
+        <ul>
+            {% for form in formset %}
+                {% for field, errors in form.errors.items %}
+                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
     <h4>Goods Recieved Note</h4>
     <h6>Requisition Order: <span class="text-theme">{{ requisition.requisition_no }}</span></h6>
     <h6>Supplier: <span class="text-theme">{{ requisition.supplier }}</span></h6>
     {% for item in requisition_items %}
     <h6>Requisition Order: <span class="text-theme">{{ item.raw_material.name }}</span></h6>
+    
     {% endfor %}
     <form method="POST">
         {% csrf_token %}
@@ -18,21 +31,56 @@
             After checking measure or count the amount and fill in the deliverd amount of items
         </p>
         {{ formset.management_form }}
-        <ul>
-            {% for form in formset %}
-                <li>
-                    {{ form.as_p }}
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Raw Material</th>
+                    <th>Quantity</th>
+                    <th>Price per Unit</th>
+                    <th>Delivered Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for form in formset %}
+                    <tr>
+                        <td>
+                            {{ form.raw_material }}
+                            {% if form.raw_material.errors %}
+                                <div class="errors">{{ form.raw_material.errors }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}
+                                <div class="errors">{{ form.quantity.errors }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ form.price_per_unit }}
+                            {% if form.price_per_unit.errors %}
+                                <div class="errors">{{ form.price_per_unit.errors }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ form.delivered_quantity }}
+                            {% if form.delivered_quantity.errors %}
+                                <div class="errors">{{ form.delivered_quantity.errors }}</div>
+                            {% endif %}
+                        </td>
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+                    </tr>
                     {% if form.non_field_errors %}
-                        <div class="errors">{{ form.non_field_errors }}</div>
+                        <tr>
+                            <td colspan="4">
+                                <div class="errors">{{ form.non_field_errors }}</div>
+                            </td>
+                        </tr>
                     {% endif %}
-                    {% for field in form %}
-                        {% if field.errors %}
-                            <div class="errors">{{ field.errors }}</div>
-                        {% endif %}
-                    {% endfor %}
-                </li>
-            {% endfor %}
-        </ul>
+                {% endfor %}
+            </tbody>
+        </table>
     
         <button class="btn btn-theme" type="submit">Submit</button>
     </form>

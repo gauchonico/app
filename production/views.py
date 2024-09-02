@@ -156,6 +156,10 @@ def rawmaterialsList(request):
     }
     return render(request, "raw-materials-list.html", context)
 
+def rawamaterialsTable(request):
+    rawmaterials = RawMaterial.objects.all()
+    return render(request, 'raw-materials-table.html', {'rawmaterials': rawmaterials})
+
 @login_required(login_url='/login/')
 def addRawmaterial(request):
     if request.method == 'POST':
@@ -398,16 +402,18 @@ def create_product(request):
         formset = ProductionIngredientFormSet(request.POST)
 
         if product_form.is_valid() and formset.is_valid():
-            excluded_materials = ["Bottle Tops", "Bottle 250 ml", "Bottle 150 ml","Label for Product"] 
+            excluded_materials = ["Black jars 220 g", "Label Emerald Hair", "Black jars 50 g","Label for Product","Emerald Label Top 220 g","Emerald Label Side 220 g"] 
             
+            # Calculate total ingredient volume excluding the specified materials
             total_ingredient_volume = sum(
                 form.cleaned_data.get('quantity_per_unit_product_volume', 0) 
                 for form in formset if form.is_valid() and form.cleaned_data['raw_material'].name not in excluded_materials
             )
             product = product_form.save(commit=False)
-            if total_ingredient_volume != product.total_volume:
+            if int(total_ingredient_volume) != int(product.total_volume):
                 messages.error(request, "Sum of ingredient quantities must equal product volume<br>Check your Formula Again")
-                return redirect('createProduct')
+                # Re-render the form with the error message instead of redirecting
+                return render(request, 'create-product.html', {'product_form': product_form, 'formset': formset})
             else:
                 product.save()
                 formset.instance = product
@@ -1359,10 +1365,12 @@ def create_requisition(request):
         if requisition_form.is_valid() and item_formset.is_valid():
             requisition = requisition_form.save()
             
+            #save each form in the formset
             for form in item_formset:
-                requisition_item = form.save(commit=False)
-                requisition_item.requisition = requisition
-                requisition_item.save()
+                if form.cleaned_data and form.cleaned_data.get('quantity') and form.cleaned_data.get('raw_material'):
+                    requisition_item = form.save(commit=False)
+                    requisition_item.requisition = requisition
+                    requisition_item.save()
             
 
             # Redirect to a success page or requisition detail page
@@ -1531,9 +1539,15 @@ class ProDeView(FormView):
     form_class = GoodsReceivedNoteForm
 
     def get_requisition(self):
+        """
+        Get the Requisition object based on the URL parameter.
+        """
         return get_object_or_404(Requisition, id=self.kwargs['requisition_id'])
 
     def get_formset(self, data=None, files=None):
+        """
+        Create and return a formset for DeliveredRequisitionItemForm.
+        """
         DeliveredRequisitionItemFormSet = modelformset_factory(
             RequisitionItem,
             form=DeliveredRequisitionItemForm,
@@ -1544,53 +1558,85 @@ class ProDeView(FormView):
         )
 
     def get_context_data(self, **kwargs):
+        """
+        Add the formset and requisition to the context for rendering the template.
+        """
         context = super().get_context_data(**kwargs)
-        context['goods_received_form'] = GoodsReceivedNoteForm
+        context['goods_received_form'] = self.get_form()
         context['requisition'] = self.get_requisition()
         context['formset'] = self.get_formset()
-        context['requisition_items'] = RequisitionItem.objects.filter(requisition=context['requisition'])
+        context['requisition_items'] = self.get_requisition().requisitionitem_set.all()
         return context
 
     def form_valid(self, form):
+        """
+        Handle valid form submission: save GoodsReceivedNote, process formset, and update stock.
+        """
         formset = self.get_formset(self.request.POST, self.request.FILES)
         
         if formset.is_valid():
             requisition = self.get_requisition()
             goods_received_note = form.save(commit=False)
             goods_received_note.requisition = requisition
-            goods_received_note.lpo = requisition.lpo_set.first()
+            goods_received_note.lpo = requisition.lpo_set.first()  # Adjust if multiple LPOs are possible
             goods_received_note.save()
+            
+            print("GoodsReceivedNote saved successfully.")
 
             # Process each item in the formset
-            for item_form in formset:
-                delivered_quantity = item_form.cleaned_data.get('delivered_quantity')
-                if delivered_quantity:
-                    item = item_form.instance
-                    item.delivered_quantity = delivered_quantity
-                    item.save()
+            with transaction.atomic():
+                for item_form in formset:
+                    if item_form.cleaned_data:
+                        delivered_quantity = item_form.cleaned_data.get('delivered_quantity')
+                        if delivered_quantity:
+                            item = item_form.instance
+                            item.delivered_quantity = delivered_quantity
+                            item.save()
+                            
+                            print(f"RequisitionItem {item} saved with delivered quantity: {delivered_quantity}")
+                            
+                            # Update stock in RawMaterial
+                            raw_material = item.raw_material
+                            raw_material.add_stock(delivered_quantity)
+                            raw_material.update_quantity()
+                            
+                            print(f"Updated stock for RawMaterial {raw_material.name}. Current stock: {raw_material.current_stock}")
                     
             # Update the requisition status to "delivered"
             requisition.status = 'delivered'
             requisition.save()
+            print("Requisition status updated to 'delivered'.")
 
             messages.success(self.request, "Goods Received Note created successfully.")
             return redirect('requisition_details', requisition_id=requisition.id)
         else:
             return self.form_invalid(form)
 
+    def form_invalid(self, form):
+        """
+        Handle invalid form submission.
+        """
+        return self.render_to_response(self.get_context_data(form=form))
+    
     def post(self, request, *args, **kwargs):
+        """
+        Handle POST requests: validate and process form and formset.
+        """
         form = self.get_form()
         formset = self.get_formset(request.POST, request.FILES)
         
         if form.is_valid() and formset.is_valid():
             return self.form_valid(form)
         else:
-            return self.form_invalid(form)
-        
+            # Provide detailed debugging information if needed
+            for form in formset:
+                if form.errors:
+                    print(f"Formset errors: {form.errors}")
+            return self.form_invalid(form)        
 
 def goods_recieved_notes(request):
-    notes = GoodsReceivedNote.objects.all().order_by('-created_at')
-    context = {'notes': notes}
+    goods_received_notes = GoodsReceivedNote.objects.all().order_by('-created_at')
+    context = {'goods_received_notes': goods_received_notes}
     return render(request, 'goods_received_notes.html', context)
 
 def goods_received_note_detail(request, note_id):
@@ -1604,7 +1650,7 @@ def goods_received_note_detail(request, note_id):
     # Calculate differences
     discrepancies_exist = False
     for item in requisition_items:
-        item.difference = item.quantity - item.delivered_quantity
+        item.difference = (item.quantity or 0) - (item.delivered_quantity or 0)
         if item.difference > 0:
             discrepancies_exist = True
             

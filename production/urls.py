@@ -14,6 +14,8 @@ urlpatterns = [
     path('download-supplier-csv,', views.download_supplier_csv, name="download_supplier_csv"),
     path('delete_rawmaterial/<int:raw_material_id>/', delete_rawmaterial, name='delete_rawmaterial'),
     path('raw-material/<int:pk>/', views.update_raw_material_quantity, name="update_raw_material_quantity"),
+    path('rawamaterialsTable/', views.rawamaterialsTable, name="rawamaterialsTable"),
+
     
     path('create_requisition/', views.create_requisition, name='create_requisition'),
     path('get_raw_materials/', views.get_raw_materials_by_supplier, name='get_raw_materials'),

@@ -69,35 +69,37 @@
     <div class="card-body pb-2">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-        
-            <div class="row">
-                <div class="col-xl-6">
-                    <div class="form-group mb-3">
+            {{ requisition_form.as_p }}
+            {{ item_formset.management_form }}
             
-                        {{ requisition_form.as_p }}
-                    </div>
-                    
-                
-                </div>
-                <h5>Requisition Items</h5>
-                <div id="requisition-items">
-                    {{ item_formset.management_form }}
+            <table id="requisition_item_formset">
+                <thead>
+                    <tr>
+                        <th>Raw Material</th>
+                        <th>Quantity Ordered</th>
+                        <th>Unit Price</th>
+                    </tr>
+                </thead>
+                <tbody>
                     {% for form in item_formset %}
-                        <div class="requisition-item-form">
-                            {{ form.as_p }}
-                        </div>
+                        <tr class="form-row">
+                            <td>{{ form.raw_material }}</td>
+                            <td>{{ form.quantity }}</td>
+                            <td>{{ form.price_per_unit }}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2">{{ form.errors}}</td>
+                        </tr>
                     {% endfor %}
-                </div>
-                <div id="total-cost-container">
-                    <label class="form-label">Total Cost</label>
-                    <input type="text" id="total-cost" class="form-control" readonly />
-                </div>
-            </div>
+                </tbody>
+            </table>
             <div class="ms-auto mt-5">
+                <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
                 <button type="submit" class="btn btn-outline-theme me-2">Generate LPO</button>
             </div>
             
         </form>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const quantityInput = document.getElementById('id_quantity');
@@ -118,6 +120,35 @@
                 updateTotalCost();
             });
             </script>
+            <script>
+                $(document).ready(function() {
+                    var formCount = parseInt($('#id_form-TOTAL_FORMS').val()); // Get initial form count
+                    
+                    $('#add_form').click(function() {
+                        var formIdx = formCount;
+                        formCount++;
+                        
+                        var newForm = $('#requisition_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
+                        newForm.find('input, select').each(function() {
+                            var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
+                            var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
+                            $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
+                        });
+                        newForm.find('.remove-form').remove(); // Remove any existing remove buttons
+                        newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
+                        $('#requisition_item_formset tbody').append(newForm); // Append the cloned form to the table body
+                        
+                        $('#id_form-TOTAL_FORMS').val(formCount); // Update the management form with the new form count
+                    });
+                
+                    // Remove formset row
+                    $('#requisition_item_formset').on('click', '.remove-form', function() {
+                        $(this).closest('tr').remove(); // Remove the closest <tr> element
+                        formCount--;
+                        $('#id_form-TOTAL_FORMS').val(formCount); // Decrement form count
+                    });
+                });
+            </script>
     </div>
     <div class="card-arrow">
         <div class="card-arrow-top-left"></div>
@@ -130,33 +161,8 @@
 
 {% endblock %}
 {% block outter_content %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const supplierSelect = document.getElementById('supplier_select');
-        const rawMaterialSelect = document.getElementById('id_raw_material');
-        
-        supplierSelect.addEventListener('change', function() {
-            const supplierId = supplierSelect.value;
-            fetch(`/get_raw_materials/?supplier_id=${supplierId}`)
-                .then(response => response.json())
-                .then(data => {
-                    rawMaterialSelect.innerHTML = '';
-                    data.raw_materials.forEach(rawMaterial => {
-                        const option = document.createElement('option');
-                        option.value = rawMaterial.id;
-                        option.textContent = `${rawMaterial.name} (${rawMaterial.unit_measurement})`;
-                        rawMaterialSelect.appendChild(option);
-                    });
-                });
-        });
-    });
-</script>
-<script type="text/javascript">
-    $(document).ready(function () {
-        console.log("Document ready and initializing selectpicker");
-        $('.selectpicker').selectpicker();
-    });
-</script>
+
+
 {% if form.errors %}
     <div class="toasts-container">
         <div class="toast fade show">

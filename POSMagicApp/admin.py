@@ -58,6 +58,7 @@ admin.site.register(RequisitionItem)
 admin.site.register(LPO)
 admin.site.register(GoodsReceivedNote)
 admin.site.register(DiscrepancyDeliveryReport)
+admin.site.register(UnitOfMeasurement)
 
 
 

@@ -101,10 +101,11 @@ class StoreAlertForm(forms.ModelForm):
 class ProductionForm(forms.ModelForm):
     class Meta:
         model = Production
-        fields = ['product_name', 'total_volume']
+        fields = ['product_name', 'total_volume','unit_of_measure']
         widgets = {
             'product_name': forms.TextInput(attrs={'class':'form-control'}),
             'total_volume': forms.NumberInput(attrs={'class':'form-control','placeholder':'unit volume'}),
+            'unit_of_measure': forms.Select(attrs={'class':'form-control','placeholder':'unit of measure'}),
         }
         labels = {
             'total_volume':'Unit Volume',
@@ -314,9 +315,8 @@ TestItemFormset = inlineformset_factory(
 class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
-        fields = ['requisition_no', 'supplier']
+        fields = ['supplier']
         widgets = {
-            'requisition_no': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Requisition Number'}),
             'supplier': forms.Select(attrs={
                 'class': 'form-control selectpicker',
                 'data-live-search':'true',
@@ -344,6 +344,13 @@ class RequisitionItemForm(forms.ModelForm):
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
             'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Price per Unit (Kg, Liter, Piece)'}),
         }
+    # def __init__(self, *args, **kwargs):
+    #     supplier = kwargs.pop('supplier', None)
+    #     super().__init__(*args, **kwargs)
+    #     if supplier:
+    #         self.fields['raw_material'].queryset = RawMaterial.objects.filter(supplier=supplier)
+    #     else:
+    #         self.fields['raw_material'].queryset = RawMaterial.objects.none()
         
 class LPOForm(forms.ModelForm):
     class Meta:
@@ -379,7 +386,7 @@ class GoodsReceivedNoteForm(forms.ModelForm):
         model = GoodsReceivedNote
         fields = ['reason', 'comment']  # Include other fields as necessary
         widgets = {
-            'reason': forms.TextInput(attrs={'class': 'form-control', 'placeholder':'Carefully Inspect the delivered rawmaterials'}),
+            'reason': forms.Select(attrs={'class': 'form-control', 'placeholder':'Carefully Inspect the delivered rawmaterials'}),
             'comment': forms.Textarea(attrs={'class': 'form-control','placeholder':'Give a detailed explanation of the state of the goods recieved'}),
         }
         
@@ -388,10 +395,12 @@ class DeliveredRequisitionItemForm(forms.ModelForm):
         model = RequisitionItem
         fields = ['raw_material', 'price_per_unit', 'quantity', 'delivered_quantity']  # Include only the fields you want to render
         widgets = {
-            'raw_material': forms.TextInput(attrs={'readonly': 'readonly'}),
-            'price_per_unit': forms.TextInput(attrs={'readonly': 'readonly'}),
-            'quantity': forms.TextInput(attrs={'readonly': 'readonly'}),
+            'raw_material': forms.HiddenInput(),
+            'quantity': forms.HiddenInput(),
+            'price_per_unit': forms.HiddenInput(),
+            'delivered_quantity': forms.NumberInput(attrs={'class': 'form-control'}),
         }
+    
 # DeliveredRequisitionItemFormSet = modelformset_factory(
 #     RequisitionItem,
 #     form=DeliveredRequisitionItemForm,

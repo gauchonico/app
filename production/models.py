@@ -1,5 +1,6 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
+import random
 from time import timezone
 from django.db import models
 from django.contrib.auth.models import User
@@ -118,11 +119,12 @@ class StoreAlerts (models.Model):
     handled_at = models.DateTimeField(blank=True, null=True)
 
 ### next week #####################################
-
+    
 
 class Production(models.Model):
     product_name = models.CharField(max_length=255)
     total_volume = models.DecimalField(max_digits=4, decimal_places=0)  # Adjust precision as needed
+    unit_of_measure = models.ForeignKey(UnitOfMeasurement, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return self.product_name
@@ -131,7 +133,8 @@ class ProductionIngredient(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE,related_name="productioningredients")
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
     # Instead of percentage, store quantity per unit product volume
-    quantity_per_unit_product_volume = models.DecimalField(max_digits=4, decimal_places=4) 
+    quantity_per_unit_product_volume = models.DecimalField(max_digits=10, decimal_places=5)
+
 
     def __str__(self) -> str:
         return f"{self.raw_material} for {self.product} needed for {self.quantity_per_unit_product_volume}"
@@ -409,26 +412,46 @@ class Requisition(models.Model):
         ('delivered', 'Delivered'),
     ]
     
-    requisition_no = models.CharField(max_length=50, unique=True)
+    requisition_no = models.CharField(max_length=50, unique=True, blank=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
     items = models.ManyToManyField(RawMaterial, through='RequisitionItem')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    total_cost = models.DecimalField(max_digits=10, decimal_places =0,null=True, blank=True)
     
     def __str__(self):
         return f'Requisition {self.requisition_no}'
 
     def save(self, *args, **kwargs):
-        previous_status = None
-        if self.pk:
+        if not self.requisition_no:
+            self.requisition_no = self.generate_requisition_no()
+            
+        # Handle status change for LPO creation
+        if self.pk:  # Check if it's an existing record
             previous_status = Requisition.objects.get(pk=self.pk).status
-        
+            if previous_status == 'created' and self.status == 'approved':
+                # Create LPO if status changes from 'created' to 'approved'
+                LPO.objects.create(requisition=self)
+
         super().save(*args, **kwargs)
+            
+    def generate_requisition_no(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        #generate random number
+        random_number = random.randint(0000,9999)
         
-        # Only create LPO if the status transitions from 'created' to 'approved'
-        if previous_status == 'created' and self.status == 'approved':
-            LPO.objects.create(requisition=self)
+        # Construct the requisition number
+        requisition_no = f"prod-req-{month}{year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while Requisition.objects.filter(requisition_no=requisition_no).exists():
+            random_number = random.randint(1000, 9999)
+            requisition_no = f"prod-req-{month}{year}-{random_number}"
+        
+        return requisition_no
             
 class RequisitionItem(models.Model):
     requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
@@ -462,7 +485,7 @@ class LPO(models.Model):
         ('mobile_money', 'Mobile Money'),
         ('cash', 'Cash'),
     ]
-    
+    lpo_number = models.CharField(max_length=50, unique=True, blank=True)
     requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     invoice_document = models.FileField(upload_to='uploads/products/')
@@ -472,7 +495,31 @@ class LPO(models.Model):
     payment_option = models.CharField(max_length=20, choices=PAYMENT_OPTIONS_CHOICES, default='cash')
 
     def __str__(self):
-        return f'LPO for {self.requisition.requisition_no}'
+        return f'LPO {self.lpo_number} for {self.requisition.requisition_no}'
+    
+    def save(self, *args, **kwargs):
+        if not self.lpo_number:
+            self.lpo_number = self.generate_lpo_number()
+        
+        super().save(*args, **kwargs)
+    
+    def generate_lpo_number(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        
+        # Generate random number
+        random_number = random.randint(1000, 9999)
+        
+        # Construct the LPO number
+        lpo_number = f"prod-po-{month}{year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while LPO.objects.filter(lpo_number=lpo_number).exists():
+            random_number = random.randint(1000, 9999)
+            lpo_number = f"pod-po{month}{year}-{random_number}"
+        
+        return lpo_number
 
     def verify(self):
         if self.status == 'pending':
@@ -492,15 +539,45 @@ class LPO(models.Model):
             self.save()
             
 class GoodsReceivedNote(models.Model):
+    REASON_CHOICES = [
+        ('expired', 'Expired'),
+        ('quality', 'Poor Quality'),
+        ('spillage', 'Spillage'),
+    ]
+    gcr_number = models.CharField(max_length=50, unique=True, blank=True)
     requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
     lpo = models.ForeignKey(LPO, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    reason = models.CharField(max_length=255, blank=True, null=True)
+    reason = models.CharField(max_length=255, blank=True, null=True, choices=REASON_CHOICES)
     comment = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f'Goods Received Note for {self.requisition.requisition_no}'
+    
+    def save(self, *args, **kwargs):
+        if not self.gcr_number:
+            self.gcr_number = self.generate_gcr_number()
+        
+        super().save(*args, **kwargs)
+    
+    def generate_gcr_number(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        
+        # Generate random number
+        random_number = random.randint(1000, 9999)
+        
+        # Construct the GRC number
+        gcr_number = f"prod-gcr-{month}{year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while GoodsReceivedNote.objects.filter(gcr_number=gcr_number).exists():
+            random_number = random.randint(1000, 9999)
+            gcr_number = f"prod-gcr-{month}{year}-{random_number}"
+        
+        return gcr_number
     
 class DiscrepancyDeliveryReport(models.Model):
     ACTION_CHOICES = [
