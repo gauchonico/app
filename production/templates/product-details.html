@@ -29,7 +29,18 @@
                         <ul class="list-group">
                             {% for ingredient in ingredients %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume }} milliliters
+                            
+                            {% if ingredient.raw_material.unit_measurement == 'Pieces'%}
+                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:0 }} piece
+                            {% elif ingredient.raw_material.unit_measurement == 'Kilograms' %}
+                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} grams
+                            {% elif ingredient.raw_material.unit_measurement == 'Liters' %}
+                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} mls
+                            {% elif ingredient.raw_material.unit_measurement == 'Litres' %}
+                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} mls
+                            {% elif ingredient.raw_material.unit_measurement == 'kgs' %}
+                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} grams
+                            {% endif %}
                             {% if ingredient.raw_material.name in excluded_materials %}
                                 <span class="badge text-bg-danger rounded-pill">{{ ingredient.quantity_per_unit_product_volume }}</span>
                                 {% else %}

@@ -15,6 +15,11 @@ urlpatterns = [
     path('delete_rawmaterial/<int:raw_material_id>/', delete_rawmaterial, name='delete_rawmaterial'),
     path('raw-material/<int:pk>/', views.update_raw_material_quantity, name="update_raw_material_quantity"),
     path('rawamaterialsTable/', views.rawamaterialsTable, name="rawamaterialsTable"),
+    path('debit_notes_list/', views.debit_notes_list, name="debit_notes_list"),
+    path('debit_note_details/<int:debit_note_id>/', views.debit_note_details, name="debit_note_details"),
+    path('replace_notes_list/', views.replace_notes_list, name="replace_notes_list"),
+    path('replace_note_details/<int:replace_note_id>/', views.replace_note_details, name="replace_note_details"),
+    path('process_replacements/<int:replace_note_id>/', views.process_replacements, name="process_replacements"),
 
     
     path('create_requisition/', views.create_requisition, name='create_requisition'),

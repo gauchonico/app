@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Replace Note Detail{% endblock %}
+
+{% block content %}
+<h4>Replace Note Detail</h4>
+
+<p><strong>Replace Note No:</strong> {{ replace_note.replace_note_number }}</p>
+<p><strong>Created At:</strong> {{ replace_note.date_created|date:"Y-m-d H:i:s" }}</p>
+<p><strong>Discrepancy Report:</strong> <a href="{% url 'discrepancy_delivery_report_detail' replace_note.discrepancy_report.id %}">View Discrepancy Report</a></p>
+<h5>Items to be Replaced</h5>
+<div class="table-responsive">
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th>Quantity Ordered </th>
+                <th>Quantity Delivered</th>
+                <th>Quantity to be Replaced</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.raw_material.name }}</td>
+                <td>{{ item.ordered_quantity|floatformat:0 }} {{ item.raw_material.unit_measurement }}</td>
+                <td>{{ item.delivered_quantity|floatformat:0 }} {{ item.raw_material.unit_measurement }}</td>
+                <td>{{ item.quantity_to_replace|floatformat:0 }} {{ item.raw_material.unit_measurement }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p><strong>Status:</strong> 
+    <span class="badge rounded-pill {% if replace_note.status == 'pending' %}text-bg-warning{% elif replace_note.status == 'replaced' %}text-bg-success{% elif replace_note.status == 'cancelled' %}text-bg-danger{% endif %}">
+        {{ replace_note.get_status_display }}
+    </span>
+</p>
+
+{% if replace_note.status == 'pending' %}
+        <a href="{% url 'process_replacements' replace_note.id %}"><button type="submit" name="status" value="replaced" class="btn btn-success">Mark as Replaced</button></a>
+        <button type="submit" name="status" value="cancelled" class="btn btn-danger">Cancel for Refund</button>
+
+{% endif %}
+
+<div class="mt-4">
+    <a href="{% url 'replace_notes_list' %}">Back to Replace Notes List</a>
+</div>
+{% endblock %}

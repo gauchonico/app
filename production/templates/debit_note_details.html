@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Debit Note Detail{% endblock %}
+
+{% block content %}
+<h4>Debit Note Detail</h4>
+
+<p><strong>Debit Note Number:</strong> {{ debit_note.debit_note_number }}</p>
+<p><strong>Date Created:</strong> {{ debit_note.date_created|date:"Y-m-d H:i:s" }}</p>
+<p><strong>Total Deducted Amount (UGX):</strong>  <i class="bi bi-caret-up-fill text-theme"></i> {{ debit_note.total_deducted_amount|floatformat:0|intcomma }}</p>
+<p><strong>Discrepancy Report:</strong> 
+    <a href="{% url 'discrepancy_delivery_report_detail' debit_note.discrepancy_report.id %}">
+        View Discrepancy Report
+    </a>
+</p>
+<p><strong>Description:</strong> {{ debit_note.discrepancy_report.description }}</p>
+
+<div class="mt-4">
+    <a href="{% url 'debit_notes_list' %}">Back to Debit Notes List</a>
+</div>
+{% endblock %}

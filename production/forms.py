@@ -395,9 +395,9 @@ class DeliveredRequisitionItemForm(forms.ModelForm):
         model = RequisitionItem
         fields = ['raw_material', 'price_per_unit', 'quantity', 'delivered_quantity']  # Include only the fields you want to render
         widgets = {
-            'raw_material': forms.HiddenInput(),
-            'quantity': forms.HiddenInput(),
-            'price_per_unit': forms.HiddenInput(),
+            'raw_material': forms.Select(attrs={'readonly': 'readonly'}),
+            'quantity': forms.NumberInput(attrs={'readonly': 'readonly'}),
+            'price_per_unit': forms.NumberInput(attrs={'readonly': 'readonly'}),
             'delivered_quantity': forms.NumberInput(attrs={'class': 'form-control'}),
         }
     
@@ -407,3 +407,28 @@ class DeliveredRequisitionItemForm(forms.ModelForm):
 #     extra=0,  # No extra forms
 # )
 
+class ReplaceNoteForm(forms.ModelForm):
+    class Meta:
+        model = ReplaceNote
+        fields = ['status']  # Include any fields you want to edit in the ReplaceNote
+        widgets = {
+            
+            'status': forms.Select(attrs={'class': 'form-control'})
+        }
+        
+class ReplaceNoteItemForm(forms.ModelForm):
+    class Meta:
+        model = ReplaceNoteItem
+        fields = ['raw_material', 'ordered_quantity', 'delivered_quantity', 'quantity_to_replace']
+        widgets = {
+            'raw_material': forms.Select(),
+            'ordered_quantity': forms.NumberInput(attrs={'step': 'any'}),
+            'delivered_quantity': forms.NumberInput(attrs={'step': 'any'}),
+            'quantity_to_replace': forms.NumberInput(attrs={'step': 'any'}),
+        }
+ReplaceNoteItemFormSet = modelformset_factory(
+    ReplaceNoteItem,
+    extra=0,  # You can adjust this to show a certain number of empty forms
+    fields=('raw_material', 'ordered_quantity', 'delivered_quantity', 'quantity_to_replace'),
+    can_delete=False
+)

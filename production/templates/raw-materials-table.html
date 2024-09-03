@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Raw Materials List{% endblock %}
 
 {% block css %}
 	
@@ -41,7 +41,7 @@
 			<li class="breadcrumb-item"><a href="#">PAGES</a></li>
 			<li class="breadcrumb-item active">RAW MATERIALS</li>
 		</ul>
-		<h1 class="page-header mb-0">RAW MATERIALS LIST</h1>
+		<h4 class="mb-0">Raw Material List</h4>
 	</div>
 </div>
 
@@ -69,12 +69,13 @@
                 <td>{{ rawmaterial.supplier }}</td>
                 <td>{{ rawmaterial.reorder_point }} {{ rawmaterial.unit_measurement }}</td>
                 <td>
-                    <a href="{% url 'delete_rawmaterial' rawmaterial.id %}" class="btn btn-danger btn-sm">Delete</a>
-                    <a href="{% url 'update_raw_material_quantity' rawmaterial.pk %}" class="btn btn-warning btn-sm">Update</a>
+                    {% comment %} <a href="{% url 'delete_rawmaterial' rawmaterial.id %}" class="btn btn-danger btn-sm">Delete</a> {% endcomment %}
+                    <a href="{% url 'update_raw_material_quantity' rawmaterial.pk %}" class="btn bg-gradient-custom-teal btn-sm">Update</a>
                     {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
-                    <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-danger btn-sm">Purchase Order</a>
+                    <i class="bi bi-caret-down-fill text-danger"></i><span class="">Low Stock</span>
+                
                     {% else %}
-                    <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-success btn-sm">Purchase Order</a>
+                    <i class="bi bi-caret-up-fill text-theme" /><span class="text-success">Up to date</span>
                     {% endif %}
                 </td>
             </tr>

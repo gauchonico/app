@@ -108,12 +108,12 @@ def sidebar_menu(request):
                 f'Production Orders <span class="badge rounded-circle bg-danger">{created_production_orders_count}</span>' 
                 if created_production_orders_count > 0 else 'Production Orders'),
             'name': 'productionProduction'
-        },{
-            'url': '/production/store-requests',
-            'icon': 'bi bi-inboxes-fill',
-            'text': 'Store Requests',
-            'name':'storeRequests'
-        },{
+        },#{
+        #     'url': '/production/store-requests',
+        #     'icon': 'bi bi-inboxes-fill',
+        #     'text': 'Store Requests',
+        #     'name':'storeRequests'
+        {
             'url': '/production/manufactured-product-list/',
             'icon': 'bi bi-speedometer',
             'text': 'Production Reports',
@@ -158,6 +158,16 @@ def sidebar_menu(request):
                 'icon': 'bi bi-box-fill',
                 'text': 'Discrepancy Delivery Report List',
                 'name': 'discrepancy_delivery_report_list'
+            },{
+                    'url': '/production/debit_notes_list/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Debit Notes',
+                    'name': 'debit_notes_list'
+            },{
+                'url': '/production/replace_notes_list/',
+                'icon': 'bi bi-receipt',
+                'text': 'Replace Notes',
+                'name':'replace_notes_list'
             }]
         },{
             'text': 'STORES',
@@ -312,6 +322,16 @@ def sidebar_menu(request):
                     'icon': 'bi bi-box-fill',
                     'text': 'Discrepancy Delivery Report List',
                     'name': 'discrepancy_delivery_report_list'
+                },{
+                    'url': '/production/debit_notes_list/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Debit Notes',
+                    'name': 'debit_notes_list'
+                },{
+                'url': '/production/replace_notes_list/',
+                'icon': 'bi bi-receipt',
+                'text': 'Replace Notes',
+                'name':'replace_notes_list'
                 }]
             })
         elif 'Production Manager' in group_names:
@@ -331,7 +351,18 @@ def sidebar_menu(request):
                     'icon': 'bi bi-receipt',
                     'text': 'Goods Received Note List',
                     'name': 'goods_received_note_list'
-                }]
+                },{
+                    'url': '/production/debit_notes_list/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Debit Notes',
+                    'name': 'debit_notes_list'
+                },
+                {
+                'url': '/production/replace_notes_list/',
+                'icon': 'bi bi-receipt',
+                'text': 'Replace Notes',
+                'name':'replace_notes_list'
+            }]
             })
         elif 'Managers' in group_names:
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

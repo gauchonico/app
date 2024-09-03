@@ -540,6 +540,7 @@ class LPO(models.Model):
             
 class GoodsReceivedNote(models.Model):
     REASON_CHOICES = [
+        ('Successful', 'Successful'),
         ('expired', 'Expired'),
         ('quality', 'Poor Quality'),
         ('spillage', 'Spillage'),
@@ -592,3 +593,49 @@ class DiscrepancyDeliveryReport(models.Model):
 
     def __str__(self):
         return f"{self.get_action_taken_display()} - {self.goods_received_note.id}"
+    
+class ReplaceNote(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('delivered', 'Delivered'),
+        ('refunded','Refunded')
+    ]
+
+    replace_note_number = models.CharField(max_length=20, unique=True, editable=False)
+    discrepancy_report = models.ForeignKey('DiscrepancyDeliveryReport', on_delete=models.CASCADE, related_name='replace_notes')
+    date_created = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+
+    def save(self, *args, **kwargs):
+        if not self.replace_note_number:
+            max_number = ReplaceNote.objects.aggregate(models.Max('id'))['id__max']
+            self.replace_note_number = f"RN-{(max_number or 0) + 1:05d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Replace Note {self.replace_note_number} - {self.discrepancy_report.goods_received_note.id}"
+
+class ReplaceNoteItem(models.Model):
+    replace_note = models.ForeignKey(ReplaceNote, related_name='items', on_delete=models.CASCADE)
+    raw_material = models.ForeignKey('RawMaterial', on_delete=models.CASCADE)
+    ordered_quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    delivered_quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity_to_replace = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.raw_material.name} - {self.quantity_to_replace}"
+
+class DebitNote(models.Model):
+    debit_note_number = models.CharField(max_length=20, unique=True, editable=False)
+    discrepancy_report = models.ForeignKey('DiscrepancyDeliveryReport', on_delete=models.CASCADE, related_name='debit_notes')
+    total_deducted_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    date_created = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.debit_note_number:
+            max_number = DebitNote.objects.aggregate(models.Max('id'))['id__max']
+            self.debit_note_number = f"DN-{(max_number or 0) + 1:05d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Debit Note {self.debit_note_number} - {self.discrepancy_report.goods_received_note.id}"

@@ -7,7 +7,7 @@
 <h4>Discrepancy Delivery Report Detail</h4>
 
 <p><strong>Report ID:</strong> {{ report.id }}</p>
-<p><strong>Goods Received Note:</strong> {{ report.goods_received_note.id }}</p>
+<p><strong>Goods Received Note:</strong> {{ report.goods_received_note.gcr_number }}</p>
 <p><strong>Reason for Discrepancey:</strong> {{ report.goods_received_note.reason}}</p>
 <p><strong>Action Suggested:</strong> 
     <span class="badge rounded-pill {% if report.action_taken == 'refund' %}text-bg-pink{% elif report.action_taken == 'replace' %}text-bg-black{% endif %}">
@@ -15,9 +15,21 @@
     </span>
 </p>
 {% if report.action_taken == 'refund' %}
-    <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Deduct amount of un-delivered goods">Create Debit Note</button>
+    {% with report.debit_notes.first as debit_note %}
+        {% if debit_note %}
+            <p><strong>Debit Note:</strong> <a href="{% url 'debit_note_details' debit_note.id %}">View Debit Note {{ debit_note.debit_note_number }}</a></p>
+        {% else %}
+            <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Deduct amount of un-delivered goods">Not yet created</button>
+        {% endif %}
+    {% endwith %}
 {% elif report.action_taken == 'replace' %}
-    <p><strong>Replacement Product:</strong> <button class="btn btn-sm btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="A note to track when these goods will be replaced">Create Replace Note</button></p>
+    {% with report.replace_notes.first as replace_note %}
+        {% if replace_note %}
+            <p><strong>Replacement Note:</strong> <a href="{% url 'replace_note_details' replace_note.id %}">View Replace Note {{ replace_note.replace_note_number }}</a></p>
+        {% else %}
+            <button class="btn btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="A note to track when these goods will be replaced">Not yet created</button>
+        {% endif %}
+    {% endwith %}
 {% endif %}
 <p><strong>Description:</strong> {{ report.description }}</p>
 <p><strong>Date Reported:</strong> {{ report.date_reported|date:"Y-m-d H:i:s" }}</p>

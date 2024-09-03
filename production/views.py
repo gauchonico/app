@@ -26,8 +26,8 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
-from .models import LPO, DiscrepancyDeliveryReport, GoodsReceivedNote, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
+from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
+from .models import LPO, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -1665,34 +1665,68 @@ def goods_received_note_detail(request, note_id):
 
 def handle_discrepancy(request, note_id):
     note = get_object_or_404(GoodsReceivedNote, id=note_id)
+    # Calculate discrepancies
+    requisition_items = RequisitionItem.objects.filter(requisition=note.requisition)
+    discrepancies = []
+    total_deducted_amount = 0
+    
+    for item in requisition_items:
+        difference = (item.quantity or 0) - (item.delivered_quantity or 0)
+        if difference > 0:
+            item.difference = difference
+            discrepancies.append(item)
+            total_deducted_amount += difference * item.price_per_unit
     
     if request.method == 'POST':
         action = request.POST.get('action')
         description = request.POST.get('description', '')
 
         if action in ['refund', 'replace']:
-            DiscrepancyDeliveryReport.objects.create(
-                
-                goods_received_note=note,
-                action_taken=action,
-                description=description
-            )
-            # Add logic to handle the specific action
-            if action == 'refund':
-                # Process refund logic here
-                pass
-            elif action == 'replace':
-                # Process replacement logic here
-                pass
+            with transaction.atomic():
+                discrepancy_report = DiscrepancyDeliveryReport.objects.create(
+                    
+                    goods_received_note=note,
+                    action_taken=action,
+                    description=description
+                )
+                # Add logic to handle the specific action
+                if action == 'refund':
+                    # Create a DebitNote
+                        debit_note = DebitNote.objects.create(
+                            discrepancy_report=discrepancy_report,
+                            total_deducted_amount=total_deducted_amount
+                        )
+                        messages.success(request, "Refund action recorded, Debit Note created.")
+                        
+                elif action == 'replace':
+                    # Create a ReplaceNote and associated ReplaceNoteItems
+                    replace_note = ReplaceNote.objects.create(
+                        discrepancy_report=discrepancy_report,
+                    )
+                    for item in discrepancies:
+                        ReplaceNoteItem.objects.create(
+                            replace_note=replace_note,
+                            raw_material=item.raw_material,
+                            ordered_quantity=item.quantity,
+                            delivered_quantity=item.delivered_quantity,
+                            quantity_to_replace=item.difference,
+                        )
+                    messages.success(request, "Replacement action recorded, Replace Note created.")
 
             messages.success(request, f"Discrepancy action '{action}' has been recorded.")
             return redirect('discrepancy_delivery_report_list')
         else:
             messages.error(request, "Invalid action selected.")
-
-        return redirect('goods_received_note_detail', note_id=note_id)
+    context = {
+        'note': note,
+        'discrepancies_exist': bool(discrepancies),
+        'requisition_items': requisition_items,
+        'discrepancies': discrepancies,
+        'total_deducted_amount': total_deducted_amount
+    }
     
-    return redirect('goods_received_note_detail', note_id=note_id)
+    return render(request, 'goods_received_note_detail.html', context)
+    
 
 def discrepancy_delivery_report_detail(request, report_id):
     report = get_object_or_404(DiscrepancyDeliveryReport, pk=report_id)
@@ -1713,3 +1747,82 @@ def discrepancy_delivery_report_list(request):
     reports = DiscrepancyDeliveryReport.objects.all().order_by('-date_reported')
     context = {'reports': reports}
     return render(request, 'discrepancy_delivery_report_list.html', context)
+
+def debit_notes_list(request):
+    debit_notes = DebitNote.objects.all().order_by('-date_created')
+    context = {'debit_notes': debit_notes}
+    return render(request, 'debit_notes_list.html', context)
+
+def debit_note_details(request, debit_note_id):
+    debit_note = get_object_or_404(DebitNote, id=debit_note_id)
+    context = {
+        'debit_note': debit_note,
+    }
+    return render (request, 'debit_note_details.html', context)
+
+def replace_notes_list(request):
+    replace_notes = ReplaceNote.objects.all().order_by('-date_created')
+    context = {'replace_notes': replace_notes}
+    return render(request, 'replace_notes_list.html', context)
+
+def replace_note_details(request, replace_note_id):
+    replace_note = get_object_or_404(ReplaceNote, id=replace_note_id)
+    items = replace_note.items.all()
+    
+    # Debugging: Print the retrieved items and their attributes
+    for item in items:
+        print(f"Item: {item.raw_material.name}, Ordered: {item.ordered_quantity}, Delivered: {item.delivered_quantity}, To Replace: {item.quantity_to_replace}")
+    context = {
+        'replace_note': replace_note,
+        'items': items,  # Use items instead of replace_note.items to avoid circular reference in templates.html. This can be solved by using a custom manager in models.py.
+    }
+    return render (request, 'replace_note_details.html', context)
+
+def process_replacements(request, replace_note_id):
+    replace_note = get_object_or_404(ReplaceNote, id=replace_note_id)
+    
+    if request.method == 'POST':
+        form = ReplaceNoteForm(request.POST, instance=replace_note)
+        formset = ReplaceNoteItemFormSet(request.POST, queryset=ReplaceNoteItem.objects.filter(replace_note=replace_note))
+        
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                # Save ReplaceNote status
+                form.save()
+                
+                # Process each item in the formset
+                for item_form in formset:
+                    if item_form.is_valid() and item_form.cleaned_data:
+                        item = item_form.save(commit=False)
+                        quantity_to_replace = item_form.cleaned_data.get('quantity_to_replace')
+                        
+                        if quantity_to_replace:
+                            item.quantity_to_replace = quantity_to_replace
+                            item.save()
+                            
+                            # Update stock in RawMaterial
+                            raw_material = item.raw_material
+                            raw_material.add_stock(quantity_to_replace)
+                            raw_material.update_quantity()
+                            
+                            print(f"Updated stock for RawMaterial {raw_material.name}. Current stock: {raw_material.current_stock}")
+                
+                # Update the replace note status to "delivered"
+                replace_note.status = 'delivered'
+                replace_note.save()
+                
+                messages.success(request, "Replacement processed successfully.")
+                return redirect('replace_note_details', replace_note_id=replace_note.id)
+        else:
+            print("Form errors:", form.errors)
+            print("Formset errors:", [form.errors for form in formset.forms])
+    else:
+        form = ReplaceNoteForm(instance=replace_note)
+        formset = ReplaceNoteItemFormSet(queryset=ReplaceNoteItem.objects.filter(replace_note=replace_note))
+    
+    context = {
+        'replace_note_form': form,
+        'replace_note': replace_note,
+        'formset': formset,
+    }
+    return render(request, 'process_replacement.html', context)
