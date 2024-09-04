@@ -671,9 +671,11 @@ def write_offs(request):
 def convert_to_base_unit(quantity, unit_of_measurement):
     """ Convert quantity to base unit (liters for volume, kilograms for weight) """
     if unit_of_measurement == 'Kilograms':
-        return quantity / 1000  # Convert ml to liters
+        return quantity / 1000  # Convert kilograms to grams
     elif unit_of_measurement == 'Liters':
-        return quantity / 1000  # Convert grams to kilograms
+        return quantity / 1000  # Convert litres to milliliters
+    elif unit_of_measurement == 'Litres':
+        return quantity / 1000  # Convert litres to milliliters
     return quantity  # Return as is if already in base unit
 
 def deduct_raw_materials(product, quantity):

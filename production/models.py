@@ -37,8 +37,8 @@ class UnitOfMeasurement(models.Model):
 class RawMaterial(models.Model):
     name = models.CharField(max_length=255)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='raw_materials')
-    quantity = models.PositiveIntegerField(default=0)
-    reorder_point = models.PositiveIntegerField(default=0)
+    quantity = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
+    reorder_point = models.PositiveIntegerField(default=0.0)
     
     unit_measurement = models.CharField(max_length=10, blank=True, null=True)
     
@@ -105,8 +105,7 @@ class PurchaseOrder(models.Model):
     
 class RawMaterialInventory(models.Model):
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.DO_NOTHING)
-    adjustment = models.IntegerField(default=0)
-
+    adjustment = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
     def save(self, *args, **kwargs):
         # Call update_stock method after creating or updating the RawMaterialInventory object
         super().save(*args, **kwargs)
@@ -191,7 +190,7 @@ class ManufactureProduct(models.Model):
     
 class ManufacturedProductInventory(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
-    quantity = models.IntegerField()
+    quantity = models.DecimalField(max_digits=4, decimal_places=2)
     batch_number = models.CharField(max_length=50,blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)
     expiry_date = models.DateField(blank=True, null=True)

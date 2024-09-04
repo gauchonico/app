@@ -1,28 +1,33 @@
 from decimal import Decimal
 from django.db import transaction
-from production.models import ManufacturedProductInventory, PurchaseOrder, RestockRequest, StoreInventory
+from production.models import ManufacturedProductInventory, PurchaseOrder, RequisitionItem, RestockRequest, StoreInventory
 
 
 def cost_per_unit(self):
   ingredient_costs = []
   for ingredient in self.productioningredients.all():
     # Get most recent purchase order for the ingredient
-    latest_purchase = PurchaseOrder.objects.filter(
-        raw_material=ingredient.raw_material
-    ).order_by('-created_at').first()  # Order by descending creation date
+    latest_reuisition_item = RequisitionItem.objects.filter(
+        raw_material=ingredient.raw_material,
+        requisition__status='delivered' #ensure that requisitioin has been finally delivered into items in store
+    ).order_by('-requisition__created_at').first()  # Order by descending creation date
 
-    if latest_purchase:
-      unit_of_measurement = latest_purchase.raw_material.unit_measurement
+    if latest_reuisition_item:
+      unit_of_measurement = latest_reuisition_item.raw_material.unit_measurement
 
+      # Conversion factor to convert base units (e.g., grams, milliliters) to the stored unit (kilograms, liters)
       conversion_factor = 1
       if unit_of_measurement == 'Kilograms':
           conversion_factor = 1000  # Convert ml to liters
       elif unit_of_measurement == 'Liters':
           # Add conversion for grams if applicable
           conversion_factor = 1000  # Implement conversion based on your data
+      elif unit_of_measurement == 'Litres':
+          # Add conversion for grams if applicable
+          conversion_factor = 1000  # Implement conversion based on your data
       
       quantity_in_desired_unit = ingredient.quantity_per_unit_product_volume / conversion_factor
-      cost_per_ingredient =  quantity_in_desired_unit * latest_purchase.unit_price 
+      cost_per_ingredient =  quantity_in_desired_unit * latest_reuisition_item.unit_price 
     else:
       # Handle case where no purchase history exists (optional: set default cost)
       cost_per_ingredient = 0  # You might want to set a default cost here

@@ -48,7 +48,7 @@ class AddRawmaterialForm(forms.ModelForm):
         }
         
 class RawMaterialQuantityForm(forms.ModelForm):
-    new_quantity = forms.IntegerField(label="New Quantity")
+    new_quantity = forms.DecimalField(label="New Quantity")
 
     class Meta:
         model = RawMaterial
