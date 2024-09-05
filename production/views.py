@@ -402,7 +402,29 @@ def create_product(request):
         formset = ProductionIngredientFormSet(request.POST)
 
         if product_form.is_valid() and formset.is_valid():
-            excluded_materials = ["Black jars 220 g", "Label Emerald Hair", "Black jars 50 g","Label for Product","Emerald Label Top 220 g","Emerald Label Side 220 g"] 
+            excluded_materials = ["Black jars 220 g", "Label Emerald Hair", "Black jars 50 g","Label for Product","Emerald Label Top 220 g","Emerald Label Side 220 g","Label Baby Opal Body butter top 220 g","Label Baby Opal Body Butter top 50 g","Label Chocolate Ruby Body Butter side 220 g","Label Chocolate Ruby Body Butter side 50 g","Label Chocolate Ruby Body butter top 220 g",
+                                "Label Chocolate Ruby Body Butter top 50 g","Label Diamond Tones Body Butter side 220 g","Label Diamond Tones Body Butter side 50 g","Label Diamond Tones Body Butter top 220 g","Label Emerald Hair food Top 50 g","Label Emerald Hair food 220 g top","Label Emerald Hair food side 220 g","Label Emerald Hair food side 50 g","Label Jadeite Kids Baby Shampoo 250 ml",
+                                "Label Jadeite Kids Baby Shampoo 500 ml","Label Jadeite kids detangler 500 ml","Label Jadeite Kids detangler 250 ml","Label Jadeite Kids Spritz Moisturiser 250 ml",
+                                "Label Jadeite Kids Spritz Moisturiser 500 ml"
+                                "Label Moonstone shine Body Butter side 50 g"
+                                "Label Moonstone shine Body Butter top 220 g"
+                                "Label Moonstone shine Body Butter Top 50 g"
+                                "label Mugisha 220 g top"
+                                "Label Mugisha Body Butter side 220 g"
+                                "Label Mugisha Body Butter Top 50 g"
+                                "Label Ruby glow Body Butter side 220 g"
+                                "Label Ruby glow Body Butter side 50 g"
+                                "Label Ruby glow Body Butter top 220 g"
+                                "Label Ruby glow Body Butter Top 50 g"
+                                "Label Sapphire 2in1 Leave in treatment 500 ml"
+                                "Label Sapphire General Purpose Hair Shampoo 500 ml"
+                                "Label Tanzanite Natural Hair Oil 100 ml"
+                                "Label The Pearl Cleanser back 100 ml"
+                                "Label The Pearl Cleanser back 200 ml"
+                                "Label The Pearl Cleanser front 100 ml"
+                                "Label The Pearl Cleanser front 200 ml"
+
+                                ] 
             
             # Calculate total ingredient volume excluding the specified materials
             total_ingredient_volume = sum(
