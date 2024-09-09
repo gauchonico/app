@@ -19,10 +19,8 @@
                         <li class="breadcrumb-item"><a href="#">PRODUCTS</a></li>
                         <li class="breadcrumb-item active">Product Information</li>
                     </ul>
-                    <h1>{{ product.product_name }} Details</h1>
-
-                    <h2>{{ product.total_volume }} ml</h2>
-                    <p>Total Volume: {{ product.total_volume }}</p>
+                    <h6>{{ product.product_name }} Details</h6>
+                    <p>Total Volume: {{ product.total_volume }} {{ product.unit_of_measure }}</p>
                     
                     <h2>Raw Materials</h2>
                     {% if ingredients %}
@@ -31,15 +29,15 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             
                             {% if ingredient.raw_material.unit_measurement == 'Pieces'%}
-                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:0 }} piece
+                            {{ ingredient.raw_material.name|slice:"3" }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:0 }} piece
                             {% elif ingredient.raw_material.unit_measurement == 'Kilograms' %}
-                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} grams
+                            {{ ingredient.raw_material.name|slice:"3" }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} grams
                             {% elif ingredient.raw_material.unit_measurement == 'Liters' %}
-                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} mls
+                            {{ ingredient.raw_material.name|slice:"3" }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} mls
                             {% elif ingredient.raw_material.unit_measurement == 'Litres' %}
-                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} mls
+                            {{ ingredient.raw_material.name|slice:"3" }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} mls
                             {% elif ingredient.raw_material.unit_measurement == 'kgs' %}
-                            {{ ingredient.raw_material.name }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} grams
+                            {{ ingredient.raw_material.name|slice:"3" }}: {{ ingredient.quantity_per_unit_product_volume|floatformat:3 }} grams
                             {% endif %}
                             {% if ingredient.raw_material.name in excluded_materials %}
                                 <span class="badge text-bg-danger rounded-pill">{{ ingredient.quantity_per_unit_product_volume }}</span>

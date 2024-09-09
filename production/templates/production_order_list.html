@@ -79,7 +79,7 @@
 						{% for order in production_orders %}
 						<tr>
 							<td class="align-middle">{{forloop.counter}}</td>
-							<td class="align-middle"><a href="#">{{ order.product.product_name }}</a></td>
+							<td class="align-middle"><a href="#">{{ order.prod_order_no }}</a></td>
 							<td class="align-middle">{{ order.quantity }}</td>
 									
                             <td class=""data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Click to preview">
@@ -145,7 +145,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Customer Actions</strong>
+                    <strong class="me-auto">Info</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">

@@ -70,7 +70,7 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             {{ requisition_form.as_p }}
-            {{ item_formset.management_form }}
+            
             
             <table id="requisition_item_formset">
                 <thead>
@@ -80,6 +80,7 @@
                         <th>Unit Price</th>
                     </tr>
                 </thead>
+                {{ item_formset.management_form }}
                 <tbody>
                     {% for form in item_formset %}
                         <tr class="form-row">
@@ -161,8 +162,36 @@
 
 {% endblock %}
 {% block outter_content %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 
-
+<script>
+    $(document).ready(function() {
+        $('#supplier-select').change(function() {
+            var supplierId = $(this).val();
+            $.ajax({
+                url: '{% url "get_raw_materials_by_supplier" %}',
+                data: {
+                    'supplier_id': supplierId
+                },
+                success: function(data) {
+                    $('#requisition_item_formset tbody').each(function() {
+                        $(this).find('select[name$="raw_material"]').each(function() {
+                            var rawMaterialSelect = $(this);
+                            rawMaterialSelect.empty();
+                            rawMaterialSelect.append('<option value="">Select Raw Material</option>');
+                            $.each(data, function(index, rawMaterial) {
+                                rawMaterialSelect.append($('<option>', {
+                                    value: rawMaterial.id,
+                                    text: rawMaterial.name
+                                }));
+                            });
+                        });
+                    });
+                }
+            });
+        });
+    });
+</script>
 {% if form.errors %}
     <div class="toasts-container">
         <div class="toast fade show">

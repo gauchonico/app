@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Descrepancy Report List{% endblock %}
+{% block title %}Delivery Descrepancy Report List{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -29,7 +29,7 @@
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
 {% block content %}
-<h4>Discrepancy Delivery Reports</h4>
+<h4>Delivery Descrepancy Reports</h4>
 
 <table id="datatableDefault" class="table text-nowrap w-100">
     <thead>
@@ -50,7 +50,7 @@
                 <td>{{ report.get_action_taken_display }}</td>
                 <td>{{ report.description }}</td>
                 <td>{{ report.date_reported|date:"Y-m-d" }}</td>
-                <td><a href="{% url 'discrepancy_delivery_report_detail' report.id %}">View Details</a></td>
+                <td><a href="{% url 'discrepancy_delivery_report_detail' report.id %}"><i class="far fa-sm fa-fw me-2 fa-eye"></i></a></td>
             </tr>
         {% endfor %}
     </tbody>

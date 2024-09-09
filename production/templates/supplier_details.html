@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Supplier Profile{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/lity/dist/lity.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/lity/dist/lity.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+
+	<div class="card">
+		<div class="card-body p-0">
+			<!-- BEGIN profile -->
+			<div class="profile">
+				<!-- BEGIN profile-container -->
+				<div class="profile-container">
+					<!-- BEGIN profile-sidebar -->
+					<div class="profile-sidebar">
+						<div class="desktop-sticky-top">
+							{% comment %} <div class="profile-img">
+								<img src="{{ customer.profile_image }}" alt="">
+							</div> {% endcomment %}
+							<!-- profile info -->
+							<h4>{{ supplier.name }}</h4>
+							<div class="mb-3 text-inverse text-opacity-50 fw-bold mt-n2">{{supplier.contact_number}}</div>
+							<p>
+								
+							</p>
+							<div class="mb-1">
+								<i class="fa fa-map-marker-alt fa-fw text-inverse text-opacity-50"></i> {{supplier.address}}
+							</div>
+							<div class="mb-3">
+								<i class="fa fa-link fa-fw text-inverse text-opacity-50"></i> {{ supplier.name }}
+							</div>
+					
+							<hr class="mt-4 mb-4">
+					
+							<!-- people-to-follow -->
+							<div class="fw-bold mb-3 fs-16px">Supplier Account</div>
+							<div class="d-flex align-items-center mb-3">
+								<div class="flex-fill px-3">
+									
+									<div class="fs-12px text-inverse text-opacity-50">This is a Permanent Action</div>
+								</div>
+								<a href="{% url 'deleteSupplier' supplier.id %}" class="btn btn-sm btn-danger fs-11px">Delete</a>
+							</div>
+						</div>
+					</div>
+					<!-- END profile-sidebar -->
+			
+					<!-- BEGIN profile-content -->
+					<div class="profile-content">
+						<ul class="profile-tab nav nav-tabs nav-tabs-v2">
+							<li class="nav-item">
+								<a href="#all-orders" class="nav-link active" data-bs-toggle="tab">
+									<div class="nav-field">All Requisitions</div>
+									<div class="nav-value"><span></span></div>
+								</a>
+							</li>
+                            <li class="nav-item">
+								<a href="#all-rawmaterials" class="nav-link" data-bs-toggle="tab">
+									<div class="nav-field">Raw Materials</div>
+									<div class="nav-value">
+                                    
+                                    </div>
+								</a>
+							</li>
+                            <li class="nav-item">
+                                <a href="#quantity_supplied" class="nav-link" data-bs-toggle="tab">
+                                    <div class="nav-field">Total Supplied</div>
+                                    <div class="nav-value">
+                                    
+                                    </div>
+                                </a>
+                            </li>
+							
+							
+						</ul>
+						<div class="profile-content-container">
+							<div class="row gx-4">
+								<div class="col-xl-12">
+									<div class="tab-content p-0">
+										<!-- BEGIN tab-pane -->
+										<div class="tab-pane fade show active" id="all-orders">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <div class="container">
+                                                
+                        
+                                                        <table class="table">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Requisition No.</th>
+                                                                    <th>Created at</th>
+                                                                    <th>Status</th>
+                                                                    <th>View</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {% for requisition in requisitions %}
+                                                                <tr>
+                                                                    <td>{{ requisition.requisition_no }}</td>
+                                                                    <td>{{ requisition.created_at }}</td>
+                                                                    <td>{{ requisition.status }}</td>
+                                                                    <td><a href="{% url 'requisition_details' requisition.id %}"><i class="bi bi-eye text-theme"></i></a></td>
+                                                                </tr>
+                                                                {% empty %}
+                                                                <tr>
+                                                                    <td colspan="4">No requisitions found.</td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="card-arrow">
+                                                    <div class="card-arrow-top-left"></div>
+                                                    <div class="card-arrow-top-right"></div>
+                                                    <div class="card-arrow-bottom-left"></div>
+                                                    <div class="card-arrow-bottom-right"></div>
+                                                </div>
+                                                
+                                            </div>
+                                        </div>
+										
+										<!-- END tab-pane -->
+                                        <div class="tab-pane fade show active" id="all-rawmaterials">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <div class="container">
+                                                        <ol class="list-group">
+                                                            {% for rawmaterial in rawmaterials %}
+                                                            <li class="list-group-item d-flex align-items-center">{{ rawmaterial.name }}</li>
+                                                            {% empty %}
+                                                            <li class="list-group-item d-flex align-items-center">No raw materials supplied by this supplier.</li>
+                                                            {% endfor %}
+                                                        </ol>
+                                                    </div>
+                                                </div>
+                                                <div class="card-arrow">
+                                                    <div class="card-arrow-top-left"></div>
+                                                    <div class="card-arrow-top-right"></div>
+                                                    <div class="card-arrow-bottom-left"></div>
+                                                    <div class="card-arrow-bottom-right"></div>
+                                                </div>
+                                                
+                                            </div>
+                                        </div>
+										<!-- BEGIN tab-pane -->
+										<div class="tab-pane fade show active" id="quantity_supplied">
+                                            <div class="card">
+                                                <div class="card-body text-center">
+                                                    <div class="container">
+                                                        <table class="table">
+                                                            <thead>
+                                                                <tr>
+                                                                    
+                                                                    <th>Raw Material</th>
+                                                                    <th>Total Delivered Quantity</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {% for item in breakdown %}
+                                                                <tr>
+                                                                    
+                                                                    <td>{{ item.raw_material__name }}</td>
+                                                                    <td>{{ item.total_delivered }}</td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                                <div class="card-arrow">
+                                                    <div class="card-arrow-top-left"></div>
+                                                    <div class="card-arrow-top-right"></div>
+                                                    <div class="card-arrow-bottom-left"></div>
+                                                    <div class="card-arrow-bottom-right"></div>
+                                                </div>
+                                                
+                                            </div>
+                                        </div>
+										<!-- END tab-pane -->
+							
+										<!-- BEGIN tab-pane -->
+										
+										<!-- END tab-pane -->
+							
+
+									</div>
+								</div>
+								
+							</div>
+						</div>
+                        
+					</div>
+					<!-- END profile-content -->
+				</div>
+				<!-- END profile-container -->
+			</div>
+			<!-- END profile -->
+		</div>
+		<div class="card-arrow">
+			<div class="card-arrow-top-left"></div>
+			<div class="card-arrow-top-right"></div>
+			<div class="card-arrow-bottom-left"></div>
+			<div class="card-arrow-bottom-right"></div>
+		</div>
+	</div>
+{% endblock %}

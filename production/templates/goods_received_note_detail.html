@@ -62,7 +62,6 @@
     <p>If the delivered quantity is less than the ordered quantity, choose an action:</p>
     
     {% if discrepancies_exist and not report_exists %}
-   
     <p>If the delivered quantity is less than the ordered quantity, choose an action:</p>
     <form method="post" action="{% url 'handle_discrepancy' note.id %}">
         {% csrf_token %}
@@ -77,7 +76,8 @@
         <button class="btn btn-theme" type="submit">Submit Action</button>
     </form>
     {% elif report_exists %}
-        <p>A discrepancy report has already been created. <a href="#">View Report</a></p>
+        <p>A discrepancy report has already been created. <a href="discrepancy_delivery_report_detail.report_id">View Report</a></p>
+        
     {% else %}
         <p>No discrepancies found. All items were delivered as expected.</p>
     {% endif %}
@@ -107,7 +107,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Error Creating Sale</strong>
+                    <strong class="me-auto">Info</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">

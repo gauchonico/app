@@ -56,6 +56,7 @@
                 <th>Unit Measurement</th>
                 <th>Supplier</th>
                 <th>Re-Order Point</th>
+                <th>Last Restock</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -68,6 +69,7 @@
                 <td>{{ rawmaterial.unit_measurement }}</td>
                 <td>{{ rawmaterial.supplier }}</td>
                 <td>{{ rawmaterial.reorder_point }} {{ rawmaterial.unit_measurement }}</td>
+                <td>{{ rawmaterial.last_updated }}</td>
                 <td>
                     {% comment %} <a href="{% url 'delete_rawmaterial' rawmaterial.id %}" class="btn btn-danger btn-sm">Delete</a> {% endcomment %}
                     <a href="{% url 'update_raw_material_quantity' rawmaterial.pk %}" class="btn bg-gradient-custom-teal btn-sm">Update</a>

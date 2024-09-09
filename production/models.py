@@ -39,7 +39,6 @@ class RawMaterial(models.Model):
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='raw_materials')
     quantity = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
     reorder_point = models.PositiveIntegerField(default=0.0)
-    
     unit_measurement = models.CharField(max_length=10, blank=True, null=True)
     
 
@@ -106,6 +105,8 @@ class PurchaseOrder(models.Model):
 class RawMaterialInventory(models.Model):
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.DO_NOTHING)
     adjustment = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
+    last_updated = models.DateTimeField(auto_now=True)
+    
     def save(self, *args, **kwargs):
         # Call update_stock method after creating or updating the RawMaterialInventory object
         super().save(*args, **kwargs)
@@ -146,6 +147,7 @@ class ProductionBatch(models.Model):
     completed = models.BooleanField(default=False)
 
 class ProductionOrder(models.Model):
+    prod_order_no = models.CharField(max_length=50, unique=True, blank=True)
     product = models.ForeignKey(
         'Production', on_delete=models.CASCADE, related_name='production_orders'
     )
@@ -165,6 +167,29 @@ class ProductionOrder(models.Model):
     def __str__(self):
         return f"Production Order: {self.product.product_name} - {self.quantity} units"
     
+    def save(self, *args, **kwargs):
+        if not self.prod_order_no:
+            self.prod_order_no = self.generate_prod_order_no()
+        
+        super().save(*args, **kwargs)
+    
+    def generate_prod_order_no(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        #generate random number
+        random_number = random.randint(0000,9999)
+        
+        # Construct the requisition number
+        prod_order_no = f"prod-request-{month}{year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while ProductionOrder.objects.filter(prod_order_no=prod_order_no).exists():
+            random_number = random.randint(1000, 9999)
+            prod_order_no = f"prod-req-{month}{year}-{random_number}"
+        
+        return prod_order_no
+    
     def create_approval_notification(self):
         notification = Notification.objects.create(
             recipient=self.store_manager,
@@ -180,13 +205,32 @@ class ManufactureProduct(models.Model):
     quantity = models.PositiveIntegerField(default=1)  # Number of units manufactured
     manufactured_at = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True)
-    batch_number = models.CharField(max_length=8)
-    labor_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    batch_number = models.CharField(max_length=8, unique=True, blank=True)
+    # labor_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=0, default=0)
     expiry_date = models.DateField(null=True,blank=True)
     production_order = models.ForeignKey(ProductionOrder, on_delete=models.CASCADE, null=True, blank=True, related_name='manufactured_products')
 
     def __str__(self):
         return f"{self.quantity} units of {self.product.product_name} manufactured on {self.manufactured_at.strftime('%Y-%m-%d')}"
+    
+    def generate_batch_number(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        exp_year= self.expiry_date.strftime('%y')
+        product_prefix = self.product.product_name[:3].upper() #make first letters capital
+        #generate random number
+        random_number = random.randint(0000,9999)
+        
+        # Construct the requisition number
+        batch_number = f"{product_prefix}-{month}{year}-{exp_year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while ManufactureProduct.objects.filter(batch_number=batch_number).exists():
+            random_number = random.randint(1000, 9999)
+            batch_number = f"{product_prefix}-{month}{year}-{exp_year}-{random_number}"
+        
+        return batch_number
     
 class ManufacturedProductInventory(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
@@ -488,6 +532,7 @@ class LPO(models.Model):
     requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     invoice_document = models.FileField(upload_to='uploads/products/')
+    quotation_document = models.FileField(upload_to='uploads/products/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     payment_duration = models.IntegerField(choices=PAYMENT_DURATION_CHOICES, default=10)

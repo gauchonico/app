@@ -21,6 +21,10 @@ def get_new_requisitions_count():
 def get_new_lpo_count():
     return LPO.objects.filter(status='pending').count()
 
+def get_verified_requsitions():
+    return Requisition.objects.filter(status='approved').count()
+
+
 def mark_active_link(menu, current_path_name):
     for item in menu:
         item['is_active'] = item.get('name', '') == current_path_name
@@ -40,6 +44,7 @@ def sidebar_menu(request):
     restock_requests_count= get_new_restock_requests_count()
     requisitions_count = get_new_requisitions_count()
     lpo_count = get_new_lpo_count()
+    verified_requsitions = get_verified_requsitions()
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -313,8 +318,8 @@ def sidebar_menu(request):
                 },{
                     'url': '/production/lpos_list/',
                     'icon': 'bi bi-egg-fried',
-                    'text': mark_safe(f'LPOrders <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
-                            if lpo_count > 0 else 'LPOrders'
+                    'text': mark_safe(f'Purchase Orders <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
+                            if lpo_count > 0 else 'Purchase Orders'
                             ),
                     'name': 'lpos_list'
                 },{
@@ -344,7 +349,9 @@ def sidebar_menu(request):
                 'children': [{
                     'url': '/production/all_requisitions',
                     'icon': 'bi bi-inboxes-fill',
-                    'text': 'Requisitions',
+                    'text': mark_safe(
+                        f'Requisitions <span class="badge rounded-circle bg-danger">{verified_requsitions}</span>' 
+                        if verified_requsitions > 0 else 'Requisitions'),
                     'name': 'all_requisitions'
                 },{
                     'url': '/production/goods-received-notes/',

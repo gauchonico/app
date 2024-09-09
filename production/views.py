@@ -127,7 +127,6 @@ def editSupplier(request, supplier_id):
     return render(request, "edit-supplier.html", context)
 
 @login_required(login_url='/login/')
-
 def deleteSupplier(request, supplier_id):
     supplier = get_object_or_404(Supplier, pk=supplier_id)
     if request.method == 'POST':
@@ -146,6 +145,38 @@ def deleteSupplier(request, supplier_id):
             messages.error(request, f"An error occurred: {e}")
         return redirect ('supplierList')
     return render(request, 'confirm_supplier_deletion.html')
+
+def get_supplier_raw_material_breakdown():
+    breakdown = RequisitionItem.objects.values(
+        'requisition__supplier__name', 
+        'raw_material__name'
+    ).annotate(
+        total_delivered=Sum('delivered_quantity')
+    ).order_by('requisition__supplier__name', 'raw_material__name')
+    
+    return breakdown
+
+def supplier_details (request, supplier_id):
+    supplier = get_object_or_404(Supplier, pk=supplier_id)
+    rawmaterials = RawMaterial.objects.filter(supplier=supplier)
+    requisitions = Requisition.objects.filter(supplier=supplier)
+    # Get the breakdown of raw materials for the specific supplier
+    breakdown = RequisitionItem.objects.filter(
+        requisition__supplier=supplier
+    ).values(
+        'raw_material__name'
+    ).annotate(
+        total_delivered=Sum('delivered_quantity')
+    ).order_by('raw_material__name')
+    
+    
+    context = {
+        'supplier': supplier,
+        'rawmaterials': rawmaterials,
+        'requisitions': requisitions,
+        'breakdown': breakdown,
+    }
+    return render(request, "supplier_details.html", context)
 
 
 @login_required(login_url='/login/')
@@ -513,8 +544,7 @@ def manufacture_product(request, product_id):
         if form.is_valid():
             quantity = form.cleaned_data['quantity']
             notes = form.cleaned_data['notes']
-            batch_number = form.cleaned_data['batch_number']
-            labor_cost_per_unit = form.cleaned_data['labor_cost_per_unit']  # Access labor cost
+            # labor_cost_per_unit = form.cleaned_data['labor_cost_per_unit']  # Access labor cost
             expiry_date = form.cleaned_data['expiry_date']
             production_order = form.cleaned_data['production_order']
             
@@ -537,15 +567,15 @@ def manufacture_product(request, product_id):
                         product=product,
                         quantity=quantity,
                         notes=notes,  # Add notes to model creation
-                        batch_number=batch_number,
-                        labor_cost_per_unit=labor_cost_per_unit,
                         expiry_date = expiry_date,
                         production_order=production_order
                     )
+                    manufacture_product.batch_number = manufacture_product.generate_batch_number()
+                    manufacture_product.save()
                     #update manufactured product inventory
                     manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
                         product=product,
-                        batch_number=batch_number,
+                        batch_number= manufacture_product.batch_number,
                         defaults={'quantity': quantity,'expiry_date':expiry_date}  # Update or create with quantity
                     )
                     if not created:
@@ -554,7 +584,7 @@ def manufacture_product(request, product_id):
                     
                     cost_per = cost_per_unit(product)
                     # total_cost = (cost_per * quantity) + (labor_cost_per_unit * quantity)
-                    total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per) + (labor_cost_per_unit * quantity)
+                    total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per)
                     
                     #update Production Order Status
                     if production_order:
@@ -747,8 +777,7 @@ def manufacturedproduct_detail(request, product_id):
     for ingredient_cost in cost_per_unit(product):
         total_ingredient_cost += ingredient_cost['cost_per_unit']
     
-    total_labour_cost = manufactured_product.labor_cost_per_unit * quantity
-    cost_per_product = total_ingredient_cost + total_labour_cost
+    cost_per_product = total_ingredient_cost
     total_production_cost = cost_per_product * quantity
     
     # Get the associated production order, if any
@@ -772,7 +801,6 @@ def manufacturedproduct_detail(request, product_id):
         'ingredients_used': ingredients_used_data,
         # 'cost_per_product': cost_per_product,
         'cost_per_product': cost_per_product, #cost per bottle
-        'total_labour_cost': total_labour_cost,
         'ingredient_costs': ingredient_costs,
         'total_production_cost':total_production_cost,
         'production_order': production_order,
@@ -788,9 +816,9 @@ def get_raw_material_price(raw_material_name):
     raw_material = RawMaterial.objects.get(name=raw_material_name)
     latest_purchase_order = raw_material.purchaseorder_set.order_by('-created_at').first()
     if latest_purchase_order:
-      return latest_purchase_order.unit_price
+        return latest_purchase_order.unit_price
     else:
-      return 0  # Handle case where no purchase order exists (optional)
+        return 0  # Handle case where no purchase order exists (optional)
   except RawMaterial.DoesNotExist:
     return None  #
 
@@ -1384,7 +1412,12 @@ def create_requisition(request):
 
     if request.method == 'POST':
         requisition_form = RequisitionForm(request.POST)
+        supplier_id = request.POST.get('supplier')  # Get the selected supplier ID from the POST data
         item_formset = RequisitionItemFormSet(request.POST, queryset=RequisitionItem.objects.none())
+        
+        # Set the supplier_id for each form in the formset
+        for form in item_formset:
+            form.fields['raw_material'].queryset = RawMaterial.objects.filter(supplier__id=supplier_id)
 
         if requisition_form.is_valid() and item_formset.is_valid():
             requisition = requisition_form.save()
@@ -1399,6 +1432,19 @@ def create_requisition(request):
 
             # Redirect to a success page or requisition detail page
             return redirect('requisition_details', requisition_id=requisition.id)
+        else:
+            print("Requisition form errors:", requisition_form.errors)
+            print("Formset errors:", item_formset.errors)
+            for form in item_formset:
+                print("Form errors:", form.errors)
+                # Print queryset IDs to match against submitted data
+                available_ids = form.fields['raw_material'].queryset.values_list('id', flat=True)
+                print("Submitted raw material IDs:", form.cleaned_data.get('raw_material'))
+                print("Available raw material IDs:", available_ids)
+                # Verify if the submitted ID exists in the available IDs
+                if form.cleaned_data.get('raw_material') not in available_ids:
+                    print(f"Error: Raw material ID {form.cleaned_data.get('raw_material')} not found in available choices.")
+            print("POST data:", request.POST)
 
     else:
         requisition_form = RequisitionForm()
@@ -1411,13 +1457,8 @@ def create_requisition(request):
     
 def get_raw_materials_by_supplier(request):
     supplier_id = request.GET.get('supplier_id')
-    raw_materials = RawMaterial.objects.filter(supplier_id=supplier_id)
-    data = {
-        'raw_materials': [
-            {'id': rm.id, 'name': rm.name, 'unit_measurement': rm.unit_measurement}
-            for rm in raw_materials
-        ]
-    }
+    raw_materials = RawMaterial.objects.filter(supplier__id=supplier_id)
+    data = list(raw_materials.values('id', 'name'))
     return JsonResponse(data, safe=False)
 
 def all_requisitions(request):
@@ -1737,7 +1778,7 @@ def handle_discrepancy(request, note_id):
                         )
                     messages.success(request, "Replacement action recorded, Replace Note created.")
 
-            messages.success(request, f"Discrepancy action '{action}' has been recorded.")
+            messages.success(request, f"Delivery Discrepancy action '{action}' has been recorded.")
             return redirect('discrepancy_delivery_report_list')
         else:
             messages.error(request, "Invalid action selected.")

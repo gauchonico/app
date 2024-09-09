@@ -108,9 +108,9 @@
                         <td>{{ requisition.created_at|date:"Y-m-d H:i" }}</td>
                         <td>{{ requisition.total_cost }}</td>
                         <td>
-                            <a href="{% url 'requisition_details' requisition.id %}">View</a> |
+                            <a href="{% url 'requisition_details' requisition.id %}"><i class="bi bi-eye"></i> </a>
                             {% comment %} <a href="{% url 'requisition_edit' requisition.id %}">Edit</a> | {% endcomment %}
-                            <a class="text-danger" href="{% url 'delete_requisition' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a>
+                            {% comment %} <a class="text-danger" href="{% url 'delete_requisition' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a> {% endcomment %}
                         </td>
                     </tr>
                     {% empty %}

@@ -157,9 +157,8 @@ class ProductionIngredientForm(forms.ModelForm):
 class ManufactureProductForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, label="Quantity to Manufacture", widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'e.g. 3'}))
     notes = forms.CharField(required=False, label="Manufacturing Notes", widget=forms.TextInput(attrs={'class': 'form-control'}))
-    batch_number = forms.CharField(required=True, label="Batch Number", widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'e.g. EMR001'}))
+    
     expiry_date = forms.DateField(required=True, label="Expiry Date", widget=forms.TextInput(attrs={'type':'date','class': 'form-control'}))
-    labor_cost_per_unit = forms.DecimalField(required=True, label="Labor Cost per Unit", widget=forms.TextInput(attrs={'class': 'form-control'}))
     production_order = forms.ModelChoiceField(queryset=ProductionOrder.objects.none(), required=False, label="Production Order", widget=forms.Select(attrs={'class': 'form-control'}))
     
     def __init__(self, *args, **kwargs):
@@ -327,13 +326,6 @@ class RequisitionForm(forms.ModelForm):
             
             }),
         }
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.fields['raw_material'].widget = forms.Select(choices=self.get_raw_material_choices())
-            
-        def get_raw_material_choices(self):
-            choices = [(rm.id, f"{rm.name} ({rm.unit_measurement})") for rm in RawMaterial.objects.all()]
-            return choices
 
 class RequisitionItemForm(forms.ModelForm):
     class Meta:
@@ -344,20 +336,21 @@ class RequisitionItemForm(forms.ModelForm):
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
             'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Price per Unit (Kg, Liter, Piece)'}),
         }
-    # def __init__(self, *args, **kwargs):
-    #     supplier = kwargs.pop('supplier', None)
-    #     super().__init__(*args, **kwargs)
-    #     if supplier:
-    #         self.fields['raw_material'].queryset = RawMaterial.objects.filter(supplier=supplier)
-    #     else:
-    #         self.fields['raw_material'].queryset = RawMaterial.objects.none()
+    def __init__(self, *args, **kwargs):
+        supplier_id = kwargs.pop('supplier_id', None)
+        super().__init__(*args, **kwargs)
+        if supplier_id:
+            self.fields['raw_material'].queryset = RawMaterial.objects.filter(supplier__id=supplier_id)
+        else:
+            self.fields['raw_material'].queryset = RawMaterial.objects.none()
         
 class LPOForm(forms.ModelForm):
     class Meta:
         model = LPO
-        fields = ['invoice_document', 'payment_duration', 'payment_option']  # Exclude requisition
+        fields = ['invoice_document','quotation_document', 'payment_duration', 'payment_option']  # Exclude requisition
         widgets = {
             'invoice_document': forms.FileInput(attrs={'class': 'form-control'}),
+            'quotation_document': forms.FileInput(attrs={'class':'form-control'}),
             'payment_duration': forms.Select(attrs={'class': 'form-control', 'placeholder': 'Days (e.g. 30)'}),
             'payment_option': forms.Select(attrs={'class': 'form-control'}),
         }
@@ -368,10 +361,14 @@ class LPOForm(forms.ModelForm):
         # Check that all required fields are filled
         invoice_document = cleaned_data.get('invoice_document')
         payment_duration = cleaned_data.get('payment_duration')
+        quotation_document = cleaned_data.get('quotation_document')
         payment_option = cleaned_data.get('payment_option')
         
         if not invoice_document:
             self.add_error('invoice_document', 'This field is required.')
+            
+        if not quotation_document:
+            self.add_error('quotation_document', 'This field is required.')
         
         if not payment_duration:
             self.add_error('payment_duration', 'This field is required.')

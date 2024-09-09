@@ -71,11 +71,10 @@
 							<th class="border-top-0 pt-0 pb-2">Full Names</th>
 							<th class="border-top-0 pt-0 pb-2">Company Name</th>
 							<th class="border-top-0 pt-0 pb-2">Supplies</th>
-							<th class="border-top-0 pt-0 pb-2">Email</th>
-							<th class="border-top-0 pt-0 pb-2">Located At</th>
+							
 							<th class="border-top-0 pt-0 pb-2">Telephone No.</th>
-							<th class="border-top-0 pt-0 pb-2">Is Active</th>
-							<th class="border-top-0 pt-0 pb-2">Edit</th>
+							
+							<th class="border-top-0 pt-0 pb-2">..</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -96,21 +95,14 @@
 								{% endfor %}
 								</ul>
 							</td>
-	
-							<td class="align-middle">{{ supplier.email }}</td>
-							<td class="align-middle">{{ supplier.address }}</td>
 							<td class="align-middle">{{ supplier.contact_number }}</td>
-							<td class="align-middle">
-								<div class="form-check form-switch">
-									<input type="checkbox" class="form-check-input" checked id="customSwitch2">
-								</div>
-							</td>
+		
                             
 							<td class="align-middle">
 								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
 									<a href="{% url 'editSupplier' supplier.id %}"><i class="far fa-lg fa-fw me-2 fa-edit"></i></a>
 									<span></span>
-									<a href="{% url 'deleteSupplier' supplier.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a>
+									<a href="{% url 'supplier_details' supplier.id %}"><i class="far fa-sm fa-fw me-2 fa-eye text-theme"></i></a>
 									<span></span>
 								</div>
 							</td>

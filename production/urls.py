@@ -8,6 +8,8 @@ urlpatterns = [
     path('add-supplier/', views.addSupplier, name='addSupplier'),
     path('edit-supplier/<int:supplier_id>/', views.editSupplier, name='editSupplier'),
     path('delete-supplier/<int:supplier_id>/', views.deleteSupplier, name='deleteSupplier'),
+    path('supplier_details/<int:supplier_id>/', views.supplier_details, name='supplier_details'),
+    
     path('raw-materials/', views.rawmaterialsList, name='rawmaterialsList'),
     path('add-raw-materials/', views.addRawmaterial, name='addRawmaterial'),
     path('download-example-csv/', views.download_example_csv, name='download_example_csv'),
@@ -29,6 +31,7 @@ urlpatterns = [
     path('delete_requisition/<int:requisition_id>/', views.delete_requisition, name='delete_requisition'),
     path('approve-requisition/<int:requisition_id>/', views.approve_requisition, name='approve_requisition'),
     # path('reject-requisition/<int:requisition_id>/', views.reject_requisition, name='reject_requisition'),
+    path('get_raw_materials_by_supplier/', views.get_raw_materials_by_supplier, name='get_raw_materials_by_supplier'),
     
     path('lpos_list/', views.lpo_list, name='lpos_list'),
     path('lpo<int:pk>/', views.lpo_verify, name='lpo_verify'),
