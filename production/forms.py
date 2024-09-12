@@ -355,6 +355,14 @@ class LPOForm(forms.ModelForm):
             'payment_option': forms.Select(attrs={'class': 'form-control'}),
         }
         
+        labels = {
+            'payment_duration': 'Payment Duration (Days)',
+            'payment_option': 'Payment Option',
+            'invoice_document':'Proforma Invoice',
+            'quotation_document':'Price List'
+        }
+        
+        
     def clean(self):
         cleaned_data = super().clean()
         

@@ -470,6 +470,13 @@ class Requisition(models.Model):
         if not self.requisition_no:
             self.requisition_no = self.generate_requisition_no()
             
+        # First save the requisition instance to get the primary key
+        if not self.pk:
+            super().save(*args, **kwargs)  # Save the instance first to get the primary key
+        
+        # Calculate total cost after saving the requisition and once it has a primary key
+        self.total_cost = self.calculate_total_cost()
+            
         # Handle status change for LPO creation
         if self.pk:  # Check if it's an existing record
             previous_status = Requisition.objects.get(pk=self.pk).status
@@ -495,6 +502,10 @@ class Requisition(models.Model):
             requisition_no = f"prod-req-{month}{year}-{random_number}"
         
         return requisition_no
+    
+    def calculate_total_cost(self):
+        # Sum the total cost of all requisition items
+        return sum(item.total_cost for item in self.requisitionitem_set.all())
             
 class RequisitionItem(models.Model):
     requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
@@ -508,7 +519,8 @@ class RequisitionItem(models.Model):
     
     @property
     def total_cost(self):
-        return sum(item.raw_material.price_per_unit * item.quantity for item in self.requisitionitem_set.all())
+        # Calculate the total cost for this specific item
+        return self.price_per_unit * self.quantity
     
 class LPO(models.Model):
     STATUS_CHOICES = [
@@ -517,10 +529,11 @@ class LPO(models.Model):
         ('rejected', 'Rejected'),
     ]
     PAYMENT_DURATION_CHOICES = [
-        (0, '0 days'),
+        (0, 'Immediate Payment'),
         (10, '10 days'),
         (20, '20 days'),
         (30, '30 days'),
+        (45, '45 days')
     ]
 
     PAYMENT_OPTIONS_CHOICES = [
@@ -537,6 +550,12 @@ class LPO(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     payment_duration = models.IntegerField(choices=PAYMENT_DURATION_CHOICES, default=10)
     payment_option = models.CharField(max_length=20, choices=PAYMENT_OPTIONS_CHOICES, default='cash')
+    
+    
+    # Payment tracking fields
+    is_paid = models.BooleanField(default=False, null=True, blank=True)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=0, default=0.00,null=True, blank=True)
+    payment_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f'LPO {self.lpo_number} for {self.requisition.requisition_no}'
@@ -544,6 +563,13 @@ class LPO(models.Model):
     def save(self, *args, **kwargs):
         if not self.lpo_number:
             self.lpo_number = self.generate_lpo_number()
+            
+        # Update payment status based on amount paid
+        if self.amount_paid >= self.requisition.total_cost:
+            self.is_paid = True
+            self.payment_date = timezone.now()  # Record payment date
+        else:
+            self.is_paid = False
         
         super().save(*args, **kwargs)
     
@@ -581,6 +607,11 @@ class LPO(models.Model):
         if self.status == 'pending':
             self.status = 'rejected'
             self.save()
+    
+    @property
+    def outstanding_balance(self):
+        """Calculate the outstanding balance by subtracting amount paid from total cost."""
+        return max(0, self.requisition.total_cost - self.amount_paid)
             
 class GoodsReceivedNote(models.Model):
     REASON_CHOICES = [

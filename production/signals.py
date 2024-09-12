@@ -3,7 +3,7 @@ from django import forms
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.core.mail import send_mail
-from .models import RawMaterialInventory, Requisition, RequisitionItem, SaleItem, StoreAlerts, StoreSale
+from .models import LPO, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, StoreAlerts, StoreSale
 
 @receiver(post_save, sender=RawMaterialInventory)
 def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
@@ -31,7 +31,7 @@ def send_requisition_email(sender, instance, created, **kwargs):
         subject = f"New Requisition Created: {instance.requisition_no}"
         
         # Retrieve requisition items
-        items = instance.items.all()
+        items = instance.requisitionitem_set.all()
         # Check if items are retrieved correctly
         print("Retrieved items:", items)  # For debugging
         items_details = "\n".join([
@@ -49,3 +49,32 @@ def send_requisition_email(sender, instance, created, **kwargs):
         
         recipient_list = ['nicholas.lukyamuzi@mylivara.com']  # Add recipients here
         send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+        
+@receiver(post_save, sender=Requisition)
+def send_requisition_status_email(sender, instance, **kwargs):
+    # Check if the requisition status is 'checking'
+    if instance.status == 'checking':
+        subject = f"Requisition {instance.requisition_no} Is Ready For Delivery"
+        message = f"The requisition with ID {instance.requisition_no} has been updated to the 'checking' status."
+        recipient_list = ['nicholas.lukyamuzi@mylivara.com']  # Replace with actual recipient(s)
+
+        try:
+            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+            print(f"Status update email sent for Requisition {instance.requisition_no}.")  # Debugging line
+        except Exception as e:
+            print(f"Failed to send status update email for Requisition {instance.requisition_no}: {e}")
+        
+@receiver(post_save, sender=LPO)
+def send_lpo_verification_email(sender, instance, **kwargs):
+    print(f"Signal triggered for LPO {instance.lpo_number} with status {instance.status}.")  # Debugging line
+    if instance.status == 'verified':  # Check if the status is 'verified'
+        print(f"Preparing to send email for LPO {instance.pk}.")  # Debugging line
+        subject = f"LPO {instance.lpo_number} Verified"
+        message = f"The LPO with ID {instance.lpo_number} has been verified and is ready for delivery."
+        recipient_list = ['nicholas.lukyamuzi@mylivara.com']  # Replace with actual recipient(s)
+
+        try:
+            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+            print(f"Verification email sent for LPO {instance.pk}.")  # Debugging line
+        except Exception as e:
+            print(f"Failed to send verification email for LPO {instance.pk}: {e}")

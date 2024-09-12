@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block content %}
+<h2>Outstanding Payables</h2>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>LPO Number</th>
+            <th>Supplier</th>
+            <th>Total Cost(UGX)</th>
+            <th>Amount Paid(UGX)</th>
+            <th>Outstanding Balance(UGX)</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for lpo in unpaid_pos %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ lpo.lpo_number }}</td>
+            <td>{{ lpo.requisition.supplier }}</td>
+            <td>{{ lpo.requisition.total_cost|floatformat|intcomma }}</td>
+            <td><span class="text-success">{{ lpo.amount_paid|floatformat|intcomma }}</span></td>
+            <td><span class="text-danger">{{ lpo.outstanding_balance|floatformat|intcomma }}</span></td>
+            <td>{{ lpo.get_status_display }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6">No outstanding payables.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}

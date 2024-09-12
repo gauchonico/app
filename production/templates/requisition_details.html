@@ -34,23 +34,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="modal">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">MODAL TITLE</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p>Modal body text goes here.</p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-bs-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-outline-theme">Save changes</button>
-        </div>
-      </div>
-    </div>
-</div>
+
 <div class="d-flex align-items-center mb-3">
 	<div>
 		<ul class="breadcrumb">
@@ -60,6 +44,10 @@
 		
 	</div>
 	
+</div>
+<div class="mb-md-4 mb-3 d-md-flex">
+    <div class="mt-md-0 mt-2"><button class="btn btn-secondary btn-sm" onclick="printSpecificSection()"><i class="fa fa-download fa-fw me-1 text-theme"></i> Print Requisition</button></div>
+    
 </div>
 <div class="nav-wizards-container">
     <nav class="nav nav-wizards-1 mb-2">
@@ -74,15 +62,15 @@
         <!-- Quality Assurance and Checking -->
         <div class="nav-item col">
             <a class="nav-link {% if requisition.status == 'checking' %} active{% elif requisition.status == 'delivered' %} completed{% elif requisition.status == 'created' %} disabled{% endif %}" href="#">
-                <div class="nav-no">3</div>
-                <div class="nav-text">Quality Assurance and Checking</div>
+                <div class="nav-no">2</div>
+                <div class="nav-text">Checking</div>
             </a>
         </div>
     
         <!-- Delivered to Store -->
         <div class="nav-item col">
             <a class="nav-link {% if requisition.status == 'delivered' %} active{% elif requisition.status == 'created' or requisition.status == 'checking' %} disabled{% endif %}" href="#">
-                <div class="nav-no">5</div>
+                <div class="nav-no">3</div>
                 <div class="nav-text">Delivered to Store</div>
             </a>
         </div>
@@ -90,43 +78,45 @@
 </div>
 <div class="card">
     <div class="card-body pb-2">
+        <div id="print-section">
+            <h5>Requisition Details</h5>
         
-        <h5>Requisition Details</h5>
-    
-        <small class="text-theme">Requisition Information</small>
-        <p><strong>Requisition No:</strong> {{ requisition.requisition_no }}</p>
-        <p><strong>Supplier:</strong> {{ requisition.supplier.name }}</p>
-        <p><strong>Status:</strong> {{ requisition.get_status_display }}</p>
-        <p><strong>Date Created:</strong> {{ requisition.created_at }}</p>
-        <p><strong>Last Updated:</strong> {{ requisition.updated_at }}</p>
+            <small class="text-theme">Requisition Information</small>
+            <p><strong>Requisition No:</strong> {{ requisition.requisition_no }}</p>
+            <p><strong>Supplier:</strong> {{ requisition.supplier.name }}</p>
+            <p><strong>Status:</strong> {{ requisition.get_status_display }}</p>
+            <p><strong>Date Created:</strong> {{ requisition.created_at }}</p>
+            <p><strong>Last Updated:</strong> {{ requisition.updated_at }}</p>
+            
+            <h5>Items</h5>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Raw Material</th>
+                        <th>Quantity</th>
+                        <th>Unit Measurement</th>
+                        <th>Price per Unit</th>
+                        <th>Total Cost (UGX)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in requisition_items %}
+                    <tr>
+                        <td>{{ item.raw_material.name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.raw_material.unit_measurement }}</td>
+                        <td>{{ item.price_per_unit|floatformat|intcomma }}</td>
+                        <td>{{ item.quantity|multiply:item.price_per_unit|floatformat|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <h4 class="mt-5">Total Cost: UGX
+                {{ total_cost|floatformat|intcomma }}</h4>
+            </h4>
+        </div>
         
-        <h5>Items</h5>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Raw Material</th>
-                    <th>Quantity</th>
-                    <th>Unit Measurement</th>
-                    <th>Price per Unit</th>
-                    <th>Total Cost (UGX)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in requisition_items %}
-                <tr>
-                    <td>{{ item.raw_material.name }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>{{ item.raw_material.unit_measurement }}</td>
-                    <td>{{ item.price_per_unit|floatformat|intcomma }}</td>
-                    <td>{{ item.quantity|multiply:item.price_per_unit|floatformat|intcomma }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        
-        <h4 class="mt-5">Total Cost: UGX
-            {{ total_cost|floatformat|intcomma }}</h4>
-        </h4>
     
         <a href="{% url 'all_requisitions' %}">Back to Requisitions</a>
         <div class="mb-4 mt-4">
@@ -223,6 +213,24 @@
         </div>
     </div>
 {% endif %}
+<script>
+    function printSpecificSection() {
+        // Get the content to print
+        var printContents = document.getElementById('print-section').innerHTML;
+
+        // Open a new window for the print
+        var originalContents = document.body.innerHTML;
+
+        // Set the body to only contain the print content
+        document.body.innerHTML = printContents;
+
+        // Trigger the print dialog
+        window.print();
+
+        // Restore the original content after printing
+        document.body.innerHTML = originalContents;
+    }
+</script>
 {% endblock outter_content %}
 
 

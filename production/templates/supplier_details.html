@@ -58,8 +58,8 @@
 					<div class="profile-content">
 						<ul class="profile-tab nav nav-tabs nav-tabs-v2">
 							<li class="nav-item">
-								<a href="#all-orders" class="nav-link active" data-bs-toggle="tab">
-									<div class="nav-field">All Requisitions</div>
+								<a href="#purchase_orders" class="nav-link active" data-bs-toggle="tab">
+									<div class="nav-field">All Purchase Orders</div>
 									<div class="nav-value"><span></span></div>
 								</a>
 							</li>
@@ -87,7 +87,7 @@
 								<div class="col-xl-12">
 									<div class="tab-content p-0">
 										<!-- BEGIN tab-pane -->
-										<div class="tab-pane fade show active" id="all-orders">
+										<div class="tab-pane fade show active" id="purchase_orders">
                                             <div class="card">
                                                 <div class="card-body text-center">
                                                     <div class="container">
@@ -103,16 +103,16 @@
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
-                                                                {% for requisition in requisitions %}
+                                                                {% for lpo in purchase_orders %}
                                                                 <tr>
-                                                                    <td>{{ requisition.requisition_no }}</td>
-                                                                    <td>{{ requisition.created_at }}</td>
-                                                                    <td>{{ requisition.status }}</td>
-                                                                    <td><a href="{% url 'requisition_details' requisition.id %}"><i class="bi bi-eye text-theme"></i></a></td>
+                                                                    <td>{{ lpo.lpo_number }}</td>
+                                                                    <td>{{ lpo.created_at }}</td>
+                                                                    <td>{{ lpo.status }}</td>
+                                                                    <td><a href="{% url 'lpo_detail' lpo.id %}"><i class="bi bi-eye text-theme"></i></a></td>
                                                                 </tr>
                                                                 {% empty %}
                                                                 <tr>
-                                                                    <td colspan="4">No requisitions found.</td>
+                                                                    <td colspan="4">No P.O's found.</td>
                                                                 </tr>
                                                                 {% endfor %}
                                                             </tbody>
@@ -130,7 +130,7 @@
                                         </div>
 										
 										<!-- END tab-pane -->
-                                        <div class="tab-pane fade show active" id="all-rawmaterials">
+                                        <div class="tab-pane fade show" id="all-rawmaterials">
                                             <div class="card">
                                                 <div class="card-body text-center">
                                                     <div class="container">
@@ -153,7 +153,7 @@
                                             </div>
                                         </div>
 										<!-- BEGIN tab-pane -->
-										<div class="tab-pane fade show active" id="quantity_supplied">
+										<div class="tab-pane fade show" id="quantity_supplied">
                                             <div class="card">
                                                 <div class="card-body text-center">
                                                     <div class="container">

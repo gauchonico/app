@@ -38,6 +38,7 @@ urlpatterns = [
     path('lpo/<int:pk>/', LpoDetailView.as_view(), name='lpo_detail'),
     # path('process_delivery/<int:requisition_id>/', views.process_delivery, name='process_delivery'),
     path('process_delivery/<int:requisition_id>/', ProDeView.as_view(), name='process_del'),
+    path('pay_lpo/<int:lpo_id>/', views.pay_lpo, name='pay_lpo'),
     
     path('goods-received-notes/', views.goods_recieved_notes, name='goods_received_note_list'),
     path('goods_received_note_detail/<int:note_id>', views.goods_received_note_detail, name='goods_received_note_detail'),
@@ -110,5 +111,8 @@ urlpatterns = [
     
     ## Store Manager View
     path('store_manager/', views.managers_store_inventory_view, name='managers_store_inventory_view'),
+    
+    ##finance
+    path('outstanding_payables/',  views.outstanding_payables, name='outstanding_payables'),
     
 ]

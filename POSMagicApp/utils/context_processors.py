@@ -3,7 +3,7 @@ from django.urls import resolve
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 
-from production.models import LPO, LivaraMainStore, ProductionOrder, Requisition, RestockRequest, StoreTransfer
+from production.models import LPO, DiscrepancyDeliveryReport, LivaraMainStore, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreTransfer
 
 
 def get_created_production_orders_count():
@@ -23,6 +23,12 @@ def get_new_lpo_count():
 
 def get_verified_requsitions():
     return Requisition.objects.filter(status='approved').count()
+
+def get_replace_notes():
+    return ReplaceNote.objects.filter(status='pending').count()
+
+def get_discrepancy_reports():
+    DiscrepancyDeliveryReport.objects.filter(status='refund').count()
 
 
 def mark_active_link(menu, current_path_name):
@@ -45,6 +51,7 @@ def sidebar_menu(request):
     requisitions_count = get_new_requisitions_count()
     lpo_count = get_new_lpo_count()
     verified_requsitions = get_verified_requsitions()
+    replace_notes = get_replace_notes()
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -266,6 +273,11 @@ def sidebar_menu(request):
             'text': 'Restock Requests',
             'name': 'financeRestockRequests',
         },{
+            'url': '/production/outstanding_payables',
+            'icon': 'bi bi-box-seam',
+            'text': 'Outstanding Payables',
+            'name': 'outstanding_payables',
+        },{
             'text': 'MANAGERS',
             'is_header': 1
         },{
@@ -354,6 +366,13 @@ def sidebar_menu(request):
                         if verified_requsitions > 0 else 'Requisitions'),
                     'name': 'all_requisitions'
                 },{
+                    'url': '/production/lpos_list/',
+                    'icon': 'bi bi-egg-fried',
+                    'text': mark_safe(f'Purchase Orders <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
+                            if lpo_count > 0 else 'Purchase Orders'
+                            ),
+                    'name': 'lpos_list'
+                },{
                     'url': '/production/goods-received-notes/',
                     'icon': 'bi bi-receipt',
                     'text': 'Goods Received Note List',
@@ -367,9 +386,19 @@ def sidebar_menu(request):
                 {
                 'url': '/production/replace_notes_list/',
                 'icon': 'bi bi-receipt',
-                'text': 'Replace Notes',
+                'text': mark_safe(
+                    f'Replace Notes<span class="badge rounded-circle bg-danger">{replace_notes}</span>'
+                    if replace_notes>0 else 'Replacing Notes'
+                    ),
                 'name':'replace_notes_list'
-            }]
+                },{
+                 
+                'url': '/production/outstanding_payables',
+                'icon': 'bi bi-box-seam',
+                'text': 'Outstanding Payables',
+                'name': 'outstanding_payables',
+           
+                }]
             })
         elif 'Managers' in group_names:
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

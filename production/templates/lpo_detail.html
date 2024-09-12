@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% load static %}
 
 {% load custom_filters %}
@@ -7,8 +7,12 @@
 {% block title %}LPO Details{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h5>PO Details: {{ lpo.requisition.requisition_no }}</h5>
+<div class="mb-md-4 mb-3 d-md-flex">
+    <div class="mt-md-0 mt-2"><button class="btn btn-secondary btn-sm" onclick="printSpecificSection()"><i class="fa fa-download fa-fw me-1 text-theme"></i> Print Requisition</button></div>
+    
+</div>
+<div class="container" id="print-section">
+    <h5>Purchase Order Details: {{ lpo.requisition.requisition_no }}</h5>
     <table class="table table-bordered">
         <tr>
             <th>Requisition Number</th>
@@ -43,6 +47,40 @@
         <tr>
             <th>Payment Duration</th>
             <td>{{ lpo.payment_duration }} Days</td>
+        </tr>
+        <tr>
+            <th>PO is Paid ?</th>
+            <td>
+                {% if lpo.is_paid %}
+                    <p class="text-success">LPO is fully paid on {{ lpo.payment_date }}</p>
+                {% else %}
+                    <p>Outstanding Balance: <span class="text-danger">{{ lpo.outstanding_balance }}</span></p>
+                    <a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">Pay Now</a>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>Requisition Items</th>
+            <td><table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Raw Material</th>
+                        <th>Quantity Requested</th>
+                        <th>Price per Unit</th>
+                        <th>Total Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in lpo.requisition.requisitionitem_set.all %}
+                    <tr>
+                        <td>{{ item.raw_material.name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.price_per_unit|floatformat:2 }}</td>
+                        <td>{{ item.quantity|multiply:item.price_per_unit|floatformat|intcomma}} </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table></td>
         </tr>
         <tr>
             <th>Quotation</th>
@@ -85,20 +123,22 @@
 </div>
 {% endblock %}
 {% block outter_content %}
-{% if messages %}
-    <div class="toasts-container">
-        {% for message in messages %}
-            <div class="toast fade show">
-                <div class="toast-header">
-                    <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Error Creating Sale</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                </div>
-                <div class="toast-body">
-                    <p>{{ message }}</p>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
+<script>
+    function printSpecificSection() {
+        // Get the content to print
+        var printContents = document.getElementById('print-section').innerHTML;
+
+        // Open a new window for the print
+        var originalContents = document.body.innerHTML;
+
+        // Set the body to only contain the print content
+        document.body.innerHTML = printContents;
+
+        // Trigger the print dialog
+        window.print();
+
+        // Restore the original content after printing
+        document.body.innerHTML = originalContents;
+    }
+</script>
 {% endblock outter_content %}

@@ -57,6 +57,7 @@
             <tr>
                 <th>Raw Material</th>
                 <th>Total Quantity</th>
+                <th>Volumes Measurement</th>
             </tr>
         </thead>
         <tbody>
@@ -64,6 +65,19 @@
             <tr>
                 <td>{{ entry.raw_material__name }}</td>
                 <td>{{ entry.total_quantity }}</td>
+                <td>
+                    {% if entry.raw_material__unit_measurement == 'Pieces'%}
+                            piece
+                        {% elif entry.raw_material__unit_measurement == 'Kilograms' %}
+                            grams
+                        {% elif entry.raw_material__unit_measurement == 'Liters' %}
+                            mls
+                        {% elif entry.raw_material__unit_measurement == 'Litres' %}
+                            mls
+                        {% elif entry.raw_material__unit_measurement == 'kgs' %}
+                            grams
+                        {% endif %}
+                </td>
             </tr>
             {% empty %}
             <tr>

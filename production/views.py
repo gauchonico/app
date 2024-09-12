@@ -168,13 +168,15 @@ def supplier_details (request, supplier_id):
     ).annotate(
         total_delivered=Sum('delivered_quantity')
     ).order_by('raw_material__name')
-    
+    # Get the LPOs related to requisitions made to the supplier
+    purchase_orders = LPO.objects.filter(requisition__supplier=supplier)
     
     context = {
         'supplier': supplier,
         'rawmaterials': rawmaterials,
         'requisitions': requisitions,
         'breakdown': breakdown,
+        'purchase_orders': purchase_orders,
     }
     return render(request, "supplier_details.html", context)
 
@@ -551,16 +553,22 @@ def manufacture_product(request, product_id):
 
             # Check for sufficient raw material stock (optional)
             sufficient_stock = True
+            insufficient_ingredients = []  # List to collect insufficient stock errors
             with transaction.atomic():
                 for ingredient in product.productioningredients.all():
                     quantity_needed = ingredient.quantity_per_unit_product_volume * quantity
                     base_quantity_needed = convert_to_base_unit(quantity_needed, ingredient.raw_material.unit_measurement)
+                    
                     if ingredient.raw_material.current_stock < base_quantity_needed:
-                        sufficient_stock = False
-                        messages.error(request, f"Insufficient stock for {ingredient.raw_material.name}. Required: {quantity_needed}, Available: {ingredient.raw_material.current_stock}")
-                        break  # Exit loop if any ingredient has insufficient stock
+                        insufficient_ingredients.append(
+                            f"Insufficient stock for {ingredient.raw_material.name}. "
+                            f"Required: {quantity_needed}, Available: {ingredient.raw_material.current_stock}"
+                        )
+                        # sufficient_stock = False
+                        # messages.error(request, f"Insufficient stock for {ingredient.raw_material.name}. Required: {quantity_needed}, Available: {ingredient.raw_material.current_stock}")
+                        # break  # Exit loop if any ingredient has insufficient stock
 
-                if sufficient_stock:
+                if not insufficient_ingredients:
                     #deduct raw materials
                     deduct_raw_materials(product, quantity)
                     manufacture_product = ManufactureProduct.objects.create(
@@ -599,8 +607,11 @@ def manufacture_product(request, product_id):
                     messages.success(request, f"Successfully manufactured {quantity} units of {product.product_name}")
                     return redirect('manufacturedProductList')  # Redirect to product list after success
                 else:
+                    # Display all insufficient stock errors at once
+                    for error in insufficient_ingredients:
+                        messages.error(request, error)
                     # Handle form validation errors
-                    messages.error(request, "Insufficient stock to manufacture the product. Please check the inventory and try again.")
+                    # messages.error(request, "Insufficient stock to manufacture the product. Please check the inventory and try again.")
         else:
                 messages.error(request, "Please correct the errors in the form.")
     else:
@@ -1503,7 +1514,7 @@ def approve_requisition(request, requisition_id):
     requisition.status = 'approved'
     requisition.save()
     messages.success(request, 'Request approved successfully')
-    return redirect('all_requisitions')
+    return redirect('lpos_list')
 
 ################LPOS###########################
 def lpo_list(request):
@@ -1537,6 +1548,36 @@ def lpo_verify(request, pk):
         form = LPOForm(instance=lpo)
 
     return render(request, 'lpo_verify.html', {'form': form, 'lpo': lpo})
+
+def pay_lpo(request, lpo_id):
+    lpo = get_object_or_404(LPO, id=lpo_id)
+
+    # Check if the request method is POST
+    if request.method == 'POST':
+        amount_paid = request.POST.get('amount_paid', 0)
+        try:
+            amount_paid = Decimal(amount_paid)
+            if amount_paid <= 0:
+                messages.error(request, "Amount must be positive.")
+                return redirect('pay_lpo', lpo_id=lpo.id)
+            
+            # Update LPO with the new payment
+            lpo.amount_paid += amount_paid
+            lpo.save()
+
+            # Check if the balance has been cleared
+            if lpo.outstanding_balance <= 0:
+                messages.success(request, "Payment completed successfully.")
+            else:
+                messages.success(request, "Payment received. Outstanding balance updated.")
+
+            return redirect('lpo_detail', lpo_id=lpo.id)  # Redirect to the PO details page
+
+        except ValueError:
+            messages.error(request, "Invalid amount.")
+            return redirect('lpo_pay', lpo_id=lpo.id)
+    
+    return render(request, 'lpo_pay.html', {'lpo': lpo})
 
 class LpoDetailView(DetailView):
     model = LPO
@@ -1891,3 +1932,10 @@ def process_replacements(request, replace_note_id):
         'formset': formset,
     }
     return render(request, 'process_replacement.html', context)
+
+def outstanding_payables(request):
+    # Filter LPOs where the outstanding balance is greater than 0
+    unpaid_pos = [lpo for lpo in LPO.objects.all() if lpo.outstanding_balance > 0]
+
+
+    return render(request, 'outstanding_payables.html', {'unpaid_pos': unpaid_pos})
