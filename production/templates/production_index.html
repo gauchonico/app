@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% load static %}
 
 {% block title %}Dashboard{% endblock %}
@@ -21,29 +21,100 @@
 		<!-- BEGIN col-3 -->
 		<div class="col-xl-3 col-lg-6">
 			<!-- BEGIN card -->
-			<div class="card mb-3">
+			<div class="">
+				<div class="card-body">
+				  <div class="mb-2 small fw-semibold d-flex align-items-center">
+					<div class="flex-fill">TOTAL SUPPLIERS</div>
+					<div>
+					  <a href="{% url 'supplierList' %}" class="text-white text-opacity-50"><i class="bi bi-three-dots-vertical fa-lg"></i></a>
+	
+					</div>
+				  </div>
+				  <div class="row mb-1">
+					<div class="col-lg-12 position-relative">
+					  <h1 class="mb-1 d-flex align-items-center text-theme">
+						{{total_suppliers}}
+						<span class="bg-white bg-opacity-15 badge fs-9px fw-semibold text-theme px-2 py-2 d-flex align-items-center ms-3">
+						  <i class="fa fa-exclamation-circle me-2 opacity-5"></i> 
+						  {{ purchase_orders }} Purchase Orders
+						</span>
+					  </h1>
+					  <div class="small"><span class="badge bg-theme bg-opacity-15 text-theme py-2 me-1 fs-9px">+{{supplier_deliveries}}</span> Supplier Deliveries</div>
+					  <i class="bi bi-truck-flatbed display-3 lh-1 text-body text-opacity-20 me-3 position-absolute end-0 top-0"></i>
+					</div>
+				  </div>
+				  {% comment %} <div class="mt-3 fs-9px fw-semibold text-body text-opacity-50">
+					<div>LAST UPDATED ON:</div>
+					<div class="text-body text-opacity-75">Feb 3, 4:09:57 AM UTC</div>
+				  </div> {% endcomment %}
+				</div>
+			  </div>
+		</div>
+		<!-- END col-3 -->
+		
+		<!-- BEGIN col-3 -->
+		<div class="col-xl-3 col-lg-6">
+			<!-- BEGIN card -->
+			<div class="">
+				<div class="card-body">
+				  <div class="mb-2 small fw-semibold d-flex align-items-center">
+					<div class="flex-fill">RAW MATERIALS</div>
+					<div>
+					  <a href="{% url 'rawmaterialsList' %}" class="text-white text-opacity-50"><i class="bi bi-three-dots-vertical fa-lg"></i></a>
+	
+					</div>
+				  </div>
+				  <div class="row align-items-center mb-2">
+					<div class="col-lg-12 position-relative">
+					  <h1 class="mb-1 d-flex align-items-center text-theme">
+						{{ rawmaterials.count }}
+						<span class="bg-white bg-opacity-15 badge fs-9px fw-semibold text-theme px-2 py-2 d-flex align-items-center ms-3">
+						  <i class="fa fa-exclamation-circle me-2 opacity-5"></i> 
+						  {{ below_reorder_count }} Below Re-Order Point
+						</span>
+					  </h1>
+					  <div class="small"><span class="badge bg-theme bg-opacity-15 text-theme py-2 me-1 fs-9px">UGX {{total_stock_value|floatformat|intcomma}}</span> Stock Value</div>
+					  <i class="bi bi-egg-fried display-3 lh-1 text-body text-opacity-20 me-3 position-absolute end-0 top-0"></i>
+					</div>
+				  </div>
+				  {% comment %} <div class="mt-3 fs-9px fw-semibold text-body text-opacity-50">
+					<div>LAST UPDATED ON:</div>
+					<div class="text-body text-opacity-75">Feb 3, 4:09:57 AM UTC</div>
+				  </div> {% endcomment %}
+				</div>
+			  </div>
+		</div>
+		<!-- END col-3 -->
+		
+		<!-- BEGIN col-3 -->
+		<div class="col-xl-3 col-lg-6">
+			<!-- BEGIN card -->
+			<div class="">
 				<!-- BEGIN card-body -->
 				<div class="card-body">
 					<!-- BEGIN title -->
 					<div class="d-flex fw-bold small mb-3">
-						<span class="flex-grow-1">OUR SUPPLIERS</span>
+						<span class="flex-fill">PRODUCTION ORDERS</span>
 						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
 					</div>
 					<!-- END title -->
 					<!-- BEGIN stat-lg -->
 					<div class="row align-items-center mb-2">
-						<div class="col-7">
-							<h3 class="mb-0">{{total_suppliers}}</h3>
-						</div>
-						<div class="col-5">
-							<div class="mt-n2" data-render="apexchart" data-type="bar" data-title="Visitors" data-height="30"></div>
-						</div>
+						<div class="col-lg-12 position-relative">
+							<h1 class="mb-1 d-flex align-items-center text-theme">
+							  0
+							  <span class="bg-white bg-opacity-15 badge fs-9px fw-semibold text-theme px-2 py-2 d-flex align-items-center ms-3">
+								<i class="fa fa-exclamation-circle me-2 opacity-5"></i> 
+								0 In Progress
+							  </span>
+							</h1>
+							<div class="small"><span class="badge bg-theme bg-opacity-15 text-theme py-2 me-1 fs-9px">UGX {{total_stock_value|floatformat|intcomma}}</span> Stock Value</div>
+							<i class="bi bi-egg-fried display-3 lh-1 text-body text-opacity-20 me-3 position-absolute end-0 top-0"></i>
+						  </div>
 					</div>
 					<!-- END stat-lg -->
 					<!-- BEGIN stat-sm -->
-					<div class="small text-inverse text-opacity-50 text-truncate">
-						<a href="{% url 'supplierList' %}"><i class="fa fa-chevron-right fa-fw me-1"></i> All Suppliers</a>
-					</div>
+					
 					<!-- END stat-sm -->
 				</div>
 				<!-- END card-body -->
@@ -64,93 +135,7 @@
 		<!-- BEGIN col-3 -->
 		<div class="col-xl-3 col-lg-6">
 			<!-- BEGIN card -->
-			<div class="card mb-3">
-				<!-- BEGIN card-body -->
-				<div class="card-body">
-					<!-- BEGIN title -->
-					<div class="d-flex fw-bold small mb-3">
-						<span class="flex-grow-1">ALL RAW MATERIALS</span>
-						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
-					</div>
-					<!-- END title -->
-					<!-- BEGIN stat-lg -->
-					<div class="row align-items-center mb-2">
-						<div class="col-7">
-							<h3 class="mb-0">{{ rawmaterials.count }}</h3>
-						</div>
-						<div class="col-5">
-							<div class="mt-n2" data-render="apexchart" data-type="line" data-title="Visitors" data-height="30"></div>
-						</div>
-					</div>
-					<!-- END stat-lg -->
-					<!-- BEGIN stat-sm -->
-					<div class="small text-inverse text-opacity-50 text-truncate">
-						<a href="{% url 'rawmaterialsList' %}"><i class="fa fa-chevron-right fa-fw me-1"></i> Raw materials list</a>
-					</div>
-					<!-- END stat-sm -->
-				</div>
-				<!-- END card-body -->
-				
-				<!-- BEGIN card-arrow -->
-				<div class="card-arrow">
-					<div class="card-arrow-top-left"></div>
-					<div class="card-arrow-top-right"></div>
-					<div class="card-arrow-bottom-left"></div>
-					<div class="card-arrow-bottom-right"></div>
-				</div>
-				<!-- END card-arrow -->
-			</div>
-			<!-- END card -->
-		</div>
-		<!-- END col-3 -->
-		
-		<!-- BEGIN col-3 -->
-		<div class="col-xl-3 col-lg-6">
-			<!-- BEGIN card -->
-			<div class="card mb-3">
-				<!-- BEGIN card-body -->
-				<div class="card-body">
-					<!-- BEGIN title -->
-					<div class="d-flex fw-bold small mb-3">
-						<span class="flex-grow-1">PRODUCTION ORDERS</span>
-						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
-					</div>
-					<!-- END title -->
-					<!-- BEGIN stat-lg -->
-					<div class="row align-items-center mb-2">
-						<div class="col-7">
-							<h3 class="mb-0">{{ approved_orders }}</h3>
-						</div>
-						<div class="col-5">
-							<div class="mt-n3 mb-n2" data-render="apexchart" data-type="pie" data-title="Visitors" data-height="45"></div>
-						</div>
-					</div>
-					<!-- END stat-lg -->
-					<!-- BEGIN stat-sm -->
-					<div class="small text-inverse text-opacity-50 text-truncate">
-						<a href="{% url 'productionProduction' %}"><i class="fa fa-chevron-right fa-fw me-1"></i>Start production</a>
-					</div>
-					<!-- END stat-sm -->
-				</div>
-				<!-- END card-body -->
-				
-				<!-- BEGIN card-arrow -->
-				<div class="card-arrow">
-					<div class="card-arrow-top-left"></div>
-					<div class="card-arrow-top-right"></div>
-					<div class="card-arrow-bottom-left"></div>
-					<div class="card-arrow-bottom-right"></div>
-				</div>
-				<!-- END card-arrow -->
-			</div>
-			<!-- END card -->
-		</div>
-		<!-- END col-3 -->
-		
-		<!-- BEGIN col-3 -->
-		<div class="col-xl-3 col-lg-6">
-			<!-- BEGIN card -->
-			<div class="card mb-3">
+			<div class="">
 				<!-- BEGIN card-body -->
 				<div class="card-body">
 					<!-- BEGIN title -->
@@ -161,18 +146,21 @@
 					<!-- END title -->
 					<!-- BEGIN stat-lg -->
 					<div class="row align-items-center mb-2">
-						<div class="col-7">
-							<h3 class="mb-0">{{ approved_rawmaterial_requests }}</h3>
-						</div>
-						<div class="col-5">
-							<div class="mt-n3 mb-n2" data-render="apexchart" data-type="donut" data-title="Visitors" data-height="45"></div>
-						</div>
+						<div class="col-lg-12 position-relative">
+							<h1 class="mb-1 d-flex align-items-center text-theme">
+							  0
+							  <span class="bg-white bg-opacity-15 badge fs-9px fw-semibold text-theme px-2 py-2 d-flex align-items-center ms-3">
+								<i class="fa fa-exclamation-circle me-2 opacity-5"></i> 
+								0 In Progress
+							  </span>
+							</h1>
+							<div class="small"><span class="badge bg-theme bg-opacity-15 text-theme py-2 me-1 fs-9px">UGX {{total_stock_value|floatformat|intcomma}}</span> Stock Value</div>
+							<i class="bi bi-egg-fried display-3 lh-1 text-body text-opacity-20 me-3 position-absolute end-0 top-0"></i>
+						  </div>
 					</div>
 					<!-- END stat-lg -->
 					<!-- BEGIN stat-sm -->
-					<div class="small text-inverse text-opacity-50 text-truncate">
-						<a href="{% url 'storeRequests' %}"><i class="fa fa-chevron-right fa-fw me-1"></i>Deliver Rawmaterials</a>
-					</div>
+					
 					<!-- END stat-sm -->
 				</div>
 				<!-- END card-body -->

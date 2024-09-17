@@ -14,9 +14,16 @@
 	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0/css/select2.min.css" rel="stylesheet" />
 {% endblock %}
 
 {% block js %}
+    <!-- jQuery (needed for Select2) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Select2 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0/js/select2.min.js"></script>
+
 	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
 	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
 	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
@@ -114,10 +121,19 @@
         <div class="card-arrow-bottom-left"></div>
         <div class="card-arrow-bottom-right"></div>
     </div>
+    <script>
+        $(document).ready(function() {
+            $('.select2').select2({
+                placeholder: 'Select a supplier',
+                width: '100%'  // Adjust as needed
+            });
+        });
+    </script>
 
 </div>
 {% endblock %}
 {% block outter_content %}
+
 {% if form.errors %}
     <div class="toasts-container">
         <div class="toast fade show">

@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import os
+from django.db.models import Sum, F
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.db.models import Sum, F
@@ -37,13 +38,21 @@ def productionPage(request):
     manufactured_products = ManufacturedProductInventory.objects.all()
     approved_orders_count = ProductionOrder.objects.filter(status='Approved').count()
     approved_rawmaterial_request_count = PurchaseOrder.objects.filter(status='approved').count()
-    
+    purchase_orders = LPO.objects.filter(status='verified').count()
+    supplier_deliveries = GoodsReceivedNote.objects.count()
+    below_reorder_count = RawMaterial.objects.annotate(current_stock=Sum('rawmaterialinventory__adjustment')).filter(current_stock__lt=F('reorder_point')).count()
+    # Calculate total stock value
+    total_stock_value = sum(material.stock_value for material in rawmaterials)
     context ={
         'rawmaterials': rawmaterials,
         'total_suppliers': suppliers,
         'manufactured_products': manufactured_products.count(),
         'approved_orders': approved_orders_count,
         'approved_rawmaterial_requests': approved_rawmaterial_request_count,
+        'purchase_orders': purchase_orders,
+        'supplier_deliveries': supplier_deliveries,
+        'below_reorder_count': below_reorder_count,
+        'total_stock_value': total_stock_value,
     }
     
     return render(request, "production_index.html", context)
@@ -456,6 +465,27 @@ def create_product(request):
                                 "Label The Pearl Cleanser back 200 ml"
                                 "Label The Pearl Cleanser front 100 ml"
                                 "Label The Pearl Cleanser front 200 ml"
+                                "Conditioner bottles 500 ml"
+                                "Conditioner bottles 250 ml"
+                                "Cleanser bottles 200 ml"
+                                "Cleanser bottles 100 ml"
+                                "Ex.gloves"
+                                "White jars"
+                                "Tanzanite bottle"
+                                "Conditioner Bottle Cap"
+                                "Black Jar Cover 220g"
+                                "Black Jar Cover 50g"
+                                "White Jar Cover 250 ml"
+                                "Security Seal"
+                                "Label The Pearl Skin Toner back 200 ml"
+                                "Label The Pearl Skin Toner front 200 ml"
+                                "Label The Pearl Skin Toner front 100 ml"
+                                "Label The Pearl Skin Toner back 100 ml"
+                                "Label Diamond Tones Body Butter top 50 g"
+                                "Label Baby Opal Body Butter side 50 g"
+                                "Label Baby Opal Body Butter side 220 g"
+                                "Cleanser bottle cap"
+                                "Spray pumps"
 
                                 ] 
             

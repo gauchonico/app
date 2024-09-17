@@ -21,6 +21,9 @@ def get_new_requisitions_count():
 def get_new_lpo_count():
     return LPO.objects.filter(status='pending').count()
 
+def get_outstanding_payables_count():
+    return LPO.objects.filter(is_paid=False).count()
+
 def get_verified_requsitions():
     return Requisition.objects.filter(status='approved').count()
 
@@ -52,6 +55,7 @@ def sidebar_menu(request):
     lpo_count = get_new_lpo_count()
     verified_requsitions = get_verified_requsitions()
     replace_notes = get_replace_notes()
+    get_outstanding_po_payables = get_outstanding_payables_count()
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -275,7 +279,9 @@ def sidebar_menu(request):
         },{
             'url': '/production/outstanding_payables',
             'icon': 'bi bi-box-seam',
-            'text': 'Outstanding Payables',
+            'text': mark_safe(f'Outstanding Payables<span class="badge rounded-circle bg-danger">{get_outstanding_po_payables}</span>'
+                                if get_outstanding_po_payables>0 else 'Outstanding Payables'
+                                ),
             'name': 'outstanding_payables',
         },{
             'text': 'MANAGERS',
@@ -349,6 +355,15 @@ def sidebar_menu(request):
                 'icon': 'bi bi-receipt',
                 'text': 'Replace Notes',
                 'name':'replace_notes_list'
+                },{
+                 
+                'url': '/production/outstanding_payables',
+                'icon': 'bi bi-box-seam',
+                'text': mark_safe(f'Outstanding Payables<span class="badge rounded-circle bg-danger">{get_outstanding_po_payables}</span>'
+                                if get_outstanding_po_payables>0 else 'Outstanding Payables'
+                                ),
+                'name': 'outstanding_payables',
+           
                 }]
             })
         elif 'Production Manager' in group_names:
@@ -395,7 +410,9 @@ def sidebar_menu(request):
                  
                 'url': '/production/outstanding_payables',
                 'icon': 'bi bi-box-seam',
-                'text': 'Outstanding Payables',
+                'text': mark_safe(f'Outstanding Payables<span class="badge rounded-circle bg-danger">{get_outstanding_po_payables}</span>'
+                                if get_outstanding_po_payables>0 else 'Outstanding Payables'
+                                ),
                 'name': 'outstanding_payables',
            
                 }]

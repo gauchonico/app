@@ -40,7 +40,7 @@ class AddRawmaterialForm(forms.ModelForm):
         fields = ['name', 'supplier', 'quantity', 'reorder_point','unit_measurement']
         widgets ={
             'name': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Shea Butter'}),
-            'supplier': forms.Select(attrs={'class':'form-control'}),
+            'supplier': forms.Select(attrs={'class':'form-control select2'}),
             'quantity': forms.NumberInput(attrs={'class':'form-control'}),
             'reorder_point': forms.NumberInput(attrs={'class':'form-control'}),
             'unit_measurement': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Kilograms | Pieces | Liters| Units Write units in full format'}),

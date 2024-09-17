@@ -45,6 +45,17 @@ class RawMaterial(models.Model):
     def __str__(self):
         return f"{self.name} in {self.unit_measurement}"
     
+    def latest_price(self):
+        """Fetch the most recent price_per_unit from RequisitionItem."""
+        latest_requisition_item = RequisitionItem.objects.filter(raw_material=self).order_by('-id').first()
+        return latest_requisition_item.price_per_unit if latest_requisition_item else 0
+
+    @property
+    def stock_value(self):
+        """Calculate the total value of the current stock based on the latest price."""
+        latest_price = self.latest_price()
+        return self.current_stock * latest_price
+    
     def add_stock(self, quantity):
         RawMaterialInventory.objects.create(raw_material=self, adjustment=quantity)
 
@@ -68,6 +79,11 @@ class RawMaterial(models.Model):
         with transaction.atomic():
             RawMaterialInventory.objects.create(raw_material=self, adjustment=adjustment)
             self.update_quantity()
+    
+    # Method to check if the material is below reorder point
+    @property
+    def below_reorder_point(self):
+        return self.current_stock < self.reorder_point
     
 
 class PurchaseOrder(models.Model):
