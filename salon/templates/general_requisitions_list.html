@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}All Customers{% endblock %}
+{% block title %}General Requisitions{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -34,71 +34,57 @@
 	<div class="d-flex align-items-center mb-3">
 		<div>
 			<ul class="breadcrumb">
-				<li class="breadcrumb-item"><a href="#">PAGES</a></li>
-				<li class="breadcrumb-item active">CUSTOMERS</li>
+				<li class="breadcrumb-item"><a href="#">SALON REQUISITIONS</a></li>
+				<li class="breadcrumb-item active">GENERAL REQUISITIONS</li>
 			</ul>
-			<h1 class="page-header mb-0">Customer Base</h1>
+			<h5 class="mt-10">General Salon Requisitions</h5>
 		</div>
 		
-		<div class="ms-auto">
-			<a href="{% url 'DjangoHUDApp:createCustomer' %}" class="btn btn-outline-theme me-2">Add New Customer</a>
-		</div>
+	</div>
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-download fa-fw me-1 text-theme"></i>Print Out</a></div>
+		
 	</div>
 	
-	<div class="mb-md-4 mb-3 d-md-flex">
-		<div class="mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-download fa-fw me-1 text-theme"></i> Export</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-upload fa-fw me-1 text-theme"></i> Bulk Import</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2 dropdown-toggle">
-			<a href="#" data-bs-toggle="dropdown" class="text-inverse text-opacity-75 text-decoration-none">More Actions</a>
-			<div class="dropdown-menu">
-				<a class="dropdown-item" href="#">Action</a>
-				<a class="dropdown-item" href="#">Another action</a>
-				<a class="dropdown-item" href="#">Something else here</a>
-				<div role="separator" class="dropdown-divider"></div>
-				<a class="dropdown-item" href="#">Separated link</a>
-			</div>
-		</div>
-	</div>
-	<div id="datatable" class="mb-5">
 		
-		<p>In here you will find all our Livara Customer Base with all their details. You can search, Edit and Add new customers in-to the System.</p>
+		<p>A list of all General Requisitions made for Livara Salons</p>
 		<div class="card">
 			<div class="card-body text-center">
 				<table id="datatableDefault" class="table text-nowrap w-100">
-					<thead>
+					<thead class="align-middle">
 						<tr>
 							<th class="border-top-0 pt-0 pb-2">#</th>
-							<th class="border-top-0 pt-0 pb-2">Name</th>
-							<th class="border-top-0 pt-0 pb-2">Telephone</th>
-							<th class="border-top-0 pt-0 pb-2">Email</th>
-							<th class="border-top-0 pt-0 pb-2">Age</th>
-							<th class="border-top-0 pt-0 pb-2">Location</th>
-							<th class="border-top-0 pt-0 pb-2">Is Active</th>
-							<th class="border-top-0 pt-0 pb-2">Edit</th>
+							<th class="border-top-0 pt-0 pb-2">Req. No.</th>
+							<th class="border-top-0 pt-0 pb-2">Create at:</th>
+							<th class="border-top-0 pt-0 pb-2">Branch</th>
+                            <th class="align-middle border-top-0 pt-0 pb-2">Status</th>
+						
+							
+							<th class="border-top-0 pt-0 pb-2">Actions</th>
+                            
+							
 						</tr>
 					</thead>
-					<tbody>
-						{% for customer in customers %}
+					<tbody class="align-middle">
+						{% for requisition in requisitions %}
 						<tr>
 							<td class="align-middle">{{forloop.counter}}</td>
-							<td class="align-middle"><a href="{% url 'DjangoHUDApp:customer_details' customer.id %}">{{customer.first_name}} {{customer.last_name}}</a></td>
-							<td class="align-middle">+{{customer.phone}}</td>
-							<td class="align-middle">{{customer.email}}</td>
-							<td class="align-middle">{{customer.date_of_birth}}</td>
-							<td class="align-middle">{{customer.address}}</td>
-							<td class="align-middle">
-								<div class="form-check form-switch">
-									<input type="checkbox" class="form-check-input" checked id="customSwitch2">
-								</div>
-							</td>
+							<td class="align-middle"><a href="#">{{ requisition.requisition_no }}</a></td>
+							<td class="align-middle">{{ requisition.request_date }}</td>
+							<td class="align-middle">{{ requisition.branch }}</td>		
+                            <td class="badge text-bg-indigo align-middle">
+                                    {{ requisition.status }}
+                            </td>
 							<td class="align-middle">
 								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
-									<a href="{% url 'DjangoHUDApp:editCustomer' customer.id %}"><i class="far fa-lg fa-fw me-2 fa-edit"></i></a>
-									<span></span>
-									<a href="{% url 'DjangoHUDApp:deleteCustomer' customer.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt"></i></a>
-									<span></span>
+									<a href="{% url 'requisition_details' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-eye"></i></a>
+						
 								</div>
 							</td>
+						</tr>
+						{% empty %}
+						<tr>
+							<td colspan="5">No requisitions found</td>
 						</tr>
 						{% endfor %}
 					</tbody>
@@ -126,7 +112,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Customer Actions</strong>
+                    <strong class="me-auto">Actions</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">

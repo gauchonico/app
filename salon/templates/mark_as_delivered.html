@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/jvectormap-next/jquery-jvectormap.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jvectormap-next/jquery-jvectormap.min.js' %}"></script>
+	<script src="{% static 'plugins/jvectormap-content/world-mill.js' %}"></script>
+	<script src="{% static 'plugins/apexcharts/dist/apexcharts.min.js' %}"></script>
+	<script src="{% static 'js/demo/dashboard.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+<h1>Mark Requisition as Delivered</h1>
+
+<form method="post">
+    {% csrf_token %}
+    <p>Are you sure you want to mark the requisition "{{ requisition.requisition_no }}" as delivered?</p>
+    <button class='btn btn-success' type="submit">Mark as Delivered</button>
+</form>
+
+<a class="btn btn-danger" href="{% url 'requisition_details' pk=requisition.pk %}">Cancel</a>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/jvectormap-next/jquery-jvectormap.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jvectormap-next/jquery-jvectormap.min.js' %}"></script>
+	<script src="{% static 'plugins/jvectormap-content/world-mill.js' %}"></script>
+	<script src="{% static 'plugins/apexcharts/dist/apexcharts.min.js' %}"></script>
+	<script src="{% static 'js/demo/dashboard.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+    <h5>Create General Requisition</h5>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ requisition_form.as_p }}
+        
+        
+        <table id="requisition_formset">
+            <thead>
+                <tr>
+                    <th>Salon Product</th>
+                    <th>Quantity Ordered</th>
+                    <th>Unit Price</th>
+                </tr>
+            </thead>
+            {{ formset.management_form }}
+            <tbody>
+                {% for form in formset %}
+                    <tr class="form-row">
+                        <td>{{ form.product }}</td>
+                        <td>{{ form.quantity }}</td>
+                        <td>{{ form.price }}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">{{ form.errors}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="ms-auto mt-5">
+            <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
+            <button type="submit" class="btn btn-outline-theme me-2">Submit Requisition</button>
+        </div>
+    </form>
+    <script>
+        $(document).ready(function() {
+            var formCount = parseInt($('#id_form-TOTAL_FORMS').val()); // Get initial form count
+            
+            $('#add_form').click(function() {
+                var formIdx = formCount;
+                formCount++;
+                
+                var newForm = $('#requisition_formset tbody tr.form-row:first').clone(false); // Clone the first form row
+                newForm.find('input, select').each(function() {
+                    var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
+                    var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
+                    $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
+                });
+                newForm.find('.remove-form').remove(); // Remove any existing remove buttons
+                newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
+                $('#requisition_formset tbody').append(newForm); // Append the cloned form to the table body
+                
+                $('#id_form-TOTAL_FORMS').val(formCount); // Update the management form with the new form count
+            });
+        
+            // Remove formset row
+            $('#requisition_formset').on('click', '.remove-form', function() {
+                $(this).closest('tr').remove(); // Remove the closest <tr> element
+                formCount--;
+                $('#id_form-TOTAL_FORMS').val(formCount); // Decrement form count
+            });
+        });
+    </script>
+{% endblock content %}
+

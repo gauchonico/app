@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Salon Inventories{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/jvectormap-next/jquery-jvectormap.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jvectormap-next/jquery-jvectormap.min.js' %}"></script>
+	<script src="{% static 'plugins/jvectormap-content/world-mill.js' %}"></script>
+	<script src="{% static 'plugins/apexcharts/dist/apexcharts.min.js' %}"></script>
+	<script src="{% static 'js/demo/dashboard.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+ <!-- BEGIN page-header -->
+ <div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">INVENTORIES</a></li>
+            <li class="breadcrumb-item active">SALON INVENTORIES</li>
+        </ul>
+        <h5 class="mt-10">General Salon Requisitions</h5>
+    </div>
+    
+</div>
+
+<h3>Salon Inventories</h3>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Salon Name</th>
+                <th>Location</th>
+                <th>Manager</th>
+                <th>Products</th>
+                <th>Last Updated Quantity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for salon in salons %}
+                <tr>
+                    <td>{{forloop.counter }}</td>
+                    <td>{{ salon.name }}</td>
+                    <td>{{ salon.location }}</td>
+                    <td>{{ salon.manager.first_name }}</td>
+                    <td>
+                        <ul class="list-group">
+                            {% for inventory_item in salon.inventory.all %}
+                                <li class="list-group-item">
+                                    {{ inventory_item.product.name }}: {{ inventory_item.quantity }} in stock
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>
+                        <ul class="list-group">
+                            {% for inventory_item in salon.inventory.all %}
+                                <li class="list-group-item">
+                                    {{ inventory_item.product.name }}
+                                    <ul class="list-group">
+                                        {% for update in inventory_item.update_histories.all %}
+                                            <li class="list-group-item">
+                                                Updated by {{ update.updated_by.username }} on {{ update.updated_at|date:"Y-m-d H:i" }}: {{ update.quantity_change }} units
+                                            </li>
+                                        {% empty %}
+                                            <li class="list-group-item">No updates yet</li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4">No salons found</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endblock content %}

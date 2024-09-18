@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Confirm Deletion{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/jvectormap-next/jquery-jvectormap.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/jvectormap-next/jquery-jvectormap.min.js' %}"></script>
+	<script src="{% static 'plugins/jvectormap-content/world-mill.js' %}"></script>
+	<script src="{% static 'plugins/apexcharts/dist/apexcharts.min.js' %}"></script>
+	<script src="{% static 'js/demo/dashboard.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+  <h4>Delete Product</h4>
+  <p>Are you sure you want to delete "{{ object.name }}"?</p>
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn-success" type="submit">Confirm</button>
+  </form>
+  <a class="btn btn-danger mt-3" href="{% url 'salonproduct_list' %}">Cancel</a>
+{% endblock %}

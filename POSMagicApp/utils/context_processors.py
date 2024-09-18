@@ -292,6 +292,14 @@ def sidebar_menu(request):
             'text': 'My Inventory',
             'name': 'managers_store_inventory_view',
         },{
+            'text': 'Salon Manager',
+            'is_header': 1
+        },{
+            'url': '/salon/salon-dashboard/',
+            'icon': 'bi bi-bounding-box-circles',
+            'text': 'Salon',
+            'name': 'salon',
+        },{
         
             
     }

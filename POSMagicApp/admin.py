@@ -1,4 +1,6 @@
 from django.contrib import admin
+
+from salon.models import *
 from .models import *
 from payment.models import *
 from production.models import *
@@ -62,6 +64,13 @@ admin.site.register(UnitOfMeasurement)
 admin.site.register(ReplaceNote)
 admin.site.register(ReplaceNoteItem)
 admin.site.register(DebitNote)
+admin.site.register(SalonBranch)
+admin.site.register(BranchInventory)
+admin.site.register(SalonProduct)
+admin.site.register(Service)
+admin.site.register(Sale)
+admin.site.register(GeneralRequisition)
+
 
 
 
