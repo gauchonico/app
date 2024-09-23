@@ -28,7 +28,7 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
 from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
-from .models import LPO, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
+from .models import LPO, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -1594,6 +1594,12 @@ def pay_lpo(request, lpo_id):
             # Update LPO with the new payment
             lpo.amount_paid += amount_paid
             lpo.save()
+            
+            # Check if full payment
+            payment_type = 'full' if lpo.outstanding_balance <= 0 else 'partial'
+            
+            # Create payment voucher (consider using a form if needed)
+            voucher = PaymentVoucher.objects.create(lpo=lpo, amount_paid=amount_paid, payment_type=payment_type)
 
             # Check if the balance has been cleared
             if lpo.outstanding_balance <= 0:
@@ -1601,11 +1607,11 @@ def pay_lpo(request, lpo_id):
             else:
                 messages.success(request, "Payment received. Outstanding balance updated.")
 
-            return redirect('lpo_detail', lpo_id=lpo.id)  # Redirect to the PO details page
+            return redirect('production_payment_vouchers')  # Redirect to the PO details page
 
         except ValueError:
             messages.error(request, "Invalid amount.")
-            return redirect('lpo_pay', lpo_id=lpo.id)
+            return redirect('pay_lpo', lpo_id=lpo.id)
     
     return render(request, 'lpo_pay.html', {'lpo': lpo})
 
@@ -1969,3 +1975,20 @@ def outstanding_payables(request):
 
 
     return render(request, 'outstanding_payables.html', {'unpaid_pos': unpaid_pos})
+
+
+def production_payment_vouchers(request):
+    # Filter ProDe records where the outstanding balance is greater than 0
+    prod_vouchers = PaymentVoucher.objects.all()
+    context ={
+        'prod_vouchers': prod_vouchers,
+    }
+    return render(request, 'production_payment_vouchers.html', context)
+
+def production_payment_voucher_detail(request, voucher_number):
+    voucher = get_object_or_404(PaymentVoucher, voucher_number=voucher_number)
+    context = {
+        'voucher': voucher,
+        'lpo': voucher.lpo,  # Access related LPO information
+    }
+    return render(request, 'payment_voucher_detail.html', context)

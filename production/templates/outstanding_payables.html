@@ -1,9 +1,20 @@
 {% extends "base.html" %}
 {% load humanize %}
 {% block content %}
-<h2>Outstanding Payables</h2>
 
-<table class="table">
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">FINANCE</a></li>
+            <li class="breadcrumb-item active">PRODUCTION OUTSTANDING PAYABLES</li>
+        </ul>
+        <h5 class="mb-0">
+            All Outstanding Bills to pay
+        </h5>
+    <div>
+</div>
+
+<table class="table mt-4">
     <thead>
         <tr>
             <th>#</th>
@@ -28,7 +39,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="6">No outstanding payables.</td>
+            <td colspan="6"><i class="bi bi-check-circle-fill text-theme"></i> Production / Manufacturing Currently have no bills to pay</td>
         </tr>
         {% endfor %}
     </tbody>

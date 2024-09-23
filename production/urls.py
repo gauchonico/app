@@ -40,6 +40,11 @@ urlpatterns = [
     path('process_delivery/<int:requisition_id>/', ProDeView.as_view(), name='process_del'),
     path('pay_lpo/<int:lpo_id>/', views.pay_lpo, name='pay_lpo'),
     
+    
+    
+    path('production_payment_vouchers/', views.production_payment_vouchers, name="production_payment_vouchers"),
+    path('production_payment_voucher_detail/<str:voucher_number>/', views.production_payment_voucher_detail, name="production_payment_voucher_details"),
+    
     path('goods-received-notes/', views.goods_recieved_notes, name='goods_received_note_list'),
     path('goods_received_note_detail/<int:note_id>', views.goods_received_note_detail, name='goods_received_note_detail'),
     path('goods-received-notes/<int:note_id>/handle-discrepancy/', views.handle_discrepancy, name='handle_discrepancy'),

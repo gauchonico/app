@@ -520,7 +520,7 @@ class RequisitionItem(models.Model):
     @property
     def total_cost(self):
         # Calculate the total cost for this specific item
-        return self.price_per_unit * self.quantity
+        return self.price_per_unit * self.delivered_quantity
     
 class LPO(models.Model):
     STATUS_CHOICES = [
@@ -655,6 +655,7 @@ class GoodsReceivedNote(models.Model):
         
         return gcr_number
     
+    
 class DiscrepancyDeliveryReport(models.Model):
     ACTION_CHOICES = [
         ('refund', 'Refund from Supplier'),
@@ -714,3 +715,27 @@ class DebitNote(models.Model):
 
     def __str__(self):
         return f"Debit Note {self.debit_note_number} - {self.discrepancy_report.goods_received_note.id}"
+    
+
+class PaymentVoucher(models.Model):
+    voucher_number = models.CharField(max_length=50, unique=True, blank=True)
+    lpo = models.ForeignKey(LPO, on_delete=models.CASCADE)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now_add=True)
+
+    payment_type = models.CharField(max_length=20, choices=[('full', 'Full Payment'), ('partial', 'Partial Payment')], default='partial')
+    
+    def __str__(self):
+        return f"Voucher #{self.voucher_number} for LPO {self.lpo.lpo_number}"
+
+    def save(self, *args, **kwargs):
+        if not self.voucher_number:
+            self.voucher_number = self.generate_voucher_number()
+        super().save(*args, **kwargs)
+
+    def generate_voucher_number(self):
+        # Implement your voucher number generation logic here
+        # Example:
+        current_date = timezone.now()
+        voucher_number = f"PROD-PV-{current_date.strftime('%Y%m%d')}-{self.id}"
+        return voucher_number

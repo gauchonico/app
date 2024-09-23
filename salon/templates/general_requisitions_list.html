@@ -58,8 +58,6 @@
 							<th class="border-top-0 pt-0 pb-2">Create at:</th>
 							<th class="border-top-0 pt-0 pb-2">Branch</th>
                             <th class="align-middle border-top-0 pt-0 pb-2">Status</th>
-						
-							
 							<th class="border-top-0 pt-0 pb-2">Actions</th>
                             
 							
@@ -77,15 +75,14 @@
                             </td>
 							<td class="align-middle">
 								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
-									<a href="{% url 'requisition_details' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-eye"></i></a>
+									<a href="{% url 'salon_requisition_details' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-eye"></i></a>
 						
 								</div>
 							</td>
 						</tr>
 						{% empty %}
-						<tr>
-							<td colspan="5">No requisitions found</td>
-						</tr>
+							<span class="text-danger">No requisitions found</span>
+						
 						{% endfor %}
 					</tbody>
 				</table>

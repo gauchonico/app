@@ -133,7 +133,7 @@ class GeneralRequisition(models.Model):
     
     requisition_no = models.CharField(max_length=100, unique=True)
     branch = models.ForeignKey(SalonBranch, on_delete=models.CASCADE, related_name='general_requisitions')
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='requisitions')
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='salon_requisitions')
     requested_by = models.ForeignKey(User, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=REQUISITION_STATUS_CHOICES, default='pending')
     request_date = models.DateTimeField(auto_now_add=True)
@@ -178,7 +178,7 @@ class GeneralRequisition(models.Model):
     
 class GeneralRequisitionItem(models.Model):
     requisition = models.ForeignKey(GeneralRequisition, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(SalonProduct, on_delete=models.CASCADE, related_name='general_requisition_items')
+    product = models.ForeignKey(SalonProduct, on_delete=models.CASCADE, related_name='salon_requisition_items')
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
 

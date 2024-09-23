@@ -3,7 +3,7 @@ from django.urls import resolve
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 
-from production.models import LPO, DiscrepancyDeliveryReport, LivaraMainStore, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreTransfer
+from production.models import LPO, DiscrepancyDeliveryReport, LivaraMainStore, PaymentVoucher, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreTransfer
 
 
 def get_created_production_orders_count():
@@ -31,7 +31,10 @@ def get_replace_notes():
     return ReplaceNote.objects.filter(status='pending').count()
 
 def get_discrepancy_reports():
-    DiscrepancyDeliveryReport.objects.filter(status='refund').count()
+    return DiscrepancyDeliveryReport.objects.filter(status='refund').count()
+
+def get_production_payment_voucher_count():
+    return PaymentVoucher.objects.all().count()
 
 
 def mark_active_link(menu, current_path_name):
@@ -56,6 +59,7 @@ def sidebar_menu(request):
     verified_requsitions = get_verified_requsitions()
     replace_notes = get_replace_notes()
     get_outstanding_po_payables = get_outstanding_payables_count()
+    production_payment_vouchers = get_production_payment_voucher_count()
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -151,7 +155,7 @@ def sidebar_menu(request):
             'name': 'create_production_order'
         },{
             'icon': 'bi bi-inboxes-fill',
-            'text': 'Raw material Purchases',
+            'text': 'Production Logistics',
             'children': [{
                 'url': '/production/all_requisitions',
                 'icon': 'bi bi-inboxes-fill',
@@ -182,7 +186,10 @@ def sidebar_menu(request):
             },{
                 'url': '/production/replace_notes_list/',
                 'icon': 'bi bi-receipt',
-                'text': 'Replace Notes',
+                'text': mark_safe(
+                    f'Replace Notes<span class="badge rounded-circle bg-danger">{replace_notes}</span>'
+                    if replace_notes>0 else 'Replacing Notes'
+                    ),
                 'name':'replace_notes_list'
             }]
         },{
@@ -284,6 +291,11 @@ def sidebar_menu(request):
                                 ),
             'name': 'outstanding_payables',
         },{
+            'url':'/production/production_payment_vouchers/',
+            'icon':'bi bi-receipt',
+            'text': 'Production Payment Vouchers',
+            'name': 'production_payment_vouchers',
+        },{
             'text': 'MANAGERS',
             'is_header': 1
         },{
@@ -333,7 +345,7 @@ def sidebar_menu(request):
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales','writeoffs','discrepancy_delivery_report_list','goods_received_note_list']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
-                'text': 'Raw material Purchases',
+                'text': 'Production Logistics',
                 'children': [{
                     'url': '/production/all_requisitions',
                     'icon': 'bi bi-inboxes-fill',
@@ -372,6 +384,13 @@ def sidebar_menu(request):
                                 ),
                 'name': 'outstanding_payables',
            
+                },{
+                'url':'/production/production_payment_vouchers/',
+                'icon':'bi bi-receipt',
+                'text': mark_safe (f'Payment Vouchers<span class="badge rounded-circle bg-danger">{production_payment_vouchers}</span>'
+                                    if production_payment_vouchers>0 else 'Payment Vouchers'
+                                ),
+                'name': 'production_payment_vouchers',
                 }]
             })
         elif 'Production Manager' in group_names:
@@ -380,7 +399,7 @@ def sidebar_menu(request):
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs','manufacture_products_report','raw_material_utilization_report',]]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
-                'text': 'Raw material Purchases',
+                'text': 'Production Logistics',
                 'children': [{
                     'url': '/production/all_requisitions',
                     'icon': 'bi bi-inboxes-fill',

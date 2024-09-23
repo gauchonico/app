@@ -19,7 +19,7 @@ urlpatterns = [
     ##Genereate Requisition
     path('requisition/new/', views.create_general_requisition, name='create_general_requisition'),
     path('requisition_list/', views.general_requisition_list, name='general_requisition_list'),
-    path('requisition/<int:pk>', views.requisition_details, name='requisition_details'),
-    path('requisition/<int:pk>/mark_as_delivered/', views.mark_requisition_as_delivered, name='mark_requisition_as_delivered'),
+    path('salon_requisition/<int:pk>', views.requisition_details, name='salon_requisition_details'),
+    path('salon_requisition/<int:pk>/mark_as_delivered/', views.mark_requisition_as_delivered, name='mark_requisition_as_delivered'),
     path('salon-inventories/', views.salon_inventory_list, name='salon_inventory_list'),
 ]
