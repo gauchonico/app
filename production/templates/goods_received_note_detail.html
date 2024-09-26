@@ -59,7 +59,7 @@
     </table>
 
     <h6>Actions</h6>
-    <p>If the delivered quantity is less than the ordered quantity, choose an action:</p>
+    
     
     {% if discrepancies_exist and not report_exists %}
     <p>If the delivered quantity is less than the ordered quantity, choose an action:</p>
@@ -79,7 +79,7 @@
         <p>A discrepancy report has already been created. <a href="discrepancy_delivery_report_detail.report_id">View Report</a></p>
         
     {% else %}
-        <p>No discrepancies found. All items were delivered as expected.</p>
+        <p class="text-success"><i class="bi bi-check-circle-fill me-2"></i>No discrepancies found. All items were delivered as expected.</p>
     {% endif %}
 
 

@@ -314,7 +314,7 @@ TestItemFormset = inlineformset_factory(
 class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
-        fields = ['supplier']
+        fields = ['supplier','price_list_document']
         widgets = {
             'supplier': forms.Select(attrs={
                 'class': 'form-control selectpicker',
@@ -325,8 +325,11 @@ class RequisitionForm(forms.ModelForm):
                 
             
             }),
+            'price_list_document': forms.FileInput(attrs={'class': 'form-control'}),
         }
-
+        labels ={  
+            'price_list_document':'Upload Supplier Price List *',
+        }
 class RequisitionItemForm(forms.ModelForm):
     class Meta:
         model = RequisitionItem

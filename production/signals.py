@@ -28,7 +28,7 @@ def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
 @receiver(post_save, sender=Requisition)
 def send_requisition_email(sender, instance, created, **kwargs):
     if created:
-        subject = f"New Requisition Created: {instance.requisition_no}"
+        subject = f"New: Manufacturing / Production Requisition: {instance.requisition_no}"
         
         # Retrieve requisition items
         items = instance.requisitionitem_set.all()
@@ -44,8 +44,8 @@ def send_requisition_email(sender, instance, created, **kwargs):
                 f"Supplier: {instance.supplier}\n" \
                 f"Status: {instance.status}\n" \
                 f"Date: {instance.created_at}\n\n" \
-                f"Items:\n{items_details}\n\n" \
-                f"Please review the requisition."
+                f"Items:\n{items_details}{items}\n\n" \
+                f"Please review the requisition and kindly advise."
         
         recipient_list = ['nicholas.lukyamuzi@mylivara.com']  # Add recipients here
         send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)

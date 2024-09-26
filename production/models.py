@@ -457,6 +457,7 @@ class Requisition(models.Model):
     
     requisition_no = models.CharField(max_length=50, unique=True, blank=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    price_list_document = models.FileField(upload_to='uploads/products/')
     items = models.ManyToManyField(RawMaterial, through='RequisitionItem')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -595,6 +596,7 @@ class LPO(models.Model):
         if self.status == 'pending':
             print("Verifying LPO...")
             self.status = 'verified'
+            self.is_paid = False
             self.save()
             
             # Update the corresponding requisition status to 'checking'

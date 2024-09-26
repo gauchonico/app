@@ -1452,7 +1452,7 @@ def create_requisition(request):
     RequisitionItemFormSet = modelformset_factory(RequisitionItem, form=RequisitionItemForm, extra=1)
 
     if request.method == 'POST':
-        requisition_form = RequisitionForm(request.POST)
+        requisition_form = RequisitionForm(request.POST, request.FILES)
         supplier_id = request.POST.get('supplier')  # Get the selected supplier ID from the POST data
         item_formset = RequisitionItemFormSet(request.POST, queryset=RequisitionItem.objects.none())
         
@@ -1546,6 +1546,13 @@ def approve_requisition(request, requisition_id):
     messages.success(request, 'Request approved successfully')
     return redirect('lpos_list')
 
+def reject_requisition(request, requisition_id):
+    requisition = Requisition.objects.get(pk=requisition_id)
+    requisition.status ='rejected'
+    requisition.save()
+    messages.success(request, 'Request rejected successfully')
+    return redirect('all_requisitions')
+
 ################LPOS###########################
 def lpo_list(request):
     lpos = LPO.objects.all().order_by('-created_at')
@@ -1564,6 +1571,7 @@ def lpo_verify(request, pk):
         if form.is_valid():
             lpo = form.save(commit=False)
             lpo.status = 'verified'  # Update the status to 'verified'
+            # lpo.is_paid = False
             lpo.save()
             
             # Update the corresponding requisition status to 'checking'
@@ -1623,58 +1631,6 @@ class LpoDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         return context
-    
-# def process_delivery(request, requisition_id):
-#     requisition = get_object_or_404(Requisition, id=requisition_id)
-#     requisition_items = RequisitionItem.objects.filter(requisition=requisition)
-    
-#     # Define the formset factory
-#     DeliveredRequisitionItemFormSet = modelformset_factory(
-#         RequisitionItem,
-#         form=DeliveredRequisitionItemForm,
-#         extra=0  # No extra forms
-#     )
-
-#     if request.method == 'POST':
-#         goods_received_form = GoodsReceivedNoteForm(request.POST)
-#         formset = DeliveredRequisitionItemFormSet(request.POST, request.FILES, queryset=requisition.requisitionitem_set.all())
-
-#         # Debugging Output
-#         print(f"Formset POST Data: {request.POST}")
-#         print(f"Formset TOTAL_FORMS: {request.POST.get('form-TOTAL_FORMS')}")
-#         print(f"Formset INITIAL_FORMS: {request.POST.get('form-INITIAL_FORMS')}")
-        
-#         if goods_received_form.is_valid() and formset.is_valid():
-#             goods_received_note = goods_received_form.save(commit=False)
-#             goods_received_note.requisition = requisition
-#             goods_received_note.lpo = requisition.lpo_set.first()  # Assuming the LPO is related to the requisition
-#             goods_received_note.save()
-
-#             # Process each item in the formset
-#             for form in formset:
-#                 delivered_quantity = form.cleaned_data.get('delivered_quantity')
-#                 if delivered_quantity:
-#                     item = form.instance
-#                     # Update the delivered_quantity for the item
-#                     item.delivered_quantity = delivered_quantity
-#                     item.save()
-
-#             messages.success(request, "Goods Received Note created successfully.")
-#             return redirect('requisition_detail', requisition_id=requisition.id)
-#     else:
-#         goods_received_form = GoodsReceivedNoteForm()
-#         formset = DeliveredRequisitionItemFormSet(queryset=requisition.requisitionitem_set.all())
-        
-#         # Debugging Output for GET
-#         print(f"Formset Queryset on GET: {formset.queryset}")
-#         print(f"Formset Forms: {formset.forms}")
-
-#     return render(request, 'process_delivery.html', {
-#         'goods_received_form': goods_received_form,
-#         'formset': formset, 
-#         'requisition': requisition,
-#         'requisition_items': requisition_items
-#     })
     
 class ProDeView(FormView):
     template_name = 'process_delivery.html'

@@ -51,12 +51,14 @@
         <tr>
             <th>PO is Paid ?</th>
             <td>
-                {% if lpo.is_paid %}
-                    <p class="text-success">LPO is fully paid on {{ lpo.payment_date }}</p>
+                {% if lpo.outstanding_balance > 0 %}
+                <p>Outstanding Balance: <span class="text-danger">{{ lpo.outstanding_balance }}</span></p><a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">Pay Now</a>
                 {% else %}
-                    <p>Outstanding Balance: <span class="text-danger">{{ lpo.outstanding_balance }}</span></p>
-                    <a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">Pay Now</a>
+                <p>PO PAID:</p>
+                    
                 {% endif %}
+                
+                
             </td>
         </tr>
         <tr>

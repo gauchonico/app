@@ -87,6 +87,7 @@
             <p><strong>Status:</strong> {{ requisition.get_status_display }}</p>
             <p><strong>Date Created:</strong> {{ requisition.created_at }}</p>
             <p><strong>Last Updated:</strong> {{ requisition.updated_at }}</p>
+            <p><strong>Price List / Quotation:</strong><a href="{{ requisition.price_list_document.url }}" target="_blank">View Attachment</a></p>
             
             <h5>Items</h5>
             <table class="table">
@@ -121,10 +122,18 @@
         <a href="{% url 'all_requisitions' %}">Back to Requisitions</a>
         <div class="mb-4 mt-4">
             {% if user_is_finance and requisition.status == 'created' %}
+            <div class="ms-auto mb-2">
                 <form method="post" action="{% url 'approve_requisition' requisition.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-primary">Approve Requisition</button>
+                    <button type="submit" class="btn btn-success">Approve Requisition</button>
                 </form>
+            </div>
+            <div class="ms-auto">
+                <form method="post" action="{% url 'reject_requisition' requisition.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Reject Requisition</button>
+                </form>
+            </div>
             {% endif %}
             <div class="mb-4 mt-4">
                 {% if requisition.status == 'checking' %}
