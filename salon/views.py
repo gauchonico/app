@@ -1,10 +1,12 @@
-from django.http import HttpResponseForbidden
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import render
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.views.generic import ListView
 from django.utils import timezone
+from django.contrib import messages
+from django.db import transaction
 
 from salon.forms import *
 from salon.models import *
@@ -82,7 +84,7 @@ def create_general_requisition(request):
                     item.requisition = requisition
                     item.save()
                     
-            return redirect('requisition_details', pk=requisition.pk)
+            return redirect('general_requisition_list')
     else:
         requisition_form = GeneralRequisitionForm()
         formset = GeneralRequisitionItemFormSet()
@@ -139,3 +141,99 @@ def mark_requisition_as_delivered(request, pk):
 def salon_inventory_list(request):
     salons = SalonBranch.objects.prefetch_related('inventory').all()
     return render(request, 'salon_inventory_list.html', {'salons': salons})
+
+def create_salon_restock_requests(request):
+    # Get the salon branch associated with the logged-in user
+    try:
+        user_salon_branch = SalonBranch.objects.get(manager=request.user)
+    except SalonBranch.DoesNotExist:
+        user_salon_branch = None  # Handle the case where no branch is found
+        
+    if request.method == 'POST':
+        form = SalonRestockRequestForm(request.POST)
+        item_formset = SalonRestockRequestItemFormset(request.POST)
+
+        if form.is_valid() and item_formset.is_valid():
+            restock_request = form.save(commit=False)
+            restock_request.requested_by = request.user
+            # Set the salon branch based on the user's association
+            if user_salon_branch:  # Ensure that the branch exists
+                restock_request.salon = user_salon_branch
+            restock_request.save()
+
+            # Save items
+            item_formset.instance = restock_request
+            item_formset.save()
+
+            return redirect('view_salon_restock_requests')
+    else:
+        form = SalonRestockRequestForm()
+        item_formset = SalonRestockRequestItemFormset()
+
+    return render(request, 'create_salon_restock_request.html', {
+        'form': form,
+        'item_formset': item_formset,
+    })
+
+def deliver_salon_restock_request(request, restock_request_id):
+    try:
+        restock_request = SalonRestockRequest.objects.get(pk=restock_request_id, status='pending')
+    except SalonRestockRequest.DoesNotExist:
+        raise Http404("Restock request not found or already processed.")
+    user_salon_branch = SalonBranch.objects.get(manager=request.user)
+    
+    if request.method == 'POST':
+        # Check if Livara has sufficient stock for all products
+        for item in restock_request.items.all():
+            livara_inventory = LivaraMainStore.objects.get(product=item.product.product)
+            if livara_inventory.quantity < item.quantity:
+                raise Exception(f"Insufficient stock in Livara for {item.product.product_name}")
+
+        # Update branch inventory and deduct from Livara inventory
+        with transaction.atomic():
+            for item in restock_request.items.all():
+                livara_inventory = LivaraMainStore.objects.get(product=item.product.product)
+                branch_inventory, created = BranchInventory.objects.get_or_create(salon=user_salon_branch, product=item.product)
+                branch_inventory.quantity += item.quantity
+                livara_inventory.quantity -= item.quantity
+                branch_inventory.save()
+                livara_inventory.save()
+
+        restock_request.status = 'delivered'
+        restock_request.save()
+        return redirect('view_salon_restock_requests')  # Redirect to success page
+    else:
+        # Display a confirmation page before marking as delivered
+        context = {'restock_request': restock_request}
+        return render(request, 'mark_delivered_confirmation.html', context)
+    
+def view_salon_restock_requests(request):
+    restock_requests = SalonRestockRequest.objects.all().prefetch_related('items__product')
+    user_is_salon_manager = request.user.groups.filter(name='Saloon Managers').exists()
+    context ={
+        'user_is_salon_manager': user_is_salon_manager,
+        'restock_requests': restock_requests,
+    }
+    return render(request, 'salon_restock_requests.html', context)
+
+def restock_request_detail(request, salon_restock_req_no):
+    restock_request = get_object_or_404(SalonRestockRequest, salon_restock_req_no=salon_restock_req_no)
+    user_is_salon_manager = request.user.groups.filter(name='Saloon Managers').exists()
+    items = restock_request.items.all()  # Get all items related to this restock request
+    
+    context = {
+        'restock_request': restock_request,
+        'items': items,
+        'user_is_salon_manager': user_is_salon_manager,
+    }
+    return render(request, 'restock_request_detail.html', context)
+
+def branch_inventory(request):
+    # Replace this with your custom logic to determine the user's salon branch
+    user_salon_branch = SalonBranch.objects.get(  # Adjust the filter based on your criteria
+        manager=request.user
+    )
+
+    branch_inventory = BranchInventory.objects.filter(branch=user_salon_branch)
+
+    return render(request, 'branch_inventory.html', {'branch_inventory': branch_inventory})

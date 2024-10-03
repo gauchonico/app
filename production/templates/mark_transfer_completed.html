@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Recieve Goods From Production{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+    <!-- BEGIN page-header -->
+	<div class="d-flex align-items-center mb-3">
+		<div>
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">DELIVERY</a></li>
+				<li class="breadcrumb-item active">MANUFACTURED PRODUCTS</li>
+			</ul>
+			
+		</div>
+		
+	</div>
+
+<h5>Complete Transfer: <span class="text-success">{{ transfer }}</span></h5>
+<h5>Transfer Items</h5>
+
+<table class="table w-50">
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Transferred Qty</th>
+      <th>DD.</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in transfer_items %}
+    <tr>
+      <td>{{ item.product.product.product_name }}</td>
+      <td>{{ item.quantity }}</td>
+      <td>
+        {% if item.delivery_document %}
+          <a href="{{ item.delivery_document.url }}">Download Document</a>
+        {% else %}
+          No Document
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<form method="POST">
+    {% csrf_token %}
+    <table>
+      {{ formset.management_form }}
+      {% for form in formset %}
+        <tr>
+          {{ form.id }}
+          {{ form }}
+        </tr>
+      {% endfor %}
+    </table>
+    <button type="submit" class="mt-5 btn btn-primary btn-sm">Mark as Completed</button>
+  </form>
+
+{% endblock content %}

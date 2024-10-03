@@ -71,6 +71,8 @@ admin.site.register(Service)
 admin.site.register(Sale)
 admin.site.register(GeneralRequisition)
 admin.site.register(PaymentVoucher)
+admin.site.register(SalonRestockRequest)
+admin.site.register(SalonRestockRequestItem)
 
 
 

@@ -1,4 +1,6 @@
-from django import forms 
+from django import forms
+
+from production.models import LivaraMainStore 
 from .models import *
 from django.forms import formset_factory
 
@@ -46,3 +48,46 @@ class GeneralRequisitionItemForm(forms.ModelForm):
         }
         
 GeneralRequisitionItemFormSet = formset_factory(GeneralRequisitionItemForm, extra=1)
+
+
+class SalonRestockRequestForm(forms.ModelForm):
+    class Meta:
+        model = SalonRestockRequest
+        fields = ['comments']
+        widgets = {
+            'comments': forms.TextInput(attrs={'class':'form-control'}),
+            'salon': forms.Select(attrs={'class':'form-control'}),
+
+        }
+    def clean_salon(self):
+        cleaned_salon = self.cleaned_data['salon']
+        user = self.context['request'].user
+        # Check if user has a salon branch
+        if user.salon_branch:
+            if cleaned_salon != user.salon_branch:
+                raise forms.ValidationError(
+                    "You can only create requests for your assigned branch."
+                )
+        else:
+            raise forms.ValidationError(
+                "User does not have an assigned salon branch."
+            )
+        return cleaned_salon
+class SalonRestockRequestItemForm(forms.ModelForm):
+    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.all())
+
+    class Meta:
+        model = SalonRestockRequestItem
+        fields = ['product', 'quantity']
+        widgets = {
+            'product': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+        }
+
+SalonRestockRequestItemFormset = forms.inlineformset_factory(
+    SalonRestockRequest, 
+    SalonRestockRequestItem, 
+    form=SalonRestockRequestItemForm, 
+    extra=1, 
+    can_delete=True
+)

@@ -1,3 +1,4 @@
+import random
 from django.utils import timezone
 from django.db import models
 from django.apps import apps
@@ -5,7 +6,7 @@ from django.db.models import Sum, F
 from django.contrib.auth.models import User
 import logging
 
-from production.models import Supplier
+from production.models import LivaraMainStore, Production, Supplier
 # Create your models here.
 
 # Get the Staff and Customer models dynamically
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class SalonBranch(models.Model):
     name = models.CharField(max_length=100)
     location = models.CharField(max_length=255)
-    manager = models.ForeignKey('POSMagicApp.Staff' , on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_branches')
+    manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='managed_branches')
 
     def __str__(self):
         return self.name
@@ -31,9 +32,11 @@ class SalonProduct(models.Model):
     description = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     commission_rate = models.PositiveIntegerField(choices=COMMISSION_CHOICES, default=5)
+    livara_main_store = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return self.name
+
     
 class Service(models.Model):
     COMMISSION_CHOICES = [
@@ -218,3 +221,52 @@ class InternalRequisitionItem(models.Model):
 
     def __str__(self):
         return f'{self.product.name} - {self.quantity}'
+    
+
+################################################################################################
+class SalonRestockRequest(models.Model):
+    salon_restock_req_no = models.CharField(max_length=100, unique=True)
+    salon = models.ForeignKey(SalonBranch, on_delete=models.CASCADE)
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name="salon_requested_restocks")  # Optional: User who requested
+    request_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=255, choices=[
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("delivered", "Delivered"),
+        ("rejected", "Rejected"),
+    ], default="pending")
+    comments = models.TextField(blank=True)  # Optional: Comments or reasons for rejection
+    
+    def save(self, *args, **kwargs):
+        if not self.salon_restock_req_no:
+            self.salon_restock_req_no = self.generate_salon_restock_req_no()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Restock Request{self.salon_restock_req_no} for {self.salon} (requested by: {self.requested_by.username if self.requested_by else 'N/A'})"
+    
+    def generate_salon_restock_req_no(self):
+
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        #generate random number
+        random_number = random.randint(0000,9999)
+        
+        # Construct the Request number
+        salon_restock_req_no = f"SAL-RRQ-{month}{year}-{random_number}"
+        # Ensure the generated number is unique
+        while SalonRestockRequest.objects.filter(salon_restock_req_no=salon_restock_req_no).exists():
+            random_number = random.randint(1000, 9999)
+            salon_restock_req_no = f"SAL-RRQ-{month}{year}-{random_number}"
+        
+        return salon_restock_req_no
+    
+    
+class SalonRestockRequestItem(models.Model):
+    restock_request = models.ForeignKey(SalonRestockRequest, related_name='items', on_delete=models.CASCADE)
+    product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE, related_name='salonrestockrequestitems')
+    quantity = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"{self.quantity} units of {self.product.product_name} for restock request {self.restock_request}"

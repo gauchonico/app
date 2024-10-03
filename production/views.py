@@ -27,7 +27,7 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
+from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
 from .models import LPO, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
@@ -889,7 +889,7 @@ def bulk_stock_transfer(request):
 
     if request.method == 'POST':
         formset = StockTransferItemFormSet(request.POST, prefix='stock_item')
-        transfer_form = StoreTransferForm(request.POST, prefix='transfer')
+        transfer_form = StoreTransferForm(request.POST, request.FILES, prefix='transfer')
         
         print(f"Transfer Form Data: {transfer_form.data}")
         print(f"Formset Data: {formset.data}")
@@ -912,7 +912,7 @@ def bulk_stock_transfer(request):
                     )
 
                 # Redirect after successful creation
-                return redirect('main_stock_transfer')  # Adjust to your URL name for the transfer list view
+                return redirect('main_stock_transfer')  
     else:
         formset = StockTransferItemFormSet(prefix='stock_item')
         transfer_form = StoreTransferForm(prefix='transfer')
@@ -926,46 +926,70 @@ def bulk_stock_transfer(request):
 
 def main_stock_transfer (request):
     store_transfers = StoreTransfer.objects.all()
+    user_is_production_manager = request.user.groups.filter(name='Production Manager').exists()
     context = {
-        'store_transfers': store_transfers
+        'store_transfers': store_transfers,
+        'user_is_production_manager': user_is_production_manager,
     }
     return render(request, 'main_stock_transfers.html', context)
 
 def mark_transfer_completed (request, transfer_id):
     transfer = get_object_or_404(StoreTransfer, pk=transfer_id)
-    if transfer.status != 'completed':
-        with transaction.atomic():
-            transfer.status = 'completed'
-            transfer.save()
+    
+    # Ensure we only allow marking as completed if the status is not already completed
+    if transfer.status == 'Completed':
+        return redirect('main_stock_transfer')
+    # Get transfer items for the selected transfer
+    transfer_items = StoreTransferItem.objects.filter(transfer=transfer)
 
-            transfer_items = StoreTransferItem.objects.filter(transfer=transfer)
-            for item in transfer_items:
-                manufactured_product_inventory = item.product
-                quantity = item.quantity
-                batch_number = manufactured_product_inventory.batch_number
-                expiry_date = manufactured_product_inventory.expiry_date
+    # Create a formset for delivered quantities
+    LivaraMainStoreQuantityFormSet = modelformset_factory(StoreTransferItem, form=LivaraMainStoreDeliveredQuantityForm, extra=0)
+    if request.method == 'POST':
+        formset = LivaraMainStoreQuantityFormSet(request.POST, queryset=transfer_items)
 
-                # Update ManufacturedProductInventory
-                if manufactured_product_inventory.quantity >= quantity:
-                    manufactured_product_inventory.quantity -= quantity
-                    manufactured_product_inventory.save()
-                else:
-                    # Handle the case where there isn't enough stock
-                    raise ValueError(f"Not enough stock in manufacture inventory for {manufactured_product_inventory.product}")
+        if formset.is_valid():
+            with transaction.atomic():
+                transfer.status = 'completed'
+                transfer.save()
 
-                # Update LivaraMainStore
-                livara_inventory, created = LivaraMainStore.objects.get_or_create(
-                    product=manufactured_product_inventory,
-                    batch_number=batch_number,
-                    expiry_date=expiry_date,
-                    defaults={'quantity': quantity}
-                )
-                
-                if not created:
-                    livara_inventory.quantity += quantity
-                    livara_inventory.save()
+                for form, item in zip(formset.forms, transfer_items):
+                    delivered_quantity = form.cleaned_data['delivered_quantity']
+                    manufactured_product_inventory = item.product
+                    batch_number = manufactured_product_inventory.batch_number
+                    expiry_date = manufactured_product_inventory.expiry_date
 
-    return redirect('main_stock_transfer')
+                    # Update ManufacturedProductInventory
+                    if manufactured_product_inventory.quantity >= delivered_quantity:
+                        manufactured_product_inventory.quantity -= delivered_quantity
+                        manufactured_product_inventory.save()
+                    else:
+                        raise ValueError(f"Not enough stock in manufacture inventory for {manufactured_product_inventory.product}")
+
+                    # Update LivaraMainStore
+                    livara_inventory, created = LivaraMainStore.objects.get_or_create(
+                        product=manufactured_product_inventory,
+                        batch_number=batch_number,
+                        expiry_date=expiry_date,
+                        defaults={'quantity': delivered_quantity}
+                    )
+                    
+                    if not created:
+                        livara_inventory.quantity += delivered_quantity
+                        livara_inventory.save()
+
+            return redirect('main_stock_transfer')
+        else:
+            print(formset.errors)
+    else:
+        formset = LivaraMainStoreQuantityFormSet(queryset=transfer_items)
+
+    context = {
+        'formset': formset,
+        'transfer': transfer,
+        'transfer_items': transfer_items,
+    }
+
+    return render(request, 'mark_transfer_completed.html', context)
 def livara_main_store_inventory(request):
     main_store_inventory = LivaraMainStore.objects.all()
     context = {
@@ -1150,8 +1174,8 @@ def store_inventory_list(request):
 @login_required(login_url='/login/')
 def managers_store_inventory_view (request):
     user = request.user
-    managers = Group.objects.get(name='Managers')
-    if user.groups.filter(name='Managers').exists():
+    managers = Group.objects.get(name='Saloon Managers')
+    if user.groups.filter(name='Saloon Managers').exists():
         managed_stores = user.managed_stores.all()
     else:
         return HttpResponseForbidden("You do not have permission to view any store inventories.")

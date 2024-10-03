@@ -4,6 +4,7 @@ from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 
 from production.models import LPO, DiscrepancyDeliveryReport, LivaraMainStore, PaymentVoucher, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreTransfer
+from salon.models import SalonRestockRequest
 
 
 def get_created_production_orders_count():
@@ -13,7 +14,7 @@ def get_pending_livara_store_orders():
     return StoreTransfer.objects.filter(status='Pending').count()
 
 def get_new_restock_requests_count():
-    return RestockRequest.objects.filter(status='pending').count()
+    return SalonRestockRequest.objects.filter(status='pending').count()
 
 def get_new_requisitions_count():
     return Requisition.objects.filter(status='created').count()
@@ -220,14 +221,6 @@ def sidebar_menu(request):
             'text': 'All Stores',
             'name': 'allStores'
         },{
-            'url': '/production/restock-requests/',
-            'icon': 'bi bi-recycle',
-            'text': mark_safe (
-                f'Restock Requests <span class="badge rounded-circle bg-danger">{restock_requests_count}</span>'
-                if restock_requests_count > 0 else 'Restock Requests' 
-            ),
-            'name': 'restockRequests',
-        },{
             'url': '/production/general-stores/',
             'icon': 'bi bi-boxes',
             'text': 'General Stores',
@@ -312,6 +305,19 @@ def sidebar_menu(request):
             'text': 'Salon',
             'name': 'salon',
         },{
+            'url':'/salon/branch_inventory/',
+            'icon':'bi bi-bounding-box-circles',
+            'text':'Branch Inventory',
+            'name':'branch_inventory',    
+        },{
+            'url': '/salon/all_salon_restock_requests/',
+            'icon': 'bi bi-recycle',
+            'text': mark_safe (
+                f'Salon Requests <span class="badge rounded-circle bg-danger">{restock_requests_count}</span>'
+                if restock_requests_count > 0 else 'Salon Requests' 
+            ),
+            'name': 'view_salon_restock_requests',
+        },{
         
             
     }
@@ -338,7 +344,7 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','view_salon_restock_requests']]  # Replace with your store manager menu names
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
@@ -444,20 +450,23 @@ def sidebar_menu(request):
            
                 }]
             })
-        elif 'Managers' in group_names:
+        elif 'Saloon Managers' in group_names:
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['managers_store_inventory_view','pageCustomer']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['salon','pageCustomer','branch_inventory']]
             # Add store management menu if user has permission
-            if request.user.has_perm('production.store_access'):  # Replace 'production.store_access' with your permission name
-                sidebar_menu.append({
-                    'icon': 'bi bi-inboxes-fill',
-                    'text': 'Store Management',
-                    'children': [{
-                'url': '/production/store-requests',
+            
+            sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
-                'text': 'Store Requests',
-                'name':'storeRequests'
-            },{
+                'text': 'Saloon Management',
+                'children': [{
+            'url': '/salon/all_salon_restock_requests/',
+            'icon': 'bi bi-recycle',
+            'text': mark_safe (
+                f'Restock Requests <span class="badge rounded-circle bg-danger">{restock_requests_count}</span>'
+                if restock_requests_count > 0 else 'Restock Requests' 
+            ),
+            'name': 'view_salon_restock_requests',
+        },{
                 'url': '/production/raw-materials/',
                 'icon': 'bi bi-egg-fried',
                 'text': 'Raw Materials',

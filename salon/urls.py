@@ -22,4 +22,13 @@ urlpatterns = [
     path('salon_requisition/<int:pk>', views.requisition_details, name='salon_requisition_details'),
     path('salon_requisition/<int:pk>/mark_as_delivered/', views.mark_requisition_as_delivered, name='mark_requisition_as_delivered'),
     path('salon-inventories/', views.salon_inventory_list, name='salon_inventory_list'),
+    
+    #Restock requests
+    path('create_salon_restock_requests/', views.create_salon_restock_requests, name="create_salon_restock_requests"),
+    # path('mark_restock_as_delivered/<int:restock_id>', views.mark_restock_as_delivered, name="restock_delivered"),
+    # path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),
+    path('all_salon_restock_requests/', views.view_salon_restock_requests, name='view_salon_restock_requests'),
+    path('salon_restock_request/<int:restock_request_id>/deliver/', views.deliver_salon_restock_request, name='deliver_salon_restock_request'),
+    path('restock_request_details/<str:salon_restock_req_no>/', views.restock_request_detail, name='restock_request_detail'),
+    path('branch_inventory/', views.branch_inventory, name='branch_inventory'),
 ]

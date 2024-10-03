@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}All Stores{% endblock %}
+{% block title %}Tranfers to Livara Main Store{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -39,12 +39,13 @@
 				<div class="">
 					<ul class="breadcrumb">
 						<li class="breadcrumb-item"><a href="#">STOCK TRANSFERS</a></li>
-						<li class="breadcrumb-item active">ALL MAIN STORE TRANSFERS</li>
+						<li class="breadcrumb-item active">LIVARA MAIN STORE TRANSFERS</li>
 					</ul>
-					
-                    <div class="ms-auto">
-                        <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>
-                    </div>
+					{% if user_is_production_manager %}
+						<div class="ms-auto">
+							<a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>
+						</div>
+					{% endif %}
 					
 					<hr class="mb-4">
 
@@ -56,6 +57,7 @@
 									<thead>
 										<tr class="align-middle">
 											<th class="border-top-0 pt-0 pb-2">#</th>
+											<th class="border-top-0 pt-0 pb-2">Transfer No.</th>
 											<th class="border-top-0 pt-0 pb-2 ">Create by:</th>
 											<th class="border-top-0 pt-0 pb-2">Status</th>
                                             <th class="border-top-0 pt-0 pb-2">Action</th>
@@ -68,6 +70,7 @@
 										{% for transfer in store_transfers %}
 										<tr class="align-middle">
 											<td class="align-middle">{{forloop.counter}}</td>
+											<td>{{ transfer.liv_main_transfer_number }}</td>
 											<td>{{ transfer.created_by }}</td>
                                             <td>{{ transfer.status }}</td>
                                             <td>

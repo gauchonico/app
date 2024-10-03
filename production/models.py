@@ -278,7 +278,7 @@ class StockTransfer(models.Model):
         super().save(*args, **kwargs)
 
 
-##### Main Store Transfer      
+##### Main Livara Store Transfer      
 class LivaraMainStore(models.Model):
     product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
@@ -290,18 +290,44 @@ class LivaraMainStore(models.Model):
         return f"{self.quantity} units of {self.product.product.product_name} in Main Store"
     
 class StoreTransfer(models.Model):
+    liv_main_transfer_number = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    delivery_document = models.FileField(upload_to='uploads/products/', null=True, blank=True)
     notes = models.CharField(max_length=40, null=True, blank=True)
     date = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Completed', 'Completed')], default='Pending')
     
     def __str__(self):
-        return f"Transfer {self.id} by {self.created_by}"
+        return f"Transfer {self.liv_main_transfer_number} by {self.created_by}"
+    
+    def save(self, *args, **kwargs):
+        if not self.liv_main_transfer_number:
+            self.liv_main_transfer_number = self.generate_liv_main_transfer_number()
+        super().save(*args, **kwargs)
+
+    def generate_liv_main_transfer_number(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        
+        # Generate random number
+        random_number = random.randint(1000, 9999)
+        
+        # Construct the LPO number
+        liv_main_transfer_number = f"LIV-MAIN-TRNS-{month}{year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while StoreTransfer.objects.filter(liv_main_transfer_number=liv_main_transfer_number).exists():
+            random_number = random.randint(1000, 9999)
+            liv_main_transfer_number = f"pod-po{month}{year}-{random_number}"
+        
+        return liv_main_transfer_number
 
 class StoreTransferItem(models.Model):
     transfer = models.ForeignKey(StoreTransfer, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
+    delivered_quantity = models.PositiveIntegerField(null=True, blank=True)  # New field for delivered quantity
     
 
 
@@ -457,7 +483,7 @@ class Requisition(models.Model):
     
     requisition_no = models.CharField(max_length=50, unique=True, blank=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
-    price_list_document = models.FileField(upload_to='uploads/products/')
+    price_list_document = models.FileField(upload_to='uploads/products/', null=True, blank=True)
     items = models.ManyToManyField(RawMaterial, through='RequisitionItem')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -79,10 +79,12 @@ urlpatterns = [
     path('restock-requests/', views.restock_requests, name="restockRequests"),
     path('create-restock-request/', views.create_restock_request, name="createRestockRequest"),
     path('mark_restock_as_delivered/<int:restock_id>', views.mark_restock_as_delivered, name="restock_delivered"),
+   
 
     path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),
     path('general-stores/', views.store_inventory_list, name="store_inventory_list"),
     path('bulk_stock_tansfer/', views.bulk_stock_transfer, name="bulk_stock_transfer"),
+    path('complete_livara_ms_transfer/', views.mark_transfer_completed, name="mark_transfer_completed"),
     path('main_stock_transfers/', views.main_stock_transfer, name="main_stock_transfer"),
     path('livara_main_store_inventory', views.livara_main_store_inventory, name="livara_main_store_inventory"),
     

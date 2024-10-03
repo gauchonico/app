@@ -1,0 +1,103 @@
+<!-- create_restock_request.html -->
+{% extends 'base.html' %}
+
+{% block title %}Salon Restock Request{% endblock %}
+
+{% block content %}
+<h1>Create Restock Request from Main Livara Store</h1>
+<form method="post">
+    {% csrf_token %}
+    
+    <!-- Render the main form (salon and comments) -->
+    
+    <div class="form-group">
+        {{ form.comments.label_tag }} {{ form.comments }}
+    </div>
+
+    <!-- Render the formset in a table format -->
+    <div id="item-formset-container">
+        {{ item_formset.management_form }}
+
+        <table class="table w-50">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>...</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for form in item_formset %}
+                <tr class="formset-item">
+                    <td>
+                        {{ form.product.label_tag }} {{ form.product }}
+                    </td>
+                    <td>
+                        {{ form.quantity.label_tag }} {{ form.quantity }}
+                    </td>
+                    <td>
+                        <button type="button" class="remove-form btn btn-danger">Remove</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Button to add more forms -->
+    <button type="button" id="add-form" class="btn btn-success">Add More</button>
+
+    <!-- Submit button -->
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const addFormBtn = document.getElementById('add-form');
+        const formsetContainer = document.querySelector('#item-formset-container tbody'); // Target tbody inside the table
+        const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS'); // Django formset management form field for total forms
+    
+        let formIndex = parseInt(totalFormsInput.value, 10); // Start at the current number of forms
+    
+        // Function to add a new formset row
+        addFormBtn.addEventListener('click', function () {
+            const newFormRow = formsetContainer.querySelector('tr').cloneNode(true);
+    
+            // Update the name and ID attributes of the cloned form fields
+            const regex = new RegExp(`form-(\\d+)-`, 'g');
+            newFormRow.innerHTML = newFormRow.innerHTML.replace(regex, `form-${formIndex}-`);
+    
+            // Clear the input values for the new form
+            const inputs = newFormRow.querySelectorAll('input, select');
+            inputs.forEach(input => input.value = '');
+    
+            // Append the new form row to the formset container
+            formsetContainer.appendChild(newFormRow);
+            formIndex++;
+            totalFormsInput.value = formIndex; // Update the total forms count
+    
+            // Rebind the remove button to the newly added form
+            bindRemoveButtons();
+        });
+    
+        // Bind remove buttons to dynamically remove their respective form row
+        function bindRemoveButtons() {
+            const removeBtns = document.querySelectorAll('.remove-form');
+            removeBtns.forEach((btn) => {
+                btn.addEventListener('click', function () {
+                    if (formsetContainer.childElementCount > 1) {
+                        btn.closest('tr').remove();
+                        formIndex--;
+                        totalFormsInput.value = formIndex; // Update the total forms count
+                    }
+                });
+            });
+        }
+    
+        // Initial binding of remove buttons on page load
+        bindRemoveButtons();
+    });
+    </script>
+    
+{% endblock %}

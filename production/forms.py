@@ -178,8 +178,9 @@ class WriteOffForm(forms.Form):
 class StoreTransferForm(forms.ModelForm):
     class Meta:
         model = StoreTransfer
-        fields = ['notes']
+        fields = ['notes','delivery_document']
         widgets = {
+            'delivery_document': forms.FileInput(attrs={'class':'form-control-file'}),
             'notes': forms.Textarea(attrs={'class':'form-control', 'placeholder':'Notes about the Transfer'}),
         }
 
@@ -196,6 +197,15 @@ class StoreTransferItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Example: Limit queryset to active ManufacturedProductInventory instances
         self.fields['product'].queryset = ManufacturedProductInventory.objects.all()
+        
+        
+class LivaraMainStoreDeliveredQuantityForm(forms.ModelForm):
+    class Meta:
+        model = StoreTransferItem
+        fields = ['delivered_quantity']  # Only include delivered quantity
+        widgets ={
+            'delivered_quantity': forms.NumberInput(attrs={'class':'form-control', 'placeholder':'e.g. 3'}),
+        }
         
         
 #######################################################
@@ -225,7 +235,7 @@ class RestockRequestItemForm(forms.ModelForm):
         model = RestockRequestItem
         fields = ['product', 'quantity']
         widgets = {
-            
+            'product': forms.Select(attrs={'class':'form-control'}),
             'quantity': forms.NumberInput(attrs={'class':'form-control'}),
         }
 

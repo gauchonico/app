@@ -83,4 +83,23 @@
             {% endfor %}
         </tbody>
     </table>
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Last Updated</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inventory_item in branch_inventory %}
+                <tr>
+                    <td>{{ inventory_item.product.name }}</td>
+                    <td>{{ inventory_item.quantity }}</td>
+                    <td>{{ inventory_item.update_history.latest.updated_at }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
     {% endblock content %}

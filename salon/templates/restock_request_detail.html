@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-5">
+    <h2>Restock Request Details</h2>
+    
+    <!-- Request Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            Restock Request {{ restock_request.salon_restock_req_no }} 
+            for {{ restock_request.salon.name }}
+        </div>
+        <div class="card-body">
+            <p><strong>Requested By:</strong> {{ restock_request.requested_by.username }}</p>
+            <p><strong>Request Date:</strong> {{ restock_request.request_date }}</p>
+            <p><strong>Status:</strong> 
+                <span class="badge {% if restock_request.status == 'pending' %}bg-warning{% elif restock_request.status == 'approved' %}bg-success{% elif restock_request.status == 'delivered' %}bg-info{% else %}bg-danger{% endif %}">
+                    {{ restock_request.get_status_display }}
+                </span>
+            </p>
+            <p><strong>Comments:</strong> {{ restock_request.comments }}</p>
+        </div>
+    </div>
+    
+    <!-- Items Table -->
+    <h4>Requested Items</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Quantity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td>{{ item.product }}</td>
+                    <td>{{ item.quantity }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="2" class="text-center">No items found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Actions -->
+    <div class="mt-4">
+        {% if restock_request.status == 'pending' and user_is_salon_manager%}
+            <!-- Deliver Stock Button (Visible only if pending/approved and user is a manager) -->
+            <form method="post" action="{% url 'deliver_salon_restock_request' restock_request.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">Deliver Stock</button>
+            </form>
+        {% elif restock_request.status == 'delivered' %}
+            <p class="text-success">This request has been successfully delivered.</p>
+        {% endif %}
+    </div>
+
+    <!-- Return to List -->
+    <div class="mt-4">
+        <a href="{% url 'view_salon_restock_requests' %}" class="btn btn-secondary">Back to Restock Requests</a>
+    </div>
+</div>
+{% endblock %}
+{% block outter_content%}
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}
