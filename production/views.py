@@ -28,7 +28,7 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Customer
 from .utils import approve_restock_request, cost_per_unit
 from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
-from .models import LPO, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
+from .models import LPO, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -976,6 +976,14 @@ def mark_transfer_completed (request, transfer_id):
                     if not created:
                         livara_inventory.quantity += delivered_quantity
                         livara_inventory.save()
+                    # Create an audit trail record for LivaraMainStore adjustment
+                    
+                    LivaraInventoryAdjustment.objects.create(
+                        store_inventory=livara_inventory,
+                        adjusted_quantity=delivered_quantity,  # Assuming a positive quantity indicates an increase
+                        adjustment_reason="Stock Transfer Completed",
+                        adjusted_by=request.user  # Assuming the logged-in user is responsible
+                    )
 
             return redirect('main_stock_transfer')
         else:
@@ -1044,6 +1052,24 @@ def delete_store(request, store_id):
         return redirect('allStores')  # Redirect to 'allStores' view after deletion
     context = {'store': store}
     return render(request, 'delete-store.html', context)
+
+@login_required
+def manager_inventory_view(request):
+    manager = request.user
+    inventory = StoreInventory.objects.filter(store__manager=manager)
+    context = {'inventory': inventory}
+    return render(request, 'manager_inventory.html', context)
+@login_required
+def main_store_inventory_adjustments(request):
+    store_inventory = StoreInventory.objects.all()
+    adjustments = InventoryAdjustment.objects.filter(store_inventory__store__in=store_inventory.values('store'))
+
+    context = {
+        'store_inventory': store_inventory,
+        'adjustments': adjustments,
+    }
+
+    return render(request, 'main_store_inventory_adjustments.html', context)
 
 
 @login_required(login_url='/login/')
@@ -1126,8 +1152,20 @@ def mark_restock_as_delivered(request, restock_id):
             defaults={'quantity': item.quantity}
         )
         if not created:
+            # Update previous quantity before saving the new quantity
+            store_inventory.previous_quantity = store_inventory.quantity
             store_inventory.quantity += item.quantity
             store_inventory.save()
+        
+        # Create an audit trail record
+        InventoryAdjustment.objects.create(
+            store_inventory=store_inventory,
+            adjusted_quantity=item.quantity,  # Assuming a positive quantity indicates an increase
+            adjustment_reason="Restock Fulfillment",
+            adjusted_by=request.user,  # Assuming the logged-in user is responsible
+            transfer_to_store=restock_request.store,  # Set transfer destination store
+            transfer_date=timezone.now()  # Set transfer date to current time
+        )
 
     messages.success(request, 'Restock request marked as delivered and inventory updated successfully.')
     return redirect('restockRequests')
@@ -1186,6 +1224,13 @@ def managers_store_inventory_view (request):
         'managed_stores': managed_stores,
     }
     return render(request, 'store_manager.html', context)
+
+
+def inventory_adjustments(request, inventory_id):
+    inventory = get_object_or_404(StoreInventory, id=inventory_id)
+    adjustments = inventory.adjustments.all()
+    context = {'inventory': inventory, 'adjustments': adjustments}
+    return render(request, 'inventory_adjustments.html', context)
 
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Storemanager','Production Manager'])
@@ -1617,6 +1662,8 @@ def pay_lpo(request, lpo_id):
     # Check if the request method is POST
     if request.method == 'POST':
         amount_paid = request.POST.get('amount_paid', 0)
+        pay_by = request.POST.get('pay_by', '')  # Capture the payment method
+        voucher_notes = request.POST.get('voucher_notes', '')
         try:
             amount_paid = Decimal(amount_paid)
             if amount_paid <= 0:
@@ -1631,7 +1678,15 @@ def pay_lpo(request, lpo_id):
             payment_type = 'full' if lpo.outstanding_balance <= 0 else 'partial'
             
             # Create payment voucher (consider using a form if needed)
-            voucher = PaymentVoucher.objects.create(lpo=lpo, amount_paid=amount_paid, payment_type=payment_type)
+            voucher = PaymentVoucher(
+                lpo=lpo, 
+                amount_paid=amount_paid,
+                pay_by=pay_by,
+                voucher_notes=voucher_notes, 
+                payment_type=payment_type
+            )
+            # Save the voucher (calls the custom save() logic)
+            voucher.save()
 
             # Check if the balance has been cleared
             if lpo.outstanding_balance <= 0:
@@ -1972,3 +2027,7 @@ def production_payment_voucher_detail(request, voucher_number):
         'lpo': voucher.lpo,  # Access related LPO information
     }
     return render(request, 'payment_voucher_detail.html', context)
+
+
+
+# now we must add the additional quantities for comformation e.g requested, available 

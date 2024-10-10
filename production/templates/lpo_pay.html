@@ -9,6 +9,18 @@
         <label for="amount_paid">Amount to Pay:</label>
         <input type="number" step="0.01" name="amount_paid" id="amount_paid" class="form-control" required>
     </div>
+    <div class="form-group">
+        <label for="pay_by">Payment Method</label>
+            <select name="pay_by" required>
+                <option value="cash">Cash</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="mobile">Mobile Money</option>
+            </select><br>
+    </div>
+    <div class="form-group">
+        <label for="voucher_notes">Payment Note (optional)</label>
+        <textarea name="voucher_notes" id="voucher_notes" class="form-control"></textarea>
+    </div>
     <button type="submit" class="btn btn-primary mt-3">Submit Payment</button>
 </form>
 

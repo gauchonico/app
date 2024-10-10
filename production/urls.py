@@ -79,6 +79,10 @@ urlpatterns = [
     path('restock-requests/', views.restock_requests, name="restockRequests"),
     path('create-restock-request/', views.create_restock_request, name="createRestockRequest"),
     path('mark_restock_as_delivered/<int:restock_id>', views.mark_restock_as_delivered, name="restock_delivered"),
+    
+    path('manager_inventory_view/', views.manager_inventory_view, name="manager_inventory_view"),
+    path('inventory_adjustments/<int:inventory_id>', views.inventory_adjustments, name="inventory_adjustments"),
+    path('main_store_inventory_adjustments/', views.main_store_inventory_adjustments, name="main_store_inventory_adjustments"),
    
 
     path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),

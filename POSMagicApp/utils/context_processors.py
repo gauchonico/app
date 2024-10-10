@@ -221,6 +221,11 @@ def sidebar_menu(request):
             'text': 'All Stores',
             'name': 'allStores'
         },{
+            'url': '/production/main_store_inventory_adjustments/',
+            'icon': 'bi bi-folder',
+            'text': 'Stores Data',
+            'name':'main_store_inventory_adjustments',
+        },{
             'url': '/production/general-stores/',
             'icon': 'bi bi-boxes',
             'text': 'General Stores',
@@ -244,6 +249,11 @@ def sidebar_menu(request):
             'text': 'Production Store Writeoffs',
             'name': 'writeoffs',
         },{
+            'url': '/production/restock-requests/',
+            'icon':'bi bi-folder-fill',
+            'text':'Store Restock Requests',
+            'name':'restockRequests'
+        },{
             'url': '/production/manufacture_products_report',
             'icon': 'bi bi-folder-fill',
             'text': 'Manufacture Products Report',
@@ -253,6 +263,11 @@ def sidebar_menu(request):
             'icon': 'bi bi-folder',
             'text': 'Raw Material Utilization Report',
             'name': 'raw_material_utilization_report',
+        },{
+            'url':'/production/manager_inventory_view/',
+            'icon': 'bi bi-folder-fill',
+            'text': 'Manager Inventory',
+            'name':'manager_inventory_view',    
         },{
             'text': 'FINANCE',
             'is_header': 1
@@ -344,7 +359,12 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','view_salon_restock_requests']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','restockRequests','main_store_inventory_adjustments']]  # Replace with your store manager menu names
+            
+        elif 'Branch Manager' in group_names:
+            # Show branch manager menus
+            sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','restockRequests']]  # Replace with your branch manager menu names
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

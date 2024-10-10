@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<h1>Main Store Inventory Adjustments</h1>
+<table id="datatableDefault" class="table text-nowrap w-100">
+  <thead>
+    <tr>
+      <th>Store</th>
+      <th>Product</th>
+      <th>Quantity</th>
+      <th>Last Updated</th>
+      <th>Adjustments</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in store_inventory %}
+      <tr>
+        <td>{{ item.store.name }}</td>
+        <td>{{ item.product.product_name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>{{ item.last_updated }}</td>
+        
+            {% if item.low_stock_flag %}
+              <td><span style="color: red;">Low Stock</span></td>
+            {% else %}
+              <td><span style="color: theme;">Stocked</span></td>  {% endif %}
+          
+        <td>
+          <a href="{% url 'inventory_adjustments' item.id %}">View Adjustments</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock content %}

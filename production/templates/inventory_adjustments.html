@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<h5>Inventory Adjustments for {{ inventory.product.product_name }}</h5>
+<table class="table">
+  <thead>
+    <tr>
+        <th>Previous Quantity</th> 
+        <th>Adjusted Quantity</th>
+        <th>Reason</th>
+        <th>Adjusted By</th>
+        <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for adjustment in adjustments %}
+      <tr>
+        <td>{{ adjustment.store_inventory.previous_quantity }}</td>
+        <td>{{ adjustment.adjusted_quantity }}</td>
+        <td>{{ adjustment.adjustment_reason }}</td>
+        <td>{{ adjustment.adjusted_by.username }}</td>
+        <td>{{ adjustment.adjustment_date }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock content %}

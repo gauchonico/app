@@ -11,6 +11,8 @@ from django.forms import DecimalField
 from POSMagicApp.models import Customer 
 from django.db.models import Sum, F
 from django.utils import timezone
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 
@@ -285,9 +287,23 @@ class LivaraMainStore(models.Model):
     batch_number = models.CharField(max_length=50, null=True, blank=True)
     quantity = models.PositiveIntegerField()
     expiry_date = models.DateField(null=True, blank=True)
+    previous_quantity = models.PositiveIntegerField(default=0)
+    adjustment_date = models.DateTimeField(null=True, blank=True)
+    adjustment_reason = models.CharField(max_length=255, null=True, blank=True)
     
     def __str__ (self):
         return f"{self.quantity} units of {self.product.product.product_name} in Main Store"
+    
+class LivaraInventoryAdjustment(models.Model):
+    store_inventory = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE, related_name='adjustments')
+    adjusted_quantity = models.IntegerField()
+    adjustment_date = models.DateTimeField(auto_now_add=True)
+    adjustment_reason = models.CharField(max_length=255)
+    adjusted_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)  # Optional: Track who made the adjustment
+    
+
+    def __str__(self):
+        return f"Adjustment of {self.adjusted_quantity} units for {self.store_inventory.product} on {self.adjustment_date}"
     
 class StoreTransfer(models.Model):
     liv_main_transfer_number = models.CharField(max_length=20, unique=True, blank=True, null=True)
@@ -362,12 +378,32 @@ class StoreInventory(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE)  # Link to store
     quantity = models.PositiveIntegerField()
     last_updated = models.DateTimeField(auto_now=True)  # Track last update
+    previous_quantity = models.PositiveIntegerField(default=0)
+    low_stock_flag = models.BooleanField(default=False)
+    
 
+    def save(self, *args, **kwargs):
+        self.low_stock_flag = self.quantity < 100  # Adjust the threshold as needed
+        super().save(*args, **kwargs)
     def __str__(self):
         return f"{self.product.product_name} ({self.quantity}) in {self.store.name} - Last Updated: {self.last_updated.strftime('%Y-%m-%d')}"
 
     class Meta:
         unique_together = (('product', 'store'),)
+        
+    
+        
+class InventoryAdjustment(models.Model):
+    store_inventory = models.ForeignKey(StoreInventory, on_delete=models.CASCADE, related_name='adjustments')
+    adjusted_quantity = models.IntegerField()
+    adjustment_date = models.DateTimeField(auto_now_add=True)
+    adjustment_reason = models.CharField(max_length=255)
+    adjusted_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    transfer_to_store = models.ForeignKey(Store, on_delete=models.SET_NULL, null=True, blank=True)
+    transfer_date = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Adjustment of {self.adjusted_quantity} units for {self.store_inventory.product} on {self.adjustment_date}"
 
 # what to add 
 # bottle top and bottle without affecting the total volume
@@ -749,8 +785,9 @@ class PaymentVoucher(models.Model):
     voucher_number = models.CharField(max_length=50, unique=True, blank=True)
     lpo = models.ForeignKey(LPO, on_delete=models.CASCADE)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
+    pay_by = models.CharField(max_length=20, choices=[('cash', 'Cash'),('bank', 'Bank Transfer'),('mobile', 'Mobile Money')],blank=True, null=True)
+    voucher_notes = models.TextField(blank=True, null=True)
     payment_date = models.DateTimeField(auto_now_add=True)
-
     payment_type = models.CharField(max_length=20, choices=[('full', 'Full Payment'), ('partial', 'Partial Payment')], default='partial')
     
     def __str__(self):
@@ -758,12 +795,28 @@ class PaymentVoucher(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.voucher_number:
+            super().save(*args, **kwargs)
+            
             self.voucher_number = self.generate_voucher_number()
+            
+            # Save again with the generated voucher number
+            super().save(update_fields=['voucher_number'])
+            
+        if self.payment_type == 'full' and self.amount_paid < self.lpo.requisition.total_cost:
+            raise ValueError("Cannot mark as 'Full Payment' if the amount is less than LPO total.")
         super().save(*args, **kwargs)
 
     def generate_voucher_number(self):
-        # Implement your voucher number generation logic here
-        # Example:
         current_date = timezone.now()
-        voucher_number = f"PROD-PV-{current_date.strftime('%Y%m%d')}-{self.id}"
-        return voucher_number
+        return f"PROD-PV-{current_date.strftime('%Y%m%d')}-{self.id}"
+    
+
+# Signal to update LPO on PaymentVoucher save
+@receiver(post_save, sender=PaymentVoucher)
+def update_lpo_payment(sender, instance, **kwargs):
+    lpo = instance.lpo
+    total_paid = PaymentVoucher.objects.filter(lpo=lpo).aggregate(total=models.Sum('amount_paid'))['total'] or 0
+    lpo.amount_paid = total_paid
+    lpo.is_paid = total_paid >= lpo.requisition.total_cost
+    lpo.payment_date = timezone.now() if lpo.is_paid else None
+    lpo.save()

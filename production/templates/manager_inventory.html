@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>My Inventory</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Quantity</th>
+        <th>Last Updated</th>
+        <th>Adjustments</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in inventory %}
+        <tr>
+          <td>{{ item.product.product_name }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.last_updated }}</td>
+          <td>
+            <a href="{% url 'inventory_adjustments' item.id %}">See</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
