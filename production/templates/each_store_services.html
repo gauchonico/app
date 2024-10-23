@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}{{ store.name }}Store Services{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+    <!-- BEGIN page-header -->
+	<div class="d-flex align-items-center mb-3">
+		<div>
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">STORE</a></li>
+				<li class="breadcrumb-item active">SERVICES</li>
+			</ul>
+			<h1 class="page-header mb-0">Purchase Orders</h1>
+		</div>
+		
+	</div>
+		<p>A list of all services offered at {{ store.name }}.</p>
+		<div class="card">
+			<div class="card-body text-center">
+                {% if store_services %}
+				<table id="datatableDefault" class="table text-nowrap w-100">
+					<thead class="align-middle">
+						<tr>
+							<th class="border-top-0 pt-0 pb-2">#</th>
+							<th class="border-top-0 pt-0 pb-2">Name</th>
+							<th class="border-top-0 pt-0 pb-2">Price (UGX)</th>
+                            <th class="border-top-0 pt-0 pb-2">Commission Rate</th>
+							
+						</tr>
+					</thead>
+					<tbody class="align-middle">
+						{% for service in store_services %}
+						<tr>
+							<td class="align-middle">{{forloop.counter }}</td>
+                            <td class="align-middle">{{service.service.name}}</td>
+							<td class="align-middle">{{ service.service.price|floatformat|intcomma }}</td>
+							<td class="align-middle">{{ service.commission_rate }}</td>
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+                        {% else %}
+                            <p>This store does not offer any services.</p>
+                        {% endif %}
+			</div>
+			<div class="card-arrow">
+				<div class="card-arrow-top-left"></div>
+				<div class="card-arrow-top-right"></div>
+				<div class="card-arrow-bottom-left"></div>
+				<div class="card-arrow-bottom-right"></div>
+			</div>
+			
+		</div>
+	</div>
+	
+	<!-- BEGIN container -->
+	
+	<!-- END container -->
+{% endblock %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}

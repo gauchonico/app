@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">ACCESSORY INVENTORY</a></li>
+            <li class="breadcrumb-item active">STOCK ADJUSTMENT</li>
+        </ul>
+        <h5>Accessory Inventory Adjustment Report for all our stores</h5>
+    </div>
+    
+   
+</div>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Accessory</th>
+        <th>Quantity Adjusted</th>
+        <th>Reason</th>
+        <th>Store</th>  <!-- Add store column -->
+        <th>Adjustment Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for adjustment in adjustments %}
+      <tr>
+        <td>{{ adjustment.accessory.name }}</td>
+        <td>
+            <span class="{% if adjustment.quantity_adjusted < 0 %}text-danger{% else %}text-success{% endif %}">
+                {{ adjustment.quantity_adjusted }}
+            </span>    
+        <td>
+        <td>{{ adjustment.reason }}</td>
+        <td>{{ adjustment.store.name }}</td>  <!-- Display store name if available -->
+        <td>{{ adjustment.adjustment_date }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

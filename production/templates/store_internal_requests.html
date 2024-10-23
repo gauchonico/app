@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Internal Requisitions{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">STORE</a></li>
+            <li class="breadcrumb-item active">REQUISITIONS LIST</li>
+        </ul>
+        <h5>Internal Requisitions</h5>
+    </div>
+    
+
+</div>
+
+
+{% if internal_requests %}
+<table id="datatableDefault" class="table text-nowrap w-100">
+    
+  <thead>
+    <tr>
+        <th>#</th>
+        <th>Store</th>
+       
+        <th>Request Date</th>
+        <th>Status</th>
+        <th>Items</th>
+        <th>..</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for request in internal_requests %}
+    <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ request.store }}</td>
+        <td>{{ request.request_date }}</td>
+        <td>
+            {% if request.status == 'approved' %}
+            <p><span class="badge bg-indigo">Approved</span></p>
+            {% elif request.status == 'delivered' %}
+            <p><span class="badge bg-success">Delivered</span></p>
+            {% elif request.status == 'pending' %}
+            <p><span class="badge bg-warning">Waiting Approval</span></p>
+            {% elif request.status == 'rejected' %}
+            <p><span class="badge bg-danger">Rejected</span></p>
+            {% endif %}
+        </td>
+        
+        <td>
+            <ul class="list-group">
+                {% for item in request.items.all %}
+                <li class="list-group-item">{{ item.quantity_requested }} x {{ item.accessory.name }}</li>
+                {% endfor %}
+            </ul>
+        </td>
+        <td>
+            {% if request.status == 'approved' %}
+            <a href="{% url 'mark_as_delivered' request.id %}">Process Request</a>
+            {% elif request.status == 'delivered' %}
+            <p><i class="bi bi-check-circle-fill text-theme"></i> <span class="text-theme">Delivered</span></p>
+            {% elif request.status == 'pending' %}
+            <p><span class="text-warning">Waiting Approval</span></p>
+            {% endif %}
+
+        </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No Requests yet found.</p>
+{% endif %}
+{% endblock content %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Internal Requisition Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}

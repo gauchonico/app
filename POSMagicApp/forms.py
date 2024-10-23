@@ -68,13 +68,13 @@ class EditCustomerForm(forms.ModelForm):
 class AddStaffForm(forms.ModelForm):
     class Meta:
         model = Staff
-        fields = ['first_name', 'last_name','branch', 'address', 'phone','specialization','nin_no']
+        fields = ['first_name', 'last_name','store', 'address', 'phone','specialization','nin_no']
         widgets = {
             'first_name': forms.TextInput(attrs={'class':'form-control','placeholder':'Jane'}),
             'last_name': forms.TextInput(attrs={'class':'form-control','placeholder':'Naki'}),
             'phone': forms.NumberInput(attrs={'class':'form-control','placeholder':'0700000000'}),
             'address': forms.TextInput(attrs={'class':'form-control','placeholder':'email@mylivara.com'}),
-            'branch': forms.Select(attrs={'class':'form-control','placeholder':'Choose Branch'}),
+            'store': forms.Select(attrs={'class':'form-control','placeholder':'Choose Branch'}),
             'specialization': forms.Select(attrs={'class':'form-control'}),
             'nin_no': forms.TextInput(attrs={'class':'form-control','placeholder':'CM960******'}),
         }
@@ -82,13 +82,13 @@ class AddStaffForm(forms.ModelForm):
 class EditStaffForm(forms.ModelForm):
     class Meta:
         model = Staff
-        fields = ['first_name', 'last_name','branch', 'address', 'phone','specialization','nin_no']
+        fields = ['first_name', 'last_name','store', 'address', 'phone','specialization','nin_no']
         widgets = {
             'first_name': forms.TextInput(attrs={'class':'form-control','placeholder':'Jane'}),
             'last_name': forms.TextInput(attrs={'class':'form-control','placeholder':'Naki'}),
             'phone': forms.NumberInput(attrs={'class':'form-control','placeholder':'0700000000'}),
             'address': forms.TextInput(attrs={'class':'form-control','placeholder':'email@mylivara.com'}),
-            'branch': forms.Select(attrs={'class':'form-control','placeholder':'Choose Branch'}),
+            'store': forms.Select(attrs={'class':'form-control','placeholder':'Choose Branch'}),
             'specialization': forms.Select(attrs={'class':'form-control'}),
             'nin_no': forms.TextInput(attrs={'class':'form-control','placeholder':'CM960******'}),
         }

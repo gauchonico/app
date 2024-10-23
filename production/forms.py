@@ -1,6 +1,8 @@
 from django import forms
+
+from POSMagicApp.models import Customer
 from .models import *
-from django.forms import inlineformset_factory, modelformset_factory
+from django.forms import ValidationError, inlineformset_factory, modelformset_factory
 
 
 class AddSupplierForm(forms.ModelForm):
@@ -449,4 +451,177 @@ ReplaceNoteItemFormSet = modelformset_factory(
     extra=0,  # You can adjust this to show a certain number of empty forms
     fields=('raw_material', 'ordered_quantity', 'delivered_quantity', 'quantity_to_replace'),
     can_delete=False
+)
+
+
+class NewAccessoryForm(forms.ModelForm):
+    class Meta:
+        model = Accessory
+        fields = ['name', 'description', 'price']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control','placeholder':'A brief description of the accessory'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+class MainStoreAccessoryRequisitionForm(forms.ModelForm):
+    class Meta:
+        model = MainStoreAccessoryRequisition
+        fields = ['comments']
+        widgets = {
+            'comments': forms.Textarea(attrs={'class': 'form-control','placeholder':'Provide any details of this requsition e.g supplier, details etc.'}),
+        }
+        
+
+class MainStoreAccessoryRequisitionItemForm(forms.ModelForm):
+    class Meta:
+        model = MainStoreAccessoryRequisitionItem
+        fields = ['accessory', 'quantity_requested','price']
+        widgets = {
+            'accessory': forms.Select(attrs={'class': 'form-control'}),
+            'quantity_requested': forms.NumberInput(attrs={'class': 'form-control'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_quantity_requested(self):
+        quantity = self.cleaned_data['quantity_requested']
+        if quantity <= 0:
+            raise ValidationError('Quantity requested must be a positive integer.')
+        return quantity
+
+MainStoreAccessoryRequisitionItemFormSet = modelformset_factory(
+    MainStoreAccessoryRequisitionItem,
+    form=MainStoreAccessoryRequisitionItemForm,
+    extra=1,  # Show one empty form by default
+    can_delete=True  # Allow deleting individual items
+)
+
+
+class InternalAccessoryRequestForm(forms.ModelForm):
+    class Meta:
+        model = InternalAccessoryRequest
+        fields = ['comments','store']
+        widgets= {
+            'comments': forms.Textarea(attrs={'class': 'form-control','placeholder':'Provide any details of this requsition e.g. supplier, details etc.'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # Retrieve the user from kwargs
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter store queryset to only include the store managed by the logged-in user
+        if self.user:
+            managed_stores = Store.objects.filter(manager=self.user)
+            self.fields['store'].queryset = managed_stores
+            
+        # Automatically select the store if user manages only one store
+            if managed_stores.count() == 1:
+                self.fields['store'].initial = managed_stores.first()
+            
+    def save(self, commit=True):
+        request = super().save(commit=False)
+        request.save()
+
+
+        return request
+InternalAccessoryRequestItemFormSet = modelformset_factory(
+    InternalAccessoryRequestItem,
+    fields=('accessory', 'quantity_requested'),
+    widgets= {
+        'accessory': forms.Select(attrs={'class': 'form-control'}),
+        'quantity_requested': forms.NumberInput(attrs={'class': 'form-control'})
+    },
+    extra=1  # Add an extra form initially
+)
+
+class ApproveRejectRequestForm(forms.ModelForm):
+    class Meta:
+        model = InternalAccessoryRequest
+        fields = ['status']
+        widgets = {
+            'status': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only allow 'approved' and 'rejected' statuses
+        self.fields['status'].choices = [
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected')
+        ]
+class MarkAsDeliveredForm(forms.ModelForm):
+    class Meta:
+        model = InternalAccessoryRequest
+        fields = ['status']
+        widgets = {
+            'status': forms.HiddenInput()  # Hide the field since we are auto-marking it as 'delivered'
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['status'].initial = 'delivered'  # Set status to 'delivered' by default
+        
+
+class ServiceSaleForm(forms.ModelForm):
+    class Meta:
+        model = ServiceSale
+        fields = ['store', 'service', 'customer', 'staff']
+        widgets = {
+            'service': forms.Select(attrs={'class':'form-control'}),
+            'staff': forms.SelectMultiple(attrs={'class':'form-control'}),
+            'service':forms.Select(attrs={'class':'form-control'}),
+            'customer': forms.Select(attrs={'class':'form-control'}),
+
+            
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)  # Get the user from kwargs
+        super(ServiceSaleForm, self).__init__(*args, **kwargs)
+
+        if user:
+            # Filter stores to those managed by the logged-in user
+            self.fields['store'].queryset = Store.objects.filter(manager=user)
+
+            # If the user manages only one store, pre-select it
+            managed_stores = Store.objects.filter(manager=user)
+            if managed_stores.count() == 1:
+                self.fields['store'].initial = managed_stores.first()
+        
+class ServiceSaleAccessoryForm(forms.ModelForm):
+    class Meta:
+        model = ServiceSaleAccessory
+        fields = ['accessory', 'quantity']
+        widgets = {
+            'accessory': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+        }
+
+class ServiceSaleProductForm(forms.ModelForm):
+    class Meta:
+        model = ServiceSaleProduct
+        fields = ['product', 'quantity', 'price']
+        widgets = {
+            'product': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+            'price': forms.NumberInput(attrs={'class':'form-control'}),
+        }
+        
+# Formset for ServiceSaleAccessory (related to ServiceSale)
+ServiceSaleAccessoryFormSet = inlineformset_factory(
+    ServiceSale,
+    ServiceSaleAccessory,
+    form=ServiceSaleAccessoryForm,
+    extra=1,  # Number of empty forms to display
+    can_delete=True  # Allow deletion of accessories
+)
+
+# Formset for ServiceSaleProduct (related to ServiceSale)
+ServiceSaleProductFormSet = inlineformset_factory(
+    ServiceSale,
+    ServiceSaleProduct,
+    form=ServiceSaleProductForm,
+    extra=1,  # Number of empty forms to display
+    can_delete=True  # Allow deletion of products
 )

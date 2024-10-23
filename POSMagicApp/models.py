@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 from POSMagic.settings import STATIC_URL
+from production.models import Store
 
 # Create your models here.
     
@@ -18,7 +19,8 @@ class Branch(models.Model):
 class Staff(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True)
+    # branch = models.ForeignKey(Branch, on_delete=models.SET_NULL, null=True)
+    store = models.ForeignKey('production.Store', on_delete=models.SET_NULL, null=True, blank=True)
     phone = models.CharField(max_length=100)
     address = models.CharField(max_length=100)
     email = models.CharField(max_length=100, null=True, blank=True)
@@ -27,7 +29,7 @@ class Staff(models.Model):
     specialization = models.CharField(max_length=100, choices=(('HAIR_CARE', 'Hair Care'), ('STYLING', 'Styling'), ('OTHER', 'Other'),('BARBER', 'Barber'),('NAIL_ARTIST', 'Nail Artist'),('MASSEUSE', 'Masseuse')), default='OTHER')
 
     def __str__(self):
-        return f'{self.first_name}  {self.last_name} - {self.specialization} - {self.branch}'
+        return f'{self.first_name}  {self.last_name} - {self.specialization} - {self.store}'
     
 class Customer(models.Model):
     TYPE_OF_CUSTOMER = (

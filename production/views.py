@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import os
+from urllib import error
 from django.db.models import Sum, F
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
@@ -25,10 +26,10 @@ from django.db import transaction
 from django.db.models.functions import TruncMonth, TruncWeek, TruncDay
 from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
-from POSMagicApp.models import Customer
+from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, ManufactureProductForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, StoreAlertForm, StoreForm, StoreTransferForm, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
-from .models import LPO, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, ManufactureProduct, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, Store, StoreAlerts, StoreInventory, StoreSale, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
+from .forms import AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm,ServiceSaleProductFormSet,ServiceSaleAccessoryFormSet, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
+from .models import LPO, AccessoryInventory, AccessoryInventoryAdjustment, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
 
 # Create your views here.
 @login_required(login_url='/login/')
@@ -1514,6 +1515,376 @@ def store_sale_order_details(request, pk):
         'total_order_amount': total_order_amount,
     }
     return render(request,'store_sale_details.html', context)
+
+## general accessory store####
+@login_required
+def accessory_store (request):
+    # Get all accessories from the AccessoryInventory
+    accessory_inventory = AccessoryInventory.objects.all()
+    
+
+    # Pass the accessories to the template
+    return render(request, 'accessories_main_store.html', {'accessory_inventory': accessory_inventory})
+
+@login_required
+def create_new_accessory(request):
+    if request.method == 'POST':
+        form = NewAccessoryForm(request.POST)
+
+        if form.is_valid():
+            accessory = form.save(commit=False)
+            accessory.save()  # Save the accessory without assigning the purchase price
+            return redirect('accessory_store')  # Redirect to accessory store view
+        else:
+            print(form.errors)  # Check for validation errors
+    else:
+        form = NewAccessoryForm()
+    return render (request,'create_new_accessory.html',{'form':form})
+
+@login_required
+def create_accessory_requisition(request):
+    if request.method == 'POST':
+        requisition_form = MainStoreAccessoryRequisitionForm(request.POST)
+        formset = MainStoreAccessoryRequisitionItemFormSet(request.POST)
+
+        if requisition_form.is_valid() and formset.is_valid():
+            requisition = requisition_form.save(commit=False)
+            requisition.requested_by = request.user  # Assuming user is authenticated
+            requisition.save()
+
+            for form in formset:
+                item = form.save(commit=False)
+                item.requisition = requisition
+                item.save()  # Save the requisition item without assigning the purchase price
+
+            return redirect('main_store_accessory_requisitions_list')  # Redirect to process requisition view
+
+    else:
+        requisition_form = MainStoreAccessoryRequisitionForm()
+        formset = MainStoreAccessoryRequisitionItemFormSet(queryset=MainStoreAccessoryRequisitionItem.objects.none())
+
+    context = {'requisition_form': requisition_form, 'formset': formset}
+    return render(request, 'create_accessory_requisition.html', context)
+
+
+
+class AccessoryRequisitonView(DetailView):
+    model = MainStoreAccessoryRequisition
+    template_name = 'accessory_requisition_details.html'
+    context_object_name = 'acc_requisition'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        return context
+
+def process_acccessory_requisition(request, requisition_id):
+    requisition = get_object_or_404(MainStoreAccessoryRequisition, id=requisition_id)
+
+    if request.method == 'POST':
+        if 'mark_delivered' in request.POST:
+            requisition.status = 'delivered'
+            requisition.save()
+
+            for item in requisition.items.all():
+                inventory_item, created = AccessoryInventory.objects.get_or_create(
+                    accessory=item.accessory
+                )
+                inventory_item.quantity += item.quantity_requested
+                inventory_item.purchase_price = item.price  # Update purchase price
+                inventory_item.save()
+
+                AccessoryInventoryAdjustment.objects.create(
+                    accessory=item.accessory,
+                    quantity_adjusted=item.quantity_requested,
+                    reason=f"Added from requisition {requisition.accessory_req_number}",
+                    store=request.store
+                )
+
+            return redirect('accessory_store')  # Redirect to requisition list
+        
+        elif 'reject_requisition' in request.POST:
+            # Process the requisition as rejected
+            requisition.status = 'rejected'
+            # ... add specific rejection logic, e.g., sending notifications
+            
+        requisition.save()
+        return redirect('main_store_accessory_requisitions_list')  # Redirect to the requisition list
+
+    # ... other processing logic ...
+
+    return render(request, 'process_accessory_requisition.html', {'requisition': requisition})
+
+@login_required
+def main_store_accessory_requisitions_list(request):
+    # Get all accessory requisitions from the AccessoryRequisition
+    acc_requisitions = MainStoreAccessoryRequisition.objects.all()
+    return render (request, 'accessory_requisitions_list.html',{'acc_requisitions':acc_requisitions})
+
+@login_required
+def all_stores_inventory_view(request):
+    # Retrieve all store accessory inventories
+    store_inventories = StoreAccessoryInventory.objects.select_related('store', 'accessory').all()
+
+    return render(request, 'store_inventory.html', {
+        'store_inventories': store_inventories
+    })
+
+
+@login_required
+def accessory_stock_adjustment_view(request):
+    # Retrieve all stock adjustments, including related accessories and stores
+    adjustments = AccessoryInventoryAdjustment.objects.select_related('accessory', 'store').all()
+
+    return render(request, 'accessory_stock_adjustment.html', {
+        'adjustments': adjustments
+    })
+
+############################################# BRANCH VIEWS #############################################
+
+@login_required
+def create_service_sale(request):
+    if request.method == 'POST':
+        service_sale_form = ServiceSaleForm(request.POST, user=request.user)
+        
+        # Formsets for accessories and products
+        accessory_formset = ServiceSaleAccessoryFormSet(request.POST, request.FILES)
+        product_formset = ServiceSaleProductFormSet(request.POST, request.FILES)
+
+        if service_sale_form.is_valid() and accessory_formset.is_valid() and product_formset.is_valid():
+            # Save the ServiceSale instance
+            service_sale = service_sale_form.save(commit=False)
+            
+            # Calculate the total price: start with the service price
+            total_price = service_sale.service.price
+            
+            # Add the price of all accessories used
+            for accessory_item in accessory_formset:
+                if accessory_item.cleaned_data:
+                    quantity = accessory_item.cleaned_data.get('quantity', 0)
+                    accessory = accessory_item.cleaned_data.get('accessory')
+                    total_price += quantity * accessory.accessory.price
+            # Add the price of all products sold
+            for product_item in product_formset:
+                if product_item.cleaned_data:
+                    quantity = product_item.cleaned_data.get('quantity', 0)
+                    price = product_item.cleaned_data.get('price', 0)
+                    total_price += quantity * price
+            
+            # Set the calculated total price and save the service sale
+            service_sale.total_price = total_price
+            service_sale.save()
+            
+            # Associate staff members after saving
+            service_sale.staff.set(service_sale_form.cleaned_data.get('staff'))  # Set the staff here
+
+            # Save the accessories formset
+            accessory_formset.instance = service_sale
+            accessory_formset.save()
+
+            # Save the products formset (if any products are sold)
+            product_formset.instance = service_sale
+            product_formset.save()
+            
+            messages.success(request, 'Service Sale has been created Successfully')
+            return redirect('store_sale_list')  # Redirect to store sale list page
+
+    else:
+        service_sale_form = ServiceSaleForm(user=request.user)
+        accessory_formset = ServiceSaleAccessoryFormSet()
+        product_formset = ServiceSaleProductFormSet()
+
+    return render(request, 'create_service_sale.html', {
+        'service_sale_form': service_sale_form,
+        'accessory_formset': accessory_formset,
+        'product_formset': product_formset
+    })
+    
+def store_sale_service_invoice_list(request):
+    invoices = ServiceSaleInvoice.objects.all()
+    return render(request,'store_service_invoice_list.html', {'invoices': invoices})
+    
+@login_required
+def store_service_sales_view(request):
+    # Assuming the logged-in user is the manager of the store
+    store = get_object_or_404(Store, manager=request.user)
+
+    # Fetch all service sales for this store
+    service_sales = ServiceSale.objects.filter(store=store)
+
+    return render(request, 'store_sale_list.html', {
+        'service_sales': service_sales,
+        'store': store,
+    })
+    
+def store_sale_list(request):
+    # Assuming the logged-in user is the manager of the store
+    store = get_object_or_404(Store, manager=request.user)
+    # Fetch all service sales for this store
+    service_sales = ServiceSale.objects.filter(store=store)
+
+    # Pass the store sales to the template
+    return render(request,'store_sale_list.html', {'service_sales': service_sales,'store':store})
+    
+@login_required
+def store_services_view(request):
+    # Get the store managed by the logged-in user
+    store = get_object_or_404(Store, manager=request.user)
+
+    # Fetch services offered by the store
+    store_services = StoreService.objects.filter(store=store)
+
+    # Pass the store and services to the template
+    return render(request, 'each_store_services.html', {'store': store, 'store_services': store_services})
+
+@login_required
+def particular_store_inventory(request):
+    # Assuming the user is authenticated and has a related Store object
+    store = get_object_or_404(Store, manager=request.user)  # Adjust based on your User model
+
+    if store:
+        inventory_items = StoreAccessoryInventory.objects.filter(store=store)
+        return render(request, 'particular_store_inventory.html', {'inventory_items': inventory_items})
+    else:
+        # Handle the case where the user is not associated with a store
+        return render(request, 'no_store_access.html')
+    
+    
+@login_required
+def create_internal_requests(request):
+    # If the request is POST, process the form and formset
+    if request.method == 'POST':
+        form = InternalAccessoryRequestForm(request.POST, user=request.user)
+        item_formset = InternalAccessoryRequestItemFormSet(request.POST)
+        
+        if form.is_valid() and item_formset.is_valid():
+            # Save the main InternalAccessoryRequest object
+            request = form.save(commit=False)
+            request.save()
+            
+            # Save the items in the formset, attaching them to the main request
+            items = item_formset.save(commit=False)
+            for item in items:
+                item.request = request
+                item.save()
+                item.save()
+
+            return redirect('store_internal_requests')  # Redirect to a success page
+
+    # For GET requests, create empty forms
+    else:
+        form = InternalAccessoryRequestForm(user=request.user)
+        item_formset = InternalAccessoryRequestItemFormSet(queryset=InternalAccessoryRequestItem.objects.none())
+
+    return render(request, 'create_internal_requests.html', {'form': form, 'item_formset': item_formset})
+
+@login_required
+def store_internal_requests(request):
+    store = get_object_or_404(Store, manager=request.user)
+    internal_requests = InternalAccessoryRequest.objects.filter(store=store)
+    return render(request,'store_internal_requests.html', {'internal_requests': internal_requests})
+
+
+@login_required
+def all_internal_requests(request):
+    all_requests = InternalAccessoryRequest.objects.all()
+    return render(request, 'all_internal_requests.html', {'internal_requests': all_requests})
+
+def internal_request_detail(request, request_id):
+    internal_request = get_object_or_404(InternalAccessoryRequest, id=request_id)
+    return render(request, 'internal_request_detail.html', {'internal_request': internal_request})
+
+@login_required
+def process_internal_request(request, request_id):
+    internal_request = get_object_or_404(InternalAccessoryRequest, id=request_id)
+    if request.method == 'POST':
+        form = ApproveRejectRequestForm(request.POST, instance=internal_request)
+        if form.is_valid():
+            processed_request = form.save(commit=False)
+            processed_request.save()
+            messages.success(request, f"Request has been {processed_request.status}.")
+            return redirect('all_internal_requests')
+    else:
+        form = ApproveRejectRequestForm(instance=internal_request)
+    return render(request, 'process_internal_request.html', {'internal_request': internal_request, 'form':form})
+
+def mark_as_delivered(request, request_id):
+    # Get the request instance with status 'approved'
+    accessory_request = get_object_or_404(InternalAccessoryRequest, id=request_id, status='approved')
+
+    if request.method == 'POST':
+        form = MarkAsDeliveredForm(request.POST, instance=accessory_request)
+        if form.is_valid():
+            # Validate sufficient inventory before processing
+            if not validate_sufficient_inventory(accessory_request, accessory_request.store):
+                messages.error(request, "Insufficient inventory to fulfill the delivery request.")
+                return redirect('mark_as_delivered', request_id=request_id)
+
+            try:
+                # Deduct from main inventory
+                deduct_from_main_inventory(accessory_request)
+                # Add to store inventory
+                add_to_store_inventory(accessory_request, accessory_request.store)
+
+                # Mark the request as delivered
+                accessory_request.status = 'delivered'
+                accessory_request.save()
+
+                messages.success(request, "Request has been marked as delivered and inventory updated.")
+                return redirect('store_internal_requests')
+
+            except Exception as e:
+                messages.error(request, str(e))
+                return redirect('mark_as_delivered', request_id=request_id)
+    else:
+        form = MarkAsDeliveredForm(instance=accessory_request)
+
+    return render(request, 'mark_as_delivered.html', {
+        'form': form,
+        'accessory_request': accessory_request
+    })
+def validate_sufficient_inventory(request, store):
+    for item in request.items.all():
+        main_inventory = AccessoryInventory.objects.get(accessory=item.accessory)
+        if main_inventory.quantity < item.quantity_requested:
+            return False
+    return True
+
+def deduct_from_main_inventory(request):
+    for item in request.items.all():
+        main_inventory = AccessoryInventory.objects.get(accessory=item.accessory)
+        if main_inventory.quantity < item.quantity_requested:
+            raise error(f"Insufficient stock for {item.accessory.name}")  # Raise an error
+        main_inventory.quantity -= item.quantity_requested
+        main_inventory.save()
+
+        # Create adjustment record
+        adjustment = AccessoryInventoryAdjustment.objects.create(
+            accessory=item.accessory,
+            quantity_adjusted=-item.quantity_requested,  # Negative for deduction
+            reason=f"Delivered to store: {request.store.name}"
+        )
+
+def add_to_store_inventory(request, store):
+    for item in request.items.all():
+        store_inventory, created = StoreAccessoryInventory.objects.get_or_create(
+            store=store,
+            accessory=item.accessory,
+            defaults={'quantity': 0}  # Set initial quantity to 0 if the record is created
+        )
+        store_inventory.quantity += item.quantity_requested
+        store_inventory.save()
+
+
+@login_required
+def branch_staff_view(request):
+    # Get the branch managed by the logged-in user (assuming a manager is logged in)
+    store = get_object_or_404(Store, manager=request.user)
+
+    # Fetch all staff members assigned to this branch
+    staff_members = Staff.objects.filter(store=store)
+
+    # Pass the branch and staff to the template
+    return render(request, 'branch_staff.html', {'store': store, 'staff_members': staff_members})
 
 
 ################REQUISITIONS#########

@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Store{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">LIVARA STORES</a></li>
+            <li class="breadcrumb-item active">INVENTORY</li>
+        </ul>
+        <h5>Inventory for <span class="text-theme">{{ inventory_items.first.store.name }}</span></h5>
+    </div>
+    
+   
+</div>
+<div class="mb-md-4 mb-3 d-md-flex">
+    <div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'create_internal_requests' %}" class="text-inverse text-opacity-75 text-decoration-none"><i class="bi bi-body-text fa-fw me-1 text-theme"></i> Request for Accessories from Mainstore</a></div>
+    
+</div>
+    
+<table id="datatableDefault" class="table responsive text-nowrap w-50">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Accessory</th>
+            <th>Quantity</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in inventory_items %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ item.accessory.name }}</td>
+            <td>{{ item.quantity }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock content %}

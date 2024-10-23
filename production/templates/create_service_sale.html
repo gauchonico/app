@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Internal Requisitions{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">STORE</a></li>
+            <li class="breadcrumb-item active">NEW SERVICE SALE</li>
+        </ul>
+        <h5>Service Sale</h5>
+    </div>
+    
+
+</div>
+
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <!-- Main ServiceSale form -->
+    {{ service_sale_form.as_p }}
+
+    <h3>Accessories Used</h3>
+    <table class="table w-50" id="accessory_item_formset">
+		<thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                
+            </tr>
+        </thead>
+        {{ accessory_formset.management_form }}
+        <tbody>
+            {% for form in accessory_formset %}
+            <tr class="form-row">
+                <td>{{ form.accessory }}</td>
+                <td>{{ form.quantity }}</td>
+            </tr>
+            <tr>
+                <td colspan="2">{{ form.errors}}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>Products Sold</h3>
+    <table class="table w-50" id="product_item_formset">
+		<thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                
+            </tr>
+        </thead>
+        {{ product_formset.management_form }}
+        <tbody>
+            {% for form in product_formset %}
+            <tr class="form-row">
+                <td>{{ form.product }}</td>
+                <td>{{ form.quantity }}</td>
+                <td>{{ form.price }}</td>
+            </tr>
+            <tr>
+                <td colspan="3">{{ form.errors}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="ms-auto mt-5">
+		<button type="button" id="add_accessory" class="btn btn-primary">Add Accessory</button>
+        <button type="button" id="add_product" class="btn btn-primary">Add Product</button>
+		<button type="submit" class="btn btn-outline-theme me-2">Submit Sale</button>
+	</div>
+    </form>
+    <script>
+        $(document).ready(function() {
+            // Accessory formset
+            var accessoryFormCount = parseInt($('#id_accessory_items-TOTAL_FORMS').val()); // Get initial form count for accessories
+    
+            $('#add_accessory').click(function() {
+                var formIdx = accessoryFormCount;
+                accessoryFormCount++;
+    
+                var newForm = $('#accessory_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
+                newForm.find('input, select').each(function() {
+                    var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
+                    var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
+                    $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
+                });
+                newForm.find('.remove-form').remove(); // Remove any existing remove buttons
+                newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
+                $('#accessory_item_formset tbody').append(newForm); // Append the cloned form to the table body
+    
+                $('#id_accessory_items-TOTAL_FORMS').val(accessoryFormCount); // Update the management form with the new form count
+            });
+    
+            // Remove formset row for accessories
+            $('#accessory_item_formset').on('click', '.remove-form', function() {
+                $(this).closest('tr').remove(); // Remove the closest <tr> element
+                accessoryFormCount--;
+                $('#id_accessory_items-TOTAL_FORMS').val(accessoryFormCount); // Decrement form count
+            });
+    
+            // Product formset
+            var productFormCount = parseInt($('#id_product_items-TOTAL_FORMS').val()); // Get initial form count for products
+    
+            $('#add_product').click(function() {
+                var formIdx = productFormCount;
+                productFormCount++;
+    
+                var newForm = $('#product_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
+                newForm.find('input, select').each(function() {
+                    var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
+                    var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
+                    $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
+                });
+                newForm.find('.remove-form').remove(); // Remove any existing remove buttons
+                newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
+                $('#product_item_formset tbody').append(newForm); // Append the cloned form to the table body
+    
+                $('#id_product_items-TOTAL_FORMS').val(productFormCount); // Update the management form with the new form count
+            });
+    
+            // Remove formset row for products
+            $('#product_item_formset').on('click', '.remove-form', function() {
+                $(this).closest('tr').remove(); // Remove the closest <tr> element
+                productFormCount--;
+                $('#id_product_items-TOTAL_FORMS').val(productFormCount); // Decrement form count
+            });
+        });
+    </script>
+    
+
+{% endblock content %}

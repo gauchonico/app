@@ -1,0 +1,69 @@
+
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Process Internal Requisitions{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">INTERNAL REQUISITION</a></li>
+            <li class="breadcrumb-item active">PROCESS {{ internal_request.id }}</li>
+        </ul>
+        <h5>Internal Requisitions</h5>
+    </div>
+    
+
+</div>
+
+<p>Store: {{ internal_request.store }}</p>
+<p>Request Date: {{ internal_request.request_date }}</p>
+<p>Status: {{ internal_request.status }}</p>
+<table class="table w-50">
+    <thead>
+        <tr>
+            <th>Accessory</th>
+            <th>Quantity Requested</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in internal_request.items.all %}
+        <tr>
+            <td>{{ item.accessory.name }}</td>
+            <td>{{ item.quantity_requested }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+{% endblock content %}

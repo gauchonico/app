@@ -231,6 +231,31 @@ def sidebar_menu(request):
             'text': 'General Stores',
             'name': 'store_inventory_list',
         },{
+            'url':'/production/accessory_store/',
+            'icon': 'fa-solid fa-gem',
+            'text': 'Main Accessory Inventory',
+            'name': 'accessory_store',
+        },{
+            'url': '/production/all_internal_requests/',
+            'icon': 'bi bi-folder-fill',
+            'text': 'Store Accessory Requests',
+            'name': 'all_internal_requests',
+        },{
+            'url':'/production/particular_store_inventory/',
+            'icon': 'bi bi-folder-fill',
+            'text': 'Accessory Inventory',
+            'name': 'particular_store_inventory',
+        },{
+            'url': '/production/store_internal_requests/',
+            'icon': 'bi bi-folder',
+            'text': 'Accessory Requests',
+            'name':'store_internal_requests'
+        },{
+            'url': '/production/all_stores_inventory_view/',
+            'icon': 'bi bi-folder-fill',
+            'text': 'All Store Accessories',
+            'name':'all_stores_inventory_view'
+        },{
             'url': '/production/main_stock_transfers/',
             'icon': 'bi bi-truck',
             'text': mark_safe (
@@ -268,6 +293,16 @@ def sidebar_menu(request):
             'icon': 'bi bi-folder-fill',
             'text': 'Manager Inventory',
             'name':'manager_inventory_view',    
+        },{
+            'url': '/production/store_sale_list/',
+            'icon': 'bi bi-folder',
+            'text': 'Store Sales',
+            'name':'store_sale_list',
+        },{
+            'url': '/production/store_sale_service_invoice_list/',
+            'icon': 'bi bi-folder',
+            'text': 'Store Sales Invoices',
+            'name':'store_sale_service_invoice_list',
         },{
             'text': 'FINANCE',
             'is_header': 1
@@ -311,6 +346,16 @@ def sidebar_menu(request):
             'icon': 'bi bi-bounding-box-circles',
             'text': 'My Inventory',
             'name': 'managers_store_inventory_view',
+        },{
+            'url': '/production/store_services_view/',
+            'icon': 'bi bi-bounding-box-circles',
+            'text': 'Our Services',
+            'name': 'store_services_view',
+        },{
+            'url':'/production/branch_staff_view/',
+            'icon': 'bi bi-person',
+            'text': 'Branch Staff',
+            'name': 'branch_staff_view',
         },{
             'text': 'Salon Manager',
             'is_header': 1
@@ -359,12 +404,12 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','restockRequests','main_store_inventory_adjustments']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','restockRequests','main_store_inventory_adjustments','accessory_store','all_internal_requests']]  # Replace with your store manager menu names
             
         elif 'Branch Manager' in group_names:
             # Show branch manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','restockRequests']]  # Replace with your branch manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','store_sale_list','store_sale_service_invoice_list']]  # Replace with your branch manager menu names
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
@@ -402,7 +447,7 @@ def sidebar_menu(request):
                 'text': 'Replace Notes',
                 'name':'replace_notes_list'
                 },{
-                 
+            
                 'url': '/production/outstanding_payables',
                 'icon': 'bi bi-box-seam',
                 'text': mark_safe(f'Outstanding Payables<span class="badge rounded-circle bg-danger">{get_outstanding_po_payables}</span>'

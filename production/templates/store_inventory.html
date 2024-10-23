@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">MAIN STORE</a></li>
+            <li class="breadcrumb-item active">ACCESSORY INVENTORY</li>
+        </ul>
+        <h5>Accessory Inventory for all our stores</h5>
+    </div>
+    
+   
+</div>
+  <a class="btn btn-primary" href="{% url 'accessory_stock_adjustment_view' %}">Adjustment Report</a>
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Store</th>
+        <th>Accessory</th>
+        <th>Quantity</th>
+        <th>Last Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inventory in store_inventories %}
+      <tr>
+        <td>{{ inventory.store.name }}</td>
+        <td>{{ inventory.accessory.name }}</td>
+        <td>{{ inventory.quantity }}</td>
+        <td>{{ inventory.last_updated }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

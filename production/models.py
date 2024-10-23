@@ -8,7 +8,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.forms import DecimalField
 
-from POSMagicApp.models import Customer 
+# from POSMagicApp.models import Customer 
 from django.db.models import Sum, F
 from django.utils import timezone
 from django.db.models.signals import post_save
@@ -265,7 +265,121 @@ class Store(models.Model):
 
     def __str__(self):
         return self.name
+
+class ServiceName(models.Model):
+    name = models.CharField(max_length=255)  # Service name (e.g., Hairdressing)
+    price = models.DecimalField(max_digits=10, decimal_places=2)  # Price for the service (e.g., 20000)
     
+    def __str__(self):
+        return self.name
+
+
+class StoreService(models.Model):
+    store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='store_services')
+    service = models.ForeignKey(ServiceName, on_delete=models.CASCADE, related_name='store_services')
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2)  # e.g., 0.10 for 10% commission
+
+    class Meta:
+        unique_together = ('store', 'service')  # Ensure that each service is unique per store
+
+    def __str__(self):
+        return f"{self.store.name} offers {self.service.name} with {self.commission_rate*100}% commission"
+    
+
+class ServiceSale(models.Model):
+    PAID_STATUS_CHOICES = [
+        ('not_paid', 'Not Paid'),
+        ('paid', 'Paid'),
+    ]
+    store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='service_sales')
+    service = models.ForeignKey(ServiceName, on_delete=models.CASCADE)
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='service_sales')
+    accessories_used = models.ManyToManyField('ServiceSaleAccessory', blank=True)
+    products_sold = models.ManyToManyField('ServiceSaleProduct', blank=True)
+    staff = models.ManyToManyField('POSMagicApp.Staff', related_name='services_handled')  # Multiple staff can handle the service
+    total_price = models.DecimalField(max_digits=10, decimal_places=2)
+    sale_date = models.DateTimeField(auto_now_add=True)
+    paid_status = models.CharField(max_length=20, choices=PAID_STATUS_CHOICES, default='not_paid')
+
+    def __str__(self):
+        return f"{self.service.name} for {self.customer} at {self.store.name}"
+    
+    
+
+    def calculate_total_price(self):
+        total_price = self.service.price
+        for accessory_item in self.accessories_used.all():
+            total_price += accessory_item.quantity * accessory_item.accessory.price
+        for product_item in self.products_sold.all():
+            total_price += product_item.quantity * product_item.price
+        return total_price
+    
+    def save(self, *args, **kwargs):
+        # Save without ManyToMany fields first to get the object ID
+        if not self.pk:
+            super(ServiceSale, self).save(*args, **kwargs)  # Save first to get the primary key (id)
+
+        # Now that the instance has an ID, save the total price
+        self.total_price = self.calculate_total_price()
+
+        # Update the instance with the new total price
+        super().save(update_fields=['total_price'])
+        
+        # Save ManyToMany fields after the total price is calculated
+        self.accessories_used.set(self.accessories_used.all())  # Ensure accessories are saved
+        self.products_sold.set(self.products_sold.all())  # Ensure products are saved
+
+        # Automatically create an invoice if it doesn't exist
+        if not hasattr(self, 'invoice'):
+            self.create_invoice()
+    
+    def create_invoice(self):
+        """ Create an invoice when the sale is created """
+        total_amount = self.total_price
+        invoice = ServiceSaleInvoice.objects.create(sale=self, total_amount=total_amount)
+        return invoice
+    
+class ServiceSaleAccessory(models.Model):
+    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='accessory_items')
+    accessory = models.ForeignKey('StoreAccessoryInventory', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    
+class ServiceSaleProduct(models.Model):
+    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='product_items')
+    product = models.ForeignKey('StoreInventory', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    
+class ServiceSaleInvoice(models.Model):
+    sale = models.OneToOneField('ServiceSale', on_delete=models.CASCADE, related_name='invoice')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    PAID_STATUS_CHOICES = [
+        ('unpaid', 'Unpaid'),
+        ('partially_paid', 'Partially Paid'),
+        ('paid', 'Paid'),
+    ]
+    paid_status = models.CharField(max_length=20, choices=PAID_STATUS_CHOICES, default='unpaid')
+
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mobilemoney', 'Mobile Money'),
+        ('both', 'Both'),
+    ]
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
+
+    remarks = models.TextField(blank=True, null=True)  # Optional remarks
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Invoice for {self.sale} - {self.total_amount}"
+
+    def mark_paid(self):
+        """ Mark the invoice as fully paid """
+        self.paid_status = 'paid'
+        self.save()
+
 class StockTransfer(models.Model):
     from_inventory = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE, related_name='from_transfers')
     to_store = models.ForeignKey(Store, on_delete=models.CASCADE)
@@ -345,6 +459,92 @@ class StoreTransferItem(models.Model):
     quantity = models.PositiveIntegerField()
     delivered_quantity = models.PositiveIntegerField(null=True, blank=True)  # New field for delivered quantity
     
+# 1. Main Accessory Model
+class Accessory(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    purchase_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+# 2. Main Store Accessory Inventory (Livara Main Store)
+class AccessoryInventory(models.Model):
+    accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE, related_name='main_inventory')
+    quantity = models.PositiveIntegerField()
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.accessory.name} - {self.quantity} units"
+
+    def is_low_stock(self):
+        return self.quantity < 50  # You can adjust the threshold
+    
+class AccessoryInventoryAdjustment(models.Model):
+    accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE, related_name='adjustments')
+    quantity_adjusted = models.IntegerField()  # Can be positive or negative
+    adjustment_date = models.DateTimeField(auto_now_add=True)
+    reason = models.TextField(blank=True)  # Optional: Explain the adjustment
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='adjustments', null=True, blank=True)  # Track the store
+
+    def __str__(self):
+        return f"Adjusted {self.quantity_adjusted} units of {self.accessory.name} on {self.adjustment_date}"
+    
+# Main Store Accessory Requisition Model
+class MainStoreAccessoryRequisition(models.Model):
+    accessory_req_number = models.CharField(max_length=50, unique=True, blank=True)
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    request_date = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=50, choices=[
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('delivered', 'Delivered')
+    ], default='pending')
+    comments = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Requisition by {self.requested_by.username} on {self.request_date}"
+    
+    def save(self, *args, **kwargs):
+        if not self.accessory_req_number:
+            self.accessory_req_number = self.generate_accessory_req_number()
+        
+        super().save(*args, **kwargs)
+    
+    def generate_accessory_req_number(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        
+        # Generate random number
+        random_number = random.randint(1000, 9999)
+        
+        # Construct the LPO number
+        accessory_req_number = f"acc-main-{month}{year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while MainStoreAccessoryRequisition.objects.filter(accessory_req_number=accessory_req_number).exists():
+            random_number = random.randint(1000, 9999)
+            accessory_req_number = f"pod-po{month}{year}-{random_number}"
+        
+        return accessory_req_number
+
+
+# Individual Accessory Requisition Items
+class MainStoreAccessoryRequisitionItem(models.Model):
+    requisition = models.ForeignKey(MainStoreAccessoryRequisition, related_name='items', on_delete=models.CASCADE)
+    accessory = models.ForeignKey('Accessory', on_delete=models.CASCADE)
+    quantity_requested = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.quantity_requested} units of {self.accessory.name}"
+    
+
+    
 
 
 ##############################################
@@ -393,7 +593,7 @@ class StoreInventory(models.Model):
         
     
         
-class InventoryAdjustment(models.Model):
+class InventoryAdjustment(models.Model): ### for manufacture products ###
     store_inventory = models.ForeignKey(StoreInventory, on_delete=models.CASCADE, related_name='adjustments')
     adjusted_quantity = models.IntegerField()
     adjustment_date = models.DateTimeField(auto_now_add=True)
@@ -405,13 +605,42 @@ class InventoryAdjustment(models.Model):
     def __str__(self):
         return f"Adjustment of {self.adjusted_quantity} units for {self.store_inventory.product} on {self.adjustment_date}"
 
-# what to add 
-# bottle top and bottle without affecting the total volume
-# add utilities and labour cost information to be added while manufacturing. utility cost information
-# total vo,ume of the product.
-# when creating a product  measurements litres make sure its capital or something
-# 
+class StoreAccessoryInventory(models.Model):#### For Accessories in each Store ##
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='accessory_inventory')
+    accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    last_updated = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ('store', 'accessory')
+
+    def __str__(self):
+        return f"{self.accessory.name} - {self.quantity} units in {self.store.name}"
+
+    def is_low_stock(self):
+        return self.quantity < 20  # Adjust as needed
+    
+# 4. Requisition Model (Request for restock in each store)
+class InternalAccessoryRequest(models.Model):
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
+    request_date = models.DateField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')],default="pending")
+
+    comments = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"Request from {self.store.name} on {self.request_date}"
+
+
+# 5. Requisition Item Model (Items in a Requisition)
+class InternalAccessoryRequestItem(models.Model):
+    request = models.ForeignKey(InternalAccessoryRequest, on_delete=models.CASCADE, related_name='items',null=True,blank=True)
+    accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE)
+    quantity_requested = models.PositiveIntegerField()
+    # Other fields like price, notes, etc., if needed
+
+    def __str__(self):
+        return f"{self.quantity_requested} x {self.accessory.name}"
 
 
 class Notification(models.Model):
@@ -431,7 +660,7 @@ class StoreSale(models.Model):
     WITHHOLDING_TAX_RATE = 0.06  # Default withholding tax rate (6%)
     PAYMENT_DURATION = timedelta(days=45)  # Default payment duration (45 days)
 
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE)
     sale_date = models.DateTimeField(auto_now_add=True)
     payment_status = models.CharField(max_length=255, choices=[
         ("pending", "Pending"),

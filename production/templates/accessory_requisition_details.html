@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Accessories Requisition Details{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">MAIN STORE</a></li>
+            <li class="breadcrumb-item active">REQUISITIONS DETAILS</li>
+        </ul>
+        <h5>Requisitions For all our Livara Accessories</h5>
+    </div>
+    
+</div>
+<p><strong>Requisition Number:</strong> <span class="text-theme">{{ acc_requisition.accessory_req_number }}</span></p>
+    <p><strong>Requested By:</strong> {{ acc_requisition.requested_by }}</p>
+    <p><strong>Request Date:</strong> {{ acc_requisition.request_date }}</p>
+    <p><strong>Status:</strong> {{ acc_requisition.status }}</p>
+    <p><strong>Comments:</strong> {{ acc_requisition.comments }}</p>
+    <h2>Items</h2>
+    <table id="datatableDefault" class="table text-nowrap w-50">
+        <thead>
+            <tr>
+                <th>Accessory</th>
+                <th>Quantity Requested</th>
+                <th>Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in acc_requisition.items.all %}
+            <tr>
+                <td>{{ item.accessory.name }}</td>
+                <td>{{ item.quantity_requested }}</td>
+                <td>{{ item.price }}</td>
+                
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if acc_requisition.status == 'pending' %}
+    <form method="post" action="{% url 'process_acccessory_requisition' acc_requisition.id %}">
+        {% csrf_token %}
+        <button class="btn btn-theme btn-sm" type="submit" name="mark_delivered">Mark as Delivered</button>
+        <button class="btn btn-danger btn-sm" type="submit" name="reject_requisition">Reject Requisition</button>
+    </form>
+    {% endif %} 
+
+{% endblock content%}

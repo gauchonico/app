@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Mark Request as Delivered for {{ accessory_request.store.name }}</h2>
+
+  <p>Request Date: {{ accessory_request.request_date }}</p>
+  <p>Status: {{ accessory_request.status }}</p>
+
+  <h3>Items Delivered:</h3>
+  <ul>
+    {% for item in accessory_request.items.all %}
+      <li>{{ item.quantity_requested }} x {{ item.accessory.name }}</li>
+    {% endfor %}
+  </ul>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form }}
+    <button type="submit" class="btn btn-success">Mark as Delivered</button>
+  </form>
+
+  {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

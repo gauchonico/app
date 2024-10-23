@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Accessories{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">MAIN STORE</a></li>
+            <li class="breadcrumb-item active">ACCESSORIES STORE</li>
+        </ul>
+        <h5>Inventory for all Livara Accessories</h5>
+    </div>
+    
+   
+</div>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+	<table class="table-responsive" id="requisition_item_formset">
+		<thead>
+            <tr>
+                <th>Product Name</th>
+                <th>Quantity</th>
+                
+            </tr>
+        </thead>
+		{{ item_formset.management_form }}
+        <tbody>
+            {% for form in item_formset %}
+                <tr class="form-row">
+                    <td>{{ form.accessory }}</td>
+                    <td>{{ form.quantity_requested }}</td>
+                    
+                </tr>
+				<tr>
+					<td colspan="2">{{ form.errors}}</td>
+				</tr>
+            {% endfor %}
+        </tbody>
+	</table>
+	<div class="ms-auto mt-5">
+		<button type="button" id="add_form" class="btn btn-primary">Add Item</button>
+		<button type="submit" class="btn btn-outline-theme me-2">Submit Requisition</button>
+	</div>
+</form>
+<script>
+	$(document).ready(function() {
+		var formCount = parseInt($('#id_form-TOTAL_FORMS').val()); // Get initial form count
+		
+		$('#add_form').click(function() {
+			var formIdx = formCount;
+			formCount++;
+			
+			var newForm = $('#requisition_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
+			newForm.find('input, select').each(function() {
+				var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
+				var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
+				$(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
+			});
+			newForm.find('.remove-form').remove(); // Remove any existing remove buttons
+			newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
+			$('#requisition_item_formset tbody').append(newForm); // Append the cloned form to the table body
+			
+			$('#id_form-TOTAL_FORMS').val(formCount); // Update the management form with the new form count
+		});
+	
+		// Remove formset row
+		$('#requisition_item_formset').on('click', '.remove-form', function() {
+			$(this).closest('tr').remove(); // Remove the closest <tr> element
+			formCount--;
+			$('#id_form-TOTAL_FORMS').val(formCount); // Decrement form count
+		});
+	});
+</script>
+
+
+{% endblock content %}

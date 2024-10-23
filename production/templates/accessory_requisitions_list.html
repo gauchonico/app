@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Accessories Requisitions{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">MAIN STORE</a></li>
+            <li class="breadcrumb-item active">REQUISITIONS LIST</li>
+        </ul>
+        <h5>Requisitions For all our Livara Accessories</h5>
+    </div>
+    
+    <div class="ms-auto">
+        <a href="{% url 'create_accessory_requisition' %}" class="btn btn-outline-theme me-2">New Requisition</a>
+    </div>
+</div>
+
+
+{% if acc_requisitions %}
+<table id="datatableDefault" class="table text-nowrap w-100">
+    
+  <thead>
+    <tr>
+        <th>Requisition Number</th>
+        <th>Requested By</th>
+        <th>Request Date</th>
+        <th>Status</th>
+        <th>Items</th>
+        <th>..</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for acc_requisition in acc_requisitions %}
+    <tr>
+        <td><a href="">{{ acc_requisition.accessory_req_number }}</td>
+        <td>{{ acc_requisition.requested_by }}</td>
+        <td>{{ acc_requisition.request_date }}</td>
+        <td>{{ acc_requisition.status }}</td>
+        <td>
+            <ul class="list-group">
+                {% for item in acc_requisition.items.all %}
+                <li class="list-group-item">{{ item.quantity_requested }} x {{ item.accessory.name }}</li>
+                {% endfor %}
+            </ul>
+        </td>
+        <td>
+            <a href="{% url 'accessory_requisition_details' acc_requisition.id  %}">Details</a>
+        </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No inventory found.</p>
+{% endif %}
+{% endblock content %}
