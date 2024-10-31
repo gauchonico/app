@@ -13,6 +13,8 @@ from django.db.models import Sum, F
 from django.utils import timezone
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.db.models.functions import Coalesce
+from django.core.exceptions import ValidationError
 
 
 
@@ -121,12 +123,17 @@ class StoreAlerts (models.Model):
     handled_at = models.DateTimeField(blank=True, null=True)
 
 ### next week #####################################
-    
+
+class ProductionManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().values_list('product_name', flat=True)
 
 class Production(models.Model):
     product_name = models.CharField(max_length=255)
     total_volume = models.DecimalField(max_digits=4, decimal_places=0)  # Adjust precision as needed
     unit_of_measure = models.ForeignKey(UnitOfMeasurement, null=True, blank=True, on_delete=models.SET_NULL)
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # New field for price
+    objects = ProductionManager()
 
     def __str__(self):
         return self.product_name
@@ -233,6 +240,13 @@ class ManufactureProduct(models.Model):
             batch_number = f"{product_prefix}-{month}{year}-{exp_year}-{random_number}"
         
         return batch_number
+class ManufacturedProductIngredient(models.Model):
+    manufactured_product = models.ForeignKey(ManufactureProduct, on_delete=models.CASCADE, related_name='used_ingredients')
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
+    quantity_used = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.quantity_used} of {self.raw_material.name} for {self.manufactured_product}"
     
 class ManufacturedProductInventory(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
@@ -396,7 +410,7 @@ class StockTransfer(models.Model):
 
 ##### Main Livara Store Transfer      
 class LivaraMainStore(models.Model):
-    product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)
+    product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE,related_name='livara_main_store')
     quantity = models.PositiveIntegerField()
     batch_number = models.CharField(max_length=50, null=True, blank=True)
     quantity = models.PositiveIntegerField()
@@ -425,7 +439,7 @@ class StoreTransfer(models.Model):
     notes = models.CharField(max_length=40, null=True, blank=True)
     date = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Completed', 'Completed')], default='Pending')
+    status = models.CharField(max_length=20, choices=[('Pending', 'Pending'),('Approved','Approved'), ('Completed', 'Completed')], default='Pending')
     
     def __str__(self):
         return f"Transfer {self.liv_main_transfer_number} by {self.created_by}"
@@ -459,6 +473,7 @@ class StoreTransferItem(models.Model):
     quantity = models.PositiveIntegerField()
     delivered_quantity = models.PositiveIntegerField(null=True, blank=True)  # New field for delivered quantity
     
+    
 # 1. Main Accessory Model
 class Accessory(models.Model):
     name = models.CharField(max_length=255)
@@ -473,24 +488,39 @@ class Accessory(models.Model):
 # 2. Main Store Accessory Inventory (Livara Main Store)
 class AccessoryInventory(models.Model):
     accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE, related_name='main_inventory')
-    quantity = models.PositiveIntegerField()
+    quantity = models.PositiveIntegerField(default=0)
     last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.accessory.name} - {self.quantity} units"
-
-    def is_low_stock(self):
-        return self.quantity < 50  # You can adjust the threshold
+        return f"{self.accessory.name} "
     
+    @property
+    def current_stock(self):
+        return self.quantity
+    
+    @current_stock.setter
+    def current_stock(self, value):
+        self.quantity = value
+        self.save()  # Make sure to save the model if you're using a setter
+
+    def adjust_stock(self, quantity, description=""):
+        """Method to create an adjustment for the inventory."""
+        with transaction.atomic():
+            AccessoryInventoryAdjustment.objects.create(
+                accessory_inventory=self, adjustment=quantity, description=description, date=timezone.now()
+            )
+            self.quantity += quantity  # Update the quantity directly in the inventory
+            self.save()
+
+# Accessory Inventory Adjustments
 class AccessoryInventoryAdjustment(models.Model):
-    accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE, related_name='adjustments')
-    quantity_adjusted = models.IntegerField()  # Can be positive or negative
-    adjustment_date = models.DateTimeField(auto_now_add=True)
-    reason = models.TextField(blank=True)  # Optional: Explain the adjustment
-    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='adjustments', null=True, blank=True)  # Track the store
+    accessory_inventory = models.ForeignKey(AccessoryInventory, on_delete=models.CASCADE,null=True, blank=True)
+    adjustment = models.DecimalField(max_digits=15, decimal_places=5, default=0.0)
+    description = models.CharField(max_length=255, blank=True)
+    date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Adjusted {self.quantity_adjusted} units of {self.accessory.name} on {self.adjustment_date}"
+        return f"{'Increase' if self.adjustment > 0 else 'Decrease'} of {self.adjustment} units at {self.date}"
     
 # Main Store Accessory Requisition Model
 class MainStoreAccessoryRequisition(models.Model):
@@ -550,6 +580,7 @@ class MainStoreAccessoryRequisitionItem(models.Model):
 ##############################################
 
 class RestockRequest(models.Model):
+    liv_store_transfer_number = models.CharField(max_length=50, unique=True, blank=True)
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     requested_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True, related_name="requested_restocks")  # Optional: User who requested
     request_date = models.DateTimeField(auto_now_add=True)
@@ -563,15 +594,48 @@ class RestockRequest(models.Model):
 
 
     def __str__(self):
-        return f"Restock Request for {self.store.name} (requested by: {self.requested_by.username if self.requested_by else 'N/A'})"
+        return f"Restock Request for {self.liv_store_transfer_number}-{self.store.name} (requested by: {self.requested_by.username if self.requested_by else 'N/A'})"
+    
+    def save(self, *args, **kwargs):
+        if not self.liv_store_transfer_number:
+            self.liv_store_transfer_number = self.generate_liv_store_transfer_number()
+        super().save(*args, **kwargs)
+
+    def generate_liv_store_transfer_number(self):
+        current_date = timezone.now()
+        month = current_date.strftime('%m')  # Month as two digits (08)
+        year = current_date.strftime('%y')   # Year as last two digits (24)
+        
+        # Generate random number
+        random_number = random.randint(1000, 9999)
+        
+        # Construct the LPO number
+        liv_store_transfer_number = f"LIV-STORE-TRNS-{month}{year}-{random_number}"
+        
+        # Ensure the generated number is unique
+        while RestockRequest.objects.filter(liv_store_transfer_number=liv_store_transfer_number).exists():
+            random_number = random.randint(1000, 9999)
+            liv_store_transfer_number = f"pod-po{month}{year}-{random_number}"
+        
+        return liv_store_transfer_number
     
 class RestockRequestItem(models.Model):
     restock_request = models.ForeignKey(RestockRequest, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
+    approved_quantity = models.PositiveIntegerField(null=True, blank=True)  # Approved quantity
+    delivered_quantity = models.PositiveIntegerField(null=True, blank=True)  # New field for delivered quantity
+    
 
     def __str__(self):
         return f"{self.quantity} units of {self.product.product.product.product_name} for restock request {self.restock_request}"
+    
+        
+class TransferApproval(models.Model):
+    transfer = models.ForeignKey(RestockRequest, on_delete=models.CASCADE)
+    approved_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    approved_date = models.DateTimeField(auto_now_add=True)
+    approved_quantity = models.PositiveIntegerField()  # Approved quantity
     
 class StoreInventory(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)  # Link to manufactured product

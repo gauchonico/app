@@ -3,33 +3,31 @@
 {% block content %}
 <div class="container">
     <h1>Manufactured Products Report</h1>
-    <form method="get" class="mb-3">
-        <div class="form-group">
-            <label for="period">Select Period:</label>
-            <select name="period" id="period" class="form-control" onchange="this.form.submit()">
-                <option value="month" {% if period == 'month' %}selected{% endif %}>Month</option>
-                <option value="week" {% if period == 'week' %}selected{% endif %}>Week</option>
-                <option value="day" {% if period == 'day' %}selected{% endif %}>Day</option>
-            </select>
-        </div>
+    <form method="get">
+        <label for="period">Select Period:</label>
+        <select class="form-select form-control-sm" rows="3" name="period" id="period">
+            <option value="day" {% if period == 'day' %}selected{% endif %}>Day</option>
+            <option value="week" {% if period == 'week' %}selected{% endif %}>Week</option>
+            <option value="month" {% if period == 'month' %}selected{% endif %}>Month</option>
+            <option value="year" {% if period == 'year' %}selected{% endif %}>Year</option>
+        </select>
+        <button class="btn btn-theme mt-3" type="submit">Filter</button>
     </form>
     
-    <table class="table table-striped">
+    <table class="table">
         <thead>
             <tr>
                 <th>Period</th>
+                <th>Product Name</th>
                 <th>Total Quantity</th>
             </tr>
         </thead>
         <tbody>
-            {% for item in manufactured_products %}
+            {% for entry in manufactured_products %}
             <tr>
-                <td>{{ item.period }}</td>
-                <td>{{ item.total_quantity }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="2">No data available.</td>
+                <td>{{ entry.period|date:"Y-m-d" }}</td>
+                <td>{{ entry.product__product_name }}</td>
+                <td>{{ entry.total_quantity }}</td>
             </tr>
             {% endfor %}
         </tbody>

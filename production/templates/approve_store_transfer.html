@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Approve Restock Request for {{ restock_request.liv_store_transfer_number }}</h2>
+{% if formset.errors %}
+    <div class="alert alert-danger">
+        <ul>
+            {% for form in formset %}
+                {% for field, errors in form.errors.items %}
+                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+<form method="POST">
+    {% csrf_token %}
+    {{ formset.management_form }} 
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Requested Quantity</th>
+                <th>Approved Quantity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for form in formset %}
+            <tr>
+                <td>{{ form.instance.product }}</td>
+                <td>{{ form.instance.quantity }}</td>
+                <td>{{ form.approved_quantity }}
+                    {% if form.approved_quantity.errors %}
+                                <div class="errors">{{ form.approved_quantity.errors }}</div>
+                    {% endif %}
+                </td>
+                {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button type="submit">Approve</button>
+</form>
+
+
+
+<a href="{% url 'restockRequests' %}">Back to Requests</a>
+{% endblock %}

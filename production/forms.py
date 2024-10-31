@@ -103,11 +103,12 @@ class StoreAlertForm(forms.ModelForm):
 class ProductionForm(forms.ModelForm):
     class Meta:
         model = Production
-        fields = ['product_name', 'total_volume','unit_of_measure']
+        fields = ['product_name', 'total_volume','unit_of_measure','price']
         widgets = {
             'product_name': forms.TextInput(attrs={'class':'form-control'}),
             'total_volume': forms.NumberInput(attrs={'class':'form-control','placeholder':'unit volume'}),
             'unit_of_measure': forms.Select(attrs={'class':'form-control','placeholder':'unit of measure'}),
+            'price': forms.NumberInput(attrs={'class':'form-control','placeholder':'Proposed price for Product'}),  # Render as number input field
         }
         labels = {
             'total_volume':'Unit Volume',
@@ -200,6 +201,16 @@ class StoreTransferItemForm(forms.ModelForm):
         # Example: Limit queryset to active ManufacturedProductInventory instances
         self.fields['product'].queryset = ManufacturedProductInventory.objects.all()
         
+class TransferApprovalForm(forms.ModelForm):
+    class Meta:
+        model = RestockRequest
+        fields = ['status']  # You might want to include other fields as needed
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for item in self.instance.items.all():
+            initial_value = item.approved_quantity or 0  # Use 0 as default if no approved_quantity exists
+            self.fields[f'approve_quantity_for{item.product.product.product}'] = forms.IntegerField(initial=initial_value, required=True)
         
 class LivaraMainStoreDeliveredQuantityForm(forms.ModelForm):
     class Meta:
@@ -248,6 +259,29 @@ RestockRequestItemFormset = forms.inlineformset_factory(
     extra=1, 
     can_delete=True
 )
+
+class RestockApprovalItemForm(forms.ModelForm):
+    class Meta:
+        model = RestockRequestItem
+        fields = ['product','quantity','approved_quantity']  # You might want to include other fields as needed
+        widgets ={
+            'product': forms.Select(attrs={'readonly': 'readonly'}),
+            'quantity': forms.NumberInput(attrs={'readonly': 'readonly'}),
+            'approved_quantity': forms.NumberInput(attrs={'class':'form-control'}),
+        }
+        
+class DeliveryRestockRequestForm(forms.ModelForm):
+    class Meta:
+        model = RestockRequestItem
+        fields = ('product','quantity','approved_quantity','delivered_quantity',)
+        widgets = {
+            'product': forms.Select(attrs={'readonly': 'readonly'}),
+            'quantity': forms.NumberInput(attrs={'readonly': 'readonly'}),
+            'approved_quantity': forms.NumberInput(attrs={'readonly': 'readonly'}),
+            'delivered_quantity': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+    
+    
 
 
 class ProductionOrderForm(forms.ModelForm):

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import  AccessoryRequisitonView, LpoDetailView, ProDeView, delete_rawmaterial, purhcaseOrderDetails
+from .views import  AccessoryRequisitonView, ApproveStoreTransferView, DeliverRestockRequestView, LpoDetailView, ProDeView, delete_rawmaterial, purhcaseOrderDetails
 from . import views
 
 urlpatterns = [
@@ -78,6 +78,7 @@ urlpatterns = [
     path('delete-store/<int:store_id>/', views.delete_store, name="deleteStore"),
     path('restock-requests/', views.restock_requests, name="restockRequests"),
     path('create-restock-request/', views.create_restock_request, name="createRestockRequest"),
+    path('restock_request_detail/<int:restock_id>/', views.restock_request_detail, name="restock_request_detail"),
     path('mark_restock_as_delivered/<int:restock_id>', views.mark_restock_as_delivered, name="restock_delivered"),
     
     path('manager_inventory_view/', views.manager_inventory_view, name="manager_inventory_view"),
@@ -89,6 +90,10 @@ urlpatterns = [
     path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),
     path('general-stores/', views.store_inventory_list, name="store_inventory_list"),
     path('bulk_stock_tansfer/', views.bulk_stock_transfer, name="bulk_stock_transfer"),
+    # path('approve_store_transfer/<int:pk>/',views.approve_store_transfer, name="approve_store_transfer"),
+    path('approve_store_request/<int:pk>/', ApproveStoreTransferView.as_view(), name="approve_store_request"),
+    path('deliver_store_request/<int:pk>/', DeliverRestockRequestView.as_view(), name="deliver_store_request"),
+    
     path('complete_livara_ms_transfer/', views.mark_transfer_completed, name="mark_transfer_completed"),
     path('main_stock_transfers/', views.main_stock_transfer, name="main_stock_transfer"),
     path('livara_main_store_inventory', views.livara_main_store_inventory, name="livara_main_store_inventory"),
@@ -108,11 +113,14 @@ urlpatterns = [
     path('mark_request_as_delivered/<int:request_id>/', views.mark_as_delivered, name="mark_as_delivered"),
     path('all_stores_inventory_view/', views.all_stores_inventory_view, name="all_stores_inventory_view"),
     path('accessory_stock_adjustment_view/', views.accessory_stock_adjustment_view, name="accessory_stock_adjustment_view"),
+    path('reports/manager_store_accessory_report/', views.manager_store_accessory_report, name="manager_store_accessory_report"),
+    path('accessory_inventory_report/', views.accessory_inventory_report, name="accessory_inventory_report"),
     
     ####Sales###
     path('create_service_sale/', views.create_service_sale, name="create_service_sale"),
     path('store_sale_list/', views.store_sale_list, name="store_sale_list"),
     path('store_sale_service_invoice_list/', views.store_sale_service_invoice_list, name="store_sale_service_invoice_list"),
+    path('raw_material_date_report/', views.raw_material_date_report, name="raw_material_date_report"),
     
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
     path('finance-approval/<int:request_id>', views.finance_approve_request, name="finance_approval"),

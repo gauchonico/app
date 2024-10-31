@@ -289,6 +289,11 @@ def sidebar_menu(request):
             'text': 'Raw Material Utilization Report',
             'name': 'raw_material_utilization_report',
         },{
+            'url': '/production/raw_material_date_report/',
+            'icon': 'bi bi-folder',
+            'text': 'Raw Material Date Report',
+            'name': 'raw_material_date_report',
+        },{
             'url':'/production/manager_inventory_view/',
             'icon': 'bi bi-folder-fill',
             'text': 'Manager Inventory',
@@ -339,6 +344,12 @@ def sidebar_menu(request):
             'text': 'Production Payment Vouchers',
             'name': 'production_payment_vouchers',
         },{
+                    'url':'/production/main_store_accessory_requisitions_list/',
+                    'icon':'bi bi-receipt',
+                    'text': 'Main Store Acc. Reqn.',
+                    'name': 'main_store_accessory_requisitions_list',
+    
+            },{
             'text': 'MANAGERS',
             'is_header': 1
         },{
@@ -404,7 +415,7 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','restockRequests','main_store_inventory_adjustments','accessory_store','all_internal_requests']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','restockRequests','main_store_inventory_adjustments','accessory_store','all_internal_requests','all_stores_inventory_view','raw_material_date_report']]  # Replace with your store manager menu names
             
         elif 'Branch Manager' in group_names:
             # Show branch manager menus
@@ -413,7 +424,7 @@ def sidebar_menu(request):
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales','writeoffs','discrepancy_delivery_report_list','goods_received_note_list']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales','writeoffs','discrepancy_delivery_report_list','raw_material_date_report','goods_received_note_list','main_store_accessory_requisitions_list']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -467,7 +478,7 @@ def sidebar_menu(request):
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs','manufacture_products_report','raw_material_utilization_report',]]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs','manufacture_products_report','raw_material_utilization_report','raw_material_date_report']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -513,6 +524,14 @@ def sidebar_menu(request):
                                 ),
                 'name': 'outstanding_payables',
            
+                },{
+                    'url':'/production/main_store_accessory_requisitions_list/',
+                    'icon':'bi bi-receipt',
+                    'text': mark_safe (f'Main Store Acc. Req.<span class="badge rounded-circle bg-danger">{production_payment_vouchers}</span>'
+                                    if production_payment_vouchers>0 else 'Main Store Acc. Req'
+                                ),
+                    'name': 'main_store_accessory_requisitions_list',
+    
                 }]
             })
         elif 'Saloon Managers' in group_names:

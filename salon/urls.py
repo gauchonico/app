@@ -29,6 +29,6 @@ urlpatterns = [
     # path('approve-restock-request/<int:request_id>', views.approve_restock_requests, name="approve_restock_requests"),
     path('all_salon_restock_requests/', views.view_salon_restock_requests, name='view_salon_restock_requests'),
     path('salon_restock_request/<int:restock_request_id>/deliver/', views.deliver_salon_restock_request, name='deliver_salon_restock_request'),
-    path('restock_request_details/<str:salon_restock_req_no>/', views.restock_request_detail, name='restock_request_detail'),
+    path('restock_request_details/<str:salon_restock_req_no>/', views.restock_request_details, name='restock_request_details'),
     path('branch_inventory/', views.branch_inventory, name='branch_inventory'),
 ]

@@ -87,7 +87,7 @@
             <p><strong>Status:</strong> {{ requisition.get_status_display }}</p>
             <p><strong>Date Created:</strong> {{ requisition.created_at }}</p>
             <p><strong>Last Updated:</strong> {{ requisition.updated_at }}</p>
-            <p><strong>Price List / Quotation:</strong><a href="{{ requisition.price_list_document.url }}" target="_blank">View Attachment</a></p>
+            {% comment %} <p><strong>Price List / Quotation:</strong><a href="{{ requisition.price_list_document.url }}" target="_blank">View Attachment</a></p> {% endcomment %}
             
             <h5>Items</h5>
             <table class="table">

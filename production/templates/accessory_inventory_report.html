@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Accessories Reports{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+<form method="get" action="">
+    <label for="start_date">Start Date:</label>
+    <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
+
+    <label for="end_date">End Date:</label>
+    <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
+
+    <button class="btn btn-theme" type="submit">Filter</button>
+</form>
+
+<table class="table table-striped mt-4">
+    <thead>
+        <tr>
+            <th>Accessory</th>
+            <th>Opening Stock</th>
+            <th>Current Stock</th>
+            <th>Additions</th>
+            <th>Requisitions</th>
+            <th>Deductions</th>
+            
+            <th>Closing Stock</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for accessory in accessory_data %}
+        <tr>
+            <td>{{ accessory.accessory.name }}</td>
+            <td>{{ accessory.previous_stock }}</td>
+            <td>{{ accessory.current_stock }}</td>
+            <td>
+                {% if accessory.additions > 0 %}
+                    <span class="text-success">{{ accessory.additions }}</span>
+                {% else %}
+                    <span>{{ accessory.additions }}</span>
+                {% endif %}
+            </td>
+            <td>
+                <ul class="">
+                    {% for requisition in accessory.requisitions %}
+                        <li class="">{{ requisition.quantity_requested }} units from {{ requisition.requisition.accessory_req_number }}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+            <td>
+                {% if accessory.deductions < 0 %}
+                    <p><span class="text-danger">{{ accessory.deductions }}</span></p>
+                    
+                    <p><ul>
+                        {% for deduction in accessory.internal_deductions %}
+                            <li>
+                                <span class="text-danger">{{ deduction.quantity_requested }} units for {{ deduction.request.store }}
+                                    <a href="{% url 'internal_request_detail' deduction.request.id %}"><small>View</small></a>
+                                </span>
+                            </li>
+                        {% empty %}
+                            <li>No deductions</li>
+                        {% endfor %}
+                    </ul>
+                </p>
+                    
+                {% else %}
+                    <span>{{ accessory.deductions }}</span>
+                {% endif %}
+            </td>
+            
+            <td>{{ accessory.closing_stock }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

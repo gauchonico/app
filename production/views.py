@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 import os
 from urllib import error
-from django.db.models import Sum, F
+from django.db.models import Sum, F, Q, Case, When
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.db.models import Sum, F
@@ -11,26 +11,29 @@ from django.views.generic.edit import DeleteView
 from django.views.generic import DetailView, FormView, ListView
 import csv
 from django.templatetags.static import static
+import logging
 
 from itertools import product
+from django.db.models.functions import Coalesce
 import json
 from django import forms
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
-from django.forms import ValidationError, formset_factory, inlineformset_factory, modelformset_factory
+from django.forms import DecimalField, ValidationError, formset_factory, inlineformset_factory, modelformset_factory
 from django.http import FileResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models.functions import TruncMonth, TruncWeek, TruncDay
+from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, TruncYear
 from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm,ServiceSaleProductFormSet,ServiceSaleAccessoryFormSet, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, WriteOffForm
-from .models import LPO, AccessoryInventory, AccessoryInventoryAdjustment, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, WriteOff
+from .forms import AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, RestockApprovalItemForm,ServiceSaleProductFormSet,ServiceSaleAccessoryFormSet, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
+logger = logging.getLogger(__name__)
 # Create your views here.
 @login_required(login_url='/login/')
 def productionPage(request):
@@ -585,6 +588,7 @@ def manufacture_product(request, product_id):
             # Check for sufficient raw material stock (optional)
             sufficient_stock = True
             insufficient_ingredients = []  # List to collect insufficient stock errors
+            ingredient_usage = []
             with transaction.atomic():
                 for ingredient in product.productioningredients.all():
                     quantity_needed = ingredient.quantity_per_unit_product_volume * quantity
@@ -595,54 +599,66 @@ def manufacture_product(request, product_id):
                             f"Insufficient stock for {ingredient.raw_material.name}. "
                             f"Required: {quantity_needed}, Available: {ingredient.raw_material.current_stock}"
                         )
-                        # sufficient_stock = False
-                        # messages.error(request, f"Insufficient stock for {ingredient.raw_material.name}. Required: {quantity_needed}, Available: {ingredient.raw_material.current_stock}")
-                        # break  # Exit loop if any ingredient has insufficient stock
+                        sufficient_stock = False
+                    else:
+                        ingredient_usage.append({
+                            'ingredient': ingredient,
+                            'quantity_used': quantity_needed,
+                        })
 
-                if not insufficient_ingredients:
-                    #deduct raw materials
+                if sufficient_stock:
+                    # Deduct raw materials
                     deduct_raw_materials(product, quantity)
+                    
+                    # Create ManufactureProduct instance
                     manufacture_product = ManufactureProduct.objects.create(
                         product=product,
                         quantity=quantity,
-                        notes=notes,  # Add notes to model creation
-                        expiry_date = expiry_date,
+                        notes=notes,
+                        expiry_date=expiry_date,
                         production_order=production_order
                     )
                     manufacture_product.batch_number = manufacture_product.generate_batch_number()
                     manufacture_product.save()
-                    #update manufactured product inventory
+                    
+                    # Update manufactured product inventory
                     manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
                         product=product,
-                        batch_number= manufacture_product.batch_number,
-                        defaults={'quantity': quantity,'expiry_date':expiry_date}  # Update or create with quantity
+                        batch_number=manufacture_product.batch_number,
+                        defaults={'quantity': quantity, 'expiry_date': expiry_date}
                     )
                     if not created:
                         manufactured_product_inventory.quantity += quantity
-                        manufactured_product_inventory.save()  # Update existing inventory
-                    
+                        manufactured_product_inventory.save()
+
+                    # Calculate cost per ingredient
                     cost_per = cost_per_unit(product)
-                    # total_cost = (cost_per * quantity) + (labor_cost_per_unit * quantity)
                     total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per)
                     
-                    #update Production Order Status
+                    # Log used ingredients if using ManufacturedProductIngredient model
+                    for usage in ingredient_usage:
+                        ManufacturedProductIngredient.objects.create(
+                            manufactured_product=manufacture_product,
+                            raw_material=usage['ingredient'].raw_material,
+                            quantity_used=usage['quantity_used']
+                        )
+                    
+                    # Update Production Order Status
                     if production_order:
                         production_order.status = 'Completed'
-                        production_order.save()  # Update production order status to 'Manufactured'
-                    
-                    context ={
+                        production_order.save()
+
+                    context = {
                         'cost_per': cost_per,
                         'total_cost': total_cost,
                     }
 
                     messages.success(request, f"Successfully manufactured {quantity} units of {product.product_name}")
-                    return redirect('manufacturedProductList')  # Redirect to product list after success
+                    return redirect('manufacturedProductList')
                 else:
                     # Display all insufficient stock errors at once
                     for error in insufficient_ingredients:
                         messages.error(request, error)
-                    # Handle form validation errors
-                    # messages.error(request, "Insufficient stock to manufacture the product. Please check the inventory and try again.")
         else:
                 messages.error(request, "Please correct the errors in the form.")
     else:
@@ -655,22 +671,27 @@ def manufactured_products_report(request):
     
     if period == 'month':
         truncate_func = TruncMonth
+        date_range = timezone.now() - timezone.timedelta(days=365)
     elif period == 'week':
         truncate_func = TruncWeek
+        date_range = timezone.now() - timezone.timedelta(weeks=52)  # Last year in weeks
     elif period == 'day':
         truncate_func = TruncDay
+        date_range = timezone.now() - timezone.timedelta(days=30)
+    elif period == 'year':
+        truncate_func = TruncYear
+        date_range = timezone.now() - timezone.timedelta(days=365 * 5)
     else:
         truncate_func = TruncMonth
     
-    now = timezone.now()
-    start_date = now - timezone.timedelta(days=365)  # Last year
-    manufactured_products = ManufactureProduct.objects.filter(
-        manufactured_at__gte=start_date
-    ).annotate(
-        period=truncate_func('manufactured_at')
-    ).values('period').annotate(
-        total_quantity=Sum('quantity')
-    ).order_by('period')
+    # Query the ManufactureProduct model and group by period and product
+    manufactured_products = (
+        ManufactureProduct.objects.filter(manufactured_at__gte=date_range)
+        .annotate(period=truncate_func('manufactured_at'))
+        .values('period', 'product__product_name')
+        .annotate(total_quantity=Sum('quantity'))
+        .order_by('period', 'product__product_name')
+    )
     
     context = {
         'manufactured_products': manufactured_products,
@@ -680,40 +701,90 @@ def manufactured_products_report(request):
     return render(request, 'manufactured_products_report.html', context)
 
 def raw_material_utilization_report(request):
-    # Get custom start and end dates from query parameters
-    start_date_str = request.GET.get('start_date')
-    end_date_str = request.GET.get('end_date')
+    period = request.GET.get('period', 'month')  # Options: 'day', 'week', 'month', 'year'
+    start_date = request.GET.get('start_date', (timezone.now() - timezone.timedelta(days=30)).strftime('%Y-%m-%d'))
+    end_date = request.GET.get('end_date', timezone.now().strftime('%Y-%m-%d'))
     
-    # Default to last month if no dates are provided
-    if not start_date_str or not end_date_str:
-        start_date = timezone.now() - timedelta(days=30)
-        end_date = timezone.now()
+    # Determine the truncation function based on period
+    if period == 'month':
+        truncate_func = TruncMonth
+    elif period == 'week':
+        truncate_func = TruncWeek
+    elif period == 'day':
+        truncate_func = TruncDay
+    elif period == 'year':
+        truncate_func = TruncYear
     else:
-        # Convert strings to date objects
-        try:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-        except ValueError:
-            # Handle invalid date formats
-            start_date = timezone.now() - timedelta(days=30)
-            end_date = timezone.now()
-
-    # Aggregate data based on the specified date range
-    utilization_data = ProductionIngredient.objects.filter(
-        product__manufacturedproductinventory__last_updated__range=[start_date, end_date]
-    ).values(
-        'raw_material__name', 'raw_material__unit_measurement'
-    ).annotate(
-        total_quantity=Sum(F('quantity_per_unit_product_volume') * F('product__manufacturedproductinventory__quantity'))
+        truncate_func = TruncMonth  # Default to month if period is invalid
+    
+    # Parse date inputs
+    start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d')
+    end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d')
+    
+    
+    # Get usage adjustments grouped by raw material and period
+    raw_material_usage = (
+        RawMaterialInventory.objects.filter(last_updated__range=(start_date, end_date))
+        .annotate(period=truncate_func('last_updated'))
+        .values('raw_material__name', 'period', 'raw_material__unit_measurement')
+        .annotate(
+            initial_stock=Sum(F('raw_material__quantity') - F('adjustment')),  # Stock before usage
+            total_usage=Sum('adjustment'),  # Total adjustment within period
+            final_stock=F('raw_material__quantity')  # Latest stock after adjustments
+        )
+        .order_by('raw_material__name', 'period')
     )
     
+    # Organize data by raw material
+    grouped_data = {}
+    for entry in raw_material_usage:
+        raw_material_name = entry['raw_material__name']
+        if raw_material_name not in grouped_data:
+            grouped_data[raw_material_name] = []
+        grouped_data[raw_material_name].append(entry)
+    
     context = {
-        'raw_material_utilization': utilization_data,
-        'start_date': start_date,
-        'end_date': end_date
+        'grouped_data': grouped_data,
+        'period': period,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
     }
     
     return render(request, 'raw_material_utilization_report.html', context)
+
+def raw_material_date_report(request):
+    # Retrieve selected date from the form, default to today if not provided
+    selected_date_str = request.GET.get('date')
+    selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date() if selected_date_str else timezone.now().date()
+
+    # Query for raw materials with separate additions and deductions, and closing stock calculations
+    raw_materials = RawMaterial.objects.annotate(
+        # Calculate stock up to the selected date, renamed to 'calculated_stock' to avoid conflict
+        previous_stock=Sum(
+            'rawmaterialinventory__adjustment',
+            filter=Q(rawmaterialinventory__last_updated__lt=selected_date),
+            default=0
+        ),
+        # Calculate additions on the selected date
+        additions=Sum(
+            'rawmaterialinventory__adjustment',
+            filter=Q(rawmaterialinventory__adjustment__gt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
+        ),
+        # Calculate deductions on the selected date
+        deductions=Sum(
+            'rawmaterialinventory__adjustment',
+            filter=Q(rawmaterialinventory__adjustment__lt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
+        )
+    ).annotate(
+        # Calculate closing stock based on calculated_stock, additions, and deductions
+        closing_stock=F('previous_stock') + (F('additions') or 0) + (F('deductions') or 0)
+    )
+
+    context = {
+        'raw_materials': raw_materials,
+        'selected_date': selected_date,
+    }
+    return render(request, 'raw_material_date_report.html', context)
 
 
 def write_off_product(request, inventory_id):
@@ -815,38 +886,46 @@ def manufacturedproduct_detail(request, product_id):
     ingredient_costs = cost_per_unit(product)
     
     # Calculate total cost considering quantity
+     # Initialize total cost to 0
     total_ingredient_cost = 0
-    for ingredient_cost in cost_per_unit(product):
-        total_ingredient_cost += ingredient_cost['cost_per_unit']
+    ingredients_used_data = []
     
-    cost_per_product = total_ingredient_cost
-    total_production_cost = cost_per_product * quantity
+    for ingredient_cost in ingredient_costs:
+        # Calculate total quantity of each ingredient needed for the given quantity of product
+        total_quantity_needed = ingredient_cost['quantity'] * quantity
+        total_cost_for_ingredient = ingredient_cost['cost_per_unit'] * total_quantity_needed
+        
+        # Add to the running total of ingredient costs
+        total_ingredient_cost += total_cost_for_ingredient
+        
+        # Collect detailed ingredient usage data
+        ingredients_used_data.append({
+            'name': ingredient_cost['name'],
+            'quantity': total_quantity_needed,
+            'cost_per_unit': ingredient_cost['cost_per_unit'],
+            'total_cost': total_cost_for_ingredient,
+            'unit_measurement': ingredient_cost.get('unit_measurement', 'N/A'),
+        })
+    
+    # Calculate the cost per unit of product and the total production cost
+    cost_per_product = total_ingredient_cost / quantity if quantity > 0 else 0
+    total_production_cost = total_ingredient_cost  # This is for the whole production batch
+
     
     # Get the associated production order, if any
-    production_order = manufactured_product.production_order if manufactured_product.production_order else None
+    production_order = manufactured_product.production_order
 
     referer = request.META.get('HTTP_REFERER', '/')
-    # Prepare data for ingredients used
-    ingredients_used_data = []
-    for ingredient_cost in ingredient_costs:
-        ingredient_used_data = {
-            'name': ingredient_cost['name'],
-            'quantity': ingredient_cost['quantity'],
-            'cost_per_unit': ingredient_cost['cost_per_unit'],
-            'unit_measurement': ingredient_cost.get('unit_measurement', 'N/A'),
-        }
-        ingredients_used_data.append(ingredient_used_data)
+
     context = {
         'manufactured_product': manufactured_product,
         'quantity': quantity,
         'product': product,
         'ingredients_used': ingredients_used_data,
-        # 'cost_per_product': cost_per_product,
-        'cost_per_product': cost_per_product, #cost per bottle
-        'ingredient_costs': ingredient_costs,
-        'total_production_cost':total_production_cost,
+        'cost_per_product': cost_per_product,
+        'total_production_cost': total_production_cost,
         'production_order': production_order,
-        'referer':referer,
+        'referer': referer,
     }
     return render(request, 'manufactured-product-details.html', context)
 
@@ -891,9 +970,6 @@ def bulk_stock_transfer(request):
     if request.method == 'POST':
         formset = StockTransferItemFormSet(request.POST, prefix='stock_item')
         transfer_form = StoreTransferForm(request.POST, request.FILES, prefix='transfer')
-        
-        print(f"Transfer Form Data: {transfer_form.data}")
-        print(f"Formset Data: {formset.data}")
 
         if formset.is_valid() and transfer_form.is_valid():
             with transaction.atomic():
@@ -924,6 +1000,7 @@ def bulk_stock_transfer(request):
     }
 
     return render(request, 'bulk_stock_transfer.html', context)
+
 
 def main_stock_transfer (request):
     store_transfers = StoreTransfer.objects.all()
@@ -1091,16 +1168,16 @@ def create_restock_request(request):
             restock.save()
 
             for item_form in formset:
-                restock_item = item_form.save(commit=False)
-                restock_item.restock_request = restock
-                restock_item.save()
+                if item_form.cleaned_data:  # Only save if there is valid data
+                    restock_item = item_form.save(commit=False)
+                    restock_item.restock_request = restock
+                    restock_item.save()
 
             messages.success(request, 'Restock request created successfully!')
 
             return redirect('restockRequests')  # Adjust this to your success URL name
         else:
-            print(form.errors)
-            print(formset.errors)
+            messages.error(request, "Please correct the errors in the form.")
     else:
         form = RestockRequestForm(prefix="restock")
         formset = RestockRequestItemFormset(prefix="restock_item")
@@ -1125,6 +1202,230 @@ def restock_requests (request):
     }
     
     return render(request, 'restock-requests.html', context)
+
+def restock_request_detail(request, restock_id):
+    restock_request = get_object_or_404(RestockRequest, pk=restock_id)
+
+    if request.method == 'POST':
+        form = TransferApprovalForm(request.POST, instance=restock_request)
+        if form.is_valid():
+            form.save()
+            # Redirect to a success page or back to the list of requests
+            return redirect('restockRequests')  # Replace with your list view URL
+    else:
+        form = TransferApprovalForm(instance=restock_request)
+
+    context = {
+        'restock_request': restock_request,
+        'form': form,
+    }
+    return render(request, 'restock_request_detail.html', context)
+
+@login_required
+def approve_store_transfer(request, pk):
+    restock_request = get_object_or_404(RestockRequest, pk=pk)
+
+    # Check if the user has permission to approve requests
+    # You might want to implement your own permission check here
+
+    RestockRequestItemFormset = modelformset_factory(
+        RestockRequestItem,
+        form = RestockApprovalItemForm,
+        extra=0,  # No extra forms
+        can_delete=False  # No deletion of items allowed during approval
+    )
+
+    if request.method == 'POST':
+        print(request.POST)
+        formset = RestockRequestItemFormset(request.POST, instance=restock_request)
+
+        if formset.is_valid():
+            for item_form in formset:
+                restock_item = item_form.save(commit=False)
+                restock_item.save()  # Save the approved quantities
+
+            # Update the request status to 'approved'
+            restock_request.status = 'approved'
+            restock_request.save()
+
+            messages.success(request, 'Restock request approved successfully!')
+            return redirect('restockRequests')  # Adjust this to your success URL name
+    else:
+        formset = RestockRequestItemFormset(instance=restock_request)
+        
+    print(formset.errors)
+    print(formset.non_form_errors())
+
+    context = {
+        'restock_request': restock_request,
+        'formset': formset,
+    }
+
+    return render(request, 'approve_store_transfer.html', context)
+
+class ApproveStoreTransferView(FormView):
+    template_name = 'approve_store_transfer.html'
+    form_class = RestockRequestForm  # If you have a main form; otherwise, set this to None
+
+    def get_object(self):
+        """
+        Get the RestockRequest object based on the URL parameter.
+        """
+        return get_object_or_404(RestockRequest, pk=self.kwargs['pk'])
+
+    def get_formset(self, data=None):
+        restock_request = self.get_object()
+    
+        RestockRequestItemFormset = inlineformset_factory(
+        RestockRequest,
+        RestockRequestItem,
+        form = RestockApprovalItemForm,
+        fields=('id','approved_quantity',),  # Only include approved_quantity
+        extra=0,
+        can_delete=False
+    )
+        return RestockRequestItemFormset(data=data, instance=restock_request)
+
+
+    def get_context_data(self, **kwargs):
+        """
+        Add formset and restock request to the context for rendering the template.
+        """
+        context = super().get_context_data(**kwargs)
+        context['restock_request'] = self.get_object()
+        context['formset'] = self.get_formset()
+        return context
+
+    def form_valid(self, formset):
+        restock_request = self.get_object()
+
+        with transaction.atomic():
+            for form in formset:
+                if form.cleaned_data:
+                    approved_quantity = form.cleaned_data['approved_quantity']
+                    if approved_quantity:
+                        restock_item = form.instance
+                        restock_item.approved_quantity = approved_quantity
+                        restock_item.save()
+                    
+
+        restock_request.status = 'approved'
+        restock_request.save()
+            
+        messages.success(self.request, 'Restock request approved successfully!')
+        return redirect('restockRequests')
+
+    def form_invalid(self, formset):
+        print(formset.errors)
+        return self.render_to_response(self.get_context_data(formset=formset))
+
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST requests: validate and process formset.
+        """
+        
+        formset = self.get_formset(request.POST)
+
+        if formset.is_valid():
+            return self.form_valid(formset)
+        else:
+            # Provide detailed debugging information if needed
+            for item_form in formset:
+                if item_form.errors:
+                    print(f"Formset errors: {item_form.errors}")
+            return self.form_invalid(formset)
+        
+class DeliverRestockRequestView(FormView):
+    template_name = 'deliver_restock_request.html'
+    form_class = RestockRequestForm
+
+    def get_object(self):
+        return get_object_or_404(RestockRequest, pk=self.kwargs['pk'])
+
+    def get_formset(self, data=None):
+        restock_request = self.get_object()
+        print(restock_request.store)
+        RestockRequestItemFormset = inlineformset_factory(
+            RestockRequest,
+            RestockRequestItem,
+            form=DeliveryRestockRequestForm,  # Use DeliveryRestockRequestForm here
+            fields=('delivered_quantity',),
+            extra=0,
+            can_delete=False,
+        
+        )
+        return RestockRequestItemFormset(data=data, instance=restock_request)
+        
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['restock_request'] = self.get_object()
+        context['formset'] = self.get_formset()
+        return context
+
+    def form_valid(self, formset):
+        restock_request = self.get_object()
+
+        with transaction.atomic():
+            for form in formset:
+                if form.is_valid():
+                    delivered_quantity = form.cleaned_data['delivered_quantity']
+                    restock_item = form.instance
+
+                    # Ensure there's enough stock in the main store
+                    if restock_item.product.quantity >= delivered_quantity:
+                        restock_item.delivered_quantity = delivered_quantity
+                        restock_item.save()
+
+                        # Update store inventory
+                        store_inventory, created = StoreInventory.objects.get_or_create(
+                            product__product_name=restock_item.product.product.product.product_name,
+                            store=restock_request.store,
+                            defaults={'quantity': 0}
+                        )
+                        store_inventory.quantity += delivered_quantity
+                        store_inventory.save()
+
+                        # Update main store inventory
+                        restock_item.product.quantity -= delivered_quantity
+                        restock_item.product.save()
+
+                        # Create inventory adjustment record (optional)
+                        # InventoryAdjustment.objects.create(
+                        #     store_inventory=store_inventory,
+                        #     adjusted_quantity=delivered_quantity,
+                        #     adjustment_reason="Restock Fulfillment",
+                        #     adjusted_by=restock_request.user,
+                        #     transfer_to_store=restock_request.store,
+                        #     transfer_date=timezone.now()
+                        # )
+
+                    else:
+                        messages.error(self.request, f"Insufficient stock for {restock_item.product.product_name}.")
+
+        restock_request.status = 'delivered'
+        restock_request.save()
+
+
+        messages.success(self.request, 'Restock request marked as delivered and inventory updated!')
+        return redirect('restockRequests')
+
+        return self.form_invalid(formset)
+    
+    def form_invalid(self, formset):
+        
+        print(formset.errors)
+        return self.render_to_response(self.get_context_data(formset=formset))
+    
+    def post(self, request, *args, **kwargs):
+        formset = self.get_formset(request.POST)
+
+
+        if formset.is_valid():
+            return self.form_valid(formset)
+        else:
+            return self.form_invalid(formset)
 
 @require_POST
 @transaction.atomic
@@ -1589,16 +1890,12 @@ def process_acccessory_requisition(request, requisition_id):
                 inventory_item, created = AccessoryInventory.objects.get_or_create(
                     accessory=item.accessory
                 )
-                inventory_item.quantity += item.quantity_requested
-                inventory_item.purchase_price = item.price  # Update purchase price
-                inventory_item.save()
-
-                AccessoryInventoryAdjustment.objects.create(
-                    accessory=item.accessory,
-                    quantity_adjusted=item.quantity_requested,
-                    reason=f"Added from requisition {requisition.accessory_req_number}",
-                    store=request.store
+                # Use the adjust_stock method to log the adjustment
+                inventory_item.adjust_stock(
+                    quantity=item.quantity_requested, 
+                    description=f"Delivered from requisition #{requisition.id}"
                 )
+
 
             return redirect('accessory_store')  # Redirect to requisition list
         
@@ -1629,6 +1926,80 @@ def all_stores_inventory_view(request):
         'store_inventories': store_inventories
     })
 
+def accessory_inventory_report(request):
+    # Get date filter inputs from the request
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    # If no date is provided, default to today
+    if not start_date:
+        start_date = timezone.now().date()
+    else:
+        start_date = timezone.make_aware(datetime.strptime(start_date, '%Y-%m-%d'))
+    
+    if not end_date:
+        end_date = start_date  # Single day report if no end date provided
+    else:
+        end_date = timezone.make_aware(datetime.strptime(end_date, '%Y-%m-%d'))
+        
+    # Filter adjustments based on approved and delivered requisitions
+    approved_requisitions = MainStoreAccessoryRequisition.objects.filter(status='delivered')
+    delivered_internal_requests = InternalAccessoryRequest.objects.filter(status='delivered')
+    
+    # Adjustments based on the selected date range
+    accessory_data = AccessoryInventory.objects.annotate(
+        current_stock=F('quantity'),
+        additions=Sum('accessoryinventoryadjustment__adjustment', filter=Q(
+            accessoryinventoryadjustment__adjustment__gt=0,
+            accessoryinventoryadjustment__date__lte=end_date,
+            accessoryinventoryadjustment__accessory_inventory__accessory__in=MainStoreAccessoryRequisitionItem.objects.filter(
+                requisition__status='delivered',
+                
+            ).values_list('accessory', flat=True)
+        )),
+        
+        deductions=Sum('accessoryinventoryadjustment__adjustment',filter=Q(
+            accessoryinventoryadjustment__adjustment__lt=0,
+            accessoryinventoryadjustment__date__lte=end_date,
+            accessoryinventoryadjustment__accessory_inventory__accessory__in=delivered_internal_requests.values_list('items__accessory_id', flat=True),
+                
+            )),
+        
+        
+        closing_stock=F('quantity'),
+        previous_stock=F('quantity') - Sum('accessoryinventoryadjustment__adjustment', filter=Q(
+        accessoryinventoryadjustment__accessory_inventory__accessory__in=approved_requisitions.values_list('items__accessory_id', flat=True),
+        accessoryinventoryadjustment__date__lte=end_date,
+    ))
+    
+    ).select_related('accessory')
+    
+    # Fetch requisition details for each accessory
+    for accessory in accessory_data:
+        accessory.requisitions = MainStoreAccessoryRequisitionItem.objects.filter(
+            requisition__status='delivered',
+            accessory=accessory.accessory
+        )
+        
+    for accessory in accessory_data:
+        accessory.internal_requests = InternalAccessoryRequest.objects.filter(
+            status='delivered',
+            items__accessory=accessory.accessory
+        )
+        # Get deductions from internal requests for each accessory
+        accessory.internal_deductions = InternalAccessoryRequestItem.objects.filter(
+            request__status='delivered',
+            accessory=accessory.accessory
+        )
+    
+    
+    
+    context = {
+        'accessory_data': accessory_data,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+    return render(request, 'accessory_inventory_report.html', context)
 
 @login_required
 def accessory_stock_adjustment_view(request):
@@ -1639,7 +2010,7 @@ def accessory_stock_adjustment_view(request):
         'adjustments': adjustments
     })
 
-############################################# BRANCH VIEWS #############################################
+############################################# BRANCH VIEWS #############################################################################################################################################
 
 @login_required
 def create_service_sale(request):
@@ -1818,23 +2189,32 @@ def mark_as_delivered(request, request_id):
             if not validate_sufficient_inventory(accessory_request, accessory_request.store):
                 messages.error(request, "Insufficient inventory to fulfill the delivery request.")
                 return redirect('mark_as_delivered', request_id=request_id)
+            with transaction.atomic():
+                try:
+                    # Deduct from main inventory
+                    deduct_from_main_inventory(accessory_request)
+                    # Add to store inventory
+                    # Add to store inventory
+                    for item in accessory_request.items.all():
+                        store_inventory, created = StoreAccessoryInventory.objects.get_or_create(
+                            store=accessory_request.store,
+                            accessory=item.accessory,
+                            defaults={'quantity': 0}
+                        )
+                        store_inventory.quantity += item.quantity_requested
+                        store_inventory.save()
 
-            try:
-                # Deduct from main inventory
-                deduct_from_main_inventory(accessory_request)
-                # Add to store inventory
-                add_to_store_inventory(accessory_request, accessory_request.store)
+                    # Mark the request as delivered
+                    accessory_request.status = 'delivered'
+                    accessory_request.save()
 
-                # Mark the request as delivered
-                accessory_request.status = 'delivered'
-                accessory_request.save()
+                    messages.success(request, "Request has been marked as delivered and inventory updated.")
+                    return redirect('store_internal_requests')
 
-                messages.success(request, "Request has been marked as delivered and inventory updated.")
-                return redirect('store_internal_requests')
-
-            except Exception as e:
-                messages.error(request, str(e))
-                return redirect('mark_as_delivered', request_id=request_id)
+                except Exception as e:
+                    messages.error(request, str(e))
+                    return redirect('mark_as_delivered', request_id=request_id)
+            
     else:
         form = MarkAsDeliveredForm(instance=accessory_request)
 
@@ -1852,27 +2232,37 @@ def validate_sufficient_inventory(request, store):
 def deduct_from_main_inventory(request):
     for item in request.items.all():
         main_inventory = AccessoryInventory.objects.get(accessory=item.accessory)
+        
+        # Check if there's enough stock
         if main_inventory.quantity < item.quantity_requested:
-            raise error(f"Insufficient stock for {item.accessory.name}")  # Raise an error
+            raise ValidationError(f"Insufficient stock for {item.accessory.name}")
+
+        # Deduct the quantity from main inventory
         main_inventory.quantity -= item.quantity_requested
         main_inventory.save()
 
-        # Create adjustment record
-        adjustment = AccessoryInventoryAdjustment.objects.create(
-            accessory=item.accessory,
-            quantity_adjusted=-item.quantity_requested,  # Negative for deduction
-            reason=f"Delivered to store: {request.store.name}"
+        # Create an adjustment record
+        AccessoryInventoryAdjustment.objects.create(
+            accessory_inventory=main_inventory,
+            adjustment=-item.quantity_requested,  # Negative for deduction
+            description="Delivered to store"
         )
 
 def add_to_store_inventory(request, store):
     for item in request.items.all():
-        store_inventory, created = StoreAccessoryInventory.objects.get_or_create(
-            store=store,
-            accessory=item.accessory,
-            defaults={'quantity': 0}  # Set initial quantity to 0 if the record is created
-        )
-        store_inventory.quantity += item.quantity_requested
-        store_inventory.save()
+            store_inventory, created = StoreAccessoryInventory.objects.get_or_create(
+                store=request.store,
+                accessory=item.accessory,
+                defaults={'quantity': 0}
+            )
+    
+            # Access the object's quantity attribute directly:
+            if not created:
+                store_inventory.quantity += item.quantity_requested
+                store_inventory.save()
+            else:
+                # Handle case of newly created record (optional)
+                pass
 
 
 @login_required
@@ -1886,8 +2276,11 @@ def branch_staff_view(request):
     # Pass the branch and staff to the template
     return render(request, 'branch_staff.html', {'store': store, 'staff_members': staff_members})
 
+def manager_store_accessory_report(request):
+    return render(request, 'manager_store_accessory_report.html')
 
-################REQUISITIONS#########
+
+################REQUISITIONS################################################################################################
 def create_requisition(request):
     RequisitionItemFormSet = modelformset_factory(RequisitionItem, form=RequisitionItemForm, extra=1)
 
@@ -2104,6 +2497,7 @@ class ProDeView(FormView):
         return DeliveredRequisitionItemFormSet(
             data=data, files=files, queryset=self.get_requisition().requisitionitem_set.all()
         )
+         
 
     def get_context_data(self, **kwargs):
         """

@@ -3,7 +3,8 @@ from django import forms
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.core.mail import send_mail
-from .models import LPO, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, StoreAlerts, StoreSale
+from django.utils import timezone
+from .models import LPO, Accessory, AccessoryInventoryAdjustment, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
 
 @receiver(post_save, sender=RawMaterialInventory)
 def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
@@ -78,3 +79,4 @@ def send_lpo_verification_email(sender, instance, **kwargs):
             print(f"Verification email sent for LPO {instance.pk}.")  # Debugging line
         except Exception as e:
             print(f"Failed to send verification email for LPO {instance.pk}: {e}")
+

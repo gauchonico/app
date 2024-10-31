@@ -216,7 +216,7 @@ def view_salon_restock_requests(request):
     }
     return render(request, 'salon_restock_requests.html', context)
 
-def restock_request_detail(request, salon_restock_req_no):
+def restock_request_details(request, salon_restock_req_no):
     restock_request = get_object_or_404(SalonRestockRequest, salon_restock_req_no=salon_restock_req_no)
     user_is_salon_manager = request.user.groups.filter(name='Saloon Managers').exists()
     items = restock_request.items.all()  # Get all items related to this restock request

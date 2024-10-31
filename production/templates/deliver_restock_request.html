@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Deliver Restock Request for {{ restock_request.liv_store_transfer_number }}</h2>
+{% if formset.errors %}
+    <div class="alert alert-danger">
+        <ul>
+            {% for form in formset %}
+                {% for field, errors in form.errors.items %}
+                    <li>{{ field }}: {{ errors|join:", " }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+
+<form method="POST">
+    {% csrf_token %}
+    {{ formset.management_form }} 
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Requested Quantity</th>
+                <th>Approved Quantity</th>
+                <th>Delivered Quantity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for form in formset %}
+            <tr>
+                <td>{{ form.instance.product }}</td>
+                <td>{{ form.instance.quantity }}</td>
+                <td>{{ form.instance.approved_quantity }}</td>
+                <td>{{ form.delivered_quantity }}
+                    {% if form.delivered_quantity.errors %}
+                                <div class="errors">{{ form.delivered_quantity.errors }}</div>
+                    {% endif %}
+                </td>
+                {% for hidden in form.hidden_fields %}
+                        {{ hidden }}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <button class="btn btn-theme" type="submit">Mark Delivered</button>
+</form>
+{% endblock content %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Actions</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}

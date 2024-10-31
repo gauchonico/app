@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Production Orders{% endblock %}
+{% block title %}Report{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -28,62 +28,44 @@
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
 {% block content %}
-<div class="container">
-    <h1>Raw Material Utilization Report</h1>
-    
-    <!-- Filter Form -->
-    <form method="get" style="margin-bottom: 20px;">
-        <label for="start_date">Start Date:</label>
-        <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
-        
-        <label for="end_date">End Date:</label>
-        <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
-    
-        <label for="period">Select Period:</label>
-        <select name="period" id="period">
-            <option value="day" {% if period == 'day' %}selected{% endif %}>Daily</option>
-            <option value="week" {% if period == 'week' %}selected{% endif %}>Weekly</option>
-            <option value="month" {% if period == 'month' %}selected{% endif %}>Monthly</option>
-            <option value="year" {% if period == 'year' %}selected{% endif %}>Yearly</option>
-        </select>
-        <button class="btn btn-theme" type="submit">Filter</button>
-    </form>
+<form method="get" action="{% url 'raw_material_date_report' %}">
+    <label for="date">Select Date:</label>
+    <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+    <button class="btn btn-theme" type="submit">Generate Report</button>
+</form>
 
-
-    
-    
-    <!-- Report Table -->
-    <h2 class="mt-5">Report from </h2>
-    {% for raw_material, entries in grouped_data.items %}
-    <h5 class="text-warning">{{ raw_material }}</h5>
-    <table class="table table-striped">
-        <thead>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Raw Material</th>
+            <th>Openning Stock</th>
+            <th>Additions</th>
+            <th>Deductions</th>
+            <th>Closing Stock</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for material in raw_materials %}
             <tr>
-                <th>Period</th>
-                <th>Unit of Measurement</th>
-                <th>Initial Stock</th>
-                <th>Usage / Addition</th>
-                <th>Final Stock</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in entries %}
-            <tr>
-                <td>{{ entry.period }}</td>
-                <td>{{ entry.raw_material__unit_measurement }}</td>
-                <td>{{ entry.initial_stock }}</td>
+                <td>{{ material.name }}</td>
+                <td>{{ material.previous_stock }}</td>
                 <td>
-                    {% if entry.total_usage <= 0 %}
-                        <span class="text-danger">{{ entry.total_usage }}</span>
+                    {% if material.additions > 0 %}
+                        <span class="text-success">{{ material.additions }}</span>
                     {% else %}
-                        <span class="text-theme">{{ entry.total_usage }}</span>
+                        0
                     {% endif %}
                 </td>
-                <td>{{ entry.final_stock }}</td>
+                <td>
+                    {% if material.deductions < 0 %}
+                        <span class="text-danger">{{ material.deductions }}</span>
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
+                <td>{{ material.closing_stock }}</td>
             </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% endfor %}
-</div>
-{% endblock %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock content %}

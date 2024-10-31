@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% load static %}
 
 {% block title %}Coming Soon{% endblock %}
@@ -21,6 +21,7 @@
                     </ul>
                     <h6>{{ product.product_name }} Details</h6>
                     <p>Total Volume: {{ product.total_volume }} {{ product.unit_of_measure }}</p>
+                    <p>Product Price: <span class="text-theme">UGX {{ product.price|floatformat|intcomma }}</span></p>
                     
                     <h2>Raw Materials</h2>
                     {% if ingredients %}

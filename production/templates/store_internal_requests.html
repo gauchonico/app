@@ -54,6 +54,7 @@
         <th>Status</th>
         <th>Items</th>
         <th>..</th>
+        <th></th>
     </tr>
   </thead>
   <tbody>
@@ -90,6 +91,9 @@
             <p><span class="text-warning">Waiting Approval</span></p>
             {% endif %}
 
+        </td>
+        <td>
+            <a href="{% url 'internal_request_detail' request.id%}">view</a>
         </td>
     </tr>
     {% endfor %}
