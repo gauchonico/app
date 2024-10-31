@@ -1141,10 +1141,12 @@ def manager_inventory_view(request):
 def main_store_inventory_adjustments(request):
     store_inventory = StoreInventory.objects.all()
     adjustments = InventoryAdjustment.objects.filter(store_inventory__store__in=store_inventory.values('store'))
+    all_adjustments = InventoryAdjustment.objects.select_related('store_inventory')
 
     context = {
         'store_inventory': store_inventory,
         'adjustments': adjustments,
+        'all_adjustments': all_adjustments,  # This is used for the table header, not for filtering the queryset.
     }
 
     return render(request, 'main_store_inventory_adjustments.html', context)

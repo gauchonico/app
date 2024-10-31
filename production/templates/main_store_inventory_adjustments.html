@@ -35,7 +35,8 @@
       <th>Quantity</th>
       <th>Last Updated</th>
       <th>Adjustments</th>
-      <th></th>
+      <th>prev</th>
+      <th>l</th>
     </tr>
   </thead>
   <tbody>
@@ -50,7 +51,19 @@
               <td><span style="color: red;">Low Stock</span></td>
             {% else %}
               <td><span style="color: theme;">Stocked</span></td>  {% endif %}
-          
+              <td>
+                <ul>
+                  {% for adjustment in adjustments %}
+                    <ul>
+                      <li>{{ adjustment.store_inventory.previous_quantity }}</li>
+                      <li>{{ adjustment.adjusted_quantity }}</li>
+                      
+                      <li>{{ adjustment.adjusted_by.username }}</li>
+                      <li>{{ adjustment.adjustment_date }}</li>
+                    </ul>
+                  {% endfor %}
+                </ul>
+              </td>
         <td>
           <a href="{% url 'inventory_adjustments' item.id %}">View Adjustments</a>
         </td>
