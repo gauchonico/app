@@ -9,6 +9,7 @@ urlpatterns = [
     path('edit-supplier/<int:supplier_id>/', views.editSupplier, name='editSupplier'),
     path('delete-supplier/<int:supplier_id>/', views.deleteSupplier, name='deleteSupplier'),
     path('supplier_details/<int:supplier_id>/', views.supplier_details, name='supplier_details'),
+    path('error_page/', views.error_page, name="error"),
     
     path('raw-materials/', views.rawmaterialsList, name='rawmaterialsList'),
     path('add-raw-materials/', views.addRawmaterial, name='addRawmaterial'),
@@ -119,6 +120,7 @@ urlpatterns = [
     ####Sales###
     path('create_service_sale/', views.create_service_sale, name="create_service_sale"),
     path('store_sale_list/', views.store_sale_list, name="store_sale_list"),
+    path('service_sale_details/<int:sale_id>/', views.service_sale_details, name="service_sale_details"),
     path('store_sale_service_invoice_list/', views.store_sale_service_invoice_list, name="store_sale_service_invoice_list"),
     path('raw_material_date_report/', views.raw_material_date_report, name="raw_material_date_report"),
     
@@ -140,6 +142,7 @@ urlpatterns = [
     path('create_store_sale/', views.create_store_sale, name='createStoreSale'),
     path('list_store_sales/', views.list_store_sales, name='listStoreSales'),
     path('test_sale/', views.create_store_test, name="SaleTest"),
+    path('get_wholesale_price/',views.get_wholesale_price, name="get_wholesale_price"),
     path('update_order_status/<int:store_sale_id>/', views.update_order_status, name='update_order_status'),
     path('finance_list_store_sales/', views.finance_list_store_sales, name="financeListStoreSales"),
     path('pay_order_status/<int:store_sale_id>/', views.pay_order_status, name='pay_order_status'),

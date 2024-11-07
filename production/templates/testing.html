@@ -5,10 +5,27 @@
 {% block title %}Store Sales{% endblock %}
 
 {% block css %}
-	
+    <link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
 {% endblock %}  
 {% block js %}
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+    <script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+    <script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+    <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+    <script src="/assets/plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
+
+
 
 {% endblock %}
 
@@ -16,7 +33,7 @@
 	<!-- BEGIN coming-soon -->
 	<div class="container">
         <h1>Create Store Sale</h1>
-        <h3>{{ product.product_name }}</h3>
+       
         {% if error_message %}
             <div class="alert alert-danger">{{ error_message }}</div>
         {% endif %}
@@ -38,7 +55,9 @@
                         <tr class="form-row">
                             <td>{{ form.product }}</td>
                             <td>{{ form.quantity }}</td>
-                            <td>{{ form.unit_price }}</td>
+                            <td>
+                                <input type="text" name="{{ form.chosen_price.name }}" id="chosen_price{{ forloop.counter }}" readonly>
+                            </td>
                             <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
                         </tr>
                         <tr>
@@ -53,34 +72,45 @@
             </div>
         </form>
     </div>
-	<!-- END coming-soon -->
-    {% comment %} <script>
+    <script>
         $(document).ready(function() {
-            var formCount = $('#sale_item_formset-TOTAL_FORMS').length; // Get initial form count
-            
-            $('#add_form').click(function() {
-                formCount++; // Increment form count
+            // Get product selection element and cost per unit field
+            const productSelect = $('#id_product');  // Replace with your product selection element ID
+            const costPerUnitField = $('#chosen_price');  // Replace with your cost per unit field ID
+
+          // AJAX function to fetch wholesale price
+            function fetchWholesalePrice(productId) {
+                $.ajax({
+                url: '{% url 'get_wholesale_price' %}',  // Replace with your URL to fetch wholesale price
+                data: { 'product_id': productId },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.wholesale_price) {
+                        costPerUnitField.val(data.wholesale_price);
+                    } else {
+                        // Handle empty price case (e.g., show a message)
+                        console.error("Error: Wholesale price not found");
+                    }
+                },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching wholesale price:", error);
+                        alert("An error occurred while fetching the wholesale price. Please contact the administrator.");
+                }
                 
-                var newForm = $('#sale_item_formset tbody tr:first').clone(true); // Clone the first form row
-                newForm.find('input, select').each(function() {
-                    var name = $(this).attr('name');
-                    var new_name = name.replace(/-\d+-/, '-' + formCount + '-'); // Update name attribute
-                    $(this).attr('name', new_name);
-                    $(this).val(''); // Clear input values if needed
-                });
-                newForm.find('td:last').html(''); // Clear any error messages
-                newForm.find('td:last').html('<button type="button" class="btn btn-danger btn-sm remove-form">Remove</button>'); // Add remove button
-                $('#sale_item_formset tbody').append(newForm); // Append the cloned form to the table body
-                $('#sale_item_formset-TOTAL_FORMS').val(++formCount); 
             });
-            // Remove formset row
-            $('#sale_item_formset').on('click', '.remove-form', function() {
-                $(this).closest('tr').remove(); // Remove the closest <tr> element
-                formCount--;
-                $('#id_saleitem_set-TOTAL_FORMS').val(formCount); // Decrement form count
-            });
+        }
+    
+          // Update cost per unit field on product change
+        productSelect.on('change', function() {
+            const productId = $(this).val();
+            if (productId) {
+            fetchWholesalePrice(productId);
+            } else {
+            costPerUnitField.val('');
+            }
         });
-    </script> {% endcomment %}
+    });
+</script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {

@@ -85,6 +85,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'POSMagicApp.utils.context_processors.sidebar_menu',
                 'cart.context_processors.cart',
+                
             ],
         },
     },

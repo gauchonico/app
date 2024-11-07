@@ -82,9 +82,10 @@ admin.site.register(InternalAccessoryRequest)
 admin.site.register(InternalAccessoryRequestItem)
 admin.site.register(StoreAccessoryInventory)
 admin.site.register(ServiceSale)
-admin.site.register(ServiceSaleProduct)
-admin.site.register(ServiceSaleAccessory)
 admin.site.register(ServiceSaleInvoice)
 admin.site.register(AccessoryInventoryAdjustment)
+admin.site.register(AccessorySaleItem)
+admin.site.register(ServiceSaleItem)
+admin.site.register(ProductSaleItem)
 
 

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Store Sales Invoices{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+
+<h2>Sale Details</h2>
+
+<h3>Sale Information</h3>
+<p><strong>Store:</strong> {{ sale.store.name }}</p>
+<p><strong>Customer:</strong> {{ sale.customer }}</p>
+<p><strong>Sale Date:</strong> {{ sale.sale_date }}</p>
+<p><strong>Total Amount:</strong> UGX {{ sale.total_amount|floatformat|intcomma }}</p>
+<p><strong>Paid Amount:</strong> UGX {{ sale.paid_amount|floatformat|intcomma }}</p>
+<p><strong>Balance:</strong> UGX {{ sale.balance|floatformat|intcomma }}</p>
+<p><strong>Payment Mode:</strong> {{ sale.get_payment_mode_display }}</p>
+<p><strong>Status:</strong> {{ sale.get_paid_status_display }}</p>
+
+<h3>Service Items</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Service</th>
+            <th>Quantity</th>
+            <th>Total Price(UGX)</th>
+            <th>Staff</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in service_items %}
+            <tr>
+                <td>{{ item.service.service.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.total_price|floatformat|intcomma }}</td>
+                <td>{{ item.staff.all|join:", " }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="4"><span class="text-danger">No service items found.</span></td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Accessory Items</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Accessory</th>
+            <th>Quantity</th>
+            <th>Price(UGX)</th>
+            <th>Total Price(UGX)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in accessory_items %}
+            <tr>
+                <td>{{ item.accessory.accessory.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.price|floatformat|intcomma }}</td>
+                <td>{{ item.total_price|floatformat|intcomma }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="4"><span class="text-danger">No service items found.</span></td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Product Items</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Total Price(UGX)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in product_items %}
+            <tr>
+                <td>{{ item.product.product.product_name }}</td>
+                <td>{{ item.quantity|floatformat|intcomma }}</td>
+                <td>{{ item.total_price|floatformat|intcomma }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="3"><span class="text-danger">No service items found.</span></td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock content %}

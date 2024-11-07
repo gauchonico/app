@@ -71,10 +71,12 @@
                                                     <td>{{ forloop.counter }}.</td>
                                                     <td>{{ product.product_name}}</td>
                                                     <td>{{product.total_volume}} {{ product.unit_of_measure}}</td>
-                                                    <td><a href="{% url 'productDetailsPage' product_id=product.id %}">
-                                                        <button class="btn small btn-outline-theme">View Details</button></td>
+                                                    <td><a href="{% url 'productDetailsPage' product.id %}">
+                                                        <button class="btn small btn-outline-theme">View Details</button>
+                                                    </td>
                                                     <td><a href="{% url 'manufactureProduct' product_id=product.id %}">
-                                                        <button class="btn small btn-outline-theme">Manufacture</button></td>
+                                                        <button class="btn small btn-outline-theme">Manufacture</button>
+                                                    </td>
                                                 </tr>
                                                 {% endfor %}
                                             </tbody>

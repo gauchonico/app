@@ -30,8 +30,8 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, RestockApprovalItemForm,ServiceSaleProductFormSet,ServiceSaleAccessoryFormSet, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, PaymentVoucher, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, ProductSaleItemForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -1374,6 +1374,7 @@ class DeliverRestockRequestView(FormView):
                 if form.is_valid():
                     delivered_quantity = form.cleaned_data['delivered_quantity']
                     restock_item = form.instance
+                    product = restock_item.product.product.product
 
                     # Ensure there's enough stock in the main store
                     if restock_item.product.quantity >= delivered_quantity:
@@ -1382,7 +1383,7 @@ class DeliverRestockRequestView(FormView):
 
                         # Update store inventory
                         store_inventory, created = StoreInventory.objects.get_or_create(
-                            product__product_name=restock_item.product.product.product.product_name,
+                            product=product,
                             store=restock_request.store,
                             defaults={'quantity': 0}
                         )
@@ -1742,6 +1743,7 @@ def create_store_test(request):
 
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
+                form.instance.total_items = formset.total_form_count()
                 store_sale = form.save(commit=False)
                 
                 #Check inventory before saving
@@ -1763,12 +1765,6 @@ def create_store_test(request):
                             sale_item.sale = store_sale
                             sale_item.save()
                         
-                        # Reduce the quantity in the LivaraMainStore inventory
-                        product = sale_item.product
-                        
-                        product.quantity -= sale_item.quantity
-                        product.save()
-                        
                     return redirect('listStoreSales')
                 else:
                 # Add a general error message
@@ -1783,15 +1779,36 @@ def create_store_test(request):
     context = {'form': form, 'formset': formset}
     return render(request, 'testing.html', context)
 
+def get_wholesale_price(request):
+    if request.method == 'POST':
+        product_id = request.POST.get('product_id')
+        if product_id:
+            try:
+                product = LivaraMainStore.objects.get(pk=product_id)
+                production = Production.objects.filter(product=product).first()  # Get associated Production
+                return JsonResponse({'wholesale_price': production.wholesale_price})
+            except LivaraMainStore.DoesNotExist:
+                pass
+    return JsonResponse({'wholesale_price': 0})
+
 # store manager mark order as delivered
 def update_order_status(request, store_sale_id):
     if request.method == 'POST':
         order = StoreSale.objects.get(pk=store_sale_id)
-        order.status = 'delivered'
-        order.save()
-        messages.success(request, 'Order status updated successfully!')
-        # ... potentially add additional processing after updating status
-        return redirect('listStoreSales')  # Redirect to your store sale list view
+        if order.status == 'delivered':  # Check if already delivered
+            messages.warning(request, 'Order is already marked as delivered.')
+        else:
+            order.status = 'delivered'
+            order.save()
+            
+            # Reduce the quantity in the LivaraMainStore inventory (when marked delivered)
+            for sale_item in order.saleitem_set.all():
+                product = sale_item.product
+                product.quantity -= sale_item.quantity
+                product.save()
+            
+            messages.success(request, 'Order status updated successfully!')
+        return redirect('listStoreSales')
     else:
         return redirect('listStoreSales')  # Redirect if not a POST request
     
@@ -1809,7 +1826,11 @@ def store_sale_order_details(request, pk):
     sale_order = get_object_or_404(StoreSale, pk=pk)
     # Calculate the total order amount
     sale_items = SaleItem.objects.filter(sale=sale_order)
-    total_order_amount = sum(item.quantity * item.unit_price for item in sale_items)
+    total_order_amount = sum(
+        item.quantity * item.product.product.product.wholesale_price 
+        for item in sale_items
+            if item.product and item.product.product.product.wholesale_price is not None
+        )
 
     referer = request.META.get('HTTP_REFERER')
     context = {
@@ -2013,63 +2034,69 @@ def accessory_stock_adjustment_view(request):
     })
 
 ############################################# BRANCH VIEWS #############################################################################################################################################
+def error_page(request):
+    context = {
+		"appSidebarHide": 1,
+		"appHeaderHide": 1,
+		"appContentClass": 'p-0'
+	}
+    return render(request, 'error.html', context)
+
 
 @login_required
 def create_service_sale(request):
+    user_groups = request.user.groups.all()
+    if not Group.objects.filter(name='Branch Manager').exists() or not user_groups.filter(name='Branch Manager').exists():
+        # Handle case where the group doesn't exist or user is not a member
+        return redirect('error')
+
+    ServiceFormset = inlineformset_factory(ServiceSale, ServiceSaleItem, form=ServiceSaleItemForm, extra=1, can_delete=True)
+    AccessoryFormset = inlineformset_factory(ServiceSale, AccessorySaleItem, form=AccessorySaleItemForm, extra=1, can_delete=True)
+    ProductFormset = inlineformset_factory(ServiceSale, ProductSaleItem, form=ProductSaleItemForm, extra=1, can_delete=True)
+
     if request.method == 'POST':
-        service_sale_form = ServiceSaleForm(request.POST, user=request.user)
+        sale_form = ServiceSaleForm(request.POST, user=request.user)
         
-        # Formsets for accessories and products
-        accessory_formset = ServiceSaleAccessoryFormSet(request.POST, request.FILES)
-        product_formset = ServiceSaleProductFormSet(request.POST, request.FILES)
+        if sale_form.is_valid():
+            sale = sale_form.save(commit=False)
+            sale.save()
+            store = sale_form.cleaned_data.get('store')
+            
+            service_formset = ServiceFormset(request.POST, instance=sale, form_kwargs={'store': store})
+            accessory_formset = AccessoryFormset(request.POST, instance=sale, form_kwargs={'store': store})
+            product_formset = ProductFormset(request.POST, instance=sale, form_kwargs={'store': store})
 
-        if service_sale_form.is_valid() and accessory_formset.is_valid() and product_formset.is_valid():
-            # Save the ServiceSale instance
-            service_sale = service_sale_form.save(commit=False)
-            
-            # Calculate the total price: start with the service price
-            total_price = service_sale.service.price
-            
-            # Add the price of all accessories used
-            for accessory_item in accessory_formset:
-                if accessory_item.cleaned_data:
-                    quantity = accessory_item.cleaned_data.get('quantity', 0)
-                    accessory = accessory_item.cleaned_data.get('accessory')
-                    total_price += quantity * accessory.accessory.price
-            # Add the price of all products sold
-            for product_item in product_formset:
-                if product_item.cleaned_data:
-                    quantity = product_item.cleaned_data.get('quantity', 0)
-                    price = product_item.cleaned_data.get('price', 0)
-                    total_price += quantity * price
-            
-            # Set the calculated total price and save the service sale
-            service_sale.total_price = total_price
-            service_sale.save()
-            
-            # Associate staff members after saving
-            service_sale.staff.set(service_sale_form.cleaned_data.get('staff'))  # Set the staff here
+            # Check if all formsets are valid
+            if service_formset.is_valid() and accessory_formset.is_valid() and product_formset.is_valid():
+                print("Service Formset TOTAL_FORMS:", request.POST.get("service_sale_items-TOTAL_FORMS"))
+                print("Accessory Formset TOTAL_FORMS:", request.POST.get("accessory_sale_items-TOTAL_FORMS"))
+                print("Product Formset TOTAL_FORMS:", request.POST.get("product_sale_items-TOTAL_FORMS"))
+                
+                service_formset.save()
+                accessory_formset.save()
+                product_formset.save()
+                
+                # Calculate total amount after saving formsets
+                sale.calculate_total()
 
-            # Save the accessories formset
-            accessory_formset.instance = service_sale
-            accessory_formset.save()
-
-            # Save the products formset (if any products are sold)
-            product_formset.instance = service_sale
-            product_formset.save()
-            
-            messages.success(request, 'Service Sale has been created Successfully')
-            return redirect('store_sale_list')  # Redirect to store sale list page
-
+                messages.success(request, 'Service Sale has been created successfully')
+                return redirect('store_sale_list')
+            else:
+                messages.error(request, 'There was an error with one of the formsets. Please check and try again.')
+        else:
+            messages.error(request, 'There was an error with the sale form. Please try again.')
     else:
-        service_sale_form = ServiceSaleForm(user=request.user)
-        accessory_formset = ServiceSaleAccessoryFormSet()
-        product_formset = ServiceSaleProductFormSet()
+        sale_form = ServiceSaleForm(user=request.user)
+        store = sale_form.fields['store'].queryset.first()  # Default to the first store if exists
+        service_formset = ServiceFormset(instance=None, form_kwargs={'store': store})
+        accessory_formset = AccessoryFormset(instance=None, form_kwargs={'store': store})
+        product_formset = ProductFormset(instance=None, form_kwargs={'store': store})
 
     return render(request, 'create_service_sale.html', {
-        'service_sale_form': service_sale_form,
+        'sale_form': sale_form,
+        'service_formset': service_formset,
         'accessory_formset': accessory_formset,
-        'product_formset': product_formset
+        'product_formset': product_formset,
     })
     
 def store_sale_service_invoice_list(request):
@@ -2089,14 +2116,27 @@ def store_service_sales_view(request):
         'store': store,
     })
     
+def service_sale_details(request, sale_id):
+    sale = get_object_or_404(ServiceSale, id=sale_id)
+    service_items = sale.service_sale_items.all()
+    accessory_items = sale.accessory_sale_items.all()
+    product_items = sale.product_sale_items.all()
+    context ={
+        'sale':sale,
+        'service_items': service_items,
+        'accessory_items': accessory_items,
+        'product_items': product_items,
+    }
+    return render (request, 'service_sale_details.html', context)
+    
 def store_sale_list(request):
     # Assuming the logged-in user is the manager of the store
     store = get_object_or_404(Store, manager=request.user)
     # Fetch all service sales for this store
-    service_sales = ServiceSale.objects.filter(store=store)
+    sales = ServiceSale.objects.filter(store=store)
 
     # Pass the store sales to the template
-    return render(request,'store_sale_list.html', {'service_sales': service_sales,'store':store})
+    return render(request,'store_sale_list.html', {'sales': sales,'store':store})
     
 @login_required
 def store_services_view(request):

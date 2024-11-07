@@ -2,7 +2,7 @@ from django import forms
 
 from POSMagicApp.models import Customer
 from .models import *
-from django.forms import ValidationError, inlineformset_factory, modelformset_factory
+from django.forms import ModelForm, ValidationError, inlineformset_factory, modelformset_factory
 
 
 class AddSupplierForm(forms.ModelForm):
@@ -103,12 +103,13 @@ class StoreAlertForm(forms.ModelForm):
 class ProductionForm(forms.ModelForm):
     class Meta:
         model = Production
-        fields = ['product_name', 'total_volume','unit_of_measure','price']
+        fields = ['product_name', 'total_volume','unit_of_measure','price','wholesale_price']
         widgets = {
             'product_name': forms.TextInput(attrs={'class':'form-control'}),
             'total_volume': forms.NumberInput(attrs={'class':'form-control','placeholder':'unit volume'}),
             'unit_of_measure': forms.Select(attrs={'class':'form-control','placeholder':'unit of measure'}),
             'price': forms.NumberInput(attrs={'class':'form-control','placeholder':'Proposed price for Product'}),  # Render as number input field
+            'wholesale_price': forms.NumberInput(attrs={'class':'form-control','placeholder':'Wholesale price for Product'}),  # Render as number input field
         }
         labels = {
             'total_volume':'Unit Volume',
@@ -304,7 +305,7 @@ class SaleOrderForm(forms.ModelForm):
         parent_model=StoreSale,
         model=SaleItem,
         fk_name='sale',
-        fields=['product', 'quantity', 'unit_price'],
+        fields=['product', 'quantity', 'chosen_price'],
         extra=1,  # Add one empty form initially
     )
 
@@ -330,24 +331,40 @@ class TestForm(forms.ModelForm):
             'customer': forms.Select(attrs={'class':'form-control'}),
             'withhold_tax': forms.CheckboxInput(attrs={'class':'form-check-input'}),
             'vat': forms.CheckboxInput(attrs={'class':'form-check-input'}),
-            'due_date': forms.DateInput(attrs={'class':'form-control', 'placeholder':"No. of days untill payment"}),
+            'due_date': forms.DateInput(attrs={'class':'form-control','id':'datepicker', 'placeholder':"dd/mm/yyyy"}),
             
         }
     def __init__(self, *args, **kwargs):
         super(TestForm, self).__init__(*args, **kwargs)
-        # Get all customers
-        self.fields['customer'].queryset = Customer.objects.all()
+        if self.instance.pk:  # Check if the instance already exists
+            self.fields['total_items'].initial = self.instance.saleitem_set.count()
+        
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        # ... other save logic
+        return instance
         
 class TestItemForm(forms.ModelForm):
     product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.all())
+    chosen_price = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'readonly': True}), required=False)
     class Meta:
         model = SaleItem
         fields = '__all__'
         widgets = {
             'product': forms.Select(attrs={'class': 'form-control'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
-            'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cost Per Unit'}),
+            'chosen_price': forms.NumberInput(attrs={'class': 'form-control', 'readonly': True}),
         }
+        
+    def save(self, commit=False):
+        instance = super().save(commit=False)
+        if instance.product:
+            print(f"Product: {instance.product}")
+            instance.chosen_price = instance.product.product.product.wholesale_price  # Access wholesale_price from Production
+            print(f"Chosen Price: {instance.chosen_price}")
+        if commit:
+            instance.save()
+        return instance
         
 TestItemFormset = inlineformset_factory(
     parent_model = StoreSale,
@@ -600,62 +617,82 @@ class MarkAsDeliveredForm(forms.ModelForm):
 class ServiceSaleForm(forms.ModelForm):
     class Meta:
         model = ServiceSale
-        fields = ['store', 'service', 'customer', 'staff']
+        fields = ['store', 'customer','payment_mode']
         widgets = {
-            'service': forms.Select(attrs={'class':'form-control'}),
-            'staff': forms.SelectMultiple(attrs={'class':'form-control'}),
-            'service':forms.Select(attrs={'class':'form-control'}),
+            'store':forms.Select(attrs={'class':'form-control'}),
             'customer': forms.Select(attrs={'class':'form-control'}),
+            'payment_mode': forms.Select(attrs={'class':'form-control'}),  # Use a select box for payment mode options  # TODO: Populate payment mode options from a predefined list in the model  # TODO: Add validation for payment mode selection  # TODO: Handle case where user doesn't manage any stores and display an appropriate message  # TODO: Handle case where user doesn't have access to the selected store and display an appropriate message   # TODO: Add validation for
 
             
         }
-
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)  # Get the user from kwargs
-        super(ServiceSaleForm, self).__init__(*args, **kwargs)
-
+        user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
         if user:
-            # Filter stores to those managed by the logged-in user
             self.fields['store'].queryset = Store.objects.filter(manager=user)
+            if self.fields['store'].queryset.count() == 1:
+                self.fields['store'].initial = self.fields['store'].queryset.first()
 
-            # If the user manages only one store, pre-select it
-            managed_stores = Store.objects.filter(manager=user)
-            if managed_stores.count() == 1:
-                self.fields['store'].initial = managed_stores.first()
-        
-class ServiceSaleAccessoryForm(forms.ModelForm):
+    # def __init__(self, *args, **kwargs):
+    #     user = kwargs.pop('user', None)  # Get the user from kwargs
+    #     super(ServiceSaleForm, self).__init__(*args, **kwargs)
+
+    #     if user:
+    #         # Filter stores to those managed by the logged-in user
+    #         self.fields['store'].queryset = Store.objects.filter(manager=user)
+
+    #         # If the user manages only one store, pre-select it
+    #         managed_stores = Store.objects.filter(manager=user)
+    #         if managed_stores.count() == 1:
+    #             self.fields['store'].initial = managed_stores.first()
+                
+class ServiceSaleItemForm(ModelForm):
     class Meta:
-        model = ServiceSaleAccessory
-        fields = ['accessory', 'quantity']
-        widgets = {
-            'accessory': forms.Select(attrs={'class':'form-control'}),
-            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+        model = ServiceSaleItem
+        fields = ['service','staff','quantity','sale']
+        widgets ={
+            'sale': forms.HiddenInput(),
+            'service':forms.Select(attrs={'class':'form-control'}),
+            'staff':forms.SelectMultiple(attrs={'class':'form-control'}),
+            'quantity':forms.NumberInput(attrs={'class':'form-control'})
         }
+    def __init__(self, *args, **kwargs):
+        store = kwargs.pop('store', None)
+        super().__init__(*args, **kwargs)
+        if store:
+            # Apply the store filter to the queryset for the 'service' field
+            self.fields['service'].queryset = StoreService.objects.filter(store=store)
+    
 
-class ServiceSaleProductForm(forms.ModelForm):
+class AccessorySaleItemForm(ModelForm):
     class Meta:
-        model = ServiceSaleProduct
-        fields = ['product', 'quantity', 'price']
-        widgets = {
-            'product': forms.Select(attrs={'class':'form-control'}),
-            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
-            'price': forms.NumberInput(attrs={'class':'form-control'}),
+        model = AccessorySaleItem
+        fields = ['accessory','quantity','price','sale']
+        widgets ={
+            'sale': forms.HiddenInput(),
+            'accessory':forms.Select(attrs={'class':'form-control'}),
+            'price':forms.NumberInput(attrs={'class':'form-control'}),
+            'quantity':forms.NumberInput(attrs={'class':'form-control'})
         }
-        
-# Formset for ServiceSaleAccessory (related to ServiceSale)
-ServiceSaleAccessoryFormSet = inlineformset_factory(
-    ServiceSale,
-    ServiceSaleAccessory,
-    form=ServiceSaleAccessoryForm,
-    extra=1,  # Number of empty forms to display
-    can_delete=True  # Allow deletion of accessories
-)
+    def __init__(self, *args, **kwargs):
+        store = kwargs.pop('store', None)
+        super().__init__(*args, **kwargs)
+        if store:
+            self.fields['accessory'].queryset = StoreAccessoryInventory.objects.filter(store=store)
 
-# Formset for ServiceSaleProduct (related to ServiceSale)
-ServiceSaleProductFormSet = inlineformset_factory(
-    ServiceSale,
-    ServiceSaleProduct,
-    form=ServiceSaleProductForm,
-    extra=1,  # Number of empty forms to display
-    can_delete=True  # Allow deletion of products
-)
+class ProductSaleItemForm(ModelForm):
+    class Meta:
+        model = ProductSaleItem
+        fields = ['product','quantity','sale']
+        widgets ={
+            'sale': forms.HiddenInput(),
+            'product':forms.Select(attrs={'class':'form-control'}),
+            
+            'quantity':forms.NumberInput(attrs={'class':'form-control'})
+        }
+    def __init__(self, *args, **kwargs):
+        store = kwargs.pop('store', None)
+        super().__init__(*args, **kwargs)
+        if store:
+            self.fields['product'].queryset = StoreInventory.objects.filter(store=store)
+        

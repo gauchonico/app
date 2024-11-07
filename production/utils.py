@@ -13,21 +13,19 @@ def cost_per_unit(self):
     ).order_by('-requisition__created_at').first()  # Order by descending creation date
 
     if latest_requisition_item:
-      unit_of_measurement = latest_requisition_item.raw_material.unit_measurement
+        unit_of_measurement = latest_requisition_item.raw_material.unit_measurement.lower()
+        purchase_price_per_unit = latest_requisition_item.price_per_unit
 
       # Conversion factor to convert base units (e.g., grams, milliliters) to the stored unit (kilograms, liters)
-      conversion_factor = 1
-      if unit_of_measurement == 'Kilograms':
-          conversion_factor = 1000  # Convert ml to liters
-      elif unit_of_measurement == 'Liters':
-          # Add conversion for grams if applicable
-          conversion_factor = 1000  # Implement conversion based on your data
-      elif unit_of_measurement == 'Litres':
-          # Add conversion for grams if applicable
-          conversion_factor = 1000  # Implement conversion based on your data
-      
-      quantity_in_desired_unit = ingredient.quantity_per_unit_product_volume / conversion_factor
-      cost_per_ingredient =  quantity_in_desired_unit * latest_requisition_item.price_per_unit 
+
+        if unit_of_measurement in ['kilograms', 'kg']:
+                price_per_base_unit = purchase_price_per_unit / 1000  # Convert kg to gram price
+        elif unit_of_measurement in ['liters', 'litres', 'l']:
+                price_per_base_unit = purchase_price_per_unit / 1000  # Convert liter to ml price
+        else:
+            price_per_base_unit = purchase_price_per_unit  # Use price per unit for items like bottles or pieces
+        
+        cost_per_ingredient =  price_per_base_unit
     else:
       # Handle case where no purchase history exists (optional: set default cost)
       cost_per_ingredient = 0  # You might want to set a default cost here

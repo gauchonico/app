@@ -124,16 +124,17 @@ class StoreAlerts (models.Model):
 
 ### next week #####################################
 
-class ProductionManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().values_list('product_name', flat=True)
+# class ProductionManager(models.Manager):
+#     def get_queryset(self):
+#         return super().get_queryset().values_list('product_name', flat=True)
 
 class Production(models.Model):
     product_name = models.CharField(max_length=255)
     total_volume = models.DecimalField(max_digits=4, decimal_places=0)  # Adjust precision as needed
     unit_of_measure = models.ForeignKey(UnitOfMeasurement, null=True, blank=True, on_delete=models.SET_NULL)
+    wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # New field for price
-    objects = ProductionManager()
+    # objects = ProductionManager()
 
     def __str__(self):
         return self.product_name
@@ -299,70 +300,6 @@ class StoreService(models.Model):
     def __str__(self):
         return f"{self.store.name} offers {self.service.name} with {self.commission_rate*100}% commission"
     
-
-class ServiceSale(models.Model):
-    PAID_STATUS_CHOICES = [
-        ('not_paid', 'Not Paid'),
-        ('paid', 'Paid'),
-    ]
-    store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='service_sales')
-    service = models.ForeignKey(ServiceName, on_delete=models.CASCADE)
-    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='service_sales')
-    accessories_used = models.ManyToManyField('ServiceSaleAccessory', blank=True)
-    products_sold = models.ManyToManyField('ServiceSaleProduct', blank=True)
-    staff = models.ManyToManyField('POSMagicApp.Staff', related_name='services_handled')  # Multiple staff can handle the service
-    total_price = models.DecimalField(max_digits=10, decimal_places=2)
-    sale_date = models.DateTimeField(auto_now_add=True)
-    paid_status = models.CharField(max_length=20, choices=PAID_STATUS_CHOICES, default='not_paid')
-
-    def __str__(self):
-        return f"{self.service.name} for {self.customer} at {self.store.name}"
-    
-    
-
-    def calculate_total_price(self):
-        total_price = self.service.price
-        for accessory_item in self.accessories_used.all():
-            total_price += accessory_item.quantity * accessory_item.accessory.price
-        for product_item in self.products_sold.all():
-            total_price += product_item.quantity * product_item.price
-        return total_price
-    
-    def save(self, *args, **kwargs):
-        # Save without ManyToMany fields first to get the object ID
-        if not self.pk:
-            super(ServiceSale, self).save(*args, **kwargs)  # Save first to get the primary key (id)
-
-        # Now that the instance has an ID, save the total price
-        self.total_price = self.calculate_total_price()
-
-        # Update the instance with the new total price
-        super().save(update_fields=['total_price'])
-        
-        # Save ManyToMany fields after the total price is calculated
-        self.accessories_used.set(self.accessories_used.all())  # Ensure accessories are saved
-        self.products_sold.set(self.products_sold.all())  # Ensure products are saved
-
-        # Automatically create an invoice if it doesn't exist
-        if not hasattr(self, 'invoice'):
-            self.create_invoice()
-    
-    def create_invoice(self):
-        """ Create an invoice when the sale is created """
-        total_amount = self.total_price
-        invoice = ServiceSaleInvoice.objects.create(sale=self, total_amount=total_amount)
-        return invoice
-    
-class ServiceSaleAccessory(models.Model):
-    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='accessory_items')
-    accessory = models.ForeignKey('StoreAccessoryInventory', on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
-    
-class ServiceSaleProduct(models.Model):
-    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='product_items')
-    product = models.ForeignKey('StoreInventory', on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
     
 class ServiceSaleInvoice(models.Model):
     sale = models.OneToOneField('ServiceSale', on_delete=models.CASCADE, related_name='invoice')
@@ -677,6 +614,7 @@ class StoreAccessoryInventory(models.Model):#### For Accessories in each Store #
 
     class Meta:
         unique_together = ('store', 'accessory')
+        verbose_name_plural = "Store Accessory Inventories"
 
     def __str__(self):
         return f"{self.accessory.name} - {self.quantity} units in {self.store.name}"
@@ -705,6 +643,92 @@ class InternalAccessoryRequestItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity_requested} x {self.accessory.name}"
+    
+class ServiceSale(models.Model):
+    PAID_STATUS_CHOICES = [
+        ('not_paid', 'Not Paid'),
+        ('paid', 'Paid'),
+    ]
+    store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='service_sales')
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='service_sales')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sale_date = models.DateTimeField(auto_now_add=True)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid_status = models.CharField(max_length=20, choices=PAID_STATUS_CHOICES, default='not_paid')
+    payment_mode = models.CharField(max_length=255, choices=[
+        ('cash', 'Cash'),
+        ('mobile_money', 'Mobile Money'),
+        ('visa', 'Visa'),
+        ('mixed', 'Mixed'),
+    ],default='cash')
+    payment_remarks = models.CharField(max_length=150, null=True, blank=True)
+
+    def __str__(self):
+        return f"Sale #{self.id} - {self.customer}"
+
+    def calculate_total(self):
+        total = sum(item.total_price for item in self.service_sale_items.all())
+        total += sum(item.total_price for item in self.accessory_sale_items.all())
+        total += sum(item.total_price for item in self.product_sale_items.all())
+        
+        self.total_amount = total
+        self.balance = total - self.paid_amount
+        self.paid_status = 'paid' if self.balance <= 0 else 'not_paid'
+        self.save()
+
+    
+    def create_invoice(self):
+        """Create an invoice for this sale."""
+        invoice = ServiceSaleInvoice.objects.create(sale=self, total_amount=self.total_amount)
+        return invoice
+    
+class ServiceSaleItem(models.Model):
+    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='service_sale_items')
+    service = models.ForeignKey(StoreService, on_delete=models.CASCADE)
+    staff = models.ManyToManyField('POSMagicApp.Staff', related_name='service_sales')
+    quantity = models.PositiveIntegerField(default=1)  # For multiple services of the same type
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * (self.service.service.price if hasattr(self.service, 'service') else self.service.service.price)
+        super().save(*args, **kwargs)
+        # Recalculate the total for the related sale
+        self.sale.calculate_total()
+    def __str__(self):
+        return f"{self.quantity} x {self.service.service.name} for Sale #{self.sale.id}"
+    
+class AccessorySaleItem(models.Model):
+    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='accessory_sale_items')
+    accessory = models.ForeignKey(StoreAccessoryInventory, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * self.price
+        super().save(*args, **kwargs)
+        
+        # Recalculate the total for the related sale
+        self.sale.calculate_total()
+    def __str__(self):
+        return f"{self.quantity} x {self.accessory.accessory.name} for Sale #{self.sale.id}"
+        
+class ProductSaleItem(models.Model):
+    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='product_sale_items')
+    product = models.ForeignKey(StoreInventory, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * self.product.product.price
+        super().save(*args, **kwargs)
+        # Recalculate the total for the related sale
+        self.sale.calculate_total()
+    
+    def __str__(self):
+        return f"{self.quantity} x {self.product.product.product_name} for Sale #{self.sale.id}"
+
 
 
 class Notification(models.Model):
@@ -789,14 +813,18 @@ class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
     product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)  # Link to product
     quantity = models.DecimalField(max_digits=10, decimal_places=0)
-    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    chosen_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # New field for chosen price
     total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, default=0)  # Calculated total price
 
     def __str__(self):
         return f"{self.quantity} units of {self.product} for Sale #{self.sale.id}"
     
     def save(self, *args, **kwargs):
-        self.total_price = (self.quantity * self.unit_price)
+        # Consider fetching wholesale price from Production model
+        self.chosen_price = self.product.product.product.wholesale_price  # Assuming product points to Production instance
+        self.total_price = (self.quantity * self.chosen_price) if self.chosen_price else 0
+        # Print values for debugging
+        print(f"SaleItem.save: quantity={self.quantity}, chosen_price={self.chosen_price}, total_price={self.total_price}")
         super().save(*args, **kwargs)  # Call parent save method
         
         

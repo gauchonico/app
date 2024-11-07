@@ -133,7 +133,7 @@ def generate_pdf(request, transaction_id):
 ## Customer ###
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Finance','Cashier','Managers'])
+@allowed_users(allowed_roles=['Finance','Cashier','Managers','Branch Manager'])
 def pageCustomer(request):
 	# get all customers
 	customers = Customer.objects.all()
@@ -143,7 +143,7 @@ def pageCustomer(request):
 	return render(request, "pages/page-customer.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['Finance'])
+@allowed_users(allowed_roles=['Finance','Branch Manager'])
 def createCustomer(request):
 	if request.method == 'POST':
 		form = AddCustomerForm(request.POST)
@@ -159,7 +159,7 @@ def createCustomer(request):
  
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin','Finance','Cashier'])
+@allowed_users(allowed_roles=['admin','Finance','Cashier','Branch Manager'])
 def customer_details(request, customer_id):
 	customer = get_object_or_404(Customer, pk=customer_id) # fetch customer by id
 	transactions = Transaction.objects.filter(customer = customer)
@@ -170,7 +170,7 @@ def customer_details(request, customer_id):
 	return render(request, "pages/customer-details.html", context)
 
 @login_required(login_url='/login/')
-@allowed_users(allowed_roles=['admin'])
+@allowed_users(allowed_roles=['admin','Branch Manager'])
 def editCustomer(request, customer_id):
     customer = get_object_or_404(Customer, pk=customer_id)  # Fetch customer by ID
 

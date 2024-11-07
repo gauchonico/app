@@ -2,6 +2,7 @@ from django import template
 from django.utils.html import format_html
 from decimal import Decimal, InvalidOperation
 import logging
+from datetime import date
 
 logger = logging.getLogger(__name__)
 
@@ -28,3 +29,7 @@ def is_pdf(file_url):
 @register.filter
 def is_image(file_url):
     return file_url.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))
+
+@register.filter
+def days_difference(date1, date2):
+    return (date2 - date1).days

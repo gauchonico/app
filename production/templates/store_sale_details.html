@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% block title %}Order Details{% endblock %}
 
 {% block css %}
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evSXhkEG3fnSPtD/vzlLXLzxhHN2vCQhLgyXHCXRogZWLIlW9YzLiIACD4lw4f" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evSXhkEG3fnSPtD/vzlLXLzxhHN2vCQhLgyXHCXRogZWLIlW9YzLiIACD4lw4f" crossorigin="anonymous">
 {% endblock %}
 
 {% block content %}
@@ -22,11 +22,13 @@
                     <p class="card-text"><strong>Status:</strong> {{ sale_order.get_status_display }}</p>
                     <p class="card-text"><strong>Withhold 6%:</strong> {{ sale_order.withhold_tax }}</p>
                     <p class="card-text"><strong>Vat 18%:</strong> {{ sale_order.vat }}</p>
+                    <p class="card-text"><strong>Due Date:</strong> {{ sale_order.due_date }}</p>
+
                     <h5>Products:</h5>
                     <ul class="list-group mb-3">
                         {% for sale_item in sale_order.saleitem_set.all %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ sale_item.product.product.product_name }} - {{ sale_item.quantity }} units - UGX {{ sale_item.unit_price }}
+                            {{ sale_item.product.product.product.product_name }} - {{ sale_item.quantity }} units - UGX {{ sale_item.product.product.product.wholesale_price|floatformat|intcomma }}
                             <span class="badge bg-primary rounded-pill">Total: UGX {{ sale_item.total_price }}</span>
                         </li>
                         {% endfor %}
@@ -41,7 +43,7 @@
                     <div class="card-arrow-bottom-right"></div>
                 </div>
                 <div class="card-footer">
-                    <small class="text-theme">Total Order Quote: UGX {{ total_order_amount }}</small>
+                    <small class="text-theme">Total Order Quote: UGX {{ total_order_amount|floatformat|intcomma }}</small>
                 </div>
             </div>
         </div>
@@ -50,5 +52,5 @@
 {% endblock %}
 
 {% block js %}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-OgqygLbv4cUlsLq5csaz7sIA2vRW5vfuUihATsNJz3KU779zKLvZkIyKXqQ3zB" crossorigin="anonymous"></script>
+
 {% endblock %}
