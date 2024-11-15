@@ -78,16 +78,20 @@
                         <th>Quantity</th>
                         <th>Qty</th>
                         
+                        
                     </tr>
                 </thead>
-                {{ service_formset.management_form }}
+                
                 <tbody>
+                    {{ service_formset.management_form }}
                     {% for form in service_formset %}
-                    <input type="hidden" name="service_sale_items-TOTAL_FORMS" id="id_service_items-TOTAL_FORMS" value="1">
+                    
                     <tr class="form-row">
                         <td>{{ form.service }}</td>
                         <td>{{ form.staff }}</td>
                         <td>{{form.quantity }}</td>
+                        
+                        <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
                     </tr>
                     <tr>
                         <td colspan="2">{{ form.errors}}</td>
@@ -96,6 +100,7 @@
                 </tbody>
             </table>
         </div>
+
         <div class="">
             <h3>Accessories Used</h3>
             <table class="table w-50" id="accessory_item_formset">
@@ -103,11 +108,14 @@
                     <tr>
                         <th>Product Name</th>
                         <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Action</th>
                         
                     </tr>
                 </thead>
-                {{ accessory_formset.management_form }}
+                
                 <tbody>
+                    {{ accessory_formset.management_form }}
                     {% for form in accessory_formset %}
                     
                     <input type="hidden" name="accessory_sale_items-TOTAL_FORMS" id="id_accessory_items-TOTAL_FORMS" value="1">
@@ -132,17 +140,19 @@
                 <tr>
                     <th>Product Name</th>
                     <th>Quantity</th>
-                    
-                    
+                    <th>Price Type</th>
+                    <th>Action</th>
                 </tr>
             </thead>
-            {{ product_formset.management_form }}
+            
             <tbody>
+                {{ product_formset.management_form }}
                 {% for form in product_formset %}
                 <input type="hidden" name="product_sale_items-TOTAL_FORMS" id="id_product_items-TOTAL_FORMS" value="1">
                 <tr class="form-row">
                     <td>{{ form.product }}</td>
                     <td>{{ form.quantity }}</td>
+                    <td>{{ form.price_type }}</td>
                     <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
                 </tr>
                 <tr>
@@ -160,108 +170,117 @@
 		<button type="submit" class="btn btn-outline-theme me-2">Submit Sale</button>
 	</div>
     </form>
-
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
-            // Define formsets configuration for easy reuse
             const formsets = {
                 service: {
                     addButton: '#add_service',
-                    formsetContainer: '#service_item_formset',
+                    formsetContainer: '#service_item_formset tbody',
                     totalForms: '#id_service_sale_items-TOTAL_FORMS'
                 },
                 accessory: {
                     addButton: '#add_accessory',
-                    formsetContainer: '#accessory_item_formset',
+                    formsetContainer: '#accessory_item_formset tbody',
                     totalForms: '#id_accessory_sale_items-TOTAL_FORMS'
                 },
                 product: {
                     addButton: '#add_product',
-                    formsetContainer: '#product_item_formset',
+                    formsetContainer: '#product_item_formset tbody',
                     totalForms: '#id_product_sale_items-TOTAL_FORMS'
                 }
             };
-        
-            // Initialize each formset with event listeners for adding and removing forms
+    
+            // Initialize each formset for adding/removing items
             $.each(formsets, function(_, config) {
                 initializeFormset(config);
             });
-        
-            /**
-             * Initialize a formset with add/remove functionality
-             * @param {Object} config - Configuration object for the formset
-             */
+    
             function initializeFormset(config) {
-                // Initial form count from Django's management form
+                // Get the initial form count from Django's management form field
                 let formCount = parseInt($(config.totalForms).val());
-        
-                // Handler for adding a new form
+    
+                // Add new form row on button click
                 $(config.addButton).click(function() {
                     addForm(config, formCount);
                     formCount++;
-                    $(config.totalForms).val(formCount); // Update total forms count
+                    $(config.totalForms).val(formCount);  // Update TOTAL_FORMS in management form
                 });
-        
-                // Handler for removing a form within the formset container
+    
+                // Remove form row on 'remove' button click
                 $(config.formsetContainer).on('click', '.remove-form', function() {
-                    $(this).closest('tr').remove(); // Remove the row
+                    $(this).closest('tr').remove();  // Remove the form row
                     formCount--;
-                    $(config.totalForms).val(formCount); // Update total forms count
-                    console.log("Initial TOTAL_FORMS value:", $(config.totalForms).val());
+                    $(config.totalForms).val(formCount);  // Update TOTAL_FORMS
+                    renumberFormIndices(config);  // Renumber remaining forms to avoid gaps
                 });
             }
-        
+    
             /**
              * Add a new form row to the formset
-             * @param {Object} config - Configuration object for the formset
-             * @param {Number} formIdx - Current form index for updating field names
+             * @param {Object} config - Configuration for each formset
+             * @param {Number} formIdx - Index of the new form
              */
             function addForm(config, formIdx) {
-                // Clone the first form row in the formset container
-                let newForm = $(config.formsetContainer + ' tbody tr.form-row:first').clone(false);
-        
-                // Update the form fields' name and id attributes to avoid duplicates
+                // Clone the last form row in the formset
+                let newForm = $(config.formsetContainer + ' tr.form-row:last').clone(false);
+    
+                // Update name and id attributes in the new form to reflect the new index
                 newForm.find('input, select').each(function() {
                     let name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-');
                     let id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-');
-                    $(this).attr({'name': name, 'id': id}).val(''); // Clear the input values
+                    $(this).attr({ name: name, id: id }).val('');  // Clear value for new input
                 });
-        
-                // Add remove button if not already present
+    
+                // Append the new form row to the formset container
+                $(config.formsetContainer).append(newForm);
+    
+                // Add remove button if it's missing (useful for the initial form row)
                 if (!newForm.find('.remove-form').length) {
                     newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>');
                 }
-        
-                // Append the new form row to the formset container
-                $(config.formsetContainer + ' tbody').append(newForm);
-        
-                // Update the TOTAL_FORMS field dynamically
+    
+                // Update TOTAL_FORMS in management form
                 $(config.totalForms).val(formIdx + 1);
             }
-        
+    
             /**
-             * Basic client-side validation for required fields
+             * Renumber form indices after a row is removed
+             * @param {Object} config - Configuration for each formset
              */
-            $(document).on('submit', 'form', function(event) {
-                let isValid = true;
-                $(this).find('input[required], select[required], textarea[required]').each(function() {
-                    if ($(this).val() === '') {
-                        $(this).addClass('is-invalid');
-                        isValid = false;
-                    } else {
-                        $(this).removeClass('is-invalid');
-                    }
+            function renumberFormIndices(config) {
+                // Loop over each row in the formset container and update indices
+                $(config.formsetContainer + ' tr.form-row').each(function(index) {
+                    $(this).find('input, select').each(function() {
+                        let name = $(this).attr('name').replace(/-\d+-/, '-' + index + '-');
+                        let id = $(this).attr('id').replace(/-\d+-/, '-' + index + '-');
+                        $(this).attr({ name: name, id: id });
+                    });
                 });
-        
-                // Prevent form submission if validation fails
-                if (!isValid) {
-                    event.preventDefault();
-                    alert('Please fill in all required fields.');
-                }
-            });
+            }
         });
     </script>
     
     
 
 {% endblock content %}
+{% block outter_content %}
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Service Sale</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+{% endblock outter_content %}

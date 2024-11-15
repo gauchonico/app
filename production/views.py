@@ -752,6 +752,98 @@ def raw_material_utilization_report(request):
     
     return render(request, 'raw_material_utilization_report.html', context)
 
+from django.db.models import Sum, F
+from django.db.models.functions import TruncDay, TruncWeek, TruncMonth, TruncYear
+from django.utils import timezone
+from django.shortcuts import render
+from decimal import Decimal
+
+def raw_material_utilization_reports(request):
+    # Get period and date parameters
+    start_date_str = request.GET.get('start_date', timezone.now().strftime('%Y-%m-%d'))
+    end_date_str = request.GET.get('end_date', start_date_str)  # Default to the same day if not provided
+
+    # Parse the start and end dates
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
+    
+    # Determine truncation function based on selected period
+    period = request.GET.get('period', 'day')
+    if period == 'day':
+        truncate_func = TruncDay
+    elif period == 'week':
+        truncate_func = TruncWeek
+    elif period == 'month':
+        truncate_func = TruncMonth
+    elif period == 'year':
+        truncate_func = TruncYear
+    else:
+        truncate_func = None  # No truncation for custom date ranges without grouping
+
+    # Filter usage within the specified date range
+    usage_queryset = ManufacturedProductIngredient.objects.filter(
+        manufactured_product__manufactured_at__range=(start_date, end_date)
+    )
+
+    # Apply truncation if a period is specified
+    if truncate_func:
+        usage_queryset = usage_queryset.annotate(period=truncate_func('manufactured_product__manufactured_at'))
+    else:
+        usage_queryset = usage_queryset.annotate(period=F('manufactured_product__manufactured_at'))
+
+
+    # Get raw material usage data within the specified date range
+    raw_material_usage = (
+        ManufacturedProductIngredient.objects.filter(
+            manufactured_product__manufactured_at__range=(start_date, end_date)
+        )
+        .annotate(period=truncate_func('manufactured_product__manufactured_at'))
+        .values('raw_material__id', 'raw_material__name', 'manufactured_product__product__product_name', 'period')
+        .annotate(
+            total_usage=Sum('quantity_used')
+        )
+        .order_by('raw_material__name', 'manufactured_product__product__product_name', 'period')
+    )
+
+    # Calculate opening and closing stocks for each raw material
+    grouped_data = {}
+    for entry in raw_material_usage:
+        raw_material = RawMaterial.objects.get(id=entry['raw_material__id'])
+        period_start = entry['period']
+
+        # Opening stock as of the beginning of the selected day/period
+        opening_stock = (
+            RawMaterialInventory.objects.filter(raw_material=raw_material, last_updated__lt=period_start)
+            .aggregate(opening_stock=Sum('adjustment'))['opening_stock'] or Decimal(0)
+        )
+
+        # Total usage within the period
+        total_usage = entry['total_usage'] or Decimal(0)
+
+        # Calculate closing stock as opening stock minus total usage
+        closing_stock = opening_stock - total_usage
+
+        # Organize data for the report
+        key = f"{entry['raw_material__name']} - {entry['manufactured_product__product__product_name']} - {period_start}"
+        grouped_data[key] = {
+            'raw_material': entry['raw_material__name'],
+            'product': entry['manufactured_product__product__product_name'],
+            'period': period_start,
+            'opening_stock': opening_stock,
+            'total_usage': total_usage,
+            'closing_stock': closing_stock,
+        }
+
+    # Pass the data to the template
+    context = {
+        'grouped_data': grouped_data,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+    }
+    
+    return render(request, 'raw_material_utilization_reports.html', context)
+
+
 def raw_material_date_report(request):
     # Retrieve selected date from the form, default to today if not provided
     selected_date_str = request.GET.get('date')
@@ -2047,7 +2139,7 @@ def error_page(request):
 def create_service_sale(request):
     user_groups = request.user.groups.all()
     if not Group.objects.filter(name='Branch Manager').exists() or not user_groups.filter(name='Branch Manager').exists():
-        # Handle case where the group doesn't exist or user is not a member
+        messages.error(request, 'You do not have permission to create a sale.')
         return redirect('error')
 
     ServiceFormset = inlineformset_factory(ServiceSale, ServiceSaleItem, form=ServiceSaleItemForm, extra=1, can_delete=True)
@@ -2059,7 +2151,6 @@ def create_service_sale(request):
         
         if sale_form.is_valid():
             sale = sale_form.save(commit=False)
-            sale.save()
             store = sale_form.cleaned_data.get('store')
             
             service_formset = ServiceFormset(request.POST, instance=sale, form_kwargs={'store': store})
@@ -2072,8 +2163,16 @@ def create_service_sale(request):
                 print("Accessory Formset TOTAL_FORMS:", request.POST.get("accessory_sale_items-TOTAL_FORMS"))
                 print("Product Formset TOTAL_FORMS:", request.POST.get("product_sale_items-TOTAL_FORMS"))
                 
+                # Save the sale and all related formsets
+                
+                sale.save()
+                service_formset.instance = sale
                 service_formset.save()
+                
+                accessory_formset.instance = sale
                 accessory_formset.save()
+                
+                product_formset.instance = sale
                 product_formset.save()
                 
                 # Calculate total amount after saving formsets
@@ -2082,7 +2181,12 @@ def create_service_sale(request):
                 messages.success(request, 'Service Sale has been created successfully')
                 return redirect('store_sale_list')
             else:
-                messages.error(request, 'There was an error with one of the formsets. Please check and try again.')
+                # Display detailed formset errors for user correction
+                for formset in [service_formset, accessory_formset, product_formset]:
+                    for form in formset:
+                        for field, errors in form.errors.items():
+                            for error in errors:
+                                messages.error(request, f"{form.prefix}: {field} - {error}")
         else:
             messages.error(request, 'There was an error with the sale form. Please try again.')
     else:

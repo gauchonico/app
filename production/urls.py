@@ -152,6 +152,7 @@ urlpatterns = [
     path('write_offs', views.write_offs, name="writeoffs"),
     path('manufacture_products_report', views.manufactured_products_report, name="manufactured_products_report"),
     path('raw_material_utilization_report/', views.raw_material_utilization_report, name='raw_material_utilization_report'),
+    path('raw_material_utilization_reports/', views.raw_material_utilization_reports, name="raw_material_utilization_reports"),
     
     ## Store Manager View
     path('store_manager/', views.managers_store_inventory_view, name='managers_store_inventory_view'),

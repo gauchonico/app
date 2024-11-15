@@ -133,6 +133,7 @@ class Production(models.Model):
     total_volume = models.DecimalField(max_digits=4, decimal_places=0)  # Adjust precision as needed
     unit_of_measure = models.ForeignKey(UnitOfMeasurement, null=True, blank=True, on_delete=models.SET_NULL)
     wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    carrefour_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # New field for price
     # objects = ProductionManager()
 
@@ -223,6 +224,18 @@ class ManufactureProduct(models.Model):
     def __str__(self):
         return f"{self.quantity} units of {self.product.product_name} manufactured on {self.manufactured_at.strftime('%Y-%m-%d')}"
     
+    def save(self, *args, **kwargs):
+        # Generate batch number if not set
+        if not self.batch_number:
+            self.batch_number = self.generate_batch_number()
+
+        # Save the ManufactureProduct instance
+        super().save(*args, **kwargs)
+
+        # Record raw material usage based on production ingredients
+        self.record_raw_material_usage()
+
+    
     def generate_batch_number(self):
         current_date = timezone.now()
         month = current_date.strftime('%m')  # Month as two digits (08)
@@ -241,6 +254,21 @@ class ManufactureProduct(models.Model):
             batch_number = f"{product_prefix}-{month}{year}-{exp_year}-{random_number}"
         
         return batch_number
+    
+        
+    
+    def record_raw_material_usage(self):
+        """Calculate the required raw materials based on product ingredients and record them."""
+        for ingredient in self.product.productioningredients.all():
+            # Calculate total quantity needed for this batch of products
+            total_quantity_needed = ingredient.quantity_per_unit_product_volume * Decimal(self.quantity)
+
+            # Record the raw material usage for this manufactured product
+            ManufacturedProductIngredient.objects.create(
+                manufactured_product=self,
+                raw_material=ingredient.raw_material,
+                quantity_used=total_quantity_needed
+            )
 class ManufacturedProductIngredient(models.Model):
     manufactured_product = models.ForeignKey(ManufactureProduct, on_delete=models.CASCADE, related_name='used_ingredients')
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
@@ -715,14 +743,32 @@ class AccessorySaleItem(models.Model):
         return f"{self.quantity} x {self.accessory.accessory.name} for Sale #{self.sale.id}"
         
 class ProductSaleItem(models.Model):
+    PRICE_TYPE_CHOICES = [
+        ('wholesale', 'Wholesale Price'),
+        ('carrefour', 'Carrefour Price'),
+        ('retail', 'Retail Price'),
+    ]
     sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='product_sale_items')
     product = models.ForeignKey(StoreInventory, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
+    price_type = models.CharField(max_length=10, choices=PRICE_TYPE_CHOICES, default='retail')
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
+    def calculate_price(self):
+        # Determine the correct price based on the selected price type
+        if self.price_type == 'wholesale':
+            return self.product.product.wholesale_price
+        elif self.price_type == 'carrefour':
+            return self.product.product.carrefour_price
+        else:
+            return self.product.product.price
+    
     def save(self, *args, **kwargs):
-        self.total_price = self.quantity * self.product.product.price
+        # Use the selected price type for the total price calculation
+        unit_price = self.calculate_price()
+        self.total_price = self.quantity * unit_price
         super().save(*args, **kwargs)
+        
         # Recalculate the total for the related sale
         self.sale.calculate_total()
     

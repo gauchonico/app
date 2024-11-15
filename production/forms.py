@@ -633,18 +633,6 @@ class ServiceSaleForm(forms.ModelForm):
             if self.fields['store'].queryset.count() == 1:
                 self.fields['store'].initial = self.fields['store'].queryset.first()
 
-    # def __init__(self, *args, **kwargs):
-    #     user = kwargs.pop('user', None)  # Get the user from kwargs
-    #     super(ServiceSaleForm, self).__init__(*args, **kwargs)
-
-    #     if user:
-    #         # Filter stores to those managed by the logged-in user
-    #         self.fields['store'].queryset = Store.objects.filter(manager=user)
-
-    #         # If the user manages only one store, pre-select it
-    #         managed_stores = Store.objects.filter(manager=user)
-    #         if managed_stores.count() == 1:
-    #             self.fields['store'].initial = managed_stores.first()
                 
 class ServiceSaleItemForm(ModelForm):
     class Meta:
@@ -683,12 +671,12 @@ class AccessorySaleItemForm(ModelForm):
 class ProductSaleItemForm(ModelForm):
     class Meta:
         model = ProductSaleItem
-        fields = ['product','quantity','sale']
+        fields = ['product','quantity','price_type','sale']
         widgets ={
             'sale': forms.HiddenInput(),
             'product':forms.Select(attrs={'class':'form-control'}),
-            
-            'quantity':forms.NumberInput(attrs={'class':'form-control'})
+            'quantity':forms.NumberInput(attrs={'class':'form-control'}),
+            'price_type': forms.Select(attrs={'class': 'form-control'}),
         }
     def __init__(self, *args, **kwargs):
         store = kwargs.pop('store', None)
