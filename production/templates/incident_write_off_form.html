@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% load static %}
-{% block title %}{{ store.name }}Livara Store Sales{% endblock %}
+{% block title %}{{ store.name }}Initialize Rawmaterial WriteOff{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -28,87 +28,36 @@
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
 {% block content %}
-
 <div class="d-flex align-items-center mb-3">
     <div>
         <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#">STORE</a></li>
-            <li class="breadcrumb-item active">STORE SALES</li>
+            <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+            <li class="breadcrumb-item active">RAWMATERIAL WRITE-OFFS</li>
         </ul>
-        <h5>Service Sales for {{ store.name }}</h5>
-    </div>
-    
-    <div class="btn-group ms-auto">
-        <a href="{% url 'create_service_sale' %}" type="button" class="btn btn-sm btn-outline-theme">
-            <i class="fas fa-plus"></i> Make New Sale
-        </a>
+        
     </div>
 </div>
+<h1>Incident Write-Off Form</h1>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-outline-theme" type="submit">Initiate Write-Off</button>
+    </form>
 
 
-<table id="datatableDefault" class="table text-nowrap table-striped">
-    <thead>
-      <tr>
-        <th>Service Name</th>
-        <th>Customer</th>
-        <th>Staff</th>
-        <th>Total Price (UGX)</th>
-        <th>Paid Status</th>
-        <th>Sale Date</th>
-        <th>view</th>
-        <th>Update</td>
-      </tr>
-    </thead>
-    <tbody>
-      {% for sale in sales %}
-      <tr>
-        <td>
-          {% for item in sale.servicesaleitem_set.all %}
-            <ul>
-              <li>{{ item.service.service.name }}</li>
-            </ul>
-          {% endfor %}
-        </td>
-        <td>{{ sale.customer }}</td>
-        <td>
-          {% for item in sale.servicesaleitem_set.all %}
-            {% for staff in item.staff.all %}
-              {{ staff.first_name }},
-            
-            {% endfor %}
-          {% endfor %}
-        </td>
-        <td>{{ sale.total_amount }}</td>
-        <td>{{ sale.paid_status }}</td>
-        <td>{{ sale.sale_date|date:"M d, Y" }}</td>
-        <td>
-          <a href="{% url 'service_sale_details' sale.id %}">
-            <i class="fas fa-eye"></i>
-          </a>
-        </td>
-        <td>
-          <a href="{% url 'update_service_sale' sale.id %}">
-            <i class="fas fa-edit"></i>
-          </a>
-        </td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="6">No service sales found for this store.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+
+
+
+
 {% endblock content %}
 {% block outter_content %}
-
 {% if messages %}
     <div class="toasts-container">
         {% for message in messages %}
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Internal Requisition Actions</strong>
+                    <strong class="me-auto">RawMaterial Write Offs</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">
@@ -121,4 +70,4 @@
 
 {% if form.errors %}  {% endif %}
 
-{% endblock outter_content %}
+{% endblock outter_content %}m 

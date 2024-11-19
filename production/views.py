@@ -30,8 +30,8 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, ProductSaleItemForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, ProductSaleItemForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -46,7 +46,7 @@ def productionPage(request):
     supplier_deliveries = GoodsReceivedNote.objects.count()
     below_reorder_count = RawMaterial.objects.annotate(current_stock=Sum('rawmaterialinventory__adjustment')).filter(current_stock__lt=F('reorder_point')).count()
     # Calculate total stock value
-    total_stock_value = sum(material.stock_value for material in rawmaterials)
+    total_stock_value = sum(material.quantity for material in rawmaterials)
     context ={
         'rawmaterials': rawmaterials,
         'total_suppliers': suppliers,
@@ -270,6 +270,41 @@ def update_raw_material_quantity(request, pk):
         form = RawMaterialQuantityForm(initial={'new_quantity': raw_material.current_stock})
 
     return render(request, 'update_raw_material_quantity.html', {'form': form, 'raw_material': raw_material})
+
+@login_required(login_url='/login/')
+def create_incident_write_off(request):
+    if request.method == 'POST':
+        form = IncidentWriteOffForm(request.POST)
+        if form.is_valid():
+            write_off = form.save(commit=False)
+            write_off.written_off_by = request.user  # Add logged-in user
+            write_off.save()
+            messages.success(request, f"Incident report writeoff has been initiated")
+            return redirect('incident_write_off_list')  # Redirect to a list view
+    else:
+        form = IncidentWriteOffForm()
+    return render(request, 'incident_write_off_form.html', {'form': form})
+
+@login_required(login_url='/login/')
+def approve_incident_write_off(request, pk):
+    write_off = IncidentWriteOff.objects.get(pk=pk)
+    if write_off.status == 'pending':
+        write_off.status = 'approved'
+        write_off.save()
+
+        raw_material = write_off.raw_material
+        raw_material.remove_stock(write_off.quantity)
+        raw_material.save()
+    messages.success(request, f"A write off for {raw_material.name} has been approved successfully.")
+    return redirect('incident_write_off_list')  # Redirect to a list view
+
+@login_required(login_url='/login/')
+def incident_write_off_list(request):
+    write_offs = IncidentWriteOff.objects.all().order_by('-date')
+    context = {
+        'write_offs': write_offs,
+    }
+    return render(request, "incident_write_off_list.html", context)
 
 @login_required(login_url='/login/')
 def download_example_csv(request):
@@ -701,38 +736,20 @@ def manufactured_products_report(request):
     return render(request, 'manufactured_products_report.html', context)
 
 def raw_material_utilization_report(request):
-    period = request.GET.get('period', 'month')  # Options: 'day', 'week', 'month', 'year'
-    start_date = request.GET.get('start_date', (timezone.now() - timezone.timedelta(days=30)).strftime('%Y-%m-%d'))
-    end_date = request.GET.get('end_date', timezone.now().strftime('%Y-%m-%d'))
-    
-    # Determine the truncation function based on period
-    if period == 'month':
-        truncate_func = TruncMonth
-    elif period == 'week':
-        truncate_func = TruncWeek
-    elif period == 'day':
-        truncate_func = TruncDay
-    elif period == 'year':
-        truncate_func = TruncYear
-    else:
-        truncate_func = TruncMonth  # Default to month if period is invalid
-    
-    # Parse date inputs
-    start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d')
-    end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d')
+    selected_date_str = request.GET.get('date')
+    selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date() if selected_date_str else timezone.now().date()
     
     
     # Get usage adjustments grouped by raw material and period
     raw_material_usage = (
-        RawMaterialInventory.objects.filter(last_updated__range=(start_date, end_date))
-        .annotate(period=truncate_func('last_updated'))
-        .values('raw_material__name', 'period', 'raw_material__unit_measurement')
+        RawMaterialInventory.objects.filter(last_updated__date=(selected_date))
+        .values('raw_material__name', 'raw_material__unit_measurement')
         .annotate(
             initial_stock=Sum(F('raw_material__quantity') - F('adjustment')),  # Stock before usage
             total_usage=Sum('adjustment'),  # Total adjustment within period
             final_stock=F('raw_material__quantity')  # Latest stock after adjustments
         )
-        .order_by('raw_material__name', 'period')
+        .order_by('raw_material__name', )
     )
     
     # Organize data by raw material
@@ -745,9 +762,7 @@ def raw_material_utilization_report(request):
     
     context = {
         'grouped_data': grouped_data,
-        'period': period,
-        'start_date': start_date.strftime('%Y-%m-%d'),
-        'end_date': end_date.strftime('%Y-%m-%d'),
+        'selected_date': selected_date,
     }
     
     return render(request, 'raw_material_utilization_report.html', context)
@@ -854,24 +869,24 @@ def raw_material_date_report(request):
         # Calculate stock up to the selected date, renamed to 'calculated_stock' to avoid conflict
         previous_stock=Sum(
             'rawmaterialinventory__adjustment',
-            filter=Q(rawmaterialinventory__last_updated__lt=selected_date),
+            filter=Q(rawmaterialinventory__last_updated__lt=selected_date), 
             default=0
         ),
         # Calculate additions on the selected date
-        additions=Sum(
+        additions=Coalesce(Sum(
             'rawmaterialinventory__adjustment',
             filter=Q(rawmaterialinventory__adjustment__gt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
-        ),
+        ),Decimal(0)),
         # Calculate deductions on the selected date
-        deductions=Sum(
+        deductions=Coalesce(Sum(
             'rawmaterialinventory__adjustment',
             filter=Q(rawmaterialinventory__adjustment__lt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
-        )
+        ),Decimal(0) )
     ).annotate(
         # Calculate closing stock based on calculated_stock, additions, and deductions
-        closing_stock=F('previous_stock') + (F('additions') or 0) + (F('deductions') or 0)
+        closing_stock=F('previous_stock') + (F('additions')) + (F('deductions'))
     )
-
+    print(raw_materials[8].__dict__)
     context = {
         'raw_materials': raw_materials,
         'selected_date': selected_date,
@@ -2148,47 +2163,37 @@ def create_service_sale(request):
 
     if request.method == 'POST':
         sale_form = ServiceSaleForm(request.POST, user=request.user)
+        store = sale_form.cleaned_data.get('store') if sale_form.is_valid() else None  # Access after validation
+        service_formset = ServiceFormset(request.POST, instance=None, form_kwargs={'store': store})
+        accessory_formset = AccessoryFormset(request.POST, instance=None, form_kwargs={'store': store})
+        product_formset = ProductFormset(request.POST, instance=None, form_kwargs={'store': store})
         
-        if sale_form.is_valid():
-            sale = sale_form.save(commit=False)
-            store = sale_form.cleaned_data.get('store')
-            
-            service_formset = ServiceFormset(request.POST, instance=sale, form_kwargs={'store': store})
-            accessory_formset = AccessoryFormset(request.POST, instance=sale, form_kwargs={'store': store})
-            product_formset = ProductFormset(request.POST, instance=sale, form_kwargs={'store': store})
+        if sale_form.is_valid() and service_formset.is_valid() and accessory_formset.is_valid() and product_formset.is_valid():
+    
+    
+            print("Accessory Formset Initial Forms:", request.POST.get('accessory_sale_items-INITIAL_FORMS'))
+            print("Product Formset Total Forms:", request.POST.get('product_sale_items-TOTAL_FORMS'))
+            print("Product Formset Initial Forms:", request.POST.get('product_sale_items-INITIAL_FORMS'))
+            sale = sale_form.save()
+            service_formset.instance = sale
+            service_formset.save()
+            accessory_formset.instance = sale
+            accessory_formset.save()
+            product_formset.instance = sale
+            product_formset.save()
+            sale.calculate_total()
 
-            # Check if all formsets are valid
-            if service_formset.is_valid() and accessory_formset.is_valid() and product_formset.is_valid():
-                print("Service Formset TOTAL_FORMS:", request.POST.get("service_sale_items-TOTAL_FORMS"))
-                print("Accessory Formset TOTAL_FORMS:", request.POST.get("accessory_sale_items-TOTAL_FORMS"))
-                print("Product Formset TOTAL_FORMS:", request.POST.get("product_sale_items-TOTAL_FORMS"))
-                
-                # Save the sale and all related formsets
-                
-                sale.save()
-                service_formset.instance = sale
-                service_formset.save()
-                
-                accessory_formset.instance = sale
-                accessory_formset.save()
-                
-                product_formset.instance = sale
-                product_formset.save()
-                
-                # Calculate total amount after saving formsets
-                sale.calculate_total()
 
-                messages.success(request, 'Service Sale has been created successfully')
-                return redirect('store_sale_list')
-            else:
-                # Display detailed formset errors for user correction
-                for formset in [service_formset, accessory_formset, product_formset]:
-                    for form in formset:
-                        for field, errors in form.errors.items():
-                            for error in errors:
-                                messages.error(request, f"{form.prefix}: {field} - {error}")
+            messages.success(request, 'Service Sale has been created successfully')
+            return redirect('store_sale_list')
         else:
-            messages.error(request, 'There was an error with the sale form. Please try again.')
+            # Display detailed formset errors for user correction
+            for formset in [service_formset, accessory_formset, product_formset]:
+                for form in formset:
+                    for field, errors in form.errors.items():
+                        for error in errors:
+                            messages.error(request, f"{form.prefix}: {field} - {error}")
+    
     else:
         sale_form = ServiceSaleForm(user=request.user)
         store = sale_form.fields['store'].queryset.first()  # Default to the first store if exists
@@ -2201,6 +2206,41 @@ def create_service_sale(request):
         'service_formset': service_formset,
         'accessory_formset': accessory_formset,
         'product_formset': product_formset,
+    })
+    
+def update_service_sale(request, pk):
+    sale = ServiceSale.objects.get(pk=pk)
+    ServiceFormset = inlineformset_factory(ServiceSale, ServiceSaleItem, form=ServiceSaleItemForm, extra=1, can_delete=True)
+    AccessoryFormset = inlineformset_factory(ServiceSale, AccessorySaleItem, form=AccessorySaleItemForm, extra=1, can_delete=True)
+    ProductFormset = inlineformset_factory(ServiceSale, ProductSaleItem, form=ProductSaleItemForm, extra=1, can_delete=True)
+
+    if request.method == 'POST':
+        sale_form = ServiceSaleForm(request.POST, instance=sale)
+        service_formset = ServiceFormset(request.POST, instance=sale)
+        accessory_formset = AccessoryFormset(request.POST, instance=sale)
+        product_formset = ProductFormset(request.POST, instance=sale)
+
+        if sale_form.is_valid() and service_formset.is_valid() and accessory_formset.is_valid() and product_formset.is_valid():
+            sale = sale_form.save()
+            service_formset.save()
+            accessory_formset.save()
+            product_formset.save()
+            messages.success(request, 'Sale updated successfully.')
+            return redirect('sale_list')  # Redirect to your sale list view
+        else:
+            messages.error(request, 'Error updating sale.')
+    else:
+        sale_form = ServiceSaleForm(instance=sale)
+        service_formset = ServiceFormset(instance=sale)
+        accessory_formset = AccessoryFormset(instance=sale)
+        product_formset = ProductFormset(instance=sale)
+
+    return render(request, 'update_service_sale.html', {
+        'sale_form': sale_form,
+        'service_formset': service_formset,
+        'accessory_formset': accessory_formset,
+        'product_formset': product_formset,
+        'sale': sale,  # Pass the sale object to the template
     })
     
 def store_sale_service_invoice_list(request):

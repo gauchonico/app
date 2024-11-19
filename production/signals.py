@@ -4,7 +4,7 @@ from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.core.mail import send_mail
 from django.utils import timezone
-from .models import LPO, Accessory, AccessoryInventoryAdjustment, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
+from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
 
 @receiver(post_save, sender=RawMaterialInventory)
 def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
@@ -48,7 +48,7 @@ def send_requisition_email(sender, instance, created, **kwargs):
                 f"Items:\n{items_details}{items}\n\n" \
                 f"Please review the requisition and kindly advise."
         
-        recipient_list = ['nicholas.lukyamuzi@mylivara.com']  # Add recipients here
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Add recipients here
         send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
         
 @receiver(post_save, sender=Requisition)
@@ -57,7 +57,7 @@ def send_requisition_status_email(sender, instance, **kwargs):
     if instance.status == 'checking':
         subject = f"Requisition {instance.requisition_no} Is Ready For Delivery"
         message = f"The requisition with ID {instance.requisition_no} has been updated to the 'checking' status."
-        recipient_list = ['nicholas.lukyamuzi@mylivara.com']  # Replace with actual recipient(s)
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
 
         try:
             send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
@@ -72,11 +72,40 @@ def send_lpo_verification_email(sender, instance, **kwargs):
         print(f"Preparing to send email for LPO {instance.pk}.")  # Debugging line
         subject = f"LPO {instance.lpo_number} Verified"
         message = f"The LPO with ID {instance.lpo_number} has been verified and is ready for delivery."
-        recipient_list = ['nicholas.lukyamuzi@mylivara.com']  # Replace with actual recipient(s)
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
 
         try:
             send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
             print(f"Verification email sent for LPO {instance.pk}.")  # Debugging line
         except Exception as e:
             print(f"Failed to send verification email for LPO {instance.pk}: {e}")
+            
+@receiver(post_save,
+    sender=GoodsReceivedNote )
+def send_grn_creation_email(sender, instance, created, **kwargs):
+    if created:
+        print(f"Signal triggered for new GRN {instance.grn_number}.")  # Debugging line
+
+        subject = f"New GRN Created: {instance.grn_number}"
+        message = f"A new Goods Received Note (GRN) with ID {instance.pk} and number {instance.grn_number} has been created."
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
+
+        try:
+            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+            print(f"Creation email sent for GRN {instance.pk}.")  # Debugging line
+        except Exception as e:
+            print(f"Failed to send creation email for GRN {instance.pk}: {e}")
+            
+@receiver(post_save, sender=IncidentWriteOff)
+def send_write_off_notification(sender, instance, created, **kwargs):
+    if created:
+        subject = "New Incident Write-Off Created"
+        message = f"Please review this newly created Incident Write-Off raw_material: {instance.raw_material} quantity: {instance.quantity}, reason: {instance.reason} status: {instance.status}"
+        
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com','lukyamuzin91@gmail.com']  # Replace with actual email addresses
+        try:
+            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+        except Exception as e:
+            print(f"Failed to send creation email for GRN {instance.pk}: {e}")
+            
 

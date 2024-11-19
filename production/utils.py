@@ -13,7 +13,11 @@ def cost_per_unit(self):
     ).order_by('-requisition__created_at').first()  # Order by descending creation date
 
     if latest_requisition_item:
+        print(latest_requisition_item)
+        print(latest_requisition_item.raw_material)
+        print(latest_requisition_item.raw_material.__dict__)
         unit_of_measurement = latest_requisition_item.raw_material.unit_measurement.lower()
+        
         purchase_price_per_unit = latest_requisition_item.price_per_unit
 
       # Conversion factor to convert base units (e.g., grams, milliliters) to the stored unit (kilograms, liters)

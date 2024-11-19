@@ -41,9 +41,9 @@ class UnitOfMeasurement(models.Model):
 class RawMaterial(models.Model):
     name = models.CharField(max_length=255)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='raw_materials')
-    quantity = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
+    quantity = models.DecimalField(max_digits=10, decimal_places=5, default=00)
     reorder_point = models.PositiveIntegerField(default=0.0)
-    unit_measurement = models.CharField(max_length=10, blank=True, null=True)
+    unit_measurement = models.CharField(max_length=10, blank=True, default='units')
     
 
     def __str__(self):
@@ -56,6 +56,8 @@ class RawMaterial(models.Model):
         if self.current_stock < quantity:
             raise ValueError("Not enough stock")
         RawMaterialInventory.objects.create(raw_material=self, adjustment=-quantity)
+        
+    
     
     @property
     def current_stock(self):
@@ -72,6 +74,21 @@ class RawMaterial(models.Model):
         with transaction.atomic():
             RawMaterialInventory.objects.create(raw_material=self, adjustment=adjustment)
             self.update_quantity()
+            
+class IncidentWriteOff(models.Model):
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='write_offs')
+    quantity = models.DecimalField(max_digits=5, decimal_places=3, default=0)
+    reason = models.TextField()
+    date = models.DateField(auto_now_add=True)
+    status = models.CharField(max_length=20, default='pending', choices=[('pending', 'Pending'), ('approved', 'Approved')])
+    written_off_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Incident Write-Off"
+        verbose_name_plural = "Incident Write-Offs"
+
+    def __str__(self):
+        return f"Write-off of {self.quantity} {self.raw_material} on {self.date} - {self.reason[:20]}"
     
 
 class PurchaseOrder(models.Model):
@@ -108,7 +125,7 @@ class PurchaseOrder(models.Model):
     
 class RawMaterialInventory(models.Model):
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.DO_NOTHING)
-    adjustment = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
+    adjustment = models.DecimalField(max_digits=8, decimal_places=5, default=0.00000)
     last_updated = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):

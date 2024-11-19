@@ -119,6 +119,7 @@ urlpatterns = [
     
     ####Sales###
     path('create_service_sale/', views.create_service_sale, name="create_service_sale"),
+    path('update_service_sale/<int:pk>/', views.update_service_sale, name="update_service_sale"),
     path('store_sale_list/', views.store_sale_list, name="store_sale_list"),
     path('service_sale_details/<int:sale_id>/', views.service_sale_details, name="service_sale_details"),
     path('store_sale_service_invoice_list/', views.store_sale_service_invoice_list, name="store_sale_service_invoice_list"),
@@ -159,5 +160,7 @@ urlpatterns = [
     
     ##finance
     path('outstanding_payables/',  views.outstanding_payables, name='outstanding_payables'),
+    path('create_incident_write_off/', views.create_incident_write_off, name="create_incident_write_off"),
+    path('incident_write_off_list/', views.incident_write_off_list, name='incident_write_off_list'),
     
 ]

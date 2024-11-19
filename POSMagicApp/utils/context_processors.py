@@ -274,6 +274,11 @@ def sidebar_menu(request):
             'text': 'Production Store Writeoffs',
             'name': 'writeoffs',
         },{
+            'url':'/production/incident_write_off_list',
+            'icon':'bi bi-box-seam',
+            'text': 'Rawmaterial Writeoffs',
+            'name': 'incident_write_off_list',
+        },{
             'url': '/production/restock-requests/',
             'icon':'bi bi-folder-fill',
             'text':'Store Restock Requests',
@@ -478,7 +483,7 @@ def sidebar_menu(request):
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs','manufacture_products_report','raw_material_utilization_report','raw_material_date_report']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs','incident_write_off_list','manufacture_products_report','raw_material_utilization_report','raw_material_date_report']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -489,13 +494,6 @@ def sidebar_menu(request):
                         f'Requisitions <span class="badge rounded-circle bg-danger">{verified_requsitions}</span>' 
                         if verified_requsitions > 0 else 'Requisitions'),
                     'name': 'all_requisitions'
-                },{
-                    'url': '/production/lpos_list/',
-                    'icon': 'bi bi-egg-fried',
-                    'text': mark_safe(f'Purchase Orders <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
-                            if lpo_count > 0 else 'Purchase Orders'
-                            ),
-                    'name': 'lpos_list'
                 },{
                     'url': '/production/goods-received-notes/',
                     'icon': 'bi bi-receipt',
@@ -512,26 +510,9 @@ def sidebar_menu(request):
                 'icon': 'bi bi-receipt',
                 'text': mark_safe(
                     f'Replace Notes<span class="badge rounded-circle bg-danger">{replace_notes}</span>'
-                    if replace_notes>0 else 'Replacing Notes'
+                    if replace_notes>0 else 'Replace Notes'
                     ),
                 'name':'replace_notes_list'
-                },{
-                 
-                'url': '/production/outstanding_payables',
-                'icon': 'bi bi-box-seam',
-                'text': mark_safe(f'Outstanding Payables<span class="badge rounded-circle bg-danger">{get_outstanding_po_payables}</span>'
-                                if get_outstanding_po_payables>0 else 'Outstanding Payables'
-                                ),
-                'name': 'outstanding_payables',
-           
-                },{
-                    'url':'/production/main_store_accessory_requisitions_list/',
-                    'icon':'bi bi-receipt',
-                    'text': mark_safe (f'Main Store Acc. Req.<span class="badge rounded-circle bg-danger">{production_payment_vouchers}</span>'
-                                    if production_payment_vouchers>0 else 'Main Store Acc. Req'
-                                ),
-                    'name': 'main_store_accessory_requisitions_list',
-    
                 }]
             })
         elif 'Saloon Managers' in group_names:

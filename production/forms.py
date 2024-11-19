@@ -683,4 +683,31 @@ class ProductSaleItemForm(ModelForm):
         super().__init__(*args, **kwargs)
         if store:
             self.fields['product'].queryset = StoreInventory.objects.filter(store=store)
+            
+class IncidentWriteOffForm(ModelForm):
+    class Meta:
+        model = IncidentWriteOff
+        fields = ['raw_material','quantity','reason']
+        widgets ={
+            'raw_material': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+            'reason': forms.Textarea(attrs={'class':'form-control'}),
+            'total_cost': forms.NumberInput(attrs={'class':'form-control'})
+        }
         
+class IncidentWriteOffForm(forms.ModelForm):
+    class Meta:
+        model = IncidentWriteOff
+        fields = ('raw_material', 'quantity', 'reason')
+        widgets ={
+            'raw_material': forms.Select(attrs={'class':'form-control'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+            'reason': forms.Textarea(attrs={'class':'form-control'}),
+        }
+
+    def clean_quantity(self):
+        quantity = self.cleaned_data['quantity']
+        raw_material = self.cleaned_data['raw_material']
+        if quantity > raw_material.current_stock:
+            raise forms.ValidationError(f"Insufficient stock. Available stock for {raw_material} is {raw_material.current_stock}")
+        return quantity

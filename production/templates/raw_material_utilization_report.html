@@ -33,7 +33,7 @@
     <a href="{% url 'raw_material_utilization_reports' %}">hey</a>
     
     <!-- Filter Form -->
-    <form method="get" style="margin-bottom: 20px;">
+    {% comment %} <form method="get" style="margin-bottom: 20px;">
         <label for="start_date">Start Date:</label>
         <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
         
@@ -48,6 +48,11 @@
             <option value="year" {% if period == 'year' %}selected{% endif %}>Yearly</option>
         </select>
         <button class="btn btn-theme" type="submit">Filter</button>
+    </form> {% endcomment %}
+    <form method="get" action="{% url 'raw_material_utilization_report' %}">
+        <label for="date">Select Date:</label>
+        <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}">
+        <button class="btn btn-theme" type="submit">Generate Report</button>
     </form>
 
 
@@ -60,7 +65,6 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Period</th>
                 <th>Unit of Measurement</th>
                 <th>Initial Stock</th>
                 <th>Usage / Addition</th>
@@ -70,7 +74,6 @@
         <tbody>
             {% for entry in entries %}
             <tr>
-                <td>{{ entry.period }}</td>
                 <td>{{ entry.raw_material__unit_measurement }}</td>
                 <td>{{ entry.initial_stock }}</td>
                 <td>
@@ -80,7 +83,7 @@
                         <span class="text-theme">{{ entry.total_usage }}</span>
                     {% endif %}
                 </td>
-                <td>{{ entry.final_stock }}</td>
+                <td>{{ entry.final_stock|floatformat }}</td>
             </tr>
             {% endfor %}
         </tbody>

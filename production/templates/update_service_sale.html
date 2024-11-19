@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% load static %}
-{% block title %}{{ store.name }}Create Service Sale{% endblock %}
+{% block title %}{{ store.name }}Service Sale Update{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -33,107 +33,75 @@
     <div>
         <ul class="breadcrumb">
             <li class="breadcrumb-item"><a href="#">STORE</a></li>
-            <li class="breadcrumb-item active">NEW SERVICE SALE</li>
+            <li class="breadcrumb-item active">UPDATE SERVICE SALE</li>
         </ul>
-        <h5>Service Sale</h5>
+        <h5>Update Service Sale</h5>
     </div>
 </div>
-
-
-<form method="post" enctype="multipart/form-data">
-
+<form method="POST" enctype="multipart/form-data">
     {% csrf_token %}
+    {{ sale_form.as_p }}
 
-    <!-- Main ServiceSale form -->
-    {% comment %} {{ sale_form.as_p }} {% endcomment %}
-    <div class="row">
-        <!-- Field 1: Sender Name -->
-        <div class="col-xl-2">
-            <div class="mb-3">
-                <label class="sale_form-label">Store <span class="text-danger">*</span></label>
-                {{ sale_form.store }}
-            </div>
-        </div>
-        <div class="col-xl-2">
-            <div class="mb-3">
-                <label class="sale_form-label">Customer <span class="text-danger">*</span></label>
-                {{ sale_form.customer }}
-            </div>
-        </div>
-        <div class="col-xl-2">
-            <div class="mb-3">
-                <label class="sale_form-label">Payment Mode <span class="text-danger">*</span></label>
-                {{ sale_form.payment_mode }}
-            </div>
-        </div>
+    <h2>Service Items</h2>
+    {{ service_formset.management_form }}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Service</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for form in service_formset %}
+                <tr>
+                    <td>{{ form.service }}</td>
+                    <td>{{ form.quantity }}</td>
+                    <td>{{ form.price }}</td>
+                    <td>
+                        {% if not form.instance.pk %}
+                            <a href="#" class="remove-form">Remove</a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="">
+        <h3>Accessories Used</h3>
+        <table class="table w-50" id="accessory_item_formset">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Action</th>
+                    
+                </tr>
+            </thead>
+            
+            <tbody>
+                {{ accessory_formset.management_form }}
+                {% for form in accessory_formset %}
+                
+                
+
+                <tr class="form-row">
+                    <td>{{ form.accessory }}</td>
+                    <td>{{ form.quantity }}</td>
+                    <td>{{form.price }}</td>
+                    <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
+                </tr>
+                <tr>
+                    <td colspan="2">{{ form.errors}}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-
-    <div class="row">
-        <div class="">
-            <h3>Service</h3>
-            <table class="table w-50" id="service_item_formset">
-                <thead>
-                    <tr>
-                        <th>Service Name</th>
-                        <th>Quantity</th>
-                        <th>Qty</th>
-                        
-                        
-                    </tr>
-                </thead>
-                
-                <tbody>
-                    {{ service_formset.management_form }}
-                    {% for form in service_formset %}
-                    
-                    <tr class="form-row">
-                        <td>{{ form.service }}</td>
-                        <td>{{ form.staff }}</td>
-                        <td>{{form.quantity }}</td>
-                        
-                        <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
-                    </tr>
-                    <tr>
-                        <td colspan="2">{{ form.errors}}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="">
-            <h3>Accessories Used</h3>
-            <table class="table w-50" id="accessory_item_formset">
-                <thead>
-                    <tr>
-                        <th>Product Name</th>
-                        <th>Quantity</th>
-                        <th>Price</th>
-                        <th>Action</th>
-                        
-                    </tr>
-                </thead>
-                
-                <tbody>
-                    {{ accessory_formset.management_form }}
-                    {% for form in accessory_formset %}
-                    
-                    
-
-                    <tr class="form-row">
-                        <td>{{ form.accessory }}</td>
-                        <td>{{ form.quantity }}</td>
-                        <td>{{form.price }}</td>
-                        <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
-                    </tr>
-                    <tr>
-                        <td colspan="2">{{ form.errors}}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        <div class="">
+    <div class="">
         <h3>Products Sold</h3>
         <table class="table w-50" id="product_item_formset">
             <thead>
@@ -167,9 +135,12 @@
         <button type="button" id="add_service" class="btn btn-primary">Add Service</button>
 		<button type="button" id="add_accessory" class="btn btn-primary">Add Accessory</button>
         <button type="button" id="add_product" class="btn btn-primary">Add Product</button>
-		<button type="submit" class="btn btn-outline-theme me-2">Submit Sale</button>
+		<button type="submit" class="btn btn-outline-theme me-2">Update Sale</button>
 	</div>
-    </form>
+    
+</form>
+
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
