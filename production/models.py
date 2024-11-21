@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import random
 from time import timezone
+import traceback
+from venv import logger
 from django.db import models
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -41,7 +43,7 @@ class UnitOfMeasurement(models.Model):
 class RawMaterial(models.Model):
     name = models.CharField(max_length=255)
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='raw_materials')
-    quantity = models.DecimalField(max_digits=10, decimal_places=5, default=00)
+    quantity = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
     reorder_point = models.PositiveIntegerField(default=0.0)
     unit_measurement = models.CharField(max_length=10, blank=True, default='units')
     
@@ -61,7 +63,7 @@ class RawMaterial(models.Model):
     
     @property
     def current_stock(self):
-        return self.rawmaterialinventory_set.all().aggregate(models.Sum('adjustment'))['adjustment__sum'] or 0
+        return self.rawmaterialinventory_set.all().aggregate(models.Sum('adjustment'))['adjustment__sum'] or Decimal(0)
     
     def update_quantity(self):
         self.quantity = self.current_stock
@@ -70,10 +72,25 @@ class RawMaterial(models.Model):
     def set_quantity(self, new_quantity):
         if new_quantity < 0:
             raise ValueError("Quantity cannot be negative.")
-        adjustment = new_quantity - self.current_stock
+
+        new_quantity = Decimal(str(new_quantity))
+        current_stock = Decimal(str(self.current_stock))
+
+        adjustment = new_quantity - current_stock
+        
+        print("Raw Material:", self)
+        print("Adjustment:", adjustment)
+
         with transaction.atomic():
-            RawMaterialInventory.objects.create(raw_material=self, adjustment=adjustment)
-            self.update_quantity()
+            print("Adjustment:", adjustment)
+            try:
+                RawMaterialInventory.objects.create(raw_material=self, adjustment=adjustment)
+                self.update_quantity()
+            except Exception as e:
+                logger.error("Error saving RawMaterialInventory: %s", str(e))
+                logger.error("Adjustment:", adjustment)
+                logger.error("Traceback:", traceback.format_exc())
+                raise e  # Re-raise the exception for further handling
             
 class IncidentWriteOff(models.Model):
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE, related_name='write_offs')
@@ -125,7 +142,7 @@ class PurchaseOrder(models.Model):
     
 class RawMaterialInventory(models.Model):
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.DO_NOTHING)
-    adjustment = models.DecimalField(max_digits=8, decimal_places=5, default=0.00000)
+    adjustment = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
     last_updated = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):

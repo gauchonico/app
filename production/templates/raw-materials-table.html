@@ -68,7 +68,13 @@
                 <td>{{ rawmaterial.current_stock|floatformat:2 }}</td>
                 <td>{{ rawmaterial.unit_measurement }}</td>
                 <td>{{ rawmaterial.supplier }}</td>
-                <td>{{ rawmaterial.reorder_point }} {{ rawmaterial.unit_measurement }}</td>
+                <td>
+                    {% if rawmaterial.reorder_point <= 0 %}
+                        <a href="{% url 'update_reorder_point' rawmaterial.pk %}">Set Now</a>
+                    {%else %}
+                        {{ rawmaterial.reorder_point }}
+                    {% endif %}
+                </td>
                 <td>{{ rawmaterial.last_updated }}</td>
                 <td>
                     {% comment %} <a href="{% url 'delete_rawmaterial' rawmaterial.id %}" class="btn btn-danger btn-sm">Delete</a> {% endcomment %}

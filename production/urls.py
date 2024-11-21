@@ -163,4 +163,5 @@ urlpatterns = [
     path('create_incident_write_off/', views.create_incident_write_off, name="create_incident_write_off"),
     path('incident_write_off_list/', views.incident_write_off_list, name='incident_write_off_list'),
     
+    path('update_reorder_point/<int:pk>/', views.update_reorder_point, name="update_reorder_point"),
 ]

@@ -50,7 +50,7 @@ class AddRawmaterialForm(forms.ModelForm):
         }
         
 class RawMaterialQuantityForm(forms.ModelForm):
-    new_quantity = forms.DecimalField(label="New Quantity")
+    new_quantity = forms.DecimalField(label="New Quantity",max_digits=11, decimal_places=5)
 
     class Meta:
         model = RawMaterial
@@ -64,6 +64,11 @@ class RawMaterialQuantityForm(forms.ModelForm):
         if new_quantity < 0:
             raise forms.ValidationError("Quantity cannot be negative.")
         return new_quantity
+    
+class ReorderPointForm(forms.ModelForm):
+    class Meta:
+        model = RawMaterial
+        fields = ['reorder_point']
 
 class BulkUploadRawMaterialForm(forms.Form):
     file = forms.FileField()
