@@ -1,9 +1,11 @@
 from datetime import date
 from django import forms
 from django.db.models.signals import post_save, pre_save
-from django.dispatch import receiver
+from django.dispatch import receiver, Signal
 from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.utils import timezone
+from django.db import transaction
 from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
 
 @receiver(post_save, sender=RawMaterialInventory)
@@ -26,30 +28,39 @@ def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
 #     if product.expiry_date and product.expiry_date < date.today():
 #         raise forms.ValidationError(f"Product {product.product.product_name} has expired on {product.expiry_date}.")
 
-@receiver(post_save, sender=Requisition)
-def send_requisition_email(sender, instance, created, **kwargs):
-    if created:
-        subject = f"New: Manufacturing / Production Requisition: {instance.requisition_no}"
-        
-        # Retrieve requisition items
-        items = instance.requisitionitem_set.all()
-        # Check if items are retrieved correctly
-        print("Retrieved items:", items)  # For debugging
-        items_details = "\n".join([
-            f"- {item.raw_material.name}: Quantity: {item.quantity}, Price per unit: {item.price_per_unit}"
-            for item in items
-        ])
-        
-        message = f"A new requisition has been created with the following details:\n\n" \
-                f"Requisition Number: {instance.requisition_no}\n" \
-                f"Supplier: {instance.supplier}\n" \
-                f"Status: {instance.status}\n" \
-                f"Date: {instance.created_at}\n\n" \
-                f"Items:\n{items_details}{items}\n\n" \
-                f"Please review the requisition and kindly advise."
-        
-        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Add recipients here
-        send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+# Define a custom signal
+requisition_completed = Signal()
+
+@receiver(post_save, sender=RequisitionItem)
+def trigger_requisition_email(sender, instance, **kwargs):
+    requisition = instance.requisition
+    # Check if items exist after every RequisitionItem save
+    if requisition.requisitionitem_set.exists():
+        # Emit custom signal after all items are added
+        requisition_completed.send(sender=Requisition, instance=requisition)
+
+@receiver(requisition_completed)
+def send_requisition_email(sender, instance, **kwargs):
+    transaction.on_commit(lambda: send_email(instance))
+
+def send_email(instance):
+    requisition_items = instance.requisitionitem_set.all()
+    context = {
+        'requisition_number': instance.requisition_no,
+        'supplier': instance.supplier,
+        'status': instance.status,
+        'created_at': instance.created_at,
+        'items': requisition_items,
+        'total_cost': instance.total_cost,
+    }
+    print(requisition_items)
+    
+    html_message = render_to_string('requisition_email.html', context)
+    subject = f"New: Manufacturing / Production Requisition: {instance.requisition_no}"
+    from_email = 'lukyamuzinicholas10@gmail.com'
+    recipient_list = ['lukyamuzinicholas10@gmail.com']
+    
+    send_mail(subject, '', from_email, recipient_list, html_message=html_message, fail_silently=False)
         
 @receiver(post_save, sender=Requisition)
 def send_requisition_status_email(sender, instance, **kwargs):
@@ -57,7 +68,7 @@ def send_requisition_status_email(sender, instance, **kwargs):
     if instance.status == 'checking':
         subject = f"Requisition {instance.requisition_no} Is Ready For Delivery"
         message = f"The requisition with ID {instance.requisition_no} has been updated to the 'checking' status."
-        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
+        recipient_list = ['vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
 
         try:
             send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
@@ -84,10 +95,10 @@ def send_lpo_verification_email(sender, instance, **kwargs):
     sender=GoodsReceivedNote )
 def send_grn_creation_email(sender, instance, created, **kwargs):
     if created:
-        print(f"Signal triggered for new GRN {instance.grn_number}.")  # Debugging line
+        print(f"Signal triggered for new GRN {instance.gcr_number}.")  # Debugging line
 
-        subject = f"New GRN Created: {instance.grn_number}"
-        message = f"A new Goods Received Note (GRN) with ID {instance.pk} and number {instance.grn_number} has been created."
+        subject = f"New GRN Created: {instance.gcr_number}"
+        message = f"A new Goods Received Note (GRN) with ID {instance.pk} and number {instance.gcr_number} has been created."
         recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
 
         try:

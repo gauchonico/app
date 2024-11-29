@@ -1,0 +1,48 @@
+<h2>New Requisition Notification</h2>
+
+  <p>A new requisition has been created with the following details:</p>
+
+  <table>
+    <tr>
+      <th>Requisition Number</th>
+      <td>{{ requisition_no }}</td>
+    </tr>
+    <tr>
+      <th>Supplier</th>
+      <td>{{ supplier }}</td>
+    </tr>
+    <tr>
+      <th>Status</th>
+      <td>{{ status }}</td>
+    </tr>
+    <tr>
+      <th>Date</th>
+      <td>{{ created_at }}</td>
+    </tr>
+  </table>
+
+  <h3>Items:</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Quantity</th>
+        <th>Price per Unit</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.raw_material.name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>{{ item.price_per_unit }}</td>
+      
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p>Total Cost: {{ total_cost }}</p>
+
+  <p>Please review the requisition and kindly advise.</p>
