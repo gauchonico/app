@@ -14,7 +14,7 @@ admin.site.register(Branch)
 admin.site.register(Ordern)
 admin.site.register(OrderItem)
 admin.site.register(Supplier)
-admin.site.register(RawMaterial)
+# admin.site.register(RawMaterial)
 admin.site.register(PurchaseOrder)
 admin.site.register(StoreAlerts)
 admin.site.register(Transaction)
@@ -87,5 +87,9 @@ admin.site.register(AccessoryInventoryAdjustment)
 admin.site.register(AccessorySaleItem)
 admin.site.register(ServiceSaleItem)
 admin.site.register(ProductSaleItem)
+@admin.register(RawMaterial)
+class RawMaterialAdmin(admin.ModelAdmin):
+    list_display = ('name', 'quantity', 'reorder_point', 'unit_measurement')
+    filter_horizontal = ('suppliers',)  # Use a widget that allows selecting multiple suppliers
 
 

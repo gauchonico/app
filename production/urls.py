@@ -24,6 +24,7 @@ urlpatterns = [
     path('replace_note_details/<int:replace_note_id>/', views.replace_note_details, name="replace_note_details"),
     path('process_replacements/<int:replace_note_id>/', views.process_replacements, name="process_replacements"),
 
+    path('upload_raw_materials/', views.upload_raw_materials, name="upload_raw_materials"),
     
     path('create_requisition/', views.create_requisition, name='create_requisition'),
     path('get_raw_materials/', views.get_raw_materials_by_supplier, name='get_raw_materials'),

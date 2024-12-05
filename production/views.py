@@ -20,7 +20,7 @@ from django import forms
 from django.contrib import messages
 from django.forms.formsets import BaseFormSet
 from django.forms import DecimalField, ValidationError, formset_factory, inlineformset_factory, modelformset_factory
-from django.http import FileResponse, Http404, HttpResponseBadRequest, HttpResponseForbidden, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.contrib.auth.decorators import login_required
@@ -30,7 +30,7 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, ProductSaleItemForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, ProductSaleItemForm, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
 from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
@@ -171,7 +171,7 @@ def get_supplier_raw_material_breakdown():
 
 def supplier_details (request, supplier_id):
     supplier = get_object_or_404(Supplier, pk=supplier_id)
-    rawmaterials = RawMaterial.objects.filter(supplier=supplier)
+    rawmaterials = RawMaterial.objects.filter(suppliers=supplier)
     requisitions = Requisition.objects.filter(supplier=supplier)
     # Get the breakdown of raw materials for the specific supplier
     breakdown = RequisitionItem.objects.filter(
@@ -197,13 +197,59 @@ def supplier_details (request, supplier_id):
 @login_required(login_url='/login/')
 def rawmaterialsList(request):
     rawmaterials = RawMaterial.objects.all()
+    # Add suppliers to each raw material object for easier access in the template
+    for rawmaterial in rawmaterials:
+        rawmaterial.suppliers_list = rawmaterial.suppliers.all()
     context = {
         'rawmaterials': rawmaterials,
+        
     }
+
     return render(request, "raw-materials-list.html", context)
+
+def upload_raw_materials(request):
+    if request.method == "POST" and request.FILES["csv_file"]:
+        csv_file = request.FILES["csv_file"]
+
+        # Ensure it's a CSV file
+        if not csv_file.name.endswith('.csv'):
+            return HttpResponse("Please upload a CSV file.")
+
+        # Parse the CSV file
+        decoded_file = csv_file.read().decode('utf-8').splitlines()
+        csv_reader = csv.reader(decoded_file)
+        
+        # Skip the header row if it exists
+        next(csv_reader, None)
+        updated_count = 0  # To keep track of how many records were updated
+
+        for row in csv_reader:
+            # Assuming each row has 'RawMaterial name' and 'Comma separated list of supplier names'
+            rawmaterial_name = row[0].strip()
+            suppliers_names = row[1].strip().split(',')
+
+            # Find the raw material by name, or create if not found
+            rawmaterial, created = RawMaterial.objects.get_or_create(name=rawmaterial_name)
+
+            # For each supplier, add them to the raw material's suppliers
+            for supplier_name in suppliers_names:
+                supplier_name = supplier_name.strip()
+                supplier = Supplier.objects.filter(name=supplier_name).first()
+                if supplier:
+                    rawmaterial.suppliers.add(supplier)
+            
+            rawmaterial.save()
+
+        return HttpResponse("CSV file processed successfully! {updated_count} raw materials were updated.")
+    
+    form = RawMaterialUploadForm()
+    return render(request, 'upload_raw_materials.html', {'form': form})
 
 def rawamaterialsTable(request):
     rawmaterials = RawMaterial.objects.all()
+    # Add suppliers to each raw material object for easier access in the template
+    for rawmaterial in rawmaterials:
+        rawmaterial.suppliers_list = rawmaterial.suppliers.all()
     return render(request, 'raw-materials-table.html', {'rawmaterials': rawmaterials})
 
 @login_required(login_url='/login/')
@@ -2492,7 +2538,7 @@ def create_requisition(request):
         
         # Set the supplier_id for each form in the formset
         for form in item_formset:
-            form.fields['raw_material'].queryset = RawMaterial.objects.filter(supplier__id=supplier_id)
+            form.fields['raw_material'].queryset = RawMaterial.objects.filter(suppliers__id=supplier_id)
 
         if requisition_form.is_valid() and item_formset.is_valid():
             requisition = requisition_form.save()
@@ -2532,7 +2578,7 @@ def create_requisition(request):
     
 def get_raw_materials_by_supplier(request):
     supplier_id = request.GET.get('supplier_id')
-    raw_materials = RawMaterial.objects.filter(supplier__id=supplier_id)
+    raw_materials = RawMaterial.objects.filter(suppliers__id=supplier_id)
     data = list(raw_materials.values('id', 'name'))
     return JsonResponse(data, safe=False)
 

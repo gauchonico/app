@@ -65,6 +65,9 @@
         
         <h1 class="page-header">
             Add Raw Material <small>Get started</small>
+            <a href="{% url 'upload_raw_materials' %}">
+                <button class="btn btn-sm btn-outline-theme float-end">Assign</button>
+            </a>
         </h1>
         <h6>For Bulk Uploads<span class="text-theme"> Download </span><a href="{% url 'download_example_csv' %}">raw_material_bulk_upload csv</a></h6>
             <form method="post" enctype="multipart/form-data">

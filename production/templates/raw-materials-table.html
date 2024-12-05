@@ -67,7 +67,15 @@
                 <td>{{ rawmaterial.name }}</td>
                 <td>{{ rawmaterial.current_stock|floatformat:2 }}</td>
                 <td>{{ rawmaterial.unit_measurement }}</td>
-                <td>{{ rawmaterial.supplier }}</td>
+                <td>
+                    <ul>
+                        {% for supplier in rawmaterial.suppliers_list %}
+                          <li>{{ supplier.name }} ({{ supplier.company_name }})</li>
+                        {% empty %}
+                          <li>No suppliers listed.</li>
+                        {% endfor %}
+                      </ul>
+                </td>
                 <td>
                     {% if rawmaterial.reorder_point <= 0 %}
                         <a href="{% url 'update_reorder_point' rawmaterial.pk %}">Set Now</a>

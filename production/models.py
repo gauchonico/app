@@ -42,9 +42,9 @@ class UnitOfMeasurement(models.Model):
 
 class RawMaterial(models.Model):
     name = models.CharField(max_length=255)
-    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='raw_materials')
+    suppliers = models.ManyToManyField(Supplier, related_name='supplied_raw_materials')
     quantity = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
-    reorder_point = models.PositiveIntegerField(default=0.0)
+    reorder_point = models.PositiveIntegerField(default=0)
     unit_measurement = models.CharField(max_length=10, blank=True, default='units')
     
 
@@ -52,14 +52,16 @@ class RawMaterial(models.Model):
         return f"{self.name} in {self.unit_measurement}"
     
     def add_stock(self, quantity):
-        RawMaterialInventory.objects.create(raw_material=self, adjustment=quantity)
+        with transaction.atomic():
+            RawMaterialInventory.objects.create(raw_material=self, adjustment=quantity)
+            self.update_quantity()
 
     def remove_stock(self, quantity):
-        if self.current_stock < quantity:
-            raise ValueError("Not enough stock")
-        RawMaterialInventory.objects.create(raw_material=self, adjustment=-quantity)
-        
-    
+        with transaction.atomic():
+            if self.current_stock < quantity:
+                raise ValueError("Not enough stock")
+            RawMaterialInventory.objects.create(raw_material=self, adjustment=-quantity)
+            self.update_quantity()
     
     @property
     def current_stock(self):

@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Write Offs{% endblock %}
+
+{% block css %}
+    <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+    <script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+    <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+    
+        <!-- BEGIN container -->
+        <div class="container">
+            <!-- BEGIN row -->
+            <div class="row justify-content-center">
+                <!-- BEGIN col-10 -->
+                <div class="col-xl-12">
+                    <!-- BEGIN row -->
+                    <div class="row">
+                        <!-- BEGIN col-9 -->
+                        <div class="col-xl-9">
+                            <ul class="breadcrumb">
+                                <li class="breadcrumb-item"><a href="#">RAWMATERIAL ACTIONS</a></li>
+                                <li class="breadcrumb-item active">WRITE OFFS</li>
+                            </ul>
+                            
+                            <h1 class="page-header">
+                                <small>.</small>
+                            </h1>
+                            
+                            <hr class="mb-4">
+                            <div>
+                                <form method="post" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    {{ form.as_p }}
+                                    <input type="submit" value="Upload">
+                                </form>
+                            </div>
+                        </div>
+        
+                    </div>
+                    <!-- END row -->
+                </div>
+                <!-- END col-10 -->
+            </div>
+            <!-- END row -->
+        </div>
+        <!-- END container -->
+  
+{% endblock %}
+{% block outter_content %}
+
+{% if messages %}
+    <div class="toasts-container">
+        {% for message in messages %}
+            <div class="toast fade show">
+                <div class="toast-header">
+                    <i class="far fa-bell text-muted me-2"></i>
+                    <strong class="me-auto">Info</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    <p>{{ message }}</p>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% if form.errors %}  {% endif %}
+
+{% endblock outter_content %}

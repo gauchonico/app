@@ -63,8 +63,14 @@
 					<!-- END stat-lg -->
 					<!-- BEGIN stat-sm -->
 					<div class="small text-inverse text-opacity-50 text-truncate mb-3">
-						<i class="bi bi-circle-fill fs-8px text-theme me-2"></i> Supplier<br>
-						{{rawmaterial.supplier}}
+						<i class="bi bi-circle-fill fs-8px text-theme me-2"></i> Suppliers<br>
+						<ul>
+							{% for supplier in rawmaterial.suppliers_list %}
+							  <li>{{ supplier.name }}</li>
+							{% empty %}
+							  <li>No suppliers listed.</li>
+							{% endfor %}
+						</ul>
 					</div>
                     <div class="small text-inverse text-opacity-50 text-truncate mb-3">
 						<i class="bi bi-circle-fill fs-8px text-theme me-2"></i> Re-Order Point<br>

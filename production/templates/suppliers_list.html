@@ -85,15 +85,14 @@
 							<td class="align-middle">{{ supplier.company_name }}</td>
 							
 							<td class="align-middle">
+								
 								<ul class="list-group">
-								{% for raw_material in supplier.raw_materials.all %}
-										
-									<li class="list-group-item d-flex align-items-center small">{{ raw_material.name }}</li>
-										
+									{% for rawmaterial in supplier.supplied_raw_materials.all %}
+									  <li class="list-group-item">{{ rawmaterial.name }}</li>
 									{% empty %}
-									<li class="list-group-item d-flex align-items-center">No raw materials</li>
-								{% endfor %}
-								</ul>
+									  <p class="text-danger">No raw materials supplied.</p>
+									{% endfor %}
+								  </ul>
 							</td>
 							<td class="align-middle">{{ supplier.contact_number }}</td>
 		
