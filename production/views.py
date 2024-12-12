@@ -240,7 +240,7 @@ def upload_raw_materials(request):
             
             rawmaterial.save()
 
-        return HttpResponse("CSV file processed successfully! {updated_count} raw materials were updated.")
+        return redirect("rawmaterialsList")
     
     form = RawMaterialUploadForm()
     return render(request, 'upload_raw_materials.html', {'form': form})
