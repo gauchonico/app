@@ -6,7 +6,7 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.db import transaction
-from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
+from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
 
 @receiver(post_save, sender=RawMaterialInventory)
 def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
@@ -119,4 +119,25 @@ def send_write_off_notification(sender, instance, created, **kwargs):
         except Exception as e:
             print(f"Failed to send creation email for GRN {instance.pk}: {e}")
             
-
+@receiver(post_save, sender=MainStoreAccessoryRequisition)
+def send_email_for_accessories_requisition(sender, instance, created, **kwargs):
+    if created:
+        subject = "New Requisition For Salon Accessories from"
+        message = f"Please review this newly created Requisition for salon accessories: {instance.accessory_req_number} status: {instance.status}"
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com','lukyamuzin91@gmail.com']  # Replace with actual email addresses
+        try:
+            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+        except Exception as e:
+                    print(f"Failed to send creation email for accessories requisition {instance.pk}: {e}")
+                    
+            
+@receiver(post_save, sender=InternalAccessoryRequest)
+def send_email_for_internal_accessory_request(sender, instance, created, **kwargs):
+    if created:
+        subject = "New Internal Accessory Request"
+        message = f"Please review this newly created Internal Accessory Request: {instance.store} status: {instance.comments}"
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com','lukyamuzin91@gmail.com']  # Replace with actual email addresses
+        try:
+            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+        except Exception as e:
+            print(f"Failed to send creation email for internal accessory request {instance.pk}: {e}")

@@ -35,50 +35,51 @@
             <li class="breadcrumb-item"><a href="#">STORE</a></li>
             <li class="breadcrumb-item active">STORE SALES</li>
         </ul>
-        <h5>Service Sales for {{ store.name }}</h5>
-    </div>
-    
-    <div class="btn-group ms-auto">
-        <a href="{% url 'create_service_sale' %}" type="button" class="btn btn-sm btn-outline-theme">
-            <i class="fas fa-plus"></i> Make New Sale
+        <h5>Service Sales Accross Livara Salons</h5>
+        <a href="{% url 'all_payment_receipts_view' %}" type="button" class="btn btn-sm btn-outline-theme">
+            <i class="fas fa-receipt"></i> View All Payments
         </a>
     </div>
+    
+        
+    
 </div>
 
 
 <table id="datatableDefault" class="table text-nowrap table-striped">
     <thead>
       <tr>
-        <th>Sale No.</th>
+        <th>Store</th>
         <th>Service Name</th>
         <th>Customer</th>
         <th>Total Price (UGX)</th>
         <th>Paid Status</th>
         <th>Sale Date</th>
         <th>view</th>
-        <th>Update</td>
+    
       </tr>
     </thead>
     <tbody>
       {% for sale in sales %}
+      
       <tr>
-        <td>{{ sale.service_sale_number }}</td>
+        <td>{{ sale.store }}</td>
         <td>
-          {% for item in sale.service_sale_items.all %}
-            <ul>
-              <li class="list-group-item">{{ item.service.service.name }}<span class="badge rounded-circle bg-dark">{{ item.quantity }}</span></li>
-            </ul>
+        {% for service_item in sale.service_sale_items.all %}
+            <li class="list-group-item">{{ service_item.service.service.name }}<span class="badge rounded-circle bg-dark">{{ service_item.quantity }}</span></li>
           {% endfor %}
         </td>
         <td>{{ sale.customer }}</td>
-        
+       
         <td>{{ sale.total_amount|floatformat|intcomma }}</td>
         <td>
-          {% if sale.paid_status == 'not_paid' %}
+            {% if sale.paid_status == 'not_paid' %}
             <span class="badge bg-danger">Not Paid</span>
-          {% else %}
+            {% elif sale.paid_status == 'partial_paid' %}
+            <span class="badge bg-warning">Partial Paid</span>
+            {% elif sale.paid_status == 'paid' %}
             <span class="badge bg-success">Paid</span>
-          {% endif %}
+            {% endif %}
         </td>
         <td>{{ sale.sale_date|date:"M d, Y" }}</td>
         <td>
@@ -86,11 +87,7 @@
             <i class="fas fa-eye"></i>
           </a>
         </td>
-        <td>
-          <a href="{% url 'update_service_sale' sale.id %}">
-            <i class="fas fa-edit"></i>
-          </a>
-        </td>
+        
       </tr>
       {% empty %}
       <tr>
@@ -98,27 +95,9 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+</table>
 {% endblock content %}
 {% block outter_content %}
 
-{% if messages %}
-    <div class="toasts-container">
-        {% for message in messages %}
-            <div class="toast fade show">
-                <div class="toast-header">
-                    <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Internal Requisition Actions</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                </div>
-                <div class="toast-body">
-                    <p>{{ message }}</p>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
-
-{% if form.errors %}  {% endif %}
 
 {% endblock outter_content %}

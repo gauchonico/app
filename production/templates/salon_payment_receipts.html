@@ -1,5 +1,8 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% load static %}
+{% block title %}{{ store.name }}Livara Store Sales Receipts{% endblock %}
+
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -23,52 +26,41 @@
 	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
 	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
-  
 {% endblock %}
-
 {% block content %}
-<div class="container" id="report-container">
-  <form method="get" action="{% url 'main_store_inventory_adjustments' %}" class="mb-4">
-    <div class="form-group">
-      {{ form.store.label_tag }}
-      {{ form.store }}
-    </div>
-    <button type="submit" class="btn btn-primary">Filter</button>
-    {% if selected_store %}
-      <a href="{% url 'main_store_inventory_adjustments' %}" class="btn btn-secondary">Clear Filter</a>
-    {% endif %}
-  </form>
-  <table id="datatableDefault" class="table text-nowrap w-100">
-    <thead>
-      <tr>
-        <th>Store</th>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Last Updated</th>
-        <th>Stock Count</th>
-        
-        <th>l</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in store_inventory %}
-        <tr>
-          <td>{{ item.store.name }}</td>
-          <td>{{ item.product.product_name }}</td>
-          <td>{{ item.quantity }}</td>
-          <td>{{ item.last_updated }}</td>
-          
-          {% if item.low_stock_flag %}
-            <td><span style="color: red;">Low Stock</span></td>
-          {% else %}
-            <td><span style="color: theme;">Stocked</span></td>  {% endif %}
-           
-          <td>
-            <a href="{% url 'inventory_adjustments' item.id %}">View Adjustments</a>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="container">
+    <h1>Payment Receipts</h1>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Receipt ID</th>
+                <th>Sale ID</th>
+                <th>Customer</th>
+                <th>Store</th>
+                <th>Payment Method</th>
+                <th>Amount(UGX)</th>
+                <th>Payment Date</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td>{{ payment.id }}</td>
+                <td>{{ payment.sale.id }}</td>
+                <td>{{ payment.sale.customer.first_name }}</td>
+                <td>{{ payment.sale.store.name }}</td>
+                <td>{{ payment.get_payment_method_display }}</td>
+                <td>{{ payment.amount|floatformat|intcomma }}</td>
+                <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
+                <td>{{ payment.remarks }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">No payment receipts available.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
-{% endblock content %}
+{% endblock %}

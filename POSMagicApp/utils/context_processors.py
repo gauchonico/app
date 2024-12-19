@@ -3,7 +3,7 @@ from django.urls import resolve
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 
-from production.models import LPO, DiscrepancyDeliveryReport, LivaraMainStore, PaymentVoucher, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreTransfer
+from production.models import LPO, DiscrepancyDeliveryReport, InternalAccessoryRequest, LivaraMainStore, MainStoreAccessoryRequisition, PaymentVoucher, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreTransfer
 from salon.models import SalonRestockRequest
 
 
@@ -37,6 +37,12 @@ def get_discrepancy_reports():
 def get_production_payment_voucher_count():
     return PaymentVoucher.objects.all().count()
 
+def get_accessories_orders_count ():
+    return MainStoreAccessoryRequisition.objects.filter(status='pending').count()
+
+def get_internal_requisition_count():
+    return InternalAccessoryRequest.objects.filter(status='pending').count()
+
 
 def mark_active_link(menu, current_path_name):
     for item in menu:
@@ -53,10 +59,12 @@ def mark_active_link(menu, current_path_name):
 
 def sidebar_menu(request):
     created_production_orders_count = get_created_production_orders_count()  # Get the count of created production orders
+    new_accessory_requests = get_accessories_orders_count()
     created_livara_store_orders = get_pending_livara_store_orders()
     restock_requests_count= get_new_restock_requests_count()
     requisitions_count = get_new_requisitions_count()
     lpo_count = get_new_lpo_count()
+    internal_requisition_count = get_internal_requisition_count()
     verified_requsitions = get_verified_requsitions()
     replace_notes = get_replace_notes()
     get_outstanding_po_payables = get_outstanding_payables_count()
@@ -238,7 +246,9 @@ def sidebar_menu(request):
         },{
             'url': '/production/all_internal_requests/',
             'icon': 'bi bi-folder-fill',
-            'text': 'Store Accessory Requests',
+            'text': mark_safe(f'Store Accessory Requests <span class="badge rounded-circle bg-danger">{internal_requisition_count}</span>'
+                        if internal_requisition_count > 0 else 'Store Accessory Requests'
+                        ),
             'name': 'all_internal_requests',
         },{
             'url':'/production/particular_store_inventory/',
@@ -349,10 +359,12 @@ def sidebar_menu(request):
             'text': 'Production Payment Vouchers',
             'name': 'production_payment_vouchers',
         },{
-                    'url':'/production/main_store_accessory_requisitions_list/',
-                    'icon':'bi bi-receipt',
-                    'text': 'Main Store Acc. Reqn.',
-                    'name': 'main_store_accessory_requisitions_list',
+            'url':'/production/main_store_accessory_requisitions_list/',
+            'icon':'bi bi-receipt',
+            'text': mark_safe(f'Salon Accessories<span class="badge rounded-circle bg-danger">{new_accessory_requests}</span>'
+                    if new_accessory_requests>0 else 'Salon Accessories'    
+                    ),
+            'name': 'main_store_accessory_requisitions_list',
     
             },{
             'text': 'MANAGERS',
@@ -429,7 +441,7 @@ def sidebar_menu(request):
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financePurchase', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','financeListStoreSales','writeoffs','discrepancy_delivery_report_list','raw_material_date_report','goods_received_note_list','main_store_accessory_requisitions_list']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','writeoffs','discrepancy_delivery_report_list','raw_material_date_report','goods_received_note_list','main_store_accessory_requisitions_list']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -478,6 +490,37 @@ def sidebar_menu(request):
                                     if production_payment_vouchers>0 else 'Payment Vouchers'
                                 ),
                 'name': 'production_payment_vouchers',
+                }],
+                
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-box-seam',
+                'text': 'Livara MainStore',
+                'children': [{
+                    'url': '/production/livara_main_store_inventory',
+                    'icon': 'bi bi-folder',
+                    'text': 'Main Products Store',
+                    'name':'livara_main_store_inventory'
+                },{
+                    'url':'/production/accessory_store/',
+                    'icon': 'fa-solid fa-gem',
+                    'text': 'Main Accessory Inventory',
+                    'name': 'accessory_store',
+                },{
+                    'url': '/production/all_stores_inventory_view/',
+                    'icon': 'bi bi-folder-fill',
+                    'text': 'All Store Accessories',
+                    'name':'all_stores_inventory_view'
+                },{
+                    'url': '/production/finance_list_store_sales/',
+                    'icon': 'bi bi-bounding-box-circles',
+                    'text': 'Direct Store Sales',
+                    'name': 'financeListStoreSales',
+                },{
+                    'url': '/production/finance_store_sale_list/',
+                    'icon': 'bi bi-folder',
+                    'text': 'Salon Sales',
+                    'name':'finance_store_sale_list',
                 }]
             })
         elif 'Production Manager' in group_names:

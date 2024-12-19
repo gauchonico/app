@@ -91,5 +91,9 @@ admin.site.register(ProductSaleItem)
 class RawMaterialAdmin(admin.ModelAdmin):
     list_display = ('name', 'quantity', 'reorder_point', 'unit_measurement')
     filter_horizontal = ('suppliers',)  # Use a widget that allows selecting multiple suppliers
+    
+admin.site.register(StoreInventoryAdjustment)
+admin.site.register(Payment)
+admin.site.register(InventoryAdjustment)
 
 

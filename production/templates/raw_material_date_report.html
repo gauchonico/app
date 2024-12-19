@@ -48,22 +48,28 @@
         {% for material in raw_materials %}
             <tr>
                 <td>{{ material.name }}</td>
-                <td>{{ material.previous_stock }}</td>
+                <td>{{ material.previous_stock|floatformat:2 }}</td>
                 <td>
                     {% if material.additions > 0 %}
-                        <span class="text-success">{{ material.additions }}</span>
+                        <span class="text-success">{{ material.additions|floatformat:5 }}</span>
                     {% else %}
-                        0
+                        <span class="text-theme">0</span>
                     {% endif %}
                 </td>
                 <td>
                     {% if material.deductions < 0 %}
-                        <span class="text-danger">{{ material.deductions }}</span>
+                        <span class="text-danger">{{ material.deductions|floatformat:5 }}</span>
                     {% else %}
-                        0
+                        <span class="text-danger">0</span>
                     {% endif %}
                 </td>
-                <td>{{ material.closing_stock }}</td>
+                <td>
+                    {%if material.closing_stock == 0 %}
+                    <span class="text-danger">0</span>
+                    {% else %}
+                    {{ material.closing_stock|floatformat:2 }}
+                    {% endif %}
+                </td>
             </tr>
         {% endfor %}
     </tbody>

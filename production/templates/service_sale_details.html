@@ -39,7 +39,14 @@
 <p><strong>Paid Amount:</strong> UGX {{ sale.paid_amount|floatformat|intcomma }}</p>
 <p><strong>Balance:</strong> UGX {{ sale.balance|floatformat|intcomma }}</p>
 <p><strong>Payment Mode:</strong> {{ sale.get_payment_mode_display }}</p>
-<p><strong>Status:</strong> {{ sale.get_paid_status_display }}</p>
+<p><strong>Status:</strong> 
+    {% if sale.paid_status == 'paid' %} 
+    <span class="text-success">Paid</span>
+    {% else %}
+    <a class="btn btn-sm btn-theme" href={% url 'record_payment_view' sale.id %}>Pay Now</a>
+    {% endif %}
+</p>
+
 
 <h3>Service Items</h3>
 <table class="table table-striped">

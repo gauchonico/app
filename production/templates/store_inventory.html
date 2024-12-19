@@ -15,23 +15,59 @@
   <a class="btn btn-primary" href="{% url 'accessory_stock_adjustment_view' %}">Adjustment Report</a>
   <hr class="mb-4">
   <a class="btn btn-primary" href="{% url 'manager_store_accessory_report' %}">Manager Report</a>
+  
+  <a class="btn btn-primary" href="{% url 'accessory_stock_adjustment_view' %}">adsf</a>
   <table class="table table-striped">
     <thead>
       <tr>
-        <th>Store</th>
-        <th>Accessory</th>
-        <th>Quantity</th>
-        <th>Last Updated</th>
+        <th>Store Name</th>
+        <th>Total Accessories</th>
+        <th>Low Stock</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% for inventory in store_inventories %}
-      <tr>
-        <td>{{ inventory.store.name }}</td>
-        <td>{{ inventory.accessory.name }}</td>
-        <td>{{ inventory.quantity }}</td>
-        <td>{{ inventory.last_updated }}</td>
-      </tr>
+      {% for store in stores %}
+        <tr>
+          <td>{{ store.name }}</td>
+          <td>{{ store.total_accessories }}</td>
+          <td>
+            <span class="badge bg-danger">{{ store.low_stock_count }}</span> out of {{ store.total_accessories }}
+          </td>
+          <td>
+            <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#store-{{ store.id }}">
+              View Accessories
+            </button>
+          </td>
+        </tr>
+        <tr class="collapse" id="store-{{ store.id }}">
+          <td colspan="4">
+            <table class="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Accessory</th>
+                  <th>Quantity</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for inventory in store.accessory_inventory.all %}
+                  <tr>
+                    <td>{{ inventory.accessory.name }}</td>
+                    <td>{{ inventory.quantity }}</td>
+                    <td>
+                      {% if inventory.quantity < 5 %}
+                        <span class="badge bg-danger">Low Stock</span>
+                      {% else %}
+                        <span class="badge bg-success">In Stock</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>

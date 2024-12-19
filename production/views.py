@@ -1,8 +1,10 @@
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import os
+from django.db import models
 from urllib import error
-from django.db.models import Sum, F, Q, Case, When
+from django.db.models import Sum, F, Q, Case, When, Count
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.db.models import Sum, F
@@ -12,6 +14,7 @@ from django.views.generic import DetailView, FormView, ListView
 import csv
 from django.templatetags.static import static
 import logging
+from POSMagicApp.decorators import unauthenticated_user, allowed_users
 
 from itertools import product
 from django.db.models.functions import Coalesce
@@ -30,8 +33,8 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, ProductSaleItemForm, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, ProductSaleItemForm, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, Payment, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -1307,14 +1310,35 @@ def manager_inventory_view(request):
     return render(request, 'manager_inventory.html', context)
 @login_required
 def main_store_inventory_adjustments(request):
-    store_inventory = StoreInventory.objects.all()
-    adjustments = InventoryAdjustment.objects.filter(store_inventory__store__in=store_inventory.values('store'))
-    all_adjustments = InventoryAdjustment.objects.select_related('store_inventory')
+    form = StoreSelectionForm(request.GET or None )
+    # Base queryset for store inventory
+    store_inventory = StoreInventory.objects.select_related('store', 'product')
+    # store_inventory = StoreInventory.objects.all()
+    # adjustments = InventoryAdjustment.objects.filter(store_inventory__store__in=store_inventory.values('store'))
+    # all_adjustments = InventoryAdjustment.objects.select_related('store_inventory')
+    
+    # Filter store inventory by the selected store if a store is chosen
+    selected_store = None
+    if form.is_valid() and form.cleaned_data.get('store'):
+        selected_store = form.cleaned_data['store']
+        store_inventory = store_inventory.filter(store=selected_store)
+
+    # Fetch adjustments related to the filtered store inventory
+    adjustments = InventoryAdjustment.objects.filter(
+        store_inventory__in=store_inventory
+    ).select_related('store_inventory__store', 'adjusted_by')
+
+    # Group adjustments by store inventory for better organization in the template
+    grouped_adjustments = defaultdict(list)
+    for adjustment in adjustments:
+        grouped_adjustments[adjustment.store_inventory_id].append(adjustment)
 
     context = {
         'store_inventory': store_inventory,
         'adjustments': adjustments,
-        'all_adjustments': all_adjustments,  # This is used for the table header, not for filtering the queryset.
+        'adjustments': grouped_adjustments,  # Grouped adjustments for easier display
+        'form': form,  # Store selection form
+        'selected_store': selected_store,  # Track selected store for UI
     }
 
     return render(request, 'main_store_inventory_adjustments.html', context)
@@ -2112,9 +2136,20 @@ def main_store_accessory_requisitions_list(request):
 def all_stores_inventory_view(request):
     # Retrieve all store accessory inventories
     store_inventories = StoreAccessoryInventory.objects.select_related('store', 'accessory').all()
+    # Aggregate store and accessory data
+    stores = Store.objects.annotate(
+        total_accessories=Count('accessory_inventory'),
+        low_stock_count=Sum(
+            Case(
+                When(accessory_inventory__quantity__lt=5, then=1),
+                default=0,
+                output_field=models.IntegerField()
+            )
+        )
+    ).prefetch_related('accessory_inventory__accessory')
 
     return render(request, 'store_inventory.html', {
-        'store_inventories': store_inventories
+        'store_inventories': store_inventories, 'stores':stores
     })
 
 def accessory_inventory_report(request):
@@ -2194,11 +2229,56 @@ def accessory_inventory_report(request):
 
 @login_required
 def accessory_stock_adjustment_view(request):
-    # Retrieve all stock adjustments, including related accessories and stores
-    adjustments = AccessoryInventoryAdjustment.objects.select_related('accessory', 'store').all()
+    selected_date_str = request.GET.get('date')  # Get selected date from query parameters
+    selected_store_id = request.GET.get('store')  # Get selected store from query parameters
+    selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date() if selected_date_str else None
 
-    return render(request, 'accessory_stock_adjustment.html', {
-        'adjustments': adjustments
+    # Fetch all stores for the dropdown
+    stores = Store.objects.all()
+
+    # If no date or store is selected, show an empty page
+    if not selected_date or not selected_store_id:
+        return render(request, 'accessory_inventory_report.html', {
+            'stores': stores,
+            'adjustments': [],
+            'selected_date': selected_date,
+            'selected_store': None,
+        })
+
+    # Get the selected store
+    selected_store = Store.objects.get(id=selected_store_id)
+
+    # Fetch opening stock for each accessory
+    opening_stock = StoreAccessoryInventory.objects.filter(store=selected_store).annotate(
+        opening_quantity=Sum(
+            'adjustments__adjusted_quantity',
+            filter=Q(adjustments__adjustment_date__lt=selected_date),
+            default=0
+        )
+    )
+
+    # Fetch adjustments on the selected date
+    adjustments = StoreInventoryAdjustment.objects.filter(
+        store_inventory__store=selected_store,
+        adjustment_date=selected_date
+    ).select_related('store_inventory__accessory', 'adjusted_by')
+
+    # Calculate closing stock for each accessory
+    closing_stock = {}
+    for item in opening_stock:
+        opening = item.opening_quantity or 0
+        adjustments_on_date = adjustments.filter(store_inventory__accessory=item.accessory).aggregate(
+            total_adjustments=Sum('adjusted_quantity')
+        )['total_adjustments'] or 0
+        closing_stock[item.accessory.name] = opening + adjustments_on_date
+
+    return render(request, 'store_accessory_inventory_report.html', {
+        'stores': stores,
+        'adjustments': adjustments,
+        'opening_stock': opening_stock,
+        'closing_stock': closing_stock,
+        'selected_date': selected_date,
+        'selected_store': selected_store,
     })
 
 ############################################# BRANCH VIEWS #############################################################################################################################################
@@ -2333,6 +2413,50 @@ def service_sale_details(request, sale_id):
         'product_items': product_items,
     }
     return render (request, 'service_sale_details.html', context)
+
+##Pay for the service at the salon
+def record_payment_view(request, sale_id):
+    sale = get_object_or_404(ServiceSale, id=sale_id)
+
+    if request.method == 'POST':
+        form = PaymentForm(request.POST)
+        if form.is_valid():
+            payment_method = form.cleaned_data['payment_method']
+            remarks = form.cleaned_data['remarks']
+
+            try:
+                if payment_method == 'mixed':
+                    # Create separate payments for each method
+                    if form.cleaned_data['cash_amount']:
+                        Payment.objects.create(sale=sale, payment_method='cash', amount=form.cleaned_data['cash_amount'], remarks=f"Cash: {remarks}")
+                    if form.cleaned_data['mobile_money_amount']:
+                        Payment.objects.create(sale=sale, payment_method='mobile_money', amount=form.cleaned_data['mobile_money_amount'], remarks=f"Mobile Money: {remarks}")
+                    if form.cleaned_data['visa_amount']:
+                        Payment.objects.create(sale=sale, payment_method='visa', amount=form.cleaned_data['visa_amount'], remarks=f"Visa: {remarks}")
+                else:
+                    # Create a single payment record
+                    Payment.objects.create(sale=sale, payment_method=payment_method, amount=form.cleaned_data['amount'], remarks=remarks)
+
+                # Recalculate the sale totals
+                sale.calculate_total()
+                if sale.paid_status == 'paid':
+                    sale.mark_as_paid()  # Update status and handle inventory adjustments
+                    sale._deduct_accessory_inventory()
+                    sale._deduct_product_inventory()
+                messages.success(request, "Payment recorded successfully.")
+            except Exception as e:
+                messages.error(request, f"Error recording payment: {str(e)}")
+            return redirect('store_sale_list')  # Redirect to the sales list or sale detail view
+    else:
+        form = PaymentForm()
+
+    return render(request, 'record_payment.html', {'form': form, 'sale': sale})
+
+def all_payment_receipts_view(request):
+    # Retrieve all payment receipts, ordered by payment date (most recent first)
+    payments = Payment.objects.select_related('sale', 'sale__customer', 'sale__store').order_by('-payment_date')
+
+    return render(request, 'salon_payment_receipts.html', {'payments': payments})
     
 def store_sale_list(request):
     # Assuming the logged-in user is the manager of the store
@@ -2342,6 +2466,21 @@ def store_sale_list(request):
 
     # Pass the store sales to the template
     return render(request,'store_sale_list.html', {'sales': sales,'store':store})
+
+def finance_store_sale_list(request):
+    
+    # Fetch all service sales for all stores
+    # sales = ServiceSale.objects.all().order_by('-sale_date')
+    sales = ServiceSale.objects.select_related('store', 'customer') \
+        .prefetch_related(
+            'service_sale_items__service',    # Prefetch related services for each sale
+            'service_sale_items__staff',     # Prefetch related staff
+            'accessory_sale_items__accessory',  # Prefetch related accessories
+            'product_sale_items__product'    # Prefetch related products
+        ).order_by('-sale_date')
+
+    # Pass the store sales to the template
+    return render(request,'finance_store_sale_list.html', {'sales': sales})
     
 @login_required
 def store_services_view(request):
@@ -2450,15 +2589,24 @@ def mark_as_delivered(request, request_id):
                         )
                         store_inventory.quantity += item.quantity_requested
                         store_inventory.save()
+                        
+                        #log adjustment for accessoreis
+                        StoreInventoryAdjustment.objects.create(
+                            accessory_inventory = store_inventory,
+                            adjustment = 'requisition',
+                            quantity = item.quantity_requested,
+                            reason = f"Delivered from main inventory via request {accessory_request.id}"
+                        )
 
                     # Mark the request as delivered
                     accessory_request.status = 'delivered'
-                    accessory_request.save()
+                    accessory_request.save(update_fields=['status'])
 
                     messages.success(request, "Request has been marked as delivered and inventory updated.")
                     return redirect('store_internal_requests')
 
                 except Exception as e:
+                    print(f"Error occurred: {e}")
                     messages.error(request, str(e))
                     return redirect('mark_as_delivered', request_id=request_id)
             

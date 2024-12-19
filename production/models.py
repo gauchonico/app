@@ -657,7 +657,8 @@ class StoreInventory(models.Model):
         unique_together = (('product', 'store'),)
         
     
-        
+
+# store inventory adjustment model   
 class InventoryAdjustment(models.Model): ### for manufacture products ###
     store_inventory = models.ForeignKey(StoreInventory, on_delete=models.CASCADE, related_name='adjustments')
     adjusted_quantity = models.IntegerField()
@@ -670,6 +671,8 @@ class InventoryAdjustment(models.Model): ### for manufacture products ###
     def __str__(self):
         return f"Adjustment of {self.adjusted_quantity} units for {self.store_inventory.product} on {self.adjustment_date}"
 
+
+##Accessories for all salons 
 class StoreAccessoryInventory(models.Model):#### For Accessories in each Store ##
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='accessory_inventory')
     accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE)
@@ -690,7 +693,7 @@ class StoreAccessoryInventory(models.Model):#### For Accessories in each Store #
 class InternalAccessoryRequest(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
     request_date = models.DateField(auto_now_add=True)
-    status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')],default="pending")
+    status = models.CharField(max_length=20, choices=[('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected'),('delivered','Delivered')],default="pending")
 
     comments = models.TextField(blank=True)
 
@@ -713,6 +716,7 @@ class ServiceSale(models.Model):
         ('not_paid', 'Not Paid'),
         ('paid', 'Paid'),
     ]
+    service_sale_number = models.CharField(max_length=20, unique=True,editable=False, null=True)
     store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='service_sales')
     customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='service_sales')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -730,6 +734,19 @@ class ServiceSale(models.Model):
 
     def __str__(self):
         return f"Sale #{self.id} - {self.customer}"
+    
+    def save(self, *args, **kwargs):
+        # Automatically generate a unique number if not already set
+        if not self.service_sale_number:
+            self.service_sale_number = self.generate_service_sale_number()
+        super().save(*args, **kwargs)
+
+    def generate_service_sale_number(self):
+        """Generate a unique number based on store, date, and random digits."""
+        store_prefix = self.store.name[:2].upper()  # First two letters of the store name
+        date_part = timezone.now().strftime('%m%y') if self.sale_date else ''
+        random_part = f"{random.randint(1000, 9999)}"  # Random 4-digit number
+        return f"{store_prefix}-{date_part}-{random_part}"
 
     def calculate_total(self):
         total = sum(item.total_price for item in self.service_sale_items.all())
@@ -737,11 +754,82 @@ class ServiceSale(models.Model):
         total += sum(item.total_price for item in self.product_sale_items.all())
         
         self.total_amount = total
+        
+        # Sum payments from the Payment model
+        self.paid_amount = self.payments.aggregate(total=models.Sum('amount'))['total'] or 0
+        
         self.balance = total - self.paid_amount
         self.paid_status = 'paid' if self.balance <= 0 else 'not_paid'
         self.save()
+        
+    def mark_as_paid(self):
+        if self.paid_status != 'paid' and self.balance <= 0:
+            self.paid_status = 'paid'
+            self.save()
+            
+            try:
+                # Adjust inventory for accessories
+                self._deduct_accessory_inventory()
 
-    
+                # Adjust inventory for products
+                self._deduct_product_inventory()
+
+            except ValueError as e:
+                # Log errors for debugging
+                raise ValueError(f"Inventory adjustment failed: {str(e)}")
+
+    def _deduct_accessory_inventory(self):
+        """Deduct inventory for accessories and log adjustments."""
+        for accessory_item in self.accessory_sale_items.all():
+            store_accessory_inventory = accessory_item.accessory
+            if store_accessory_inventory.quantity < accessory_item.quantity:
+                raise ValueError(f"Insufficient stock for {store_accessory_inventory.accessory.name}")
+
+            # Deduct inventory
+            original_quantity = store_accessory_inventory.quantity
+            store_accessory_inventory.quantity -= accessory_item.quantity
+            store_accessory_inventory.save()
+
+            # Log adjustment
+            StoreInventoryAdjustment.objects.create(
+                accessory_inventory=store_accessory_inventory,
+                adjustment='sale',
+                quantity=-accessory_item.quantity,
+                reason=f"Sold in a ServiceSale #{self.id}"
+            )
+            # Debug: Log inventory changes
+            print(f"Accessory {store_accessory_inventory.accessory.name}: Deducted {accessory_item.quantity}. Original: {original_quantity}, Remaining: {store_accessory_inventory.quantity}")
+    def _deduct_product_inventory(self):
+        """Deduct inventory for products and log adjustments."""
+        for product_item in self.product_sale_items.all():
+            store_inventory = product_item.product
+            if store_inventory.quantity < product_item.quantity:
+                raise ValueError(f"Insufficient stock for {store_inventory.product.product_name}")
+
+            # Deduct inventory and update previous quantity
+            store_inventory.previous_quantity = store_inventory.quantity
+            store_inventory.quantity -= product_item.quantity
+            store_inventory.save()
+
+            # Log adjustment
+            InventoryAdjustment.objects.create(
+                store_inventory=store_inventory,
+                adjusted_quantity=-product_item.quantity,
+                adjustment_reason=f"Sold in ServiceSale #{self.id}",
+                adjusted_by=None,  # Set this to the appropriate user if available
+            )
+
+    def record_payment(self, payment_method, amount, remarks=None):
+        """Record a new payment and update sale status."""
+        Payment.objects.create(
+            sale=self,
+            payment_method=payment_method,
+            amount=amount,
+            remarks=remarks
+        )
+        self.calculate_total()
+       
+        
     def create_invoice(self):
         """Create an invoice for this sale."""
         invoice = ServiceSaleInvoice.objects.create(sale=self, total_amount=self.total_amount)
@@ -810,6 +898,37 @@ class ProductSaleItem(models.Model):
     
     def __str__(self):
         return f"{self.quantity} x {self.product.product.product_name} for Sale #{self.sale.id}"
+    
+class StoreInventoryAdjustment(models.Model):
+    ADJUSTMENT_TYPE_CHOICES = [
+        ('requisition', 'Internal Requisition'),
+        ('sale', 'Service Sale'),
+        ('other', 'Other'),
+    ]
+    accessory_inventory = models.ForeignKey(StoreAccessoryInventory, on_delete=models.CASCADE, related_name='adjustments')
+    adjustment = models.CharField(max_length=20, choices=ADJUSTMENT_TYPE_CHOICES)
+    quantity = models.IntegerField()  # Positive for increase, negative for decrease
+    reason = models.TextField(blank=True, null=True)  # Optional, for extra details
+    created_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.adjustment}: {self.quantity} on {self.accessory_inventory.store.name}"
+    
+class Payment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mobile_money', 'Mobile Money'),
+        ('visa', 'Visa'),
+    ]
+
+    sale = models.ForeignKey('ServiceSale', on_delete=models.CASCADE, related_name='payments')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now=True)
+    remarks = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.amount} via {self.payment_method} for Sale #{self.sale.id}"
 
 
 

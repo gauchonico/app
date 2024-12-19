@@ -5,7 +5,10 @@
 {% block title %}Store Sales{% endblock %}
 
 {% block css %}
-    <link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
+    
+    <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
 {% endblock %}  
 {% block js %}
     <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>

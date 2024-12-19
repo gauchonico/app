@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Replace Note Detail{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Record Payment for Sale #{{ sale.id }}</h1>
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        {{ form.payment_method.label }}
+        {{ form.payment_method }}
+      </div>
+  
+      <!-- Single Payment -->
+      <div id="single-payment">
+        <div class="mb-3">
+          {{ form.amount.label }}
+          {{ form.amount }}
+        </div>
+      </div>
+  
+      <!-- Mixed Payment -->
+      <div id="mixed-payment" style="display: none;">
+        <div class="mb-3">
+          {{ form.cash_amount.label }}
+          {{ form.cash_amount }}
+        </div>
+        <div class="mb-3">
+          {{ form.mobile_money_amount.label }}
+          {{ form.mobile_money_amount }}
+        </div>
+        <div class="mb-3">
+          {{ form.visa_amount.label }}
+          {{ form.visa_amount }}
+        </div>
+      </div>
+  
+      <div class="mb-3">
+        {{ form.remarks.label }}
+        {{ form.remarks }}
+      </div>
+  
+      <button type="submit" class="btn btn-primary">Submit Payment</button>
+    </form>
+  </div>
+  
+  <script>
+    const paymentMethodField = document.getElementById('id_payment_method');
+    const singlePaymentDiv = document.getElementById('single-payment');
+    const mixedPaymentDiv = document.getElementById('mixed-payment');
+  
+    paymentMethodField.addEventListener('change', function () {
+      if (this.value === 'mixed') {
+        singlePaymentDiv.style.display = 'none';
+        mixedPaymentDiv.style.display = 'block';
+      } else {
+        singlePaymentDiv.style.display = 'block';
+        mixedPaymentDiv.style.display = 'none';
+      }
+    });
+  </script>
+  {% endblock content %}
+  

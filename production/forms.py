@@ -348,9 +348,18 @@ class TestForm(forms.ModelForm):
         instance = super().save(commit=commit)
         # ... other save logic
         return instance
+    
+##Form to select store in salons store inventory adjustment view
+class StoreSelectionForm(forms.Form):
+    store = forms.ModelChoiceField(
+        queryset=Store.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=False,  # Optional if you want to show all stores when none is selected
+        label="Select Store"
+    )
         
 class TestItemForm(forms.ModelForm):
-    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.all())
+    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.filter(quantity__gt=0))
     chosen_price = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'readonly': True}), required=False)
     class Meta:
         model = SaleItem
@@ -719,3 +728,36 @@ class IncidentWriteOffForm(forms.ModelForm):
 
 class RawMaterialUploadForm(forms.Form):
     csv_file = forms.FileField()
+    
+    
+class PaymentForm(forms.Form):
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mobile_money', 'Mobile Money'),
+        ('visa', 'Visa'),
+        ('mixed', 'Mixed'),
+    ]
+
+    payment_method = forms.ChoiceField(choices=PAYMENT_METHOD_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
+    amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Total Amount'}), required=False)
+    cash_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cash Amount'}), required=False)
+    mobile_money_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Mobile Money Amount'}), required=False)
+    visa_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Visa Amount'}), required=False)
+    remarks = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Remarks'}), required=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        payment_method = cleaned_data.get('payment_method')
+        amount = cleaned_data.get('amount')
+        cash_amount = cleaned_data.get('cash_amount')
+        mobile_money_amount = cleaned_data.get('mobile_money_amount')
+        visa_amount = cleaned_data.get('visa_amount')
+
+        # Validate mixed payments
+        if payment_method == 'mixed':
+            if not any([cash_amount, mobile_money_amount, visa_amount]):
+                raise forms.ValidationError("Please enter at least one amount for mixed payments.")
+        elif payment_method in ['cash', 'mobile_money', 'visa'] and not amount:
+            raise forms.ValidationError(f"Please enter the amount for {payment_method} payment.")
+
+        return cleaned_data

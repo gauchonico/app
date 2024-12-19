@@ -84,7 +84,7 @@
         </td>
         <td>
             {% if request.status == 'approved' %}
-            <a href="{% url 'mark_as_delivered' request.id %}">Process Request</a>
+            <a class="btn btn-outline-theme btn-sm" href="{% url 'mark_as_delivered' request.id %}"><span>Process Request</span></a>
             {% elif request.status == 'delivered' %}
             <p><i class="bi bi-check-circle-fill text-theme"></i> <span class="text-theme">Delivered</span></p>
             {% elif request.status == 'pending' %}
