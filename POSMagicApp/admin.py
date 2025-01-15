@@ -95,5 +95,6 @@ class RawMaterialAdmin(admin.ModelAdmin):
 admin.site.register(StoreInventoryAdjustment)
 admin.site.register(Payment)
 admin.site.register(InventoryAdjustment)
+admin.site.register(StoreSaleReceipt)
 
 

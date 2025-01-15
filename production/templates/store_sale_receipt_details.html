@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Store Sales{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2>Store Sale Receipt</h2>
+            
+            <div class="card">
+                <div class="card-header">
+                    Order #{{ receipt.receipt_number }}
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">Customer: {{ receipt.store_sale.customer.first_name }} {{ receipt.store_sale.customer.last_name }}</h5>
+                    <p class="card-text"><strong>Date Ordered:</strong> {{ receipt.created_at }}</p>
+                    <p class="card-text"><strong>Sale Order:</strong> {{ receipt.store_sale }}</p>
+                    <p class="card-text"><strong>Withhold 6%:</strong> {{ receipt.withholding_tax }}</p>
+                    <p class="card-text"><strong>Vat 18%:</strong> {{ receipt.total_vat }}</p>
+                    <p class="card-text"><strong>Total Due:</strong> {{ receipt.total_due }}</p>
+
+                    <h5>Products:</h5>
+                    <ul class="list-group mb-3">
+                        {% for sale_item in receipt.store_sale.saleitem_set.all %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ sale_item.product.product.product.product_name }} - {{ sale_item.quantity }} units - UGX {{ sale_item.product.product.wholesale_price|floatformat:2|intcomma }}
+                            <span class="badge bg-primary rounded-pill">Total: UGX {{ sale_item.total_price|floatformat:2|intcomma }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    
+                    <a href="{{ referer|default:"#" }}" class="btn btn-outline-theme">Back to Orders</a>
+                </div>
+                <div class="card-arrow">
+                    <div class="card-arrow-top-left"></div>
+                    <div class="card-arrow-top-right"></div>
+                    <div class="card-arrow-bottom-left"></div>
+                    <div class="card-arrow-bottom-right"></div>
+                </div>
+                <div class="card-footer">
+                    <small class="text-theme">Total Order Quote: UGX {{ receipt.total_amount|floatformat|intcomma }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

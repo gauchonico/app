@@ -127,6 +127,8 @@ urlpatterns = [
     path('sale/<int:sale_id>/record_payment/', views.record_payment_view, name="record_payment_view"),
     path('service_sale_details/<int:sale_id>/', views.service_sale_details, name="service_sale_details"),
     path('store_sale_service_invoice_list/', views.store_sale_service_invoice_list, name="store_sale_service_invoice_list"),
+    path('store_sale_list_receipts/', views.store_sale_list_receipts, name="store_sale_list_receipts"),
+    path('store_sale_receipt_details/<int:store_sale_receipt_id>/', views.store_sale_receipt_details, name="store_sale_receipt_details"),
     path('raw_material_date_report/', views.raw_material_date_report, name="raw_material_date_report"),
     
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
@@ -158,6 +160,7 @@ urlpatterns = [
     path('manufacture_products_report', views.manufactured_products_report, name="manufactured_products_report"),
     path('raw_material_utilization_report/', views.raw_material_utilization_report, name='raw_material_utilization_report'),
     path('raw_material_utilization_reports/', views.raw_material_utilization_reports, name="raw_material_utilization_reports"),
+    path('detailed_inventory_report/', views.detailed_inventory_report, name="detailed_inventory_report"),
     
     ## Store Manager View
     path('store_manager/', views.managers_store_inventory_view, name='managers_store_inventory_view'),

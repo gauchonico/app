@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from uuid import uuid4
 import os
 from django.db import models
 from urllib import error
@@ -34,7 +35,7 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
 from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, ProductSaleItemForm, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, Payment, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, Payment, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -1247,6 +1248,58 @@ def mark_transfer_completed (request, transfer_id):
     }
 
     return render(request, 'mark_transfer_completed.html', context)
+
+def detailed_inventory_report(request):
+    selected_date = request.GET.get('date', datetime.now().date())
+    selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date() if isinstance(selected_date, str) else selected_date
+
+    # Fetch all products in the main store
+    products = LivaraMainStore.objects.values('product__product__product_name').distinct()
+
+    # Prepare report data
+    report_data = []
+
+    for product in products:
+        product_name = product['product__product__product_name']
+
+        # Opening stock before the selected date
+        opening_stock = LivaraMainStore.objects.filter(
+            product__product__product_name=product_name,
+            adjustment_date__lt=selected_date
+        ).aggregate(opening_stock=Sum('quantity'))['opening_stock'] or 0
+
+        # Adjustments on the selected date
+        adjustments = LivaraInventoryAdjustment.objects.filter(
+            store_inventory__product__product__product_name=product_name,
+            adjustment_date__date=selected_date
+        ).aggregate(adjusted_quantity=Sum('adjusted_quantity'))['adjusted_quantity'] or 0
+
+        # Transfers to other stores on the selected date
+        transfers = RestockRequestItem.objects.filter(
+            product__product__product__product_name=product_name,
+            restock_request__request_date__date=selected_date,
+            restock_request__status='delivered'
+        ).aggregate(transferred_quantity=Sum('delivered_quantity'))['transferred_quantity'] or 0
+
+        # Closing stock at the end of the selected date
+        closing_stock = opening_stock + adjustments - transfers
+
+        # Append the data for this product
+        report_data.append({
+            'product_name': product_name,
+            'opening_stock': opening_stock,
+            'adjustments': adjustments,
+            'transfers': transfers,
+            'closing_stock': closing_stock
+        })
+
+    context = {
+        'selected_date': selected_date,
+        'report_data': report_data
+    }
+
+    return render(request, 'detailed_inventory_report.html', context)
+
 def livara_main_store_inventory(request):
     main_store_inventory = LivaraMainStore.objects.all()
     context = {
@@ -1902,14 +1955,8 @@ def create_store_sale(request):
 
 def list_store_sales(request):
     sale_orders = StoreSale.objects.all().order_by('-sale_date')  # Order by creation date descending
-    today = date.today()
     for sale_order in sale_orders:
-        if sale_order.sale_date:
-            sale_order.due_date = sale_order.sale_date + timedelta(days=sale_order.PAYMENT_DURATION.days)
-            remaining_days = 0 # to be worked on to show countdown.
-            if remaining_days < 0:
-                remaining_days = 0  # Set remaining days to 0 if past due date
-            sale_order.remaining_days = remaining_days
+        sale_order.remaining_days = sale_order.get_remaining_days()  # Directly use the method
     context = {'sale_orders': sale_orders}
     return render(request, 'list_store_sales.html', context)
 
@@ -1996,13 +2043,51 @@ def update_order_status(request, store_sale_id):
             # Reduce the quantity in the LivaraMainStore inventory (when marked delivered)
             for sale_item in order.saleitem_set.all():
                 product = sale_item.product
-                product.quantity -= sale_item.quantity
+                # product.quantity -= sale_item.quantity
                 product.save()
             
-            messages.success(request, 'Order status updated successfully!')
+            # Calculate VAT and Withholding Tax
+            if not hasattr(order, 'receipt'):
+                total_vat = Decimal('0.00')
+                for sale_item in order.saleitem_set.all():
+                    if order.vat:
+                        vat_amount = sale_item.total_price * order.VAT_RATE
+                        total_vat += vat_amount
+                
+                total_amount = order.total_amount
+                withholding_tax_amount = Decimal('0.00')
+                if order.withhold_tax:
+                    withholding_tax_amount = total_amount * order.WITHHOLDING_TAX_RATE
+                
+            # Generate a unique receipt number with "MSLE to mean main-store-sale"
+            receipt_number = f"MSLE{str(uuid4()).replace('-', '').upper()[:6]}"
+            
+            # Create and save the receipt
+            StoreSaleReceipt.objects.create(
+                store_sale=order,
+                receipt_number=receipt_number,
+                total_amount=total_amount,
+                total_vat=total_vat,
+                withholding_tax=withholding_tax_amount,
+                total_due=total_amount
+                
+            )
+            
+            messages.success(request, 'Order status updated and receipt generated successfully!')
         return redirect('listStoreSales')
     else:
         return redirect('listStoreSales')  # Redirect if not a POST request
+    
+def store_sale_list_receipts(request):
+    receipts = StoreSaleReceipt.objects.all().order_by('-created_at')  # Order by most recent
+    context = {'receipts': receipts}
+    return render(request, 'store_sale_list_receipts.html', context)
+
+def store_sale_receipt_details(request, store_sale_receipt_id):
+    receipt = StoreSaleReceipt.objects.get(id=store_sale_receipt_id)
+    referer = request.META.get('HTTP_REFERER')
+    context = {'receipt': receipt,'referer':referer}
+    return render(request,'store_sale_receipt_details.html', context)
     
 def pay_order_status(request, store_sale_id):
     if request.method == 'POST':
@@ -2129,7 +2214,7 @@ def process_acccessory_requisition(request, requisition_id):
 @login_required
 def main_store_accessory_requisitions_list(request):
     # Get all accessory requisitions from the AccessoryRequisition
-    acc_requisitions = MainStoreAccessoryRequisition.objects.all()
+    acc_requisitions = MainStoreAccessoryRequisition.objects.all().order_by('-request_date')
     return render (request, 'accessory_requisitions_list.html',{'acc_requisitions':acc_requisitions})
 
 @login_required

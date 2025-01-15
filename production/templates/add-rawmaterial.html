@@ -15,12 +15,13 @@
 	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0/css/select2.min.css" rel="stylesheet" />
+    <link href="/assets/plugins/select-picker/dist/picker.min.css" rel="stylesheet">
 {% endblock %}
 
 {% block js %}
     <!-- jQuery (needed for Select2) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
+    <script src="/assets/plugins/select-picker/dist/picker.min.js"></script>
     <!-- Select2 JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0/js/select2.min.js"></script>
 
@@ -88,26 +89,26 @@
             <div class="row">
                 <div class="col-xl-6">
                     <div class="form-group mb-3">
-                        <label class="form-label" for="first_name">Name of Raw Material</label>
+                        <label class="form-label" for="name">Name of Raw Material</label>
                         {{form.name}}
                     </div>
                     <div class="form-group mb-3">
-                        <label class="form-label" for="last_name">Supplier:</label>
-                        {{form.supplier}}
+                        <label class="form-label" for="suppliers">Supplier:</label>
+                        {{form.suppliers}}
                     </div>
                     <div>
-                        <label class="form-label" for="sex">Quantity in Stock</label>
+                        <label class="form-label" for="quantity">Quantity in Stock</label>
                         {{form.quantity}}
                     </div>
                     <div>
-                        <label class="form-label" for="sex">Measurement Units</label>
+                        <label class="form-label" for="unit_measurement">Measurement Units</label>
                         {{ form.unit_measurement}}
                     </div>
                 
                 </div>
                 <div class="col-xl-6">
                     <div class="form-group mb-3">
-                        <label class="form-label" for="location">Re-Order Point</label>
+                        <label class="form-label" for="reorder_point">Re-Order Point</label>
                         {{form.reorder_point}}
                     </div>
                 </div>

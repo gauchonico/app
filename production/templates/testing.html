@@ -9,6 +9,7 @@
     <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+    <link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
 {% endblock %}  
 {% block js %}
     <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
@@ -27,6 +28,7 @@
     <script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
     <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
     <script src="/assets/plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
+    
 
 
 
@@ -43,6 +45,7 @@
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
+            
             {{ formset.management_form }}
             <table id="sale_item_formset">
                 <thead>
@@ -147,7 +150,11 @@
 
 {% endblock %}
 {% block outter_content %}
-
+<script>
+    $('#datepicker').datepicker({
+      autoclose: true
+    });
+  </script>
 {% if messages %}
     <div class="toasts-container">
         {% for message in messages %}

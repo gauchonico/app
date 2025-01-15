@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detailed Inventory Report{% endblock %}
+
+{% block content %}
+
+<h1>Inventory Report for {{ selected_date }}</h1>
+
+    <table border="1" class="table">
+        <tr>
+            <th>Product</th>
+            <th>Opening Stock</th>
+            <th>Adjustments</th>
+            <th>Transfers</th>
+            <th>Closing Stock</th>
+        </tr>
+        {% for data in report_data %}
+        <tr>
+            <td>{{ data.product_name }}</td>
+            <td>{{ data.opening_stock }}</td>
+            <td>{{ data.adjustments }}</td>
+            <td>{{ data.transfers }}</td>
+            <td>{{ data.closing_stock }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <form method="get">
+        <label for="date">Select Date:</label>
+        <input type="date" id="date" name="date" value="{{ selected_date }}">
+        <button type="submit">View Report</button>
+    </form>
+
+{% endblock content %}

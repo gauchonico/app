@@ -31,16 +31,28 @@
 
 {% block content %}
     <!-- BEGIN page-header -->
-
+	<div class="d-flex align-items-center mb-3">
+		<div>
+			<ul class="breadcrumb">
+				<li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
+				<li class="breadcrumb-item active">LIVARA MAIN STORE</li>
+			</ul>
+			<h5>Inventory Tranfers for Main Store and Salon Branches</h5>
+		</div>
+		
+	   
+	</div>
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="mt-md-0 mt-2"><a href="{% url 'create_new_accessory' %}" class="text-theme text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Main Store Transfers</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}" class="text-inverse text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-inverse"></i> Salon Transfers</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'detailed_inventory_report' %}" class="text-theme text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> MainStore Transfer Report</a></div>
+		
+	</div>
 <div class="container">
 	<div class="row justify-content-center">
 		<div class="col-xl-12">
 			<div class="row">
 				<div class="">
-					<ul class="breadcrumb">
-						<li class="breadcrumb-item"><a href="#">STOCK TRANSFERS</a></li>
-						<li class="breadcrumb-item active">LIVARA MAIN STORE TRANSFERS</li>
-					</ul>
 					{% if user_is_production_manager %}
 						<div class="ms-auto">
 							<a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>
@@ -82,7 +94,7 @@
                                                 </div>
                                                 {% endif %}
                                             </td>
-                                            <td>{{ transfer.notes }}</td>
+                                            <td>{{ transfer.date }}</td>
 											
 											<td class="align-middle span-1">
 												<ul class="list-group">

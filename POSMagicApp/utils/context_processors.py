@@ -3,7 +3,7 @@ from django.urls import resolve
 from django.contrib.auth.models import Group
 from django.utils.safestring import mark_safe
 
-from production.models import LPO, DiscrepancyDeliveryReport, InternalAccessoryRequest, LivaraMainStore, MainStoreAccessoryRequisition, PaymentVoucher, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreTransfer
+from production.models import LPO, DiscrepancyDeliveryReport, InternalAccessoryRequest, LivaraMainStore, MainStoreAccessoryRequisition, PaymentVoucher, ProductionOrder, ReplaceNote, Requisition, RestockRequest, StoreSale, StoreTransfer
 from salon.models import SalonRestockRequest
 
 
@@ -43,6 +43,9 @@ def get_accessories_orders_count ():
 def get_internal_requisition_count():
     return InternalAccessoryRequest.objects.filter(status='pending').count()
 
+def get_store_sales_order_count():
+    return StoreSale.objects.filter(status='ordered').count()
+
 
 def mark_active_link(menu, current_path_name):
     for item in menu:
@@ -69,6 +72,7 @@ def sidebar_menu(request):
     replace_notes = get_replace_notes()
     get_outstanding_po_payables = get_outstanding_payables_count()
     production_payment_vouchers = get_production_payment_voucher_count()
+    store_sales_order_count = get_store_sales_order_count()
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -432,12 +436,96 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','restockRequests','create_production_order','productionList','factoryInventory','listStoreSales','store_inventory_list','main_stock_transfers','livara_main_store_inventory','restockRequests','main_store_inventory_adjustments','accessory_store','all_internal_requests','all_stores_inventory_view','raw_material_date_report','pageCustomer']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','factoryInventory','pageCustomer']]  # Replace with your store manager menu names
+            sidebar_menu.append({
+                'icon': 'bi bi-box-fill',
+                'text': 'Inventory',
+                'children': [
+                    {
+                        'url': '/production/create_production_order/',
+                        'icon': 'bi bi-node-plus-fill',
+                        'text': 'Inventory Order',
+                        'name': 'create_production_order'
+                    },
+                    {
+                    'url': '/production/livara_main_store_inventory',
+                    'icon': 'bi bi-box-fill',
+                    'text': 'Inventory Items',
+                    'name': 'livara_main_store_inventory'
+                    },{
+                        'url':'/production/write_offs',
+                        'icon': 'bi bi-box-fill',
+                        'text': 'Inventory Write Offs',
+                        'name': 'write_offs'
+                    },{
+                        'url': '/production/main_stock_transfers/',
+                        'icon': 'bi bi-truck',
+                        'text': mark_safe (
+                            f'Inventory Transfers <span class="badge rounded-circle bg-danger">{created_livara_store_orders}</span>'
+                            if created_livara_store_orders > 0 else 'Inventory Transfers'
+                        ),
+                        'name':'main_stock_transfers'
+                    },{
+                        'url': '/production/main_store_inventory_adjustments/',
+                        'icon': 'bi bi-folder',
+                        'text': 'Saloon Inventory',
+                        'name':'main_store_inventory_adjustments',
+                    },
+                        ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-box-fill',
+                'text': 'Accessory Inventory',
+                'children': [
+                    {
+                    'url':'/production/main_store_accessory_requisitions_list/',
+                    'icon':'bi bi-receipt',
+                    'text': mark_safe(f'Accessory Requests<span class="badge rounded-circle bg-danger">{new_accessory_requests}</span>'
+                            if new_accessory_requests>0 else 'Accessory Requests'    
+                            ),
+                    'name': 'main_store_accessory_requisitions_list',
             
+                    },
+                    {
+                        'url':'/production/accessory_store/',
+                        'icon': 'bi bi-box-fill',
+                        'text': 'Accessories Items',
+                        'name': 'accessory_store'
+                    },{
+                        'url': '/production/all_internal_requests/',
+                        'icon': 'bi bi-folder-fill',
+                        'text': mark_safe(f'Branch Accessory Requests <span class="badge rounded-circle bg-danger">{internal_requisition_count}</span>'
+                                    if internal_requisition_count > 0 else 'Branch Accessory Requests'
+                                    ),
+                        'name': 'all_internal_requests',
+                    }
+                        ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Manage Sales',
+                'children': [
+                    {
+                    'url': '/production/list_store_sales',
+                    'icon': 'bi bi-speedometer',
+                    'text': mark_safe(f'All Store Sales<span class="badge rounded-circle bg-danger">{store_sales_order_count}</span>'
+                                    if store_sales_order_count > 0 else 'All Store Sales'
+                                    ),
+                    'name':'listStoreSales'
+                    },
+                    {
+                    'url': '/production/store_sale_list_receipts',
+                    'icon': 'bi bi-speedometer',
+                    'text': 'Receipts',
+                    'name':'store_sale_list_receipts'
+                    }
+                    ]
+            })
         elif 'Branch Manager' in group_names:
             # Show branch manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','store_sale_list','store_sale_service_invoice_list','pageCustomer']]  # Replace with your branch manager menu names
+            
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

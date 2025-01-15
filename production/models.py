@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
 import random
 from time import timezone
@@ -945,8 +945,8 @@ class Notification(models.Model):
 #### store sales
     
 class StoreSale(models.Model):
-    VAT_RATE = 0.18  # Default VAT rate (18%)
-    WITHHOLDING_TAX_RATE = 0.06  # Default withholding tax rate (6%)
+    VAT_RATE = Decimal('0.18')  # Default VAT rate (18%)
+    WITHHOLDING_TAX_RATE = Decimal(0.06)  # Default withholding tax rate (6%)
     PAYMENT_DURATION = timedelta(days=45)  # Default payment duration (45 days)
 
     customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE)
@@ -973,42 +973,48 @@ class StoreSale(models.Model):
     
     
     def calculate_total(self):
-
         try:
-            quantity_values = self.saleitem_set.values_list('quantity')
-            unit_price_values = self.saleitem_set.values_list('unit_price')
-            
-            # Print the retrieved values for debugging
-            print(f"Quantity values: {quantity_values}")
-            print(f"Unit price values: {unit_price_values}")
-            
-            # Check if any values are non-numeric
-            if any(not isinstance(value, (int, float, Decimal)) for value in quantity_values + unit_price_values):
-                raise ValueError("Non-numeric values encountered in quantity or unit_price")
+            # Calculate subtotal using the same logic as in the view
+            sale_items = self.saleitem_set.filter(product__product__product__wholesale_price__isnull=False)
+            subtotal = sum(
+                item.quantity * item.product.product.product.wholesale_price
+                for item in sale_items
+            )
+            print(f"Subtotal: {subtotal}")  # Debugging output
 
-            # Proceed with the calculation assuming numeric values
-            subtotal = self.saleitem_set.aggregate(subtotal=Sum(F('quantity') * F('unit_price')))['subtotal'] or 0
-            total = subtotal  # Set total to subtotal by default
+            # Convert subtotal to Decimal if needed
+            subtotal = Decimal(subtotal)
 
-            # Apply VAT if selected
+            total = subtotal
             if self.vat:
-                total += subtotal * self.VAT_RATE
-
-            # Apply withholding tax if selected
+                vat_amount = subtotal * self.VAT_RATE
+                print(f"VAT Amount: {vat_amount}")  # Debugging output
+                total += vat_amount
             if self.withhold_tax:
-                total -= total * self.WITHHOLDING_TAX_RATE
+                withholding_tax_amount = total * self.WITHHOLDING_TAX_RATE
+                print(f"Withholding Tax Amount: {withholding_tax_amount}")  # Debugging output
+                total += withholding_tax_amount
 
+            print(f"Final Total: {total}")  # Debugging output
             return total
-        except (TypeError, ValueError):
-            # Handle potential data type or conversion errors
-            return 0  # Or return a more appropriate value (e.g., None)
+        except (TypeError, ValueError) as e:
+            print(f"Error in calculate_total: {e}")  # Debugging output
+            return Decimal('0.00')
 
     def save(self, *args, **kwargs):
+        if not self.pk:
+            #save sale to generate id before calculating total
+            super().save(*args, **kwargs)
         # Calculate total before saving
         self.total_amount = self.calculate_total()
-        if self.sale_date:  # Check if sale_date is not None
+        if not self.due_date and self.sale_date:  # Check if sale_date is not None
             self.due_date = self.sale_date + self.PAYMENT_DURATION
         super().save(*args, **kwargs)  # Call parent save method
+        
+    def get_remaining_days(self):
+        today = date.today()
+        due_date = self.due_date if self.due_date else self.sale_date + self.PAYMENT_DURATION
+        return (due_date - today).days  # Allow negative values for overdue days
         
 class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
@@ -1027,6 +1033,19 @@ class SaleItem(models.Model):
         # Print values for debugging
         print(f"SaleItem.save: quantity={self.quantity}, chosen_price={self.chosen_price}, total_price={self.total_price}")
         super().save(*args, **kwargs)  # Call parent save method
+        
+
+class StoreSaleReceipt(models.Model):
+    store_sale = models.OneToOneField(StoreSale, on_delete=models.CASCADE)
+    receipt_number = models.CharField(max_length=10, unique=True)
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    total_vat = models.DecimalField(max_digits=10, decimal_places=2)
+    withholding_tax = models.DecimalField(max_digits=10, decimal_places=2)
+    total_due = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Receipt {self.receipt_number} for StoreSale {self.store_sale.id}"
         
         
 ################### Requsition models

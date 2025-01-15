@@ -5,13 +5,10 @@
 {% block title %}Store Sales{% endblock %}
 
 {% block css %}
-	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evSXhkEG3fnSPtD/vzlLXLzxhHN2vCQhLgyXHCXRogZWLIlW9YzLiIACD4lw4f" crossorigin="anonymous">
-    
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
-	<link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.css" />
 
 {% endblock %}
 
@@ -32,7 +29,7 @@
 	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
 	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
-	<script src="https://cdn.datatables.net/2.0.8/js/dataTables.js"></script>
+	
 {% endblock %}
 
 {% block content %}
@@ -58,17 +55,21 @@
 					<div class="table-responsive text-nowrap">
 						<div class="card">
 							<div class="card-body">
-								<table id="datatableDefault" class="table text-nowrap w-100 table-responsive">
+								<table id="datatableDefault" class="table text-nowrap w-100 table-responsive-md">
 									<thead>
 										<tr class="align-middle">
 											<th class="border-top-0 pt-0 pb-2">#</th>
 											<th class="border-top-0 pt-0 pb-2 ">Customer</th>
 											<th class="border-top-0 pt-0 pb-2">Date</th>
 											<th class="border-top-0 pt-0 pb-2">Status</th>
+											<th>Payment Status</th>
+											<th></th>
+											<th class="border-top-0 pt-0 pb-2">Delivery Status</th>
 											<th class="border-top-0 pt-0 pb-2">Products</th>
 										
 								
-											<th class="border-top-0 pt-0 pb-2">Delivery Status</th>
+											
+											
 											<th class="align-middle border-top-0 pt-0 pb-2">View</th>
 											
 										</tr>
@@ -80,6 +81,16 @@
 											<td class="ext-truncate"><span class="col-5 text-truncate">{{ sale_order.customer.first_name }}</span></td>
 											<td class="align-middle col-sm-1">{{ sale_order.sale_date }}</td>
 											<td class="col-1 align-middle"><span class="badge {% if sale_order.status == 'ordered' %}border border-warning text-warning{% elif sale_order.status == 'paid' %}border border-success text-success{% elif sale_order.status == 'delivered' %}border border-primary text-primary{% else %}bg-white text-dark{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ sale_order.get_status_display }} </span></td>
+											<td>
+												{{sale_order.payment_status}}
+											</td>
+											<td>
+												{% if sale_order.remaining_days >= 0 %}
+												<span class="text-inverse">{{ sale_order.remaining_days }} days remaining until payment is due.
+												{% else %}
+												<span class="text-danger">{{ sale_order.remaining_days }} days overdue.</span>
+												{% endif %}
+											</td>
 											<td class="align-middle span-1">
 												<ul class="list-group">
 													{% for sale_item in sale_order.saleitem_set.all %}
@@ -101,6 +112,7 @@
 														<span class="text-success">Order is Paid</span>
 												{% endif %}
 											</td>
+											
 											
 											<td class="col-1 align-middle">
 												
