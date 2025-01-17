@@ -41,13 +41,19 @@ class AddRawmaterialForm(forms.ModelForm):
         model = RawMaterial
         fields = ['name', 'suppliers', 'quantity', 'reorder_point','unit_measurement']
         widgets ={
-            'name': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Shea Butter'}),
-            'suppliers': forms.Select(attrs={'class':'form-control'}),
+            'name': forms.TextInput(attrs={'class':'form-control', 'placeholder':'e.g. Shea Butter, Bottle Tops'}),
+            'suppliers': forms.SelectMultiple(attrs={'class':'form-control'}),
             'quantity': forms.NumberInput(attrs={'class':'form-control'}),
             'reorder_point': forms.NumberInput(attrs={'class':'form-control'}),
             'unit_measurement': forms.TextInput(attrs={'class':'form-control', 'placeholder':'Kilograms | Pieces | Liters| Units Write units in full format'}),
             
         }
+        
+    def clean_suppliers(self):
+        suppliers = self.cleaned_data['suppliers']
+        if not suppliers:
+            raise forms.ValidationError('Please select at least one supplier.')
+        return suppliers
         
 class RawMaterialQuantityForm(forms.ModelForm):
     new_quantity = forms.DecimalField(label="New Quantity",max_digits=11, decimal_places=5)

@@ -1,4 +1,5 @@
 from datetime import date
+from threading import Thread
 from django import forms
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver, Signal
@@ -66,30 +67,42 @@ def send_email(instance):
 def send_requisition_status_email(sender, instance, **kwargs):
     # Check if the requisition status is 'checking'
     if instance.status == 'checking':
-        subject = f"Requisition {instance.requisition_no} Is Ready For Delivery"
-        message = f"The requisition with ID {instance.requisition_no} has been updated to the 'checking' status."
-        recipient_list = ['vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
+        def send_email_task():
+            subject = f"Requisition {instance.requisition_no} Is Ready For Delivery"
+            message = f"The requisition with ID {instance.requisition_no} has been updated to the 'checking' status."
+            recipient_list = ['vivian.nambozo@mylivara.com','victoria.zemei@mylivara.com']  # Replace with actual recipient(s)
 
-        try:
-            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
-            print(f"Status update email sent for Requisition {instance.requisition_no}.")  # Debugging line
-        except Exception as e:
-            print(f"Failed to send status update email for Requisition {instance.requisition_no}: {e}")
+            try:
+                send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+                print(f"Status update email sent for Requisition {instance.requisition_no}.")  # Debugging line
+            except Exception as e:
+                print(f"Failed to send status update email for Requisition {instance.requisitionno}: {e}")
+
+        # Create a new thread to send the email
+        email_thread = Thread(target=send_email_task)
+        email_thread.start()
+
+        print(f"Requisition {instance.requisition_no} saved successfully. Email sending in progress...")
         
 @receiver(post_save, sender=LPO)
 def send_lpo_verification_email(sender, instance, **kwargs):
-    print(f"Signal triggered for LPO {instance.lpo_number} with status {instance.status}.")  # Debugging line
+    # print(f"Signal triggered for LPO {instance.lpo_number} with status {instance.status}.")  # Debugging line
     if instance.status == 'verified':  # Check if the status is 'verified'
-        print(f"Preparing to send email for LPO {instance.pk}.")  # Debugging line
-        subject = f"LPO {instance.lpo_number} Verified"
-        message = f"The LPO with ID {instance.lpo_number} has been verified and is ready for delivery."
-        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com']  # Replace with actual recipient(s)
+        # print(f"Preparing to send email for LPO {instance.pk}.")  # Debugging line
+        def send_email_veification():
+            subject = f"LPO {instance.lpo_number} Verified"
+            message = f"The LPO with ID {instance.lpo_number} has been verified and is ready for delivery."
+            recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com','victoria.zemei@mylivara.com']  # Replace with actual recipient(s)
 
-        try:
-            send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
-            print(f"Verification email sent for LPO {instance.pk}.")  # Debugging line
-        except Exception as e:
-            print(f"Failed to send verification email for LPO {instance.pk}: {e}")
+            try:
+                send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
+                print(f"Verification email sent for LPO {instance.pk}.")  # Debugging line
+            except Exception as e:
+                print(f"Failed to send verification email for LPO {instance.pk}: {e}")
+                
+            # Create a new thread to send the email
+        email_thread = Thread(target=send_email_veification)
+        email_thread.start()
             
 @receiver(post_save,
     sender=GoodsReceivedNote )
@@ -113,7 +126,7 @@ def send_write_off_notification(sender, instance, created, **kwargs):
         subject = "New Incident Write-Off Created"
         message = f"Please review this newly created Incident Write-Off raw_material: {instance.raw_material} quantity: {instance.quantity}, reason: {instance.reason} status: {instance.status}"
         
-        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com','lukyamuzin91@gmail.com']  # Replace with actual email addresses
+        recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com','victoria.zemei@mylivara.com']  # Replace with actual email addresses
         try:
             send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
         except Exception as e:

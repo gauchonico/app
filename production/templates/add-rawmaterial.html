@@ -57,6 +57,19 @@
 {% endblock %}
 
 {% block content %}
+<div class="toast" data-autohide="false">
+    <div class="toast-header">
+        <i class="far fa-bell text-muted me-2"></i>
+        <strong class="me-auto">Instructions</strong>
+        <small>Important</small>
+        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body">
+        Please read the following instructions carefully before proceeding. 
+        [Insert your instructions here]
+    </div>
+</div>
+
 <div class="d-flex align-items-center mb-3">
     <div>
         <ul class="breadcrumb">
@@ -137,7 +150,24 @@
 </div>
 {% endblock %}
 {% block outter_content %}
-
+<div class="toast" data-autohide="false">
+    <div class="toast-header">
+        <i class="far fa-bell text-muted me-2"></i>
+        <strong class="me-auto">Instructions</strong>
+        <small>Important</small>
+        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+    </div>
+    <div class="toast-body">
+        Please read the following instructions carefully before proceeding. 
+        [Insert your instructions here]
+    </div>
+</div>
+<script>
+    // Show the toast on page load
+    const toastElList = document.querySelectorAll('.toast')
+    const toastList = [...toastElList].map(toastEl => new bootstrap.Toast(toastEl))
+    toastList.forEach(toast => toast.show())
+</script>
 {% if form.errors %}
     <div class="toasts-container">
         <div class="toast fade show">

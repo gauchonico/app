@@ -258,10 +258,12 @@ def rawamaterialsTable(request):
 
 @login_required(login_url='/login/')
 def addRawmaterial(request):
+    form = AddRawmaterialForm() 
+    bulk_form = BulkUploadRawMaterialForm()
     if request.method == 'POST':
         if 'bulk_upload' in request.POST:
-            form = BulkUploadRawMaterialForm(request.POST, request.FILES)
-            if form.is_valid():
+            bulk_form = BulkUploadRawMaterialForm(request.POST, request.FILES)
+            if bulk_form.is_valid():
                 file = request.FILES['file']
                 if file.name.endswith('.csv'):
                     data = file.read().decode('utf-8')
