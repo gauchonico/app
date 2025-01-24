@@ -2501,12 +2501,12 @@ def service_sale_details(request, sale_id):
     }
     return render (request, 'service_sale_details.html', context)
 
-##Pay for the service at the salon
+##Pay for the service given at a sa;pm branch
 def record_payment_view(request, sale_id):
     sale = get_object_or_404(ServiceSale, id=sale_id)
 
     if request.method == 'POST':
-        form = PaymentForm(request.POST)
+        form = PaymentForm(request.POST, sale_balance=sale.balance)
         if form.is_valid():
             payment_method = form.cleaned_data['payment_method']
             remarks = form.cleaned_data['remarks']
@@ -2518,6 +2518,13 @@ def record_payment_view(request, sale_id):
                         Payment.objects.create(sale=sale, payment_method='cash', amount=form.cleaned_data['cash_amount'], remarks=f"Cash: {remarks}")
                     if form.cleaned_data['mobile_money_amount']:
                         Payment.objects.create(sale=sale, payment_method='mobile_money', amount=form.cleaned_data['mobile_money_amount'], remarks=f"Mobile Money: {remarks}")
+                    if form.cleaned_data['airtel_money_amount']:
+                        Payment.objects.create(
+                            sale=sale, 
+                            payment_method='airtel_money', 
+                            amount=form.cleaned_data['airtel_money_amount'], 
+                            remarks=f"Airtel Money: {remarks}"
+                        )
                     if form.cleaned_data['visa_amount']:
                         Payment.objects.create(sale=sale, payment_method='visa', amount=form.cleaned_data['visa_amount'], remarks=f"Visa: {remarks}")
                 else:
@@ -2535,7 +2542,7 @@ def record_payment_view(request, sale_id):
                 messages.error(request, f"Error recording payment: {str(e)}")
             return redirect('store_sale_list')  # Redirect to the sales list or sale detail view
     else:
-        form = PaymentForm()
+        form = PaymentForm(sale_balance=sale.balance)
 
     return render(request, 'record_payment.html', {'form': form, 'sale': sale})
 
@@ -2544,6 +2551,62 @@ def all_payment_receipts_view(request):
     payments = Payment.objects.select_related('sale', 'sale__customer', 'sale__store').order_by('-payment_date')
 
     return render(request, 'salon_payment_receipts.html', {'payments': payments})
+
+def payment_list_view(request):
+    # Query all payments grouped by payment method
+    payment_method = request.GET.get('payment_method')
+    start_date = request.GET.get('start_date')  # e.g., '2025-01-01'
+    end_date = request.GET.get('end_date')  # e.g., '2025-01-31'
+    min_amount = request.GET.get('min_amount')  # e.g., '100'
+    max_amount = request.GET.get('max_amount')  # e.g., '500'
+    customer_name = request.GET.get('customer_name')  # e.g., 'John Doe'
+    store_id = request.GET.get('store')  # e.g., 'Main Store'
+    payments_by_method = {
+        'cash': Payment.objects.filter(payment_method='cash'),
+        'mobile_money': Payment.objects.filter(payment_method='mobile_money'),
+        'airtel_money': Payment.objects.filter(payment_method='airtel_money'),
+        'visa': Payment.objects.filter(payment_method='visa'),
+    }
+    # Base queryset
+    payments = Payment.objects.all().order_by('-id')
+
+    # Apply filters if parameters are provided
+    if payment_method:
+        payments = payments.filter(payment_method=payment_method)
+
+    if start_date and end_date:
+        payments = payments.filter(sale__sale_date__range=[start_date, end_date])
+    elif start_date:
+        payments = payments.filter(sale__sale_date__gte=start_date)
+    elif end_date:
+        payments = payments.filter(sale__sale_date__lte=end_date)
+
+    if min_amount:
+        payments = payments.filter(amount__gte=min_amount)
+    if max_amount:
+        payments = payments.filter(amount__lte=max_amount)
+
+    if store_id:
+        payments = payments.filter(sale__store__id=store_id)
+
+    # Fetch all stores for the dropdown
+    stores = Store.objects.all()
+        
+    context = {
+        'payments': payments,
+        'payments_by_method': payments_by_method,
+        'stores': stores,
+        'filters': {
+            'payment_method': payment_method,
+            'start_date': start_date,
+            'end_date': end_date,
+            'min_amount': min_amount,
+            'max_amount': max_amount,
+            'customer_name': customer_name,
+            'store': store_id,  # Pass selected store for retaining the selection
+        }
+    }
+    return render(request, 'payment_list.html', context)
     
 def store_sale_list(request):
     # Assuming the logged-in user is the manager of the store

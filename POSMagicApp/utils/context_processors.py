@@ -525,11 +525,37 @@ def sidebar_menu(request):
             # Show branch manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','store_sale_list','store_sale_service_invoice_list','pageCustomer']]  # Replace with your branch manager menu names
-            
+            sidebar_menu.append({
+                'icon':'bi bi-boxex-fill',
+                'text': 'Inventory',
+                'children': [{
+                    
+                    'url': '/production/manager_inventory_view/',
+                    'icon': 'bi bi-box-fill',
+                    'text': 'Store Inventory',
+                    'name': 'manager_inventory_view'
+                    }]
+            })
+            sidebar_menu.append({
+                'icon':'bi bi-boxex-fill',
+                'text': 'Sales',
+                'children': [
+                    {
+                    'url': '/production/finance_store_sale_list/',
+                    'icon': 'bi bi-folder',
+                    'text': 'Salon Sales',
+                    'name':'finance_store_sale_list',
+                },{
+                        'url':'/production/payments/',
+                        'icon':'bi bi-credit-card',
+                        'text':'Receipt Payments',
+                        'name':'payment_list'
+                    }]
+            })
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction', 'financeRestockRequests','supplierList','productsList','rawmaterialsList','factoryInventory','pageCustomer','pageOrder','view_receipt','writeoffs','discrepancy_delivery_report_list','raw_material_date_report','goods_received_note_list','main_store_accessory_requisitions_list']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction','supplierList','productsList','rawmaterialsList','pageCustomer','pageOrder','writeoffs','discrepancy_delivery_report_list','raw_material_date_report','goods_received_note_list']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -583,33 +609,76 @@ def sidebar_menu(request):
             })
             sidebar_menu.append({
                 'icon': 'bi bi-box-seam',
-                'text': 'Livara MainStore',
+                'text': 'Sales',
                 'children': [{
-                    'url': '/production/livara_main_store_inventory',
-                    'icon': 'bi bi-folder',
-                    'text': 'Main Products Store',
-                    'name':'livara_main_store_inventory'
-                },{
-                    'url':'/production/accessory_store/',
-                    'icon': 'fa-solid fa-gem',
-                    'text': 'Main Accessory Inventory',
-                    'name': 'accessory_store',
-                },{
-                    'url': '/production/all_stores_inventory_view/',
-                    'icon': 'bi bi-folder-fill',
-                    'text': 'All Store Accessories',
-                    'name':'all_stores_inventory_view'
-                },{
                     'url': '/production/finance_list_store_sales/',
                     'icon': 'bi bi-bounding-box-circles',
                     'text': 'Direct Store Sales',
                     'name': 'financeListStoreSales',
                 },{
+                    'url': '/production/store_sale_list_receipts',
+                    'icon': 'bi bi-speedometer',
+                    'text': 'Direct Store Sale Receipts',
+                    'name':'store_sale_list_receipts'
+                    },
+                {
                     'url': '/production/finance_store_sale_list/',
                     'icon': 'bi bi-folder',
                     'text': 'Salon Sales',
                     'name':'finance_store_sale_list',
-                }]
+                },{
+                    'url':'/production/all_payment_receipts_view',
+                    'icon':'bi bi-receipt',
+                    'text':'Salon Sale Receipts',
+                    'name':'all_payment_receipts_view',
+                },{
+                        'url':'/production/payments/',
+                        'icon':'bi bi-credit-card',
+                        'text':'Receipt Payments',
+                        'name':'payment_list'
+                    }]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-box-seam',
+                'text': 'Inventory',
+                'children': [{
+                    'url': '/production/livara_main_store_inventory',
+                    'icon': 'bi bi-box-fill',
+                    'text': 'Main Store Inventory',
+                    'name': 'livara_main_store_inventory'
+                    
+            },{
+            'url': '/production/factory-inventory/',
+            'icon': 'bi bi-box-fill',
+            'text': 'Production Inventory',
+            'name': 'factoryInventory'
+        },{
+                    'url':'/production/accessory_store/',
+                    'icon': 'fa-solid fa-gem',
+                    'text': 'Accessory Inventory',
+                    'name': 'accessory_store',
+                },{
+                        'url': '/production/main_store_inventory_adjustments/',
+                        'icon': 'bi bi-folder',
+                        'text': 'Saloon Inventory',
+                        'name':'main_store_inventory_adjustments',
+                    },{
+                    'url': '/production/main_stock_transfers/',
+                    'icon': 'bi bi-truck',
+                    'text': mark_safe (
+                        f'Inventory Transfers <span class="badge rounded-circle bg-danger">{created_livara_store_orders}</span>'
+                        if created_livara_store_orders > 0 else 'Inventory Transfers'
+                    ),
+                    'name':'main_stock_transfers'
+                },{
+            'url':'/production/main_store_accessory_requisitions_list/',
+            'icon':'bi bi-receipt',
+            'text': mark_safe(f'Accessories Requests<span class="badge rounded-circle bg-danger">{new_accessory_requests}</span>'
+                    if new_accessory_requests>0 else 'Accessories Requests'    
+                    ),
+            'name': 'main_store_accessory_requisitions_list',
+    
+            },]
             })
         elif 'Production Manager' in group_names:
             # Show production manager menus

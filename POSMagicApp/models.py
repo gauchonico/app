@@ -45,6 +45,10 @@ class Customer(models.Model):
     type_of_customer = models.CharField(max_length=100, choices=TYPE_OF_CUSTOMER, default='RETAIL')
     date_of_birth = models.DateField(null=True, blank=True)
     profile_image = models.ImageField(upload_to='uploads/products/', null=True, blank=True, default=STATIC_URL + '/img/user/profile.jpg')
+    
+    @property
+    def name(self):
+        return f"{self.first_name} {self.last_name}"
 
     def __str__(self):
         return f'{self.first_name} {self.last_name}'

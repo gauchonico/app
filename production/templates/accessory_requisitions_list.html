@@ -72,8 +72,10 @@
         <td>
             {% if acc_requisition.status == 'pending' %}
             <span class="badge bg-warning">{{ acc_requisition.status }}</span>
-            {% else %}
+            {% elif acc_requisition.status == 'delivered' %}
             <span class="badge bg-theme">{{ acc_requisition.status }}</span>
+            {% elif acc_requisition.status == 'rejected' %}
+            <span class="badge bg-danger">{{ acc_requisition.status }}</span>
             {% endif %}
 
         </td>
@@ -92,6 +94,6 @@
   </tbody>
 </table>
 {% else %}
-<p>No inventory found.</p>
+<p>No inventory requests found.</p>
 {% endif %}
 {% endblock content %}

@@ -727,6 +727,7 @@ class ServiceSale(models.Model):
     payment_mode = models.CharField(max_length=255, choices=[
         ('cash', 'Cash'),
         ('mobile_money', 'Mobile Money'),
+        ('airtel_money', 'Airtel Money'),
         ('visa', 'Visa'),
         ('mixed', 'Mixed'),
     ],default='cash')

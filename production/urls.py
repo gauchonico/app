@@ -130,6 +130,7 @@ urlpatterns = [
     path('store_sale_list_receipts/', views.store_sale_list_receipts, name="store_sale_list_receipts"),
     path('store_sale_receipt_details/<int:store_sale_receipt_id>/', views.store_sale_receipt_details, name="store_sale_receipt_details"),
     path('raw_material_date_report/', views.raw_material_date_report, name="raw_material_date_report"),
+    path('payments/', views.payment_list_view, name='payment_list'),
     
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
     path('finance-approval/<int:request_id>', views.finance_approve_request, name="finance_approval"),

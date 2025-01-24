@@ -740,6 +740,7 @@ class PaymentForm(forms.Form):
     PAYMENT_METHOD_CHOICES = [
         ('cash', 'Cash'),
         ('mobile_money', 'Mobile Money'),
+        ('airtel_money', 'Airtel Money'),
         ('visa', 'Visa'),
         ('mixed', 'Mixed'),
     ]
@@ -748,22 +749,42 @@ class PaymentForm(forms.Form):
     amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Total Amount'}), required=False)
     cash_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cash Amount'}), required=False)
     mobile_money_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Mobile Money Amount'}), required=False)
+    airtel_money_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Airtel Money Amount'}), required=False)
     visa_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Visa Amount'}), required=False)
     remarks = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Remarks'}), required=False)
 
+    def __init__(self, *args, sale_balance=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sale_balance = sale_balance  # Pass the sale's balance for validation
+        
     def clean(self):
         cleaned_data = super().clean()
         payment_method = cleaned_data.get('payment_method')
         amount = cleaned_data.get('amount')
-        cash_amount = cleaned_data.get('cash_amount')
-        mobile_money_amount = cleaned_data.get('mobile_money_amount')
-        visa_amount = cleaned_data.get('visa_amount')
+        cash_amount = cleaned_data.get('cash_amount') or 0
+        mobile_money_amount = cleaned_data.get('mobile_money_amount') or 0
+        airtel_money_amount = cleaned_data.get('airtel_money_amount') or 0
+        visa_amount = cleaned_data.get('visa_amount') or 0
 
         # Validate mixed payments
+        # if payment_method == 'mixed':
+        #     if not any([cash_amount, mobile_money_amount, visa_amount]):
+        #         raise forms.ValidationError("Please enter at least one amount for mixed payments.")
+        # elif payment_method in ['cash', 'mobile_money', 'visa'] and not amount:
+        #     raise forms.ValidationError(f"Please enter the amount for {payment_method} payment.")
+        
+        # Mixed payment validation
         if payment_method == 'mixed':
-            if not any([cash_amount, mobile_money_amount, visa_amount]):
-                raise forms.ValidationError("Please enter at least one amount for mixed payments.")
-        elif payment_method in ['cash', 'mobile_money', 'visa'] and not amount:
-            raise forms.ValidationError(f"Please enter the amount for {payment_method} payment.")
+            total_mixed = cash_amount + mobile_money_amount + airtel_money_amount + visa_amount
+            if total_mixed > self.sale_balance:
+                raise forms.ValidationError(
+                    f"Total mixed payment ({total_mixed}) exceeds the remaining balance ({self.sale_balance})."
+                )
+        elif payment_method in ['cash', 'mobile_money', 'airtel_money', 'visa']:
+            amount = cleaned_data.get('amount') or 0
+            if amount > self.sale_balance:
+                raise forms.ValidationError(
+                    f"Payment amount ({amount}) exceeds the remaining balance ({self.sale_balance})."
+                )
 
         return cleaned_data
