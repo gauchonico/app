@@ -186,6 +186,33 @@ class ProductionIngredient(models.Model):
     def __str__(self) -> str:
         return f"{self.raw_material} for {self.product} needed for {self.quantity_per_unit_product_volume}"
 
+#Products Pricing Groups
+class PriceGroup(models.Model):
+    name = models.CharField(max_length=255, unique=True)  # e.g., "Black Friday", "Wholesale"
+    is_active = models.BooleanField(default=False)  # Only one group can be active at a time
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    # def save(self, *args, **kwargs):
+    #     # Ensure only one price group is active at a time
+    #     if self.is_active:
+    #         PriceGroup.objects.filter(is_active=True).update(is_active=False)
+    #     super().save(*args, **kwargs)
+        
+class ProductPrice(models.Model):
+    product = models.ForeignKey(Production, on_delete=models.CASCADE, related_name="prices")
+    price_group = models.ForeignKey(PriceGroup, on_delete=models.CASCADE, related_name="product_prices")
+    price = models.DecimalField(max_digits=10, decimal_places=2)  # Price for this product in the group
+
+    class Meta:
+        unique_together = ('product', 'price_group')  # Prevent duplicate entries for the same product in the same group
+
+    def __str__(self):
+        return f"{self.product.product_name} - {self.price_group.name}: {self.price}"
+
     
 class ProductionBatch(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
@@ -315,7 +342,7 @@ class ManufacturedProductIngredient(models.Model):
     
 class ManufacturedProductInventory(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
-    quantity = models.DecimalField(max_digits=4, decimal_places=2)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
     batch_number = models.CharField(max_length=50,blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)
     expiry_date = models.DateField(blank=True, null=True)
@@ -975,12 +1002,11 @@ class StoreSale(models.Model):
     
     def calculate_total(self):
         try:
-            # Calculate subtotal using the same logic as in the view
-            sale_items = self.saleitem_set.filter(product__product__product__wholesale_price__isnull=False)
-            subtotal = sum(
-                item.quantity * item.product.product.product.wholesale_price
-                for item in sale_items
-            )
+            # Get all sale items associated with this StoreSale
+            sale_items = self.saleitem_set.all()  # Fetch all sale items for this sale
+            
+            # Calculate subtotal using the chosen price for each sale item
+            subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
             print(f"Subtotal: {subtotal}")  # Debugging output
 
             # Convert subtotal to Decimal if needed
@@ -1020,6 +1046,7 @@ class StoreSale(models.Model):
 class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
     product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)  # Link to product
+    price_group = models.ForeignKey(PriceGroup, null=True, blank=True, on_delete=models.SET_NULL)  # Selected price group
     quantity = models.DecimalField(max_digits=10, decimal_places=0)
     chosen_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # New field for chosen price
     total_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, default=0)  # Calculated total price
@@ -1028,11 +1055,17 @@ class SaleItem(models.Model):
         return f"{self.quantity} units of {self.product} for Sale #{self.sale.id}"
     
     def save(self, *args, **kwargs):
-        # Consider fetching wholesale price from Production model
-        self.chosen_price = self.product.product.product.wholesale_price  # Assuming product points to Production instance
+        # Fetch the price from the selected price group
+        if self.price_group:
+            product_price = ProductPrice.objects.filter(product=self.product.product.product, price_group=self.price_group).first()
+            if product_price:
+                self.chosen_price = product_price.price
+        else:
+            # Default to the wholesale price if no group is selected
+            self.chosen_price = self.product.product.product.wholesale_price
+
+        # Calculate the total price
         self.total_price = (self.quantity * self.chosen_price) if self.chosen_price else 0
-        # Print values for debugging
-        print(f"SaleItem.save: quantity={self.quantity}, chosen_price={self.chosen_price}, total_price={self.total_price}")
         super().save(*args, **kwargs)  # Call parent save method
         
 

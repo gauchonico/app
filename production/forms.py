@@ -2,7 +2,7 @@ from django import forms
 
 from POSMagicApp.models import Customer
 from .models import *
-from django.forms import ModelForm, ValidationError, inlineformset_factory, modelformset_factory
+from django.forms import BaseModelFormSet, ModelForm, ValidationError, inlineformset_factory, modelformset_factory
 
 
 class AddSupplierForm(forms.ModelForm):
@@ -137,6 +137,11 @@ ProductionIngredientFormSet = inlineformset_factory(
         'quantity_per_unit_product_volume': forms.NumberInput(attrs={'class': 'form-control', 'placeholder':'0'}),
     }
 )
+
+##Form to csv upload for product pricing
+class PriceGroupCSVForm(forms.Form):
+    price_group = forms.ModelChoiceField(queryset=PriceGroup.objects.all(), label="Select Price Group")
+    file = forms.FileField(label="Upload CSV")
 
 class ApprovePurchaseForm(forms.ModelForm):
     class Meta:
@@ -303,9 +308,33 @@ class ProductionOrderForm(forms.ModelForm):
         widgets = {
             'product': forms.Select(attrs={'class':'form-control'}),
             'quantity': forms.NumberInput(attrs={'class':'form-control'}),
-            'notes': forms.Textarea(attrs={'class':'form-control'}),
+            'notes': forms.Textarea(attrs={
+                'class':'form-control',
+                'rows': 2,  # Reduce number of rows
+                'style': 'resize:none;'  # Prevent manual resizing
+            }),
             'target_completion_date': forms.DateInput(attrs={'type':'date','class':'form-control'}),
         }
+class BaseProductionOrderFormSet(BaseModelFormSet):
+    def clean(self):
+        """Checks if any products are selected multiple times"""
+        super().clean()
+        products = []
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                product = form.cleaned_data.get('product')
+                if product in products:
+                    raise forms.ValidationError("Each product can only be ordered once per submission.")
+                products.append(product)
+
+# Create the formset
+ProductionOrderFormSet = modelformset_factory(
+    ProductionOrder,
+    form=ProductionOrderForm,
+    formset=BaseProductionOrderFormSet,
+    extra=1,
+    can_delete=True
+)
     
 class SaleOrderForm(forms.ModelForm):
     class Meta:
@@ -365,7 +394,14 @@ class StoreSelectionForm(forms.Form):
     )
         
 class TestItemForm(forms.ModelForm):
-    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.filter(quantity__gt=0))
+    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.filter(quantity__gt=0)),
+    widget=forms.Select(attrs={'class': 'form-control'}
+    )
+    price_group = forms.ModelChoiceField(
+        queryset=PriceGroup.objects.filter(is_active=True),  # Filter only active pricing groups
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
     chosen_price = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'readonly': True}), required=False)
     class Meta:
         model = SaleItem
@@ -373,18 +409,59 @@ class TestItemForm(forms.ModelForm):
         widgets = {
             'product': forms.Select(attrs={'class': 'form-control'}),
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
+            'price_group': forms.Select(attrs={'class': 'form-control'}),
             'chosen_price': forms.NumberInput(attrs={'class': 'form-control', 'readonly': True}),
         }
         
+    def clean(self):
+        """Update the chosen_price based on the selected pricing group."""
+        cleaned_data = super().clean()
+        product_instance = cleaned_data.get('product')
+        price_group = cleaned_data.get('price_group')
+
+        if product_instance:
+            # Navigate relationships to get the Product instance
+            production_instance = product_instance.product.product
+
+            if price_group:
+                # Fetch the price from the selected price group
+                product_price = ProductPrice.objects.filter(
+                    product=production_instance, price_group=price_group
+                ).first()
+                if product_price:
+                    cleaned_data['chosen_price'] = product_price.price
+                else:
+                    self.add_error('price_group', f"No price found for {production_instance.product_name} in the selected group.")
+            else:
+                # Default to the wholesale price if no group is selected
+                cleaned_data['chosen_price'] = production_instance.wholesale_price
+
+        return cleaned_data
+
     def save(self, commit=False):
+        """Save the chosen price and total price."""
         instance = super().save(commit=False)
-        if instance.product:
-            print(f"Product: {instance.product}")
-            instance.chosen_price = instance.product.product.product.wholesale_price  # Access wholesale_price from Production
-            print(f"Chosen Price: {instance.chosen_price}")
+        product_instance = instance.product  # This is a LivaraMainStore instance
+
+        if product_instance:
+            # Navigate relationships to get the Product instance
+            production_instance = product_instance.product.product
+
+            if instance.price_group:
+                product_price = ProductPrice.objects.filter(
+                    product=production_instance, price_group=instance.price_group
+                ).first()
+                instance.chosen_price = product_price.price if product_price else production_instance.wholesale_price
+            else:
+                instance.chosen_price = production_instance.wholesale_price
+
+            # Calculate the total price
+            instance.total_price = instance.quantity * instance.chosen_price
+
         if commit:
             instance.save()
         return instance
+
         
 TestItemFormset = inlineformset_factory(
     parent_model = StoreSale,

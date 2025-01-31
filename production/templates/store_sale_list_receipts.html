@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% load static %}
-{% block title %}{{ store.name }}Livara Store Sales{% endblock %}
+{% block title %}{{ store.name }}Livara Store Sales Receipts{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -28,27 +28,28 @@
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
 {% block content %}
+<h1 class="page-header mb-0">Store Sale Receipts</h1>
     <table class="table table-responsive">
         <tr>
             <th>Receipt Number</th>
             <th>Store Sale ID</th>
-            <th>Total Amount</th>
+            <th>Total Amount(UGX)</th>
             <th>Total VAT</th>
-            <th>Withholding Tax</th>
+            <th>Withholding Tax(UGX)</th>
             <th>Total Due</th>
             <th>Date Created</th>
         </tr>
-        {% for receipt in receipts %}
+        {% for receipt in receipts %}   
         <tr>
             <td>{{ receipt.receipt_number }}</td>
-            <td>{{ receipt.store_sale.id }}</td>
-            <td>{{ receipt.total_amount }}</td>
+            <td><a href="{% url 'store_sale_order_details' receipt.store_sale.id %}">{{ receipt.store_sale.id }}</a></td>
+            <td>{{ receipt.total_amount|floatformat|intcomma }}</td>
             <td>{{ receipt.total_vat }}</td>
             <td>{{ receipt.withholding_tax }}</td>
-            <td>{{ receipt.total_due }}</td>
+            <td>{{ receipt.total_due|floatformat|intcomma }}</td>
             <td>{{ receipt.created_at }}</td>
             <td><a href="{% url 'store_sale_receipt_details' receipt.id %}">View Details</a></td>
         </tr>
-        {% endfor %}
+        {% endfor %}            
     </table>
 {% endblock content %}

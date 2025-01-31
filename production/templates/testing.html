@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Store Sales{% endblock %}
+{% block title %}Create New Main Store{% endblock %}
 
 {% block css %}
     
@@ -52,6 +52,7 @@
                     <tr>
                         <th>Product</th>
                         <th>Quantity Purchased</th>
+                        <th>Pricing</th>
                         <th>Cost Per Unit</th>
                         <th>Action</th>
                     </tr>
@@ -61,6 +62,9 @@
                         <tr class="form-row">
                             <td>{{ form.product }}</td>
                             <td>{{ form.quantity }}</td>
+                            <td>{{ form.price_group }}</td>
+
+
                             <td>
                                 <input type="text" name="{{ form.chosen_price.name }}" id="chosen_price{{ forloop.counter }}" readonly>
                             </td>

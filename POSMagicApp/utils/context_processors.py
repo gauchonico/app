@@ -331,6 +331,16 @@ def sidebar_menu(request):
             'text': 'FINANCE',
             'is_header': 1
         },{
+            'url':'/production/price-groups/',
+            'icon': 'bi bi-folder-fill',
+            'text': 'Pricing Groups',
+            'name': 'view_pricing_groups',
+        },{
+            'url': '/production/product_location_report/',
+            'icon': 'bi bi-bounding-box-circles',
+            'text': 'Product by Location Report',
+            'name': 'product_location_report',
+        },{
             'url': '/production/finance-production-orders/',
             'icon': 'bi bi-bounding-box-circles',
             'text': 'Production Orders',
@@ -436,7 +446,7 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','factoryInventory','pageCustomer']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','view_pricing_groups','factoryInventory','pageCustomer']]  # Replace with your store manager menu names
             sidebar_menu.append({
                 'icon': 'bi bi-box-fill',
                 'text': 'Inventory',
@@ -524,7 +534,7 @@ def sidebar_menu(request):
         elif 'Branch Manager' in group_names:
             # Show branch manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','store_sale_list','store_sale_service_invoice_list','pageCustomer']]  # Replace with your branch manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','view_pricing_groups','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','store_sale_list','store_sale_service_invoice_list','pageCustomer']]  # Replace with your branch manager menu names
             sidebar_menu.append({
                 'icon':'bi bi-boxex-fill',
                 'text': 'Inventory',
@@ -555,7 +565,7 @@ def sidebar_menu(request):
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction','supplierList','productsList','rawmaterialsList','pageCustomer','pageOrder','writeoffs','discrepancy_delivery_report_list','raw_material_date_report','goods_received_note_list']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction','supplierList','productsList','rawmaterialsList','pageCustomer','pageOrder','discrepancy_delivery_report_list','goods_received_note_list']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -574,6 +584,11 @@ def sidebar_menu(request):
                             ),
                     'name': 'lpos_list'
                 },{
+                'url': '/production/goods-received-notes/',
+                'icon': 'bi bi-receipt',
+                'text': 'Goods Received Note List',
+                'name': 'goods_received_note_list'
+            },{
                     'url': '/production/discrepancy_delivery_report_list/',
                     'icon': 'bi bi-box-fill',
                     'text': 'Discrepancy Delivery Report List',
@@ -679,6 +694,36 @@ def sidebar_menu(request):
             'name': 'main_store_accessory_requisitions_list',
     
             },]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-box-seam',
+                'text': 'Reports',
+                'children': [{
+                    'url':'/production/price-groups/',
+                    'icon': 'bi bi-folder-fill',
+                    'text': 'Pricing Groups',
+                    'name': 'view_pricing_groups',
+                },{
+                    'url': '/production/raw_material_date_report/',
+                    'icon': 'bi bi-folder',
+                    'text': 'Raw Material Date Report',
+                    'name': 'raw_material_date_report',
+                },{
+            'url':'/production/incident_write_off_list',
+            'icon':'bi bi-box-seam',
+            'text': 'Rawmaterial Writeoffs',
+            'name': 'incident_write_off_list',
+        },{
+            'url': '/production/write_offs',
+            'icon': 'bi bi-box-seam',
+            'text': 'Production Store Writeoffs',
+            'name': 'writeoffs',
+        },{
+            'url': '/production/product_location_report/',
+            'icon': 'bi bi-bounding-box-circles',
+            'text': 'Product by Location Report',
+            'name': 'product_location_report',
+        }]
             })
         elif 'Production Manager' in group_names:
             # Show production manager menus

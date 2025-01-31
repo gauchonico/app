@@ -96,5 +96,26 @@ admin.site.register(StoreInventoryAdjustment)
 admin.site.register(Payment)
 admin.site.register(InventoryAdjustment)
 admin.site.register(StoreSaleReceipt)
+@admin.register(PriceGroup)
+class PriceGroupAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active', 'created_at', 'updated_at')
+    list_filter = ('is_active',)
+    actions = ['activate_group']
+
+    def activate_group(self, request, queryset):
+        """Custom admin action to activate a price group."""
+        queryset.update(is_active=False)
+        group_to_activate = queryset.first()
+        group_to_activate.is_active = True
+        group_to_activate.save()
+
+    activate_group.short_description = "Activate selected price group"
+
+
+@admin.register(ProductPrice)
+class ProductPriceAdmin(admin.ModelAdmin):
+    list_display = ('product', 'price_group', 'price')
+    list_filter = ('price_group',)
+    search_fields = ('product__product_name',)
 
 

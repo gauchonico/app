@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% load custom_filters %}
+
+
+{% block title %}{{ price_group.name }} Details{% endblock %}
+{% block css %}
+	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-slider/dist/css/bootstrap-slider.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
+    <link href="/assets/plugins/select-picker/dist/picker.min.css" rel="stylesheet">
+    
+    
+{% endblock %}
+
+{% block js %}
+   
+	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-slider/dist/bootstrap-slider.min.js' %}"></script>
+
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<h5>{{ price_group.name }} - Details</h5>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Product Name</th>
+            <th>Price(UGX)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product_price in product_prices %}
+        <tr>
+            <td>{{ product_price.product.product_name }}</td>
+            <td>{{ product_price.price|floatformat|intcomma }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'view_pricing_groups' %}" class="btn btn-secondary">Back to Price Groups</a>
+{% endblock %}

@@ -66,6 +66,12 @@ urlpatterns = [
     path('products-list/', views.productsList, name='productsList'),
     path('product-details/<int:product_id>/', views.productDetails, name='productDetailsPage'),
     path('create-product/', views.create_product, name='createProduct'),
+    
+    #Pricing Group Details
+    path('price-groups/', views.view_pricing_groups, name="view_pricing_groups"),
+    path('price-groups/toggle/<int:pk>/', views.toggle_price_group, name='toggle_price_group'),
+    path('price-group/<int:pk>', views.price_group_details, name="price_group_details"),
+    
     path('test-product/<int:product_id>', views.testProduct, name='testProduct'),
     path('edit-product/<int:product_id>/', views.edit_product, name='editProduct'),
     path('manufacture-product/<int:product_id>/', views.manufacture_product, name='manufactureProduct'),
@@ -146,6 +152,7 @@ urlpatterns = [
     
     path('approve-purchase-orders/<int:purchaseo_id>', views.approve_purchase_order, name='approvePurchaseOrder'),
     path('finance-restock-requests/', views.finance_restock_requests, name='financeRestockRequests'),
+    path('product_location_report/', views.product_location_report, name="product_location_report"),
     
     path('create_store_sale/', views.create_store_sale, name='createStoreSale'),
     path('list_store_sales/', views.list_store_sales, name='listStoreSales'),

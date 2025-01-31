@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Payment Receipts{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+    <link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+    <script src="/assets/plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- BEGIN page-header -->
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">SALES</a></li>
+            <li class="breadcrumb-item active">INTER-TRANSFER ACCOUNTS</li>
+        </ul>
+        <h3 class="mb-0">All Salon Sales Receipts</h3>
+    </div>
+</div>
+
+<!-- Filter Form -->
+<form method="get">
+    <div class="container">
+        <div class="row">
+            <div class="col col-lg-3">
+                <label class="form-label" for="payment_method">Payment Method:</label>
+                <select class="form-select" name="payment_method" id="payment_method">
+                    <option selected value="">All</option>
+                    <option value="cash" {% if filters.payment_method == 'cash' %}selected{% endif %}>Cash</option>
+                    <option value="mobile_money" {% if filters.payment_method == 'mobile_money' %}selected{% endif %}>Mobile Money</option>
+                    <option value="airtel_money" {% if filters.payment_method == 'airtel_money' %}selected{% endif %}>Airtel Money</option>
+                    <option value="visa" {% if filters.payment_method == 'visa' %}selected{% endif %}>Visa</option>
+                </select>
+            </div>
+            <div class="col col-lg-3">
+                <!-- Store selector -->
+                <label for="store">Store:</label>
+                <select class="form-select" name="store" id="store">
+                    <option selected value="">All Stores</option>
+                    {% for store in stores %}
+                        <option value="{{ store.id }}" {% if filters.store == store.id|stringformat:"s" %}selected{% endif %}>
+                            {{ store.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col col-lg-3">
+                <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <label class="input-group-text" for="start_date">Choose:
+                        <i class="fa fa-calendar"></i>
+                    </label>
+                    <input type="date" name="start_date" id="start_date" value="{{ filters.start_date }}">
+                </div>
+            </div>
+            <div class="col col-lg-3">
+                <label class="form-label">End Date <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <label class="input-group-text" for="end_date">End Date:
+                        <i class="fa fa-calendar"></i>
+                    </label>
+                    <input type="date" name="end_date" id="end_date" value="{{ filters.end_date }}">
+                </div>
+            </div>
+        </div>
+
+        {% comment %} <label for="min_amount">Min Amount:</label>
+        <input type="number" name="min_amount" id="min_amount" value="{{ filters.min_amount }}">
+
+        <label for="max_amount">Max Amount:</label>
+        <input type="number" name="max_amount" id="max_amount" value="{{ filters.max_amount }}"> {% endcomment %}
+
+        <button class="btn btn-theme m-2" type="submit">Filter</button>
+    </div>
+</form>
+<!-- Payment List -->
+<table class="table" id="datatableDefault" border="1">
+    <thead>
+        <tr>
+            <th>Payment ID</th>
+            <th>Sale ID</th>
+            <th>Payment Method</th>
+            <th>Amount</th>
+            <th>Remarks</th>
+            <th>Customer</th>
+            <th>Store</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for payment in payments %}
+            <tr>
+                <td>{{ payment.id }}</td>
+                <td>{{ payment.sale.id }}</td>
+                <td>{{ payment.get_payment_method_display }}</td>
+                <td>{{ payment.amount }}</td>
+                <td>{{ payment.remarks }}</td>
+                <td>{{ payment.sale.customer.name }}</td>
+                <td>{{ payment.sale.store.name }}</td>
+                <td>{{ payment.sale.sale_date }}</td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="8">No payments found.</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% for method, payments in payments_by_method.items %}
+        <h6>{{ method|title }}</h6>
+        <table class="table" id="datatableDefault" border="1">
+            <thead>
+                <tr>
+                    <th>Sale ID</th>
+                    <th>Amount</th>
+                    <th>Remarks</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.sale.id }}</td>
+                        <td>{{ payment.amount }}</td>
+                        <td>{{ payment.remarks }}</td>
+                        <td>{{ payment.sale.sale_date }}</td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-warning">No payments found for this method.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+{% endblock content %}
+{% block outter_content %}
+<script>
+    $('#datatableDefault').DataTable({
+      dom: "<'row mb-3'<'col-sm-4'l><'col-sm-8 text-end'<'d-flex justify-content-end'fB>>>t<'d-flex align-items-center mt-3'<'me-auto'i><'mb-0'p>>",
+      lengthMenu: [ 10, 20, 30, 40, 50 ],
+      responsive: true,
+      buttons: [ 
+        { extend: 'print', className: 'btn btn-default' },
+        { extend: 'csv', className: 'btn btn-default' }
+      ]
+    });
+  </script>
+  {% endblock outter_content %}

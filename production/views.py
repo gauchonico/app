@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from io import StringIO
 from uuid import uuid4
 import os
 from django.db import models
@@ -34,8 +35,8 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, ProductSaleItemForm, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, Payment, PaymentVoucher, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -622,6 +623,75 @@ def create_product(request):
 
 
 @login_required(login_url='/login/')
+def view_pricing_groups(request):
+    pricing_groups = PriceGroup.objects.all()
+    if request.method == 'POST':
+        # Handle CSV Upload
+        csv_form = PriceGroupCSVForm(request.POST, request.FILES)
+        if csv_form.is_valid():
+            price_group = csv_form.cleaned_data['price_group']
+            csv_file = csv_form.cleaned_data['file']
+            try:
+                handle_csv_upload(csv_file, price_group)
+                messages.success(request, f"Prices updated for {price_group.name} successfully!")
+            except Exception as e:
+                messages.error(request, f"Error processing CSV: {e}")
+            return redirect('price_group_list')
+    else:
+        csv_form = PriceGroupCSVForm()
+
+    context = {
+        'pricing_groups': pricing_groups,
+        'csv_form': csv_form,
+    }
+    return render(request, 'view-pricing-groups.html', context)
+
+def toggle_price_group(request, pk):
+    """Activate or deactivate a price group."""
+    if request.method == 'POST':
+        price_group = get_object_or_404(PriceGroup, pk=pk)
+        price_group.is_active = not price_group.is_active
+        price_group.save()
+        return JsonResponse({'success': True, 'is_active': price_group.is_active})
+    return JsonResponse({'success': False})
+
+def price_group_details(request, pk):
+    """View details of a specific price group."""
+    price_group = get_object_or_404(PriceGroup, pk=pk)
+    product_prices = ProductPrice.objects.filter(price_group=price_group)
+
+    context = {
+        'price_group': price_group,
+        'product_prices': product_prices,
+    }
+    return render(request, 'price_group_details.html', context)
+
+def handle_csv_upload(csv_file, price_group):
+    """Handle the uploaded CSV to bulk update or add product prices."""
+    decoded_file = csv_file.read().decode('utf-8')
+    csv_reader = csv.DictReader(StringIO(decoded_file))
+    with transaction.atomic():
+        for row in csv_reader:
+            product_name = row.get('product_name')
+            price = row.get('price')
+
+            if not product_name or not price:
+                raise ValueError("Each row must contain 'product_name' and 'price'.")
+
+            try:
+                product = Production.objects.get(product_name=product_name)
+            except Production.DoesNotExist:
+                raise ValueError(f"Product '{product_name}' does not exist.")
+
+            # Create or update the ProductPrice for the price group
+            ProductPrice.objects.update_or_create(
+                product=product,
+                price_group=price_group,
+                defaults={'price': price}
+            )
+
+
+@login_required(login_url='/login/')
 def testProduct(request, product_id):
     product = Production.objects.get(pk=product_id)
     raw_materials = RawMaterial.objects.all()  # Get all available raw materials
@@ -727,7 +797,7 @@ def manufacture_product(request, product_id):
                     manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
                         product=product,
                         batch_number=manufacture_product.batch_number,
-                        defaults={'quantity': quantity, 'expiry_date': expiry_date}
+                        defaults={'quantity': Decimal(str(quantity)), 'expiry_date': expiry_date}
                     )
                     if not created:
                         manufactured_product_inventory.quantity += quantity
@@ -1792,29 +1862,29 @@ def create_production_order(request):
         return redirect('store_inventory_list')  # Redirect to homepage on permission error
 
     if request.method == 'POST':
-        form = ProductionOrderForm(request.POST)
-        if form.is_valid():
-            product = form.cleaned_data['product']
-            quantity = form.cleaned_data['quantity']
-            notes = form.cleaned_data['notes']
-            target_completion_date = form.cleaned_data['target_completion_date']
-
-            # Check for sufficient raw materials (optional)
-            # ... (implement logic to check raw material stock)
-
-            production_order = ProductionOrder.objects.create(
-                product=product,
-                quantity=quantity,
-                notes=notes,
-                target_completion_date=target_completion_date,
-                requested_by=request.user,
-            )
-            messages.success(request, f"Production order created for {quantity} units of {product.product_name}")
-            return redirect('productionList')  # Redirect to production order list
+        formset = ProductionOrderFormSet(request.POST, queryset=ProductionOrder.objects.none())
+        if formset.is_valid():
+            try:
+                with transaction.atomic():
+                    instances = formset.save(commit=False)
+                    for instance in instances:
+                        instance.requested_by = request.user
+                        instance.save()
+                    
+                    # Handle deleted forms
+                    for obj in formset.deleted_objects:
+                        obj.delete()
+                    
+                messages.success(request, "Production orders created successfully!")
+                return redirect('productionList')
+            except Exception as e:
+                messages.error(request, f"Error creating production orders: {str(e)}")
     else:
-        form = ProductionOrderForm()
+        formset = ProductionOrderFormSet(queryset=ProductionOrder.objects.none())
 
-    context = {'form': form}
+    context = {
+        'formset': formset
+    }
     return render(request, 'create_production_order.html', context)
 
 def list_production_orders(request):
@@ -1855,6 +1925,69 @@ def productions_view_production_orders(request):
     production_orders = ProductionOrder.objects.filter(status__in=['Created','Approved', 'In Progress', 'Completed']).order_by('-created_at')  # Order by creation date descending
     context = {'production_orders': production_orders}
     return render(request, 'production_production_orders.html', context)
+
+# product location report
+def product_location_report(request):
+    # Get all products and stores
+    products = Production.objects.all().order_by('product_name')
+    stores = Store.objects.all().order_by('name')
+    main_store = "Livara Main Store"  # Special handling for main store
+    manufactured = "URI"     # Special handling for manufacturing
+
+    # Initialize data structure for the report
+    report_data = []
+    
+    for product in products:
+        print(f"\nProcessing product: {product.product_name}")
+        
+        # Get manufacturing quantity
+        manufacturing_qty = ManufacturedProductInventory.objects.filter(
+            product=product
+        ).aggregate(total=Sum('quantity'))['total'] or 0
+        print(f"Manufacturing quantity: {manufacturing_qty}")
+
+        # Get main store quantity
+        # First get the manufactured inventory records for this product
+        manufactured_inventory = ManufacturedProductInventory.objects.filter(product=product)
+        # Then get main store records that reference these manufactured inventory records
+        main_store_qty = LivaraMainStore.objects.filter(
+            product__in=manufactured_inventory
+        ).aggregate(total=Sum('quantity'))['total'] or 0
+        
+        # Debug print main store query
+        main_store_items = LivaraMainStore.objects.filter(product__in=manufactured_inventory)
+        print(f"Main store items found: {main_store_items.count()}")
+        for item in main_store_items:
+            print(f"Main store item: {item.product.product.product_name} - Qty: {item.quantity}")
+        
+        print(f"Main store total quantity: {main_store_qty}")
+
+        # Get store quantities
+        store_quantities = {}
+        for store in stores:
+            store_qty = StoreInventory.objects.filter(
+                product=product, 
+                store=store
+            ).aggregate(total=Sum('quantity'))['total'] or 0
+            store_quantities[store.id] = store_qty
+            print(f"Store {store.name} quantity: {store_qty}")
+
+        row_data = {
+            'product': product,
+            'manufacturing': manufacturing_qty,
+            'main_store': main_store_qty,
+            'stores': store_quantities
+        }
+        report_data.append(row_data)
+
+    context = {
+        'stores': stores,
+        'report_data': report_data,
+        'main_store': main_store,
+        'manufactured': manufactured,
+    }
+    
+    return render(request, 'product_location_report.html', context)
 
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Production Manager'])
@@ -1976,7 +2109,7 @@ def finance_list_store_sales(request):
     context = {'sale_orders': sale_orders}
     return render(request, 'finance_list_store_sales.html', context)
 
-##################### Store Sale #################
+##################### Create a new Store Sale Martinz side #################
 def create_store_test(request):
     if request.method == 'POST':
         form = TestForm(request.POST)
@@ -2016,10 +2149,12 @@ def create_store_test(request):
     else:
         form = TestForm()
         formset = TestItemFormset(queryset=SaleItem.objects.none())
-
-    context = {'form': form, 'formset': formset}
+        
+    price_groups = PriceGroup.objects.filter(is_active=True)  # Fetch only active price groups
+    context = {'form': form, 'formset': formset, 'price_groups': price_groups}
     return render(request, 'testing.html', context)
 
+#nolonger used as we use pricing group now
 def get_wholesale_price(request):
     if request.method == 'POST':
         product_id = request.POST.get('product_id')
@@ -2039,7 +2174,7 @@ def update_order_status(request, store_sale_id):
         if order.status == 'delivered':  # Check if already delivered
             messages.warning(request, 'Order is already marked as delivered.')
         else:
-            order.status = 'delivered'
+            order.status = 'paid'
             order.save()
             
             # Reduce the quantity in the LivaraMainStore inventory (when marked delivered)

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Store Sales{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+{% block content %}
+<!-- BEGIN page-header -->
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">PRICING GROUPS</a></li>
+            <li class="breadcrumb-item active">ALL PRICING GROUPS</li>
+        </ul>
+        <h1 class="page-header mb-0">Pricing Groups</h1>
+    </div>
+    
+    <div class="ms-auto">
+        <a href="{% url 'addSupplier' %}" class="btn btn-outline-theme me-2">Add New Pricing Group</a>
+    </div>
+    
+</div>
+<div class="mb-5">
+    <p>
+        <span class="badge bg-dark">{{ pricing_groups|length }}</span>
+        Pricing Groups found in the system.
+    </p>
+    <p>You can upload price list for a particular price group. Simply load a csv template with your desired data and upload</p>
+    <ul class="">
+        <li> The CSV should have two columns</li>
+        <li> The first column should contain the product_name and second column, price.</li>
+        <li> The product_name should be unique not empty and case sensitive.</li>
+    </ul>
+</div>
+
+
+<!-- Upload CSV -->
+<form method="post" enctype="multipart/form-data" class="mb-3">
+    {% csrf_token %}
+    {{ csv_form.as_p }}
+    <button type="submit" class="btn btn-primary">Upload Prices</button>
+</form>
+
+<!-- Price Groups Table -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for group in pricing_groups %}
+        <tr>
+            <td>{{ group.name }}</td>
+            <td>
+                <button class="btn btn-sm toggle-status" data-url="{% url 'toggle_price_group' group.id %}" data-status="{{ group.is_active }}">
+                    {{ group.is_active|yesno:"Active,Inactive" }}
+                </button>
+            </td>
+            <td>
+                <a href="{% url 'price_group_details' group.id %}" class="btn btn-info btn-sm">View Details</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Modal for Confirmation -->
+<div id="confirmationModal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to toggle the status of this price group?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="confirmToggle" class="btn btn-primary">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+{% block outter_content%}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggleButtons = document.querySelectorAll('.toggle-status');
+        const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+        let targetUrl = '';
+    
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                targetUrl = this.dataset.url;
+                modal.show();
+            });
+        });
+    
+        document.getElementById('confirmToggle').addEventListener('click', function () {
+            fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to toggle the status.');
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    });
+    </script>
+    {% endblock outter_content %}

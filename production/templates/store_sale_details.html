@@ -15,20 +15,33 @@
             <div class="card">
                 <div class="card-header">
                     Order #{{ sale_order.id }}
+                    <button onclick="window.print()">Print Invoice</button>
                 </div>
                 <div class="card-body">
                     <h5 class="card-title">Customer: {{ sale_order.customer.first_name }} {{ sale_order.customer.last_name }}</h5>
                     <p class="card-text"><strong>Date Ordered:</strong> {{ sale_order.sale_date }}</p>
                     <p class="card-text"><strong>Status:</strong> {{ sale_order.get_status_display }}</p>
-                    <p class="card-text"><strong>Withhold 6%:</strong> {{ sale_order.withhold_tax }}</p>
-                    <p class="card-text"><strong>Vat 18%:</strong> {{ sale_order.vat }}</p>
+                    <p class="card-text"><strong>Withhold 6%:</strong>
+                        {% if sale_order.withhold_tax %} 
+                        <span class=""><i class="bi bi-check-circle-fill text-success"></i></span>
+                        {% else %}
+                        <span class=""></span><i class="bi bi-x-circle-fill text-danger"></i>
+                        {% endif %}
+                    </p>
+                    <p class="card-text"><strong>Vat 18%:</strong>
+                        {% if sale_order.vat %}
+                        <span class=""><i class="bi bi-check-circle-fill text-success"></i></span>
+                        {% else %}
+                        <span class=""></span><i class="bi bi-x-circle-fill text-danger"></i>
+                        {% endif %}
+                    </p>
                     <p class="card-text"><strong>Due Date:</strong> {{ sale_order.due_date }}</p>
 
                     <h5>Products:</h5>
                     <ul class="list-group mb-3">
                         {% for sale_item in sale_order.saleitem_set.all %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            {{ sale_item.product.product.product.product_name }} - {{ sale_item.quantity }} units - UGX {{ sale_item.product.product.product.wholesale_price|floatformat|intcomma }}
+                            {{ sale_item.product.product.product.product_name }} - {{ sale_item.quantity }} units - UGX {{ sale_item.chosen_price|floatformat|intcomma }}
                             <span class="badge bg-primary rounded-pill">Total: UGX {{ sale_item.total_price }}</span>
                         </li>
                         {% endfor %}
@@ -43,14 +56,12 @@
                     <div class="card-arrow-bottom-right"></div>
                 </div>
                 <div class="card-footer">
-                    <small class="text-theme">Total Order Quote: UGX {{ total_order_amount|floatformat|intcomma }}</small>
+                    <small class="text-theme">Total Order Quote: UGX {{ sale_order.total_amount|floatformat|intcomma }}</small>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block js %}
+{% endblock content %}
 
-{% endblock %}

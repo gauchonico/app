@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load report_filters %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Product Location Report</h2>
+    
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>{{ manufactured }}</th>
+                    <th>{{ main_store }}</th>
+                    {% for store in stores %}
+                        <th>{{ store.name }}</th>
+                    {% endfor %}
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_data %}
+                <tr class="{% if row.manufacturing > 0 or row.main_store > 0 or row.stores.values > 0 %}has-stock{% endif %}">
+                        <td>{{ row.product.product_name }}</td>
+                        <td>{{ row.manufacturing }}</td>
+                        <td>{{ row.main_store }}</td>
+                        {% for store in stores %}
+                            <td>{{ row.stores|get_item:store.id }}</td>
+                        {% endfor %}
+                        <td>
+                            {% with total=row.manufacturing|add:row.main_store %}
+                                {% for store in stores %}
+                                    {% with store_qty=row.stores|get_item:store.id %}
+                                        {% with total=total|add:store_qty %}
+                                        {% endwith %}
+                                    {% endwith %}
+                                {% endfor %}
+                                {{ total }}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+    .table th {
+        background-color:rgb(7, 79, 11);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+    
+    .table td, .table th {
+        white-space: nowrap;
+        padding: 8px;
+    }
+    
+    .table-responsive {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    .has-stock {
+        background-color: rgba(40, 167, 69, 0.1) !important;  /* Light green with transparency */
+    }
+
+    .has-stock:hover {
+        background-color: rgba(40, 167, 69, 0.2) !important;  /* Slightly darker on hover */
+    }
+
+    /* Override bootstrap striping for rows with stock */
+    .table-striped tbody tr.has-stock:nth-of-type(odd),
+    .table-striped tbody tr.has-stock:nth-of-type(even) {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+    }
+</style>
+{% endblock %}

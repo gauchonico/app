@@ -31,81 +31,109 @@
     <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
 {% block content %}
+<div class="container">
+    <h2>Create Production Orders</h2>
     
-        <!-- BEGIN container -->
-        <div class="container">
-            <!-- BEGIN row -->
-            <div class="row justify-content-center">
-                <!-- BEGIN col-10 -->
-                <div class="col-xl-12">
-                    <!-- BEGIN row -->
+    <form method="post" id="production-order-form">
+        {% csrf_token %}
+        {{ formset.management_form }}
+        
+        <div id="form-container">
+            {% for form in formset %}
+                <div class="form-row border p-3 mb-3">
+                    {{ form.non_field_errors }}
                     <div class="row">
-                        <!-- BEGIN col-9 -->
-                        <div class="col-xl-9">
-                            <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="#">PRODUCTS</a></li>
-                                <li class="breadcrumb-item active">ROLL OUT NEW PRODUCTION</li>
-                            </ul>
-                            
-                            <h1 class="page-header">
-                                New Production Order <small>page header description goes here...</small>
-                            </h1>
-                            
-                            <hr class="mb-4">
-                            
-                            <!-- BEGIN #datatable -->
-                        
-                            <h1>Create Production Order</h1>
-
-                            {% if messages %}
-                                <ul class="messages">
-                                    {% for message in messages %}
-                                        <li {% if message.tags == 'error' %}class="error"{% endif %}>{{ message }}</li>
-                                    {% endfor %}
-                                </ul>
-                            {% endif %}
-
-                            <form method="post">
-                                {% csrf_token %}
-                                {{ form.as_p }}
-                                <button class="btn btn-outline-theme" type="submit">Create Production Order</button>
-                            </form>
-
-                            <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr/latest/toastr.min.js"></script>
-                            <script>
-                                $(document).ready(function() {
-                                    // Check for error message in a hidden form field (optional)
-                                    if ($('#error_message').val()) {
-                                        toastr.error($('#error_message').val());
-                                    }
-                                });
-                            </script>
-                        
-                        
-                        
-                                
-                            <!-- END #datatable -->
+                        <div class="col-md-3">
+                            <label>Product</label>
+                            {{ form.product }}
                         </div>
-                        <!-- END col-9-->
-                        <!-- BEGIN col-3 -->
-                        <div class="col-xl-3">
-                            <!-- BEGIN #sidebar-bootstrap -->
-                            <nav id="sidebar-bootstrap" class="navbar navbar-sticky d-none d-xl-block">
-                                <nav class="nav">
-                                    <a class="nav-link active" href="{% url 'createProduct' %}">Create Production Order</a>
-                                    <a class="nav-link" href="{% url 'productionList' %}">Production Order List</a>
-                                </nav>
-                            </nav>
-                            <!-- END #sidebar-bootstrap -->
+                        <div class="col-md-2">
+                            <label>Quantity</label>
+                            {{ form.quantity }}
                         </div>
-                        <!-- END col-3 -->
+                        <div class="col-md-3">
+                            <label>Target Date</label>
+                            {{ form.target_completion_date }}
+                        </div>
+                        <div class="col-md-3">
+                            <label>Notes</label>
+                            {{ form.notes }}
+                        </div>
+                        <div class="col-md-1">
+                            <label>Delete</label>
+                            {{ form.DELETE }}
+                        </div>
                     </div>
-                    <!-- END row -->
                 </div>
-                <!-- END col-10 -->
-            </div>
-            <!-- END row -->
+            {% endfor %}
         </div>
-        <!-- END container -->
+        
+        <div class="row mt-3">
+            <div class="col">
+                <button type="button" class="btn btn-secondary" id="add-form">Add Another Product</button>
+                <button type="submit" class="btn btn-primary">Submit Orders</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+
         
 {% endblock %}
+{% block outter_content %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addButton = document.getElementById('add-form');
+        const formContainer = document.getElementById('form-container');
+        
+        if (addButton && formContainer) {  // Add check to ensure elements exist
+            addButton.addEventListener('click', function() {
+                console.log('Add button clicked'); // Debug log
+                const forms = formContainer.getElementsByClassName('form-row');
+                const formCount = forms.length;
+                const totalForms = document.getElementById('id_form-TOTAL_FORMS');
+                
+                if (forms.length > 0) {  // Check if there's at least one form to clone
+                    // Clone the first form
+                    const newForm = forms[0].cloneNode(true);
+                    
+                    // Update form index
+                    const formRegex = new RegExp('form-0-', 'g');
+                    newForm.innerHTML = newForm.innerHTML.replace(formRegex, `form-${formCount}-`);
+                    
+                    // Update ids and names of all elements in the new form
+                    const elements = newForm.querySelectorAll('[id^="id_form-0"], [name^="form-0"]');
+                    elements.forEach(element => {
+                        if (element.id) {
+                            element.id = element.id.replace('form-0-', `form-${formCount}-`);
+                        }
+                        if (element.name) {
+                            element.name = element.name.replace('form-0-', `form-${formCount}-`);
+                        }
+                    });
+                    
+                    // Clear the values
+                    newForm.querySelectorAll('input:not([type=hidden]), select, textarea').forEach(input => {
+                        if (input.type === 'checkbox') {
+                            input.checked = false;
+                        } else {
+                            input.value = '';
+                        }
+                    });
+                    
+                    // Update total forms count
+                    if (totalForms) {
+                        totalForms.value = formCount + 1;
+                    }
+                    
+                    // Add the new form
+                    formContainer.appendChild(newForm);
+                    console.log('New form added'); // Debug log
+                }
+            });
+        } else {
+            console.error('Required elements not found'); // Debug log
+        }
+    });
+</script>
+{% endblock outter_content %}
