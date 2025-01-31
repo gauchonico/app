@@ -19,7 +19,7 @@ import logging
 from POSMagicApp.decorators import unauthenticated_user, allowed_users
 
 from itertools import product
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, TruncDate
 import json
 from django import forms
 from django.contrib import messages
@@ -36,7 +36,7 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
 from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -1989,6 +1989,7 @@ def product_location_report(request):
     
     return render(request, 'product_location_report.html', context)
 
+# approve production order
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Production Manager'])
 def approve_production_order(request, pk):
@@ -2022,6 +2023,40 @@ def approve_production_order(request, pk):
                 messages.error(request, "Invalid approved quantity. Please enter a number.")
     context = {'production_order': production_order}
     return render(request, 'approve_production_order.html', context)
+
+# reject production order
+@require_POST
+def reject_production_order(request, order_id):
+    try:
+        order = ProductionOrder.objects.get(id=order_id)
+        reason = request.POST.get('rejection_reason', '')
+        
+        if not reason:
+            return JsonResponse({
+                'success': False,
+                'message': 'Rejection reason is required'
+            }, status=400)
+            
+        order.reject_order(request.user, reason)
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Production order rejected successfully',
+            'new_status': order.status,
+            'rejected_at': order.rejected_at.strftime('%Y-%m-%d %H:%M'),
+            'rejected_by': order.rejected_by.get_full_name() or order.rejected_by.username
+        })
+        
+    except ProductionOrder.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Production order not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
 
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Production Manager'])
@@ -2647,35 +2682,44 @@ def record_payment_view(request, sale_id):
             remarks = form.cleaned_data['remarks']
 
             try:
-                if payment_method == 'mixed':
-                    # Create separate payments for each method
-                    if form.cleaned_data['cash_amount']:
-                        Payment.objects.create(sale=sale, payment_method='cash', amount=form.cleaned_data['cash_amount'], remarks=f"Cash: {remarks}")
-                    if form.cleaned_data['mobile_money_amount']:
-                        Payment.objects.create(sale=sale, payment_method='mobile_money', amount=form.cleaned_data['mobile_money_amount'], remarks=f"Mobile Money: {remarks}")
-                    if form.cleaned_data['airtel_money_amount']:
+                with transaction.atomic():
+                    # Record payments
+                    if payment_method == 'mixed':
+                        # Handle mixed payment methods
+                        for method in ['cash', 'mobile_money', 'airtel_money', 'visa']:
+                            amount_field = f'{method}_amount'
+                            if form.cleaned_data.get(amount_field):
+                                Payment.objects.create(
+                                    sale=sale,
+                                    payment_method=method,
+                                    amount=form.cleaned_data[amount_field],
+                                    remarks=f"{method.title()}: {remarks}"
+                                )
+                    else:
+                        # Single payment method
                         Payment.objects.create(
-                            sale=sale, 
-                            payment_method='airtel_money', 
-                            amount=form.cleaned_data['airtel_money_amount'], 
-                            remarks=f"Airtel Money: {remarks}"
+                            sale=sale,
+                            payment_method=payment_method,
+                            amount=form.cleaned_data['amount'],
+                            remarks=remarks
                         )
-                    if form.cleaned_data['visa_amount']:
-                        Payment.objects.create(sale=sale, payment_method='visa', amount=form.cleaned_data['visa_amount'], remarks=f"Visa: {remarks}")
-                else:
-                    # Create a single payment record
-                    Payment.objects.create(sale=sale, payment_method=payment_method, amount=form.cleaned_data['amount'], remarks=remarks)
 
-                # Recalculate the sale totals
-                sale.calculate_total()
-                if sale.paid_status == 'paid':
-                    sale.mark_as_paid()  # Update status and handle inventory adjustments
-                    sale._deduct_accessory_inventory()
-                    sale._deduct_product_inventory()
-                messages.success(request, "Payment recorded successfully.")
+                    # Recalculate totals and handle paid status
+                    previous_status = sale.paid_status
+                    sale.calculate_total()  # This will also create commissions if newly paid
+                    
+                    if previous_status != 'paid' and sale.paid_status == 'paid':
+                        sale.create_service_commissions()
+                        
+                        messages.success(request, "Payment recorded and commissions calculated successfully.")
+                    else:
+                        messages.success(request, "Payment recorded successfully.")
+
             except Exception as e:
+                print(f"ERROR: {str(e)}")
                 messages.error(request, f"Error recording payment: {str(e)}")
-            return redirect('store_sale_list')  # Redirect to the sales list or sale detail view
+                
+            return redirect('store_sale_list')
     else:
         form = PaymentForm(sale_balance=sale.balance)
 
@@ -2690,58 +2734,62 @@ def all_payment_receipts_view(request):
 def payment_list_view(request):
     # Query all payments grouped by payment method
     payment_method = request.GET.get('payment_method')
-    start_date = request.GET.get('start_date')  # e.g., '2025-01-01'
-    end_date = request.GET.get('end_date')  # e.g., '2025-01-31'
-    min_amount = request.GET.get('min_amount')  # e.g., '100'
-    max_amount = request.GET.get('max_amount')  # e.g., '500'
-    customer_name = request.GET.get('customer_name')  # e.g., 'John Doe'
-    store_id = request.GET.get('store')  # e.g., 'Main Store'
-    payments_by_method = {
-        'cash': Payment.objects.filter(payment_method='cash'),
-        'mobile_money': Payment.objects.filter(payment_method='mobile_money'),
-        'airtel_money': Payment.objects.filter(payment_method='airtel_money'),
-        'visa': Payment.objects.filter(payment_method='visa'),
-    }
-    # Base queryset
-    payments = Payment.objects.all().order_by('-id')
-
-    # Apply filters if parameters are provided
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    # Base queryset for paid sales
+    sales = ServiceSale.objects.filter(paid_status='paid').order_by('-sale_date')
+    
+    # Apply filters
     if payment_method:
-        payments = payments.filter(payment_method=payment_method)
+        sales = sales.filter(payments__payment_method=payment_method).distinct()
+    if start_date:
+        sales = sales.filter(sale_date__date__gte=start_date)
+    if end_date:
+        sales = sales.filter(sale_date__date__lte=end_date)
 
-    if start_date and end_date:
-        payments = payments.filter(sale__sale_date__range=[start_date, end_date])
-    elif start_date:
-        payments = payments.filter(sale__sale_date__gte=start_date)
-    elif end_date:
-        payments = payments.filter(sale__sale_date__lte=end_date)
+    # Calculate summary statistics
+    summary_stats = {
+        'total_receipts': sales.count(),
+        'total_amount': sales.aggregate(total=Sum('total_amount'))['total'] or 0,
+        'payment_methods_summary': Payment.objects.filter(
+            sale__in=sales
+        ).values('payment_method').annotate(
+            total_amount=Sum('amount'),
+            count=Count('id')
+        ),
+        'daily_sales': sales.annotate(
+            date=TruncDate('sale_date')
+        ).values('date').annotate(
+            daily_total=Sum('total_amount'),
+            receipt_count=Count('id')
+        ).order_by('-date')[:7]  # Last 7 days
+    }
 
-    if min_amount:
-        payments = payments.filter(amount__gte=min_amount)
-    if max_amount:
-        payments = payments.filter(amount__lte=max_amount)
-
-    if store_id:
-        payments = payments.filter(sale__store__id=store_id)
-
-    # Fetch all stores for the dropdown
-    stores = Store.objects.all()
-        
     context = {
-        'payments': payments,
-        'payments_by_method': payments_by_method,
-        'stores': stores,
-        'filters': {
-            'payment_method': payment_method,
-            'start_date': start_date,
-            'end_date': end_date,
-            'min_amount': min_amount,
-            'max_amount': max_amount,
-            'customer_name': customer_name,
-            'store': store_id,  # Pass selected store for retaining the selection
-        }
+        'sales': sales,
+        'summary_stats': summary_stats,
+        'payment_method_choices': Payment.PAYMENT_METHOD_CHOICES,
+        'selected_payment_method': payment_method,
+        'start_date': start_date,
+        'end_date': end_date,
     }
     return render(request, 'payment_list.html', context)
+
+@login_required
+def service_sale_receipt(request, sale_id):
+    sale = get_object_or_404(ServiceSale, id=sale_id)
+    
+    # Calculate subtotal (excluding accessories)
+    service_total = sum(item.total_price for item in sale.service_sale_items.all())
+    product_total = sum(item.total_price for item in sale.product_sale_items.all())
+    subtotal = service_total + product_total
+    
+    context = {
+        'sale': sale,
+        'subtotal': subtotal,
+        'MEDIA_URL': settings.MEDIA_URL,
+    }
+    return render(request, 'service_sale_receipt.html', context)
     
 def store_sale_list(request):
     # Assuming the logged-in user is the manager of the store
@@ -2766,6 +2814,84 @@ def finance_store_sale_list(request):
 
     # Pass the store sales to the template
     return render(request,'finance_store_sale_list.html', {'sales': sales})
+
+#Staff Commissions
+@login_required
+def monthly_commission_list(request):
+    """View to list all monthly commission compilations"""
+    # Get filter parameters
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    staff_id = request.GET.get('staff_id')
+    
+    # Start with all commissions
+    commissions = StaffCommission.objects.select_related(
+        'staff',
+        'service_sale_item__service__service',
+        'service_sale_item__sale'
+    ).order_by('-created_at')
+    
+    # Apply filters if provided
+    if year and month:
+        commissions = commissions.filter(
+            created_at__year=year,
+            created_at__month=month
+        )
+    if staff_id:
+        commissions = commissions.filter(staff_id=staff_id)
+    
+    # Get unique years and months for the filter dropdowns
+    available_dates = StaffCommission.objects.dates('created_at', 'month', order='DESC')
+    years = sorted(set(date.year for date in available_dates), reverse=True)
+    
+    # Get all staff for the filter dropdown
+    staff_members = Staff.objects.all().order_by('first_name')
+    
+    # Calculate totals
+    totals = commissions.aggregate(
+        total_amount=Sum('commission_amount'),
+        total_unpaid=Sum('commission_amount', filter=models.Q(paid=False)),
+        total_paid=Sum('commission_amount', filter=models.Q(paid=True))
+    )
+    
+    context = {
+        'commissions': commissions,
+        'years': years,
+        'months': range(1, 13),  # 1 to 12
+        'staff_members': staff_members,
+        'selected_year': year,
+        'selected_month': month,
+        'selected_staff': staff_id,
+        'totals': totals,
+        'current_year': timezone.now().year,
+        'current_month': timezone.now().month,
+    }
+    return render(request, 'monthly_commission_list.html', context)
+
+@login_required
+def staff_monthly_commission_detail(request, staff_id, year, month):
+    """View detailed commissions for a staff member in a specific month"""
+    monthly_commission = MonthlyStaffCommission.objects.get(
+        staff_id=staff_id,
+        month__year=year,
+        month__month=month
+    )
+    
+    individual_commissions = StaffCommission.objects.filter(
+        monthly_commission=monthly_commission
+    ).select_related('service_sale_item__service__service')
+
+    if request.method == 'POST' and 'mark_paid' in request.POST:
+        reference = request.POST.get('payment_reference')
+        monthly_commission.mark_as_paid(reference)
+        messages.success(request, "Marked commission as paid")
+        return redirect('monthly_commission_list')
+
+    context = {
+        'monthly_commission': monthly_commission,
+        'individual_commissions': individual_commissions,
+    }
+    return render(request, 'staff_monthly_commission_detail.html', context)
     
 @login_required
 def store_services_view(request):

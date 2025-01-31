@@ -143,6 +143,7 @@ urlpatterns = [
     path('create_production_order/', views.create_production_order, name="create_production_order"),
     path('production-orders/', views.list_production_orders, name='productionList'),
     path('finance-approval/<int:pk>/', views.approve_production_order, name='approveProduction'),
+    path('production-order/<int:order_id>/reject/', views.reject_production_order, name='reject_production_order'),
     path('finance-production-orders/', views.finance_view_production_orders, name='financeProduction'),
     path('production-production-orders/', views.productions_view_production_orders, name='productionProduction'),
     path('start-progress/<int:pk>/', views.start_production_progress, name='startProgress'),
@@ -162,6 +163,8 @@ urlpatterns = [
     path('finance_list_store_sales/', views.finance_list_store_sales, name="financeListStoreSales"),
     path('pay_order_status/<int:store_sale_id>/', views.pay_order_status, name='pay_order_status'),
     path('store_sale_order_details/<int:pk>/', views.store_sale_order_details, name='store_sale_order_details'),
+    path('monthly-commissions/', views.monthly_commission_list, name='monthly_commission_list'),
+    path('monthly-commissions/<int:staff_id>/<int:year>/<int:month>/', views.staff_monthly_commission_detail, name='staff_monthly_commission_detail'),
     path('mark_transfer_completed/<int:transfer_id>/', views.mark_transfer_completed, name='mark_transfer_completed'),
     
     path('write_offs', views.write_offs, name="writeoffs"),
@@ -179,4 +182,6 @@ urlpatterns = [
     path('incident_write_off_list/', views.incident_write_off_list, name='incident_write_off_list'),
     
     path('update_reorder_point/<int:pk>/', views.update_reorder_point, name="update_reorder_point"),
+    #Sale Receipt
+    path('service-sale/<int:sale_id>/receipt/', views.service_sale_receipt, name='service_sale_receipt'),
 ]

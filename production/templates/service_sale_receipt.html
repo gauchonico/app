@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="card">
+        <div class="card-body">
+            <!-- Receipt Header -->
+            <div class="row mb-4">
+                <div class="col-6">
+                    <img src="{% static 'media/logo.png' %}" alt="Company Logo" style="max-height: 100px;">
+                    <img src="{{ MEDIA_URL }}4.png" alt="Company Logo" style="max-height: 100px;">
+                </div>
+                <div class="col-6 text-end">
+                    <h4 class="mb-0">SALES RECEIPT</h4>
+                    <p class="mb-1">#{{ sale.service_sale_number }}</p>
+                    <p class="mb-1">Date: {{ sale.sale_date|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
+
+            <!-- Customer Details -->
+            <div class="row mb-4">
+                <div class="col-6">
+                    <h6 class="mb-2">Customer Details:</h6>
+                    <p class="mb-1"><strong>Name:</strong> {{ sale.customer.name }}</p>
+                    <p class="mb-1"><strong>Phone:</strong> {{ sale.customer.phone_number }}</p>
+                </div>
+                <div class="col-6 text-end">
+                    <h6 class="mb-2">Store Details:</h6>
+                    <p class="mb-1">{{ sale.store.name }}</p>
+                    <p class="mb-1">{{ sale.store.address }}</p>
+                    <p class="mb-1">Tel: {{ sale.store.phone_number }}</p>
+                </div>
+            </div>
+
+            <!-- Services Table -->
+            {% if sale.service_sale_items.exists %}
+            <h6 class="mb-3">Services</h6>
+            <table class="table table-bordered mb-4">
+                <thead class="table-light">
+                    <tr>
+                        <th>Service</th>
+                        <th>Staff</th>
+                        <th class="text-end">Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in sale.service_sale_items.all %}
+                    <tr>
+                        <td>{{ item.service.service.name }}</td>
+                        <td>
+                            {% for staff in item.staff.all %}
+                                {{ staff.first_name }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="text-end">{{ item.total_price|floatformat|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- Products Table -->
+            {% if sale.product_sale_items.exists %}
+            <h6 class="mb-3">Products Purchased</h6>
+            <table class="table table-bordered mb-4">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th class="text-center">Quantity</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in sale.product_sale_items.all %}
+                    <tr>
+                        <td>{{ item.product.product.product_name }}</td>
+                        <td class="text-center">{{ item.quantity }}</td>
+                        <td class="text-end">{{ item.calculate_price|floatformat|intcomma }}</td>
+                        <td class="text-end">{{ item.total_price|floatformat|intcomma }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% endif %}
+
+            <!-- Payment Summary -->
+            <div class="row justify-content-end">
+                <div class="col-md-5">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td><strong>Subtotal:</strong></td>
+                            <td class="text-end">{{ subtotal|floatformat|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total Amount:</strong></td>
+                            <td class="text-end"><strong>{{ sale.total_amount|floatformat|intcomma }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Amount Paid:</strong></td>
+                            <td class="text-end">{{ sale.paid_amount|floatformat|intcomma }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Balance:</strong></td>
+                            <td class="text-end">{{ sale.balance|floatformat|intcomma }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Payment Methods -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <h6 class="mb-2">Payment Methods:</h6>
+                    {% for payment in sale.payments.all %}
+                    <p class="mb-1">
+                        {{ payment.get_payment_method_display }}: {{ payment.amount|floatformat|intcomma }}
+                        {% if payment.remarks %}
+                        <small class="text-muted">({{ payment.remarks }})</small>
+                        {% endif %}
+                    </p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="row mt-5">
+                <div class="col-12 text-center">
+                    <p class="mb-0">Thank you for your business!</p>
+                    <small class="text-muted">For any queries, please contact us at {{ sale.store.phone_number }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print Button -->
+    <div class="text-center mt-3">
+        <button onclick="window.print()" class="btn btn-primary">
+            <i class="fas fa-print"></i> Print Receipt
+        </button>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .btn, .navbar, footer {
+            display: none !important;
+        }
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 15px !important;
+        }
+    }
+    
+    .table th {
+        background-color: #f8f9fa !important;
+    }
+    
+    .table-borderless td {
+        padding: 0.3rem;
+    }
+</style>
+{% endblock %} 

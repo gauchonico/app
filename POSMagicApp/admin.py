@@ -24,7 +24,7 @@ admin.site.register(ProductionBatch)
 admin.site.register(ManufactureProduct)
 admin.site.register(ManufacturedProductInventory)
 admin.site.register(CommissionRate)
-admin.site.register(StaffCommission)
+
 admin.site.register(Store)
 admin.site.register(StoreInventory)
 admin.site.register(StockTransfer)
@@ -118,4 +118,11 @@ class ProductPriceAdmin(admin.ModelAdmin):
     list_filter = ('price_group',)
     search_fields = ('product__product_name',)
 
+admin.site.register(MonthlyStaffCommission)
+
+@admin.register(StaffCommission)
+class StaffCommissionAdmin(admin.ModelAdmin):
+    list_display = ['staff', 'service_sale_item', 'commission_amount', 'created_at', 'paid']
+    list_filter = ['paid', 'staff', 'created_at']
+    search_fields = ['staff__name', 'service_sale_item__sale__service_sale_number']
 

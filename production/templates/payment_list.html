@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% load static %}
 
 {% block title %}Payment Receipts{% endblock %}
@@ -44,121 +44,201 @@
 </div>
 
 <!-- Filter Form -->
-<form method="get">
-    <div class="container">
-        <div class="row">
-            <div class="col col-lg-3">
-                <label class="form-label" for="payment_method">Payment Method:</label>
-                <select class="form-select" name="payment_method" id="payment_method">
-                    <option selected value="">All</option>
-                    <option value="cash" {% if filters.payment_method == 'cash' %}selected{% endif %}>Cash</option>
-                    <option value="mobile_money" {% if filters.payment_method == 'mobile_money' %}selected{% endif %}>Mobile Money</option>
-                    <option value="airtel_money" {% if filters.payment_method == 'airtel_money' %}selected{% endif %}>Airtel Money</option>
-                    <option value="visa" {% if filters.payment_method == 'visa' %}selected{% endif %}>Visa</option>
-                </select>
-            </div>
-            <div class="col col-lg-3">
-                <!-- Store selector -->
-                <label for="store">Store:</label>
-                <select class="form-select" name="store" id="store">
-                    <option selected value="">All Stores</option>
-                    {% for store in stores %}
-                        <option value="{{ store.id }}" {% if filters.store == store.id|stringformat:"s" %}selected{% endif %}>
-                            {{ store.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col col-lg-3">
-                <label class="form-label">Start Date <span class="text-danger">*</span></label>
-                <div class="input-group">
-                    <label class="input-group-text" for="start_date">Choose:
-                        <i class="fa fa-calendar"></i>
-                    </label>
-                    <input type="date" name="start_date" id="start_date" value="{{ filters.start_date }}">
-                </div>
-            </div>
-            <div class="col col-lg-3">
-                <label class="form-label">End Date <span class="text-danger">*</span></label>
-                <div class="input-group">
-                    <label class="input-group-text" for="end_date">End Date:
-                        <i class="fa fa-calendar"></i>
-                    </label>
-                    <input type="date" name="end_date" id="end_date" value="{{ filters.end_date }}">
+<div class="container-fluid py-4">
+    <!-- Summary Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Receipts</h6>
+                    <h3 class="mb-0">{{ summary_stats.total_receipts }}</h3>
                 </div>
             </div>
         </div>
-
-        {% comment %} <label for="min_amount">Min Amount:</label>
-        <input type="number" name="min_amount" id="min_amount" value="{{ filters.min_amount }}">
-
-        <label for="max_amount">Max Amount:</label>
-        <input type="number" name="max_amount" id="max_amount" value="{{ filters.max_amount }}"> {% endcomment %}
-
-        <button class="btn btn-theme m-2" type="submit">Filter</button>
+        <div class="col-md-3">
+            <div class="card bg-theme text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Amount</h6>
+                    <h3 class="mb-0">{{ summary_stats.total_amount|floatformat|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">Payment Methods Breakdown</h6>
+                    <div class="row">
+                        {% for method in summary_stats.payment_methods_summary %}
+                        <div class="col-md-6">
+                            <small class="text-muted">{{ method.payment_method|title }}</small>
+                            <p class="mb-1">
+                                {{ method.total_amount|floatformat|intcomma }}
+                                <span class="text-muted">({{ method.count }} payments)</span>
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</form>
-<!-- Payment List -->
-<table class="table" id="datatableDefault" border="1">
-    <thead>
-        <tr>
-            <th>Payment ID</th>
-            <th>Sale ID</th>
-            <th>Payment Method</th>
-            <th>Amount</th>
-            <th>Remarks</th>
-            <th>Customer</th>
-            <th>Store</th>
-            <th>Date</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for payment in payments %}
-            <tr>
-                <td>{{ payment.id }}</td>
-                <td>{{ payment.sale.id }}</td>
-                <td>{{ payment.get_payment_method_display }}</td>
-                <td>{{ payment.amount }}</td>
-                <td>{{ payment.remarks }}</td>
-                <td>{{ payment.sale.customer.name }}</td>
-                <td>{{ payment.sale.store.name }}</td>
-                <td>{{ payment.sale.sale_date }}</td>
-            </tr>
-        {% empty %}
-            <tr>
-                <td colspan="8">No payments found.</td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% for method, payments in payments_by_method.items %}
-        <h6>{{ method|title }}</h6>
-        <table class="table" id="datatableDefault" border="1">
-            <thead>
-                <tr>
-                    <th>Sale ID</th>
-                    <th>Amount</th>
-                    <th>Remarks</th>
-                    <th>Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for payment in payments %}
-                    <tr>
-                        <td>{{ payment.sale.id }}</td>
-                        <td>{{ payment.amount }}</td>
-                        <td>{{ payment.remarks }}</td>
-                        <td>{{ payment.sale.sale_date }}</td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-warning">No payments found for this method.</td>
-                    </tr>
+
+    <!-- Filter Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Payment Method</label>
+                    <select name="payment_method" class="form-select">
+                        <option value="">All Methods</option>
+                        {% for value, label in payment_method_choices %}
+                        <option value="{{ value }}" {% if value == selected_payment_method %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date|default:'' }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">Filter</button>
+                    <a href="{% url 'payment_list' %}" class="btn btn-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Daily Sales Chart -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Last 7 Days Sales</h5>
+            <canvas id="dailySalesChart" height="100"></canvas>
+        </div>
+    </div>
+
+    <!-- Receipts Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Receipt #</th>
+                            <th>Date</th>
+                            <th>Customer</th>
+                            <th>Payment Methods</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in sales %}
+                        <tr>
+                            <td>{{ sale.service_sale_number }}</td>
+                            <td>{{ sale.sale_date|date:"Y-m-d H:i" }}</td>
+                            <td>{{ sale.customer.name }}</td>
+                            <td>
+                                {% for payment in sale.payments.all %}
+                                <span class="badge bg-info">
+                                    {{ payment.get_payment_method_display }}: {{ payment.amount|floatformat|intcomma }}
+                                </span>
+                                {% endfor %}
+                            </td>
+                            <td class="text-end">{{ sale.total_amount|floatformat|intcomma }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'service_sale_receipt' sale.id %}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="View Receipt">
+                                    <i class="fas fa-file-invoice"></i>
+                                </a>
+                                <button onclick="printReceipt({{ sale.id }})" 
+                                        class="btn btn-sm btn-outline-secondary"
+                                        title="Print Receipt">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No receipts found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Daily Sales Chart
+    const ctx = document.getElementById('dailySalesChart').getContext('2d');
+    const dailySalesData = {
+        labels: [
+            {% for day in summary_stats.daily_sales %}
+                '{{ day.date|date:"M d" }}',
+            {% endfor %}
+            
+        ],
+        datasets: [{
+            label: 'Daily Sales',
+            data: [
+                {% for day in summary_stats.daily_sales %}
+                    {{ day.daily_total }},
                 {% endfor %}
-            </tbody>
-        </table>
-    {% endfor %}
+            ],
+            borderColor: 'rgb(18, 224, 135)',
+            tension: 0.1
+        }]
+    };
+    new Chart(ctx, {
+        type: 'line',
+        data: dailySalesData,
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    function printReceipt(saleId) {
+        window.open(`{% url 'service_sale_receipt' 999999 %}`.replace('999999', saleId), '_blank');
+    }
+</script>
+{% endblock %}
+
+<style>
+    .badge {
+        font-size: 0.85em;
+        margin-right: 0.5em;
+    }
+    
+    .table th {
+        background-color:rgb(16, 131, 81);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+</style>
 {% endblock content %}
 {% block outter_content %}
 <script>

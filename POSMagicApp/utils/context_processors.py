@@ -709,21 +709,31 @@ def sidebar_menu(request):
                     'text': 'Raw Material Date Report',
                     'name': 'raw_material_date_report',
                 },{
-            'url':'/production/incident_write_off_list',
-            'icon':'bi bi-box-seam',
-            'text': 'Rawmaterial Writeoffs',
-            'name': 'incident_write_off_list',
-        },{
-            'url': '/production/write_offs',
-            'icon': 'bi bi-box-seam',
-            'text': 'Production Store Writeoffs',
-            'name': 'writeoffs',
-        },{
-            'url': '/production/product_location_report/',
-            'icon': 'bi bi-bounding-box-circles',
-            'text': 'Product by Location Report',
-            'name': 'product_location_report',
-        }]
+                    'url':'/production/incident_write_off_list',
+                    'icon':'bi bi-box-seam',
+                    'text': 'Rawmaterial Writeoffs',
+                    'name': 'incident_write_off_list',
+                },{
+                    'url': '/production/write_offs',
+                    'icon': 'bi bi-box-seam',
+                    'text': 'Production Store Writeoffs',
+                    'name': 'writeoffs',
+                },{
+                    'url': '/production/product_location_report/',
+                    'icon': 'bi bi-bounding-box-circles',
+                    'text': 'Product by Location Report',
+                    'name': 'product_location_report',
+                }]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Staff Commissions',
+                'children': [{
+                    'url': '/production/monthly-commissions/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Monthly Commissions',
+                    'name': 'monthly_commission_list',
+                }]
             })
         elif 'Production Manager' in group_names:
             # Show production manager menus

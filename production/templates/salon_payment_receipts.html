@@ -41,6 +41,7 @@
                 <th>Amount(UGX)</th>
                 <th>Payment Date</th>
                 <th>Remarks</th>
+                <th>View</th>
             </tr>
         </thead>
         <tbody>
@@ -54,6 +55,9 @@
                 <td>{{ payment.amount|floatformat|intcomma }}</td>
                 <td>{{ payment.payment_date|date:"Y-m-d H:i" }}</td>
                 <td>{{ payment.remarks }}</td>
+                <td>
+                    <a href="{% url 'service_sale_receipt' payment.sale.id %}" class=""><i class="bi bi-eye"></i></a>
+                </td>
             </tr>
             {% empty %}
             <tr>

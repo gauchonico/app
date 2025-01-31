@@ -87,9 +87,16 @@
 							<td class="align-middle">
                                 {% if order.status == 'Created' %}
 								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
-                                    <a href="{% url 'approveProduction' order.pk %}"><button class="btn btn-indigo" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Approve how much you can produce">Approve</button></a>
+                                    <a href="{% url 'approveProduction' order.pk %}"><button class="btn btn-indigo btn-sm" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Approve how much you can produce">Approve</button></a>
                                     <span></span>
-                                    <button class="btn btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="If you can't produce order">Reject</button>
+                                    
+									<button 
+										onclick="showRejectModal('{{ order.id }}', '{{ order.prod_order_no }} - {{ order.product.product_name }}')" 
+										class="btn btn-sm btn-danger" 
+										{% if order.status not in 'Created,Approved' %}disabled{% endif %}
+									>
+										Reject
+									</button>
 
 								{% elif order.status == 'Approved'%}
 								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
@@ -120,11 +127,122 @@
 	</div>
 	
 	<!-- BEGIN container -->
-	
+	<!-- Add this at the bottom of your template -->
+<div class="modal fade" id="rejectOrderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject Production Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reject this production order?</p>
+                <p><strong>Order:</strong> <span id="orderDetails"></span></p>
+                <div class="mb-3">
+                    <label for="rejectionReason" class="form-label">Rejection Reason</label>
+                    <textarea class="form-control" id="rejectionReason" rows="3" required></textarea>
+                    <div class="invalid-feedback">
+                        Please provide a reason for rejection.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmReject">Reject Order</button>
+            </div>
+        </div>
+    </div>
+</div>
 	<!-- END container -->
 {% endblock %}
 {% block outter_content %}
-
+<script>
+	let currentOrderId = null;
+	
+	function showRejectModal(orderId, orderDetails) {
+		currentOrderId = orderId;
+		document.getElementById('orderDetails').textContent = orderDetails;
+		document.getElementById('rejectionReason').value = '';
+		
+		const modal = new bootstrap.Modal(document.getElementById('rejectOrderModal'));
+		modal.show();
+	}
+	
+	document.getElementById('confirmReject').addEventListener('click', function() {
+		const reason = document.getElementById('rejectionReason').value.trim();
+		if (!reason) {
+			document.getElementById('rejectionReason').classList.add('is-invalid');
+			return;
+		}
+		
+		// Send rejection request
+		fetch(`/production/production-order/${currentOrderId}/reject/`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+				'X-CSRFToken': getCookie('csrftoken')
+			},
+			body: `rejection_reason=${encodeURIComponent(reason)}`
+		})
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				// Update UI to show rejected status
+				const statusCell = document.querySelector(`#order-${currentOrderId} .status-cell`);
+				if (statusCell) {
+					statusCell.innerHTML = `<span class="badge bg-danger">Rejected</span>`;
+				}
+				
+				// Close modal
+				bootstrap.Modal.getInstance(document.getElementById('rejectOrderModal')).hide();
+				
+				// Show success message
+				showToast('Success', 'Production order rejected successfully', 'success');
+			} else {
+				showToast('Error', data.message, 'error');
+			}
+		})
+		.catch(error => {
+			showToast('Error', 'Failed to reject order', 'error');
+		});
+	});
+	
+	// Helper function to get CSRF token
+	function getCookie(name) {
+		let cookieValue = null;
+		if (document.cookie && document.cookie !== '') {
+			const cookies = document.cookie.split(';');
+			for (let i = 0; i < cookies.length; i++) {
+				const cookie = cookies[i].trim();
+				if (cookie.substring(0, name.length + 1) === (name + '=')) {
+					cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+					break;
+				}
+			}
+		}
+		return cookieValue;
+	}
+	
+	// Helper function to show toast messages
+	function showToast(title, message, type) {
+		// Implement your preferred toast notification here
+		// Example using Bootstrap toast:
+		const toastHtml = `
+			<div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert">
+				<div class="d-flex">
+					<div class="toast-body">
+						<strong>${title}:</strong> ${message}
+					</div>
+					<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+				</div>
+			</div>
+		`;
+		const toastContainer = document.getElementById('toast-container');
+		toastContainer.innerHTML = toastHtml;
+		const toast = new bootstrap.Toast(toastContainer.querySelector('.toast'));
+		toast.show();
+	}
+	</script>
 {% if messages %}
     <div class="toasts-container">
         {% for message in messages %}

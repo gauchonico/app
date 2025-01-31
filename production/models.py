@@ -229,6 +229,7 @@ class ProductionOrder(models.Model):
     status = models.CharField(max_length=20, choices=[
         ('Created', 'Created'),
         ('Approved', 'Approved'),
+        ('Rejected', 'Rejected'),
         ('In Progress', 'In Progress'),
         ('Completed', 'Completed'),
     ], default='Created')
@@ -237,6 +238,15 @@ class ProductionOrder(models.Model):
     notes = models.TextField(blank=True)
     target_completion_date = models.DateField(blank=True, null=True)
     approved_quantity = models.PositiveIntegerField(blank=True, null=True)
+    rejection_reason = models.TextField(blank=True, null=True)  # Added field for rejection reason
+    rejected_at = models.DateTimeField(null=True, blank=True)  # Added field for rejection timestamp
+    rejected_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='rejected_production_orders'
+    )
 
     def __str__(self):
         return f"Production Order: {self.product.product_name} - {self.quantity} units"
@@ -271,6 +281,14 @@ class ProductionOrder(models.Model):
             description=f"Order #{self.pk} for '{self.product.product_name}' has been approved and is ready for production.",
         )
         return notification
+    
+    def reject_order(self, user, reason):
+        """Reject the production order"""
+        self.status = 'Rejected'
+        self.rejection_reason = reason
+        self.rejected_at = timezone.now()
+        self.rejected_by = user
+        self.save()
 
     class Meta:
         ordering = ['-created_at'] 
@@ -387,6 +405,12 @@ class StoreService(models.Model):
 
     class Meta:
         unique_together = ('store', 'service')  # Ensure that each service is unique per store
+        
+    def verify_commission_rate(self):
+        """Verify that commission rate is properly set"""
+        if self.commission_rate <= 0 or self.commission_rate >= 1:
+            print(f"WARNING: Unusual commission rate for {self}: {self.commission_rate}")
+        return self.commission_rate
 
     def __str__(self):
         return f"{self.store.name} offers {self.service.name} with {self.commission_rate*100}% commission"
@@ -434,6 +458,99 @@ class StockTransfer(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
+        
+        
+#Staff Commissions
+class MonthlyStaffCommission(models.Model):
+    """Monthly compilation of staff commissions"""
+    staff = models.ForeignKey('POSMagicApp.Staff', on_delete=models.CASCADE, related_name='monthly_commissions')
+    month = models.DateField()  # Store first day of the month
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid = models.BooleanField(default=False)
+    paid_date = models.DateTimeField(null=True, blank=True)
+    payment_reference = models.CharField(max_length=50, null=True, blank=True)
+    
+    class Meta:
+        unique_together = ['staff', 'month']
+        ordering = ['-month']
+
+    def __str__(self):
+        return f"{self.staff.name} - {self.month.strftime('%B %Y')} - {self.total_amount}"
+    
+    @property
+    def month_name(self):
+        return self.month.strftime('%B %Y')
+    
+    def mark_as_paid(self, reference=None):
+        with transaction.atomic():
+            self.paid = True
+            self.paid_date = timezone.now()
+            self.payment_reference = reference
+            self.save()
+            
+            # Mark all individual commissions as paid
+            StaffCommission.objects.filter(
+                staff=self.staff,
+                created_at__year=self.month.year,
+                created_at__month=self.month.month,
+                paid=False
+            ).update(paid=True, paid_date=timezone.now())
+
+class StaffCommission(models.Model):
+    staff = models.ForeignKey('POSMagicApp.Staff', on_delete=models.CASCADE, related_name='commissions')
+    service_sale_item = models.ForeignKey('ServiceSaleItem', on_delete=models.CASCADE, related_name='staff_commissions')
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid = models.BooleanField(default=False)
+    paid_date = models.DateTimeField(null=True, blank=True)
+    monthly_commission = models.ForeignKey(MonthlyStaffCommission, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @classmethod
+    def compile_monthly_commissions(cls, year=None, month=None):
+        """Compile monthly commissions for all staff"""
+        if year is None or month is None:
+            # Use previous month by default
+            today = timezone.now()
+            if today.month == 1:
+                year = today.year - 1
+                month = 12
+            else:
+                year = today.year
+                month = today.month - 1
+
+        # Get first day of the month
+        month_start = timezone.datetime(year, month, 1)
+        
+        # Get all staff with commissions for the month
+        staff_commissions = cls.objects.filter(
+            created_at__year=year,
+            created_at__month=month,
+            paid=False
+        ).values('staff').annotate(
+            total_commission=Sum('commission_amount')
+        )
+
+        # Create monthly commission records
+        for staff_comm in staff_commissions:
+            monthly_commission, created = MonthlyStaffCommission.objects.get_or_create(
+                staff_id=staff_comm['staff'],
+                month=month_start,
+                defaults={'total_amount': staff_comm['total_commission']}
+            )
+            if not created:
+                monthly_commission.total_amount = staff_comm['total_commission']
+                monthly_commission.save()
+
+            # Link individual commissions to monthly compilation
+            cls.objects.filter(
+                staff_id=staff_comm['staff'],
+                created_at__year=year,
+                created_at__month=month,
+                paid=False
+            ).update(monthly_commission=monthly_commission)
 
 
 ##### Main Livara Store Transfer      
@@ -790,12 +907,50 @@ class ServiceSale(models.Model):
         self.paid_status = 'paid' if self.balance <= 0 else 'not_paid'
         self.save()
         
+    def create_service_commissions(self):
+        """Create commission records for all service items in this sale"""
+        print(f"\nDEBUG: Creating commissions for sale {self.service_sale_number}")
+        
+        with transaction.atomic():
+            for service_item in self.service_sale_items.all():
+                print(f"\nDEBUG: Processing service item: {service_item.service.service.name}")
+                staff_count = service_item.staff.count()
+                
+                if staff_count == 0:
+                    print("DEBUG: No staff assigned to this service")
+                    continue
+                
+                # Calculate commission
+                commission_rate = service_item.service.commission_rate
+                total_commission = service_item.total_price * Decimal(str(commission_rate))
+                per_staff_commission = total_commission / Decimal(staff_count)
+                
+                print(f"DEBUG: Commission calculation:")
+                print(f"- Total price: {service_item.total_price}")
+                print(f"- Commission rate: {commission_rate}")
+                print(f"- Total commission: {total_commission}")
+                print(f"- Staff count: {staff_count}")
+                print(f"- Per staff commission: {per_staff_commission}")
+                
+                # Create commission records
+                for staff_member in service_item.staff.all():
+                    commission = StaffCommission.objects.create(
+                        staff=staff_member,
+                        service_sale_item=service_item,
+                        commission_amount=per_staff_commission
+                    )
+                    print(f"DEBUG: Created commission for {staff_member.first_name}: {commission.commission_amount}")
+        
     def mark_as_paid(self):
         if self.paid_status != 'paid' and self.balance <= 0:
-            self.paid_status = 'paid'
-            self.save()
-            
+            with transaction.atomic():
+                self.paid_status = 'paid'
+                self.save()
+                
+                #create commissions
+                self.create_service_commissions()
             try:
+                    
                 # Adjust inventory for accessories
                 self._deduct_accessory_inventory()
 
@@ -856,7 +1011,6 @@ class ServiceSale(models.Model):
             remarks=remarks
         )
         self.calculate_total()
-       
         
     def create_invoice(self):
         """Create an invoice for this sale."""
@@ -870,11 +1024,54 @@ class ServiceSaleItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)  # For multiple services of the same type
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+    def calculate_and_create_commissions(self):
+        """Calculate and create commission records for staff members"""
+        with transaction.atomic():
+            # First, delete any existing commissions for this sale item
+            StaffCommission.objects.filter(service_sale_item=self).delete()
+            
+            # Get the number of staff members
+            staff_members = self.staff.all()
+            staff_count = staff_members.count()
+            if staff_count == 0:
+                print("DEBUG: No staff members assigned!")
+                return
+
+            # Calculate total commission amount
+            commission_rate = self.service.commission_rate
+            total_commission = self.total_price * Decimal(str(commission_rate))
+            
+            print(f"DEBUG: Total Commission: {total_commission}")
+
+            # Calculate per-staff commission (divide equally)
+            per_staff_commission = total_commission / Decimal(staff_count)
+            print(f"DEBUG: Per Staff Commission: {per_staff_commission}")
+
+            # Create commission records for each staff member
+            for staff_member in staff_members:
+                commission = StaffCommission.objects.create(
+                    staff=staff_member,
+                    service_sale_item=self,
+                    commission_amount=per_staff_commission
+                )
+                print(f"DEBUG: Created commission for {staff_member.name}: {commission.commission_amount}")
+
     def save(self, *args, **kwargs):
-        self.total_price = self.quantity * (self.service.service.price if hasattr(self.service, 'service') else self.service.service.price)
+        print(f"\nDEBUG: Saving ServiceSaleItem")
+        # Calculate total price
+        self.total_price = self.quantity * self.service.service.price
+        print(f"DEBUG: Total Price calculated: {self.total_price}")
+        
+        # First save the service sale item
         super().save(*args, **kwargs)
-        # Recalculate the total for the related sale
-        self.sale.calculate_total()
+        
+        # Check if sale is paid
+        if self.sale.paid_status == 'paid':
+            print("DEBUG: Sale is paid, calculating commissions")
+            self.calculate_and_create_commissions()
+        else:
+            print(f"DEBUG: Sale not paid yet. Status: {self.sale.paid_status}")
+            
     def __str__(self):
         return f"{self.quantity} x {self.service.service.name} for Sale #{self.sale.id}"
     
