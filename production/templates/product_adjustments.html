@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h4>Adjustments for {{ product_name }} (Batch: {{ batch_number }})</h4>
+    <p>Date: {{ selected_date|date:"d/m/Y" }}</p>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Quantity</th>
+                <th>Reason</th>
+                <th>Adjusted By</th>
+                <th>view</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for adjustment in adjustments %}
+            <tr>
+                <td>{{ adjustment.adjustment_date|time:"H:i" }}</td>
+                <td class="{% if adjustment.adjusted_quantity > 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ adjustment.adjusted_quantity|floatformat:0 }}
+                </td>
+                <td>{{ adjustment.adjustment_reason }}</td>
+                <td>{{ adjustment.adjusted_by.get_name }}</td>
+                <td>
+                    <button class="btn btn-sm bg-primary">View record</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{% url 'detailed_inventory_report' %}?date={{ selected_date|date:'Y-m-d' }}" 
+       class="btn btn-secondary">Back to Report</a>
+</div>
+{% endblock %}

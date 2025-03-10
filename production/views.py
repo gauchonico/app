@@ -9,6 +9,7 @@ from urllib import error
 from django.db.models import Sum, F, Q, Case, When, Count
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Sum, F
 from django.utils import timezone
 from django.views.generic.edit import DeleteView
@@ -35,8 +36,8 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -621,7 +622,24 @@ def create_product(request):
         formset = ProductionIngredientFormSet()
     return render(request, 'create-product.html', {'product_form': product_form, 'formset': formset})
 
+#PRICE GROUPS 
+#Create Price Group
+@login_required(login_url='/login/')
+def create_price_group(request):
+    """Create a new price group."""
+    if request.method == 'POST':
+        form = PriceGroupForm(request.POST)
+        if form.is_valid():
+            price_group = form.save()
+            messages.success(request, f"Price group '{price_group.name}' created successfully!")
+            return redirect('view_pricing_groups')
+    else:
+        form = PriceGroupForm()
 
+    context = {
+        'form': form,
+    }
+    return render(request, 'create_price_group.html', context)
 @login_required(login_url='/login/')
 def view_pricing_groups(request):
     pricing_groups = PriceGroup.objects.all()
@@ -1325,45 +1343,73 @@ def detailed_inventory_report(request):
     selected_date = request.GET.get('date', datetime.now().date())
     selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date() if isinstance(selected_date, str) else selected_date
 
+    # Calculate the previous day's end
+    previous_day = selected_date - timedelta(days=1)
     # Fetch all products in the main store
-    products = LivaraMainStore.objects.values('product__product__product_name').distinct()
+    products = LivaraMainStore.objects.values('product__product__product_name','batch_number','product__expiry_date').distinct()
 
     # Prepare report data
     report_data = []
 
     for product in products:
         product_name = product['product__product__product_name']
-
-        # Opening stock before the selected date
-        opening_stock = LivaraMainStore.objects.filter(
+        batch_number = product['batch_number']
+        expiry_date = product['product__expiry_date']
+        
+        #get current stock in Livaramainstore
+        current_stock = LivaraMainStore.objects.filter(
             product__product__product_name=product_name,
-            adjustment_date__lt=selected_date
-        ).aggregate(opening_stock=Sum('quantity'))['opening_stock'] or 0
+            batch_number=batch_number
+        ).aggregate(total=Sum('quantity'))['total'] or 0
 
-        # Adjustments on the selected date
-        adjustments = LivaraInventoryAdjustment.objects.filter(
+        # Get all adjustments for the selected date
+        todays_adjustments = LivaraInventoryAdjustment.objects.filter(
             store_inventory__product__product__product_name=product_name,
+            store_inventory__product__batch_number=batch_number,
             adjustment_date__date=selected_date
-        ).aggregate(adjusted_quantity=Sum('adjusted_quantity'))['adjusted_quantity'] or 0
+        ).aggregate(
+            total_adjustments=Sum('adjusted_quantity')
+        )['total_adjustments'] or 0
 
-        # Transfers to other stores on the selected date
-        transfers = RestockRequestItem.objects.filter(
-            product__product__product__product_name=product_name,
-            restock_request__request_date__date=selected_date,
-            restock_request__status='delivered'
-        ).aggregate(transferred_quantity=Sum('delivered_quantity'))['transferred_quantity'] or 0
+        # Opening stock is current stock minus today's adjustments
+        opening_stock = current_stock - todays_adjustments
 
-        # Closing stock at the end of the selected date
-        closing_stock = opening_stock + adjustments - transfers
+        # Get positive and negative adjustments separately for display
+        positive_adjustments = LivaraInventoryAdjustment.objects.filter(
+            store_inventory__product__product__product_name=product_name,
+            store_inventory__product__batch_number=batch_number,
+            adjustment_date__date=selected_date,
+            adjusted_quantity__gt=0
+        ).aggregate(
+            total=Sum('adjusted_quantity')
+        )['total'] or 0
 
-        # Append the data for this product
-        report_data.append({
-            'product_name': product_name,
-            'opening_stock': opening_stock,
-            'adjustments': adjustments,
-            'transfers': transfers,
-            'closing_stock': closing_stock
-        })
+        negative_adjustments = LivaraInventoryAdjustment.objects.filter(
+            store_inventory__product__product__product_name=product_name,
+            store_inventory__product__batch_number=batch_number,
+            adjustment_date__date=selected_date,
+            adjusted_quantity__lt=0
+        ).aggregate(
+            total=Sum('adjusted_quantity')
+        )['total'] or 0
+        # Calculate closing stock
+        adjs = (positive_adjustments - negative_adjustments)
+        closing_stock = opening_stock + positive_adjustments + negative_adjustments
+        
+        # Add debug information
+        print(f"\nProduct: {product_name}")
+        print(f"Current Stock: {current_stock}")
+        
+        # Only append products with activity or stock
+        if opening_stock != 0 or positive_adjustments != 0 or negative_adjustments != 0 or closing_stock != 0:
+            report_data.append({
+                'product_name': product_name,
+                'batch_number': batch_number,
+                'opening_stock': opening_stock,
+                'positive_adjustments': positive_adjustments,
+                'negative_adjustments': negative_adjustments,
+                'closing_stock': closing_stock
+            })
 
     context = {
         'selected_date': selected_date,
@@ -1372,12 +1418,97 @@ def detailed_inventory_report(request):
 
     return render(request, 'detailed_inventory_report.html', context)
 
+def product_adjustments(request, product_name, batch_number, date):
+    # Convert date string to date object
+    selected_date = datetime.strptime(date, '%Y-%m-%d').date()
+    
+    # Get all adjustments for the product on the specified date
+    adjustments = LivaraInventoryAdjustment.objects.filter(
+        store_inventory__product__product__product_name=product_name,
+        store_inventory__product__batch_number=batch_number,
+        adjustment_date__date=selected_date
+    ).order_by('adjustment_date')
+
+    context = {
+        'product_name': product_name,
+        'batch_number': batch_number,
+        'selected_date': selected_date,
+        'adjustments': adjustments,
+    }
+    
+    return render(request, 'product_adjustments.html', context)
+
 def livara_main_store_inventory(request):
     main_store_inventory = LivaraMainStore.objects.all()
     context = {
         'main_store_inventory': main_store_inventory
     }
     return render(request, 'livara_main_store_inventory.html', context)
+
+#Mainstore WriteOff List and creation
+@login_required
+def create_main_store_writeoff(request):
+    if request.method == 'POST':
+        form = StoreWriteOffForm(request.POST)
+        if form.is_valid():
+            writeoff = form.save(commit=False)
+            writeoff.initiated_by = request.user
+            writeoff.save()
+            
+            messages.success(request, 'Write-off recorded successfully. Awaiting approval.')
+            return redirect('main_store_writeoff_list')  # Redirect to the list view
+    else:
+        form = StoreWriteOffForm()
+    
+    return render(request, 'store_writeoff_form.html', {'form': form})
+
+@login_required
+def main_store_writeoff_list(request):
+    writeoffs = StoreWriteOff.objects.all().order_by('-date')
+    return render(request, 'store_writeoff_list.html',{'writeoffs': writeoffs})
+
+#approve livaramainstore wiriteoffs
+def is_finance(user):
+    return user.groups.filter(name='Finance').exists()
+
+@require_POST
+@user_passes_test(is_finance)
+def approve_mainstore_writeoff(request):
+    try:
+        writeoff_id = request.POST.get('writeoff_id')
+        if not writeoff_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Write-off ID is required'
+            })
+
+        writeoff = get_object_or_404(StoreWriteOff, id=writeoff_id)
+        
+        # Check if already approved
+        if writeoff.approved:
+            return JsonResponse({
+                'success': False,
+                'message': 'Write-off has already been approved'
+            })
+
+        # Use boolean True instead of string 'true'
+        writeoff.approved = True
+        writeoff.approved_by = request.user
+        writeoff.approved_at = timezone.now()
+        writeoff.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Write-off approved successfully'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error approving write-off: {str(e)}'
+        })
+
+
+
 
 @login_required(login_url='/login/')
 def all_stores(request):

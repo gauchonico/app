@@ -293,6 +293,12 @@ def sidebar_menu(request):
             'text': 'Rawmaterial Writeoffs',
             'name': 'incident_write_off_list',
         },{
+            'url':'/production/main_store_writeoff_list/',
+            'icon':'bi bi-list-task',
+            'text':'Main Store Offsets',
+            'name':'main_store_writeoff_list',
+                    
+        },{
             'url': '/production/restock-requests/',
             'icon':'bi bi-folder-fill',
             'text':'Store Restock Requests',
@@ -452,6 +458,14 @@ def sidebar_menu(request):
                 'text': 'Inventory',
                 'children': [
                     {
+                    'url': '/production/production-production-orders/',
+                    'icon': 'bi bi-node-plus-fill',
+                    'text': mark_safe(
+                        f'Production Orders <span class="badge rounded-circle bg-danger">{created_production_orders_count}</span>' 
+                        if created_production_orders_count > 0 else 'Production Orders'),
+                    'name': 'productionProduction'
+                },
+                    {
                         'url': '/production/create_production_order/',
                         'icon': 'bi bi-node-plus-fill',
                         'text': 'Inventory Order',
@@ -475,11 +489,6 @@ def sidebar_menu(request):
                             if created_livara_store_orders > 0 else 'Inventory Transfers'
                         ),
                         'name':'main_stock_transfers'
-                    },{
-                        'url': '/production/main_store_inventory_adjustments/',
-                        'icon': 'bi bi-folder',
-                        'text': 'Saloon Inventory',
-                        'name':'main_store_inventory_adjustments',
                     },
                         ]
             })
@@ -531,6 +540,27 @@ def sidebar_menu(request):
                     }
                     ]
             })
+            sidebar_menu.append({
+                'icon': 'bi bi-box-seam',
+                'text': 'Reports',
+                'children': [{
+                    'url': '/production/write_offs',
+                    'icon': 'bi bi-box-seam',
+                    'text': 'Production Store Writeoffs',
+                    'name': 'writeoffs',
+                },{
+                    'url': '/production/product_location_report/',
+                    'icon': 'bi bi-bounding-box-circles',
+                    'text': 'Product by Location Report',
+                    'name': 'product_location_report',
+                },{
+                    'url':'/production/main_store_writeoff_list/',
+                    'icon':'bi bi-list-task',
+                    'text':'Main Store Offsets',
+                    'name':'main_store_writeoff_list',
+                    
+                }]
+            })
         elif 'Branch Manager' in group_names:
             # Show branch manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
@@ -565,7 +595,7 @@ def sidebar_menu(request):
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction','supplierList','productsList','rawmaterialsList','pageCustomer','pageOrder','discrepancy_delivery_report_list','goods_received_note_list']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction','supplierList','productsList','rawmaterialsList','pageCustomer','discrepancy_delivery_report_list','goods_received_note_list']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -716,13 +746,19 @@ def sidebar_menu(request):
                 },{
                     'url': '/production/write_offs',
                     'icon': 'bi bi-box-seam',
-                    'text': 'Production Store Writeoffs',
+                    'text': 'URI Store Writeoffs',
                     'name': 'writeoffs',
                 },{
                     'url': '/production/product_location_report/',
                     'icon': 'bi bi-bounding-box-circles',
                     'text': 'Product by Location Report',
                     'name': 'product_location_report',
+                },{
+                    'url':'/production/main_store_writeoff_list/',
+                    'icon':'bi bi-list-task',
+                    'text':'Main Store Offsets',
+                    'name':'main_store_writeoff_list',
+                            
                 }]
             })
             sidebar_menu.append({
@@ -738,7 +774,7 @@ def sidebar_menu(request):
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList','writeoffs','incident_write_off_list','manufacture_products_report','raw_material_utilization_report','raw_material_date_report']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -769,6 +805,36 @@ def sidebar_menu(request):
                     ),
                 'name':'replace_notes_list'
                 }]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-folder',
+                'text':'Production Reports',
+                'children': [{
+                    'url': '/production/manufacture_products_report',
+                    'icon': 'bi bi-folder-fill',
+                    'text': 'Manufacture Products Report',
+                    'name':'manufacture_products_report',
+                },{
+                    'url': '/production/raw_material_utilization_report/',
+                    'icon': 'bi bi-folder',
+                    'text': 'Raw Material Utilization Report',
+                    'name': 'raw_material_utilization_report',
+                },{
+                    'url': '/production/raw_material_date_report/',
+                    'icon': 'bi bi-folder',
+                    'text': 'Raw Material Date Report',
+                    'name': 'raw_material_date_report',
+                },{
+                    'url': '/production/write_offs',
+                    'icon': 'bi bi-box-seam',
+                    'text': 'Production Store Writeoffs',
+                    'name': 'writeoffs',
+                },{
+                    'url':'/production/incident_write_off_list',
+                    'icon':'bi bi-box-seam',
+                    'text': 'Rawmaterial Writeoffs',
+                    'name': 'incident_write_off_list'
+                    }]
             })
         elif 'Saloon Managers' in group_names:
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

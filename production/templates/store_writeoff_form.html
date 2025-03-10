@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Record Store Write-off</h4>
+            <p>This will be verified by your store supervisor</p>
+        </div>
+        <div class="card-body">
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">
+                    {% for error in form.non_field_errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="row">
+                    <!-- Product Selection -->
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.main_store_product.id_for_label }}" class="form-label">
+                            {{ form.main_store_product.label }}
+                        </label>
+                        {{ form.main_store_product }}
+                        {% if form.main_store_product.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.main_store_product.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.reason.id_for_label }}" class="form-label">
+                            Reason for Write-off
+                        </label>
+                        {{ form.reason }}
+                        {% if form.reason.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.reason.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Quantity -->
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.quantity.id_for_label }}" class="form-label">
+                            Quantity to Write-off
+                        </label>
+                        {{ form.quantity }}
+                        {% if form.quantity.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.quantity.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Confirm Quantity -->
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.confirm_quantity.id_for_label }}" class="form-label">
+                            {{ form.confirm_quantity.label }}
+                        </label>
+                        {{ form.confirm_quantity }}
+                        {% if form.confirm_quantity.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.confirm_quantity.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="mb-3">
+                    <label for="{{ form.notes.id_for_label }}" class="form-label">
+                        Additional Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.notes.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Submit Write-off</button>
+                    <a href="{% url 'main_store_writeoff_list' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add this script at the bottom of your template -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('{{ form.main_store_product.id_for_label }}');
+    
+    productSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const currentStock = selectedOption.getAttribute('data-current-stock');
+        
+        if (currentStock) {
+            const quantityInput = document.getElementById('{{ form.quantity.id_for_label }}');
+            quantityInput.setAttribute('max', currentStock);
+            quantityInput.setAttribute('placeholder', `Max available: ${currentStock}`);
+        }
+    });
+});
+</script>
+{% endblock %}

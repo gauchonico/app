@@ -36,12 +36,20 @@
 			</ul>
 
 			<h5 class="mb-0">
-				Salon Restocks
+				Salon Requests.
 			</h5>
+			<p>A summary of all Product requests from our various Livara Saloon Branches
 		</div>
 		<div class="ms-auto">
 			<a href="{% url 'createRestockRequest' %}" class="btn btn-outline-theme"><i class="fa fa-plus-circle me-1"></i> Restock Order</a>
 		</div>
+	</div>
+	
+	<div class="mb-md-4 mb-3 d-md-flex">
+		<div class="mt-md-0 mt-2"><a href="{% url 'main_stock_transfer' %}" class="{% if request.resolver_match.url_name == 'main_stock_transfer' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Main Store Transfers</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}" class="{% if request.resolver_match.url_name == 'restockRequests' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Salon Transfers</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'detailed_inventory_report' %}" class="{% if request.resolver_match.url_name == 'detailed_inventory_report' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> MainStore Transfer Report</a></div>
+		
 	</div>
 
 	<!-- BEGIN row -->
@@ -70,7 +78,7 @@
 								{% if request.status == 'pending' %}
 								<form action="{% url 'approve_store_request' pk=request.pk %}" method="post" style="display:inline;">
 									{% csrf_token %}
-									<button type="submit" class="btn btn-primary">Approve Request</button>
+									<button type="submit" class="btn btn-warning">Approve Request</button>
 								</form>
 								{% elif request.status == 'approved'%}
 								<form action="{% url 'deliver_store_request' pk=request.pk %}" method="post" style="display:inline;">
@@ -79,7 +87,7 @@
 								</form>
 								{% else %}
 								<div class="text-theme">
-									<p>Transfer Successfull</p>
+									<p>Goods recieved</p>
 								</div>
 								{% endif %}
 							</td>

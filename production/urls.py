@@ -68,6 +68,7 @@ urlpatterns = [
     path('create-product/', views.create_product, name='createProduct'),
     
     #Pricing Group Details
+    path('create_price_group/', views.create_price_group, name="create_price_group"),
     path('price-groups/', views.view_pricing_groups, name="view_pricing_groups"),
     path('price-groups/toggle/<int:pk>/', views.toggle_price_group, name='toggle_price_group'),
     path('price-group/<int:pk>', views.price_group_details, name="price_group_details"),
@@ -102,9 +103,15 @@ urlpatterns = [
     path('approve_store_request/<int:pk>/', ApproveStoreTransferView.as_view(), name="approve_store_request"),
     path('deliver_store_request/<int:pk>/', DeliverRestockRequestView.as_view(), name="deliver_store_request"),
     
+    #livara Mainstore
     path('complete_livara_ms_transfer/', views.mark_transfer_completed, name="mark_transfer_completed"),
     path('main_stock_transfers/', views.main_stock_transfer, name="main_stock_transfer"),
     path('livara_main_store_inventory', views.livara_main_store_inventory, name="livara_main_store_inventory"),
+    path('create_main_store_writeoff/create/', views.create_main_store_writeoff, name="create_main_store_writeoff"),
+    path('main_store_writeoff_list/', views.main_store_writeoff_list, name="main_store_writeoff_list"),
+    path('approve_mainstore_writeoff/', views.approve_mainstore_writeoff, name="approve_mainstore_writeoff"),
+    path('product_adjustments/<str:product_name>/<str:batch_number>/<str:date>/', views.product_adjustments, name="product_adjustments"),
+    
     ##acessroies mainstore##
     path('accessory_store/', views.accessory_store, name="accessory_store"),
     path('create_new_accessory/', views.create_new_accessory, name="create_new_accessory"),

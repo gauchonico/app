@@ -2,7 +2,7 @@
 
 {% load static %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}URI Production Store{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/jvectormap-next/jquery-jvectormap.css' %}" rel="stylesheet" />
@@ -19,10 +19,10 @@
 <div class="d-flex align-items-center mb-3">
 	<div>
 		<ul class="breadcrumb">
-			<li class="breadcrumb-item"><a href="#">PAGES</a></li>
-			<li class="breadcrumb-item active">FACTORY INVENTORY</li>
+			<li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+			<li class="breadcrumb-item active">URI INVENTORY</li>
 		</ul>
-		<h1 class="page-header mb-0">FACTORY STORE</h1>
+		<h1 class="page-header mb-0">Factory Store</h1>
 	</div>
     <div class="ms-auto">
         <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>

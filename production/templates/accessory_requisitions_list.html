@@ -49,6 +49,12 @@
     </div>
 </div>
 
+<div class="mb-md-4 mb-3 d-md-flex">
+    <div class="mt-md-0 mt-2"><a href="{% url 'main_store_accessory_requisitions_list' %}" class="{% if request.resolver_match.url_name == 'main_store_accessory_requisitions_list' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="fa fa-list fa-fw me-1 text-theme"></i>Main Store Reqns</a></div>
+    <div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'all_internal_requests' %}" class="{% if request.resolver_match.url_name == 'all_internal_requests' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="fa fa-list fa-fw me-1 text-theme"></i>Saloon Reqns</a></div>
+    <div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'accessory_store' %}" class="{% if request.resolver_match.url_name == 'accessory_store' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-box-fill fa-fw me-1 text-theme"></i> Accessory Items</a></div>
+</div>
+
 
 {% if acc_requisitions %}
 <table id="datatableDefault" class="table text-nowrap w-100">
@@ -59,8 +65,8 @@
         <th>Requested By</th>
         <th>Request Date</th>
         <th>Status</th>
-        <th>Items</th>
-        <th>..</th>
+        
+        <th>View</th>
     </tr>
   </thead>
   <tbody>
@@ -79,15 +85,9 @@
             {% endif %}
 
         </td>
+        
         <td>
-            <ul class="list-group">
-                {% for item in acc_requisition.items.all %}
-                <li class="list-group-item">{{ item.quantity_requested }} x {{ item.accessory.name }}</li>
-                {% endfor %}
-            </ul>
-        </td>
-        <td>
-            <a href="{% url 'accessory_requisition_details' acc_requisition.id  %}">Details</a>
+            <a href="{% url 'accessory_requisition_details' acc_requisition.id  %}"><i class="bi bi-eye text-theme"></i></a>
         </td>
     </tr>
     {% endfor %}

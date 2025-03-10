@@ -43,9 +43,9 @@
 	   
 	</div>
 	<div class="mb-md-4 mb-3 d-md-flex">
-		<div class="mt-md-0 mt-2"><a href="{% url 'create_new_accessory' %}" class="text-theme text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Main Store Transfers</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}" class="text-inverse text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-inverse"></i> Salon Transfers</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'detailed_inventory_report' %}" class="text-theme text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> MainStore Transfer Report</a></div>
+		<div class="mt-md-0 mt-2"><a href="{% url 'main_stock_transfer' %}" class="{% if request.resolver_match.url_name == 'main_stock_transfer' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Main Store Transfers</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}" class="{% if request.resolver_match.url_name == 'restockRequests' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Salon Transfers</a></div>
+		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'detailed_inventory_report' %}" class="{% if request.resolver_match.url_name == 'detailed_inventory_report' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> MainStore Transfer Report</a></div>
 		
 	</div>
 <div class="container">
@@ -58,7 +58,7 @@
 							<a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>
 						</div>
 					{% endif %}
-					
+					<p>These are the Main store transfers from the Production Site to the Livara Main store after Production.
 					<hr class="mb-4">
 
 					<!-- BEGIN #datatable -->

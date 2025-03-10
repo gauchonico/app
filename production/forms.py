@@ -865,3 +865,74 @@ class PaymentForm(forms.Form):
                 )
 
         return cleaned_data
+
+class PriceGroupForm(forms.ModelForm):
+    class Meta:
+        model = PriceGroup
+        fields = ['name', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter price group name'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Enter description'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+                'role': 'switch'
+            })
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['is_active'].widget.attrs['class'] = 'form-check-input'
+        self.fields['is_active'].label_attrs = {'class': 'form-check-label'}
+        
+##Livara Mainstore Writeoff
+class StoreWriteOffForm(forms.ModelForm):
+    confirm_quantity = forms.IntegerField(
+        help_text="Please confirm the quantity to write off"
+    )
+
+    class Meta:
+        model = StoreWriteOff
+        fields = ['main_store_product', 'quantity', 'reason', 'notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter main store products to only show those with stock
+        self.fields['main_store_product'].queryset = LivaraMainStore.objects.filter(quantity__gt=0)
+        
+        # Add Bootstrap classes and custom styling
+        for field in self.fields:
+            self.fields[field].widget.attrs.update({
+                'class': 'form-control'
+            })
+        
+        # Custom label for main_store_product
+        self.fields['main_store_product'].label = "Select Product"
+        self.fields['confirm_quantity'].label = "Confirm Quantity"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        quantity = cleaned_data.get('quantity')
+        confirm_quantity = cleaned_data.get('confirm_quantity')
+        main_store_product = cleaned_data.get('main_store_product')
+
+        if quantity and confirm_quantity:
+            if quantity != confirm_quantity:
+                raise forms.ValidationError("Quantities do not match. Please confirm the correct quantity.")
+
+        if main_store_product and quantity:
+            if quantity > main_store_product.quantity:
+                raise forms.ValidationError(
+                    f"Cannot write off more than available stock. Current stock: {main_store_product.quantity}"
+                )
+
+        return cleaned_data

@@ -189,6 +189,7 @@ class ProductionIngredient(models.Model):
 #Products Pricing Groups
 class PriceGroup(models.Model):
     name = models.CharField(max_length=255, unique=True)  # e.g., "Black Friday", "Wholesale"
+    description = models.CharField(max_length=255, unique=True, default="No Description")
     is_active = models.BooleanField(default=False)  # Only one group can be active at a time
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -282,13 +283,7 @@ class ProductionOrder(models.Model):
         )
         return notification
     
-    def reject_order(self, user, reason):
-        """Reject the production order"""
-        self.status = 'Rejected'
-        self.rejection_reason = reason
-        self.rejected_at = timezone.now()
-        self.rejected_by = user
-        self.save()
+    
 
     class Meta:
         ordering = ['-created_at'] 
@@ -565,8 +560,9 @@ class LivaraMainStore(models.Model):
     adjustment_reason = models.CharField(max_length=255, null=True, blank=True)
     
     def __str__ (self):
-        return f"{self.quantity} units of {self.product.product.product_name} in Main Store"
-    
+        return f"{self.product.product.product_name} (Batch: {self.batch_number})"
+
+#Adjustment mobel to track mainstore changes
 class LivaraInventoryAdjustment(models.Model):
     store_inventory = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE, related_name='adjustments')
     adjusted_quantity = models.IntegerField()
@@ -617,7 +613,76 @@ class StoreTransferItem(models.Model):
     product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     delivered_quantity = models.PositiveIntegerField(null=True, blank=True)  # New field for delivered quantity
-    
+
+
+#Livara Mainstore Write off
+class StoreWriteOff(models.Model):
+    REASON_CHOICES = [
+        ('expired', 'Expired Product'),
+        ('damaged', 'Damaged/Broken'),
+        ('spillage', 'Spillage'),
+        ('quality', 'Quality Issues'),
+        ('other', 'Other')
+    ]
+
+    main_store_product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE, related_name='write_offs')
+    quantity = models.PositiveIntegerField()
+    batch_number = models.CharField(max_length=50)  # Will be populated from LivaraMainStore
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    notes = models.TextField(blank=True)
+    date = models.DateTimeField(auto_now_add=True)
+    initiated_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    approved = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='approved_writeoffs'
+    )
+    approved_date = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Write-off of {self.quantity} units from batch {self.batch_number} - {self.reason}"
+
+    def save(self, *args, **kwargs):
+        if not self.pk:  # Only on creation
+            # Ensure batch number matches the main store product
+            self.batch_number = self.main_store_product.batch_number
+            
+            # Validate quantity
+            if self.quantity > self.main_store_product.quantity:
+                raise ValidationError("Write-off quantity cannot exceed available stock")
+
+        if self.approved and not self.approved_date:
+            self.approved_date = timezone.now()
+            
+            # Create an inventory adjustment record
+            LivaraInventoryAdjustment.objects.create(
+                store_inventory=self.main_store_product,
+                adjusted_quantity=-self.quantity,  # Negative for write-offs
+                adjustment_reason=f"Write-off: {self.get_reason_display()} - {self.notes}",
+                adjusted_by=self.approved_by
+            )
+            
+            # Update main store quantity
+            self.main_store_product.previous_quantity = self.main_store_product.quantity
+            self.main_store_product.quantity -= self.quantity
+            self.main_store_product.adjustment_date = timezone.now()
+            self.main_store_product.adjustment_reason = f"Write-off: {self.get_reason_display()}"
+            self.main_store_product.save()
+
+        super().save(*args, **kwargs)
+
+    @property
+    def adjustment_record(self):
+        """Get the related inventory adjustment record if it exists"""
+        return LivaraInventoryAdjustment.objects.filter(
+            store_inventory=self.main_store_product,
+            adjustment_date__gte=self.approved_date,
+            adjustment_reason__startswith="Write-off:"
+        ).first() if self.approved_date else None
+
     
 # 1. Main Accessory Model
 class Accessory(models.Model):

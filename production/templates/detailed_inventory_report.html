@@ -4,31 +4,74 @@
 {% block title %}Detailed Inventory Report{% endblock %}
 
 {% block content %}
+<div class="d-flex align-items-center mb-md-3 mb-2">
+    <div class="flex-fill">
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
+            <li class="breadcrumb-item active">MAIN STORE INVENTORY REPORT BY DATE</li>
+        </ul>
+
+        <h5 class="mb-0">
+            Transfers by Date
+        </h5>
+        <p>A daily summary report of any Adjustments with-in the Mainstore Inventory.
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'createRestockRequest' %}" class="btn btn-outline-theme"><i class="fa fa-plus-circle me-1"></i> Restock Order</a>
+    </div>
+</div>
+
+<div class="mb-md-4 mb-3 d-md-flex">
+    <div class="mt-md-0 mt-2"><a href="{% url 'main_stock_transfer' %}" class="{% if request.resolver_match.url_name == 'main_stock_transfer' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Main Store Transfers</a></div>
+    <div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}" class="{% if request.resolver_match.url_name == 'restockRequests' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Salon Transfers</a></div>
+    <div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'detailed_inventory_report' %}" class="{% if request.resolver_match.url_name == 'detailed_inventory_report' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> MainStore Transfer Report</a></div>
+    <div class="ms-md-4 mt-md-0 mt-2">
+        <form method="get">
+            <label for="date">Select Date:</label>
+            <input type="date" id="date" name="date" value="{{ selected_date }}">
+            <button class="btn btn-sm bg-dark text-white" type="submit">Search Report</button>
+        </form>
+    </div>
+    
+</div>
 
 <h1>Inventory Report for {{ selected_date }}</h1>
 
     <table border="1" class="table">
         <tr>
             <th>Product</th>
+            <th>no</th>
             <th>Opening Stock</th>
-            <th>Adjustments</th>
-            <th>Transfers</th>
+            <th>From Production</th>
+            <th>Out of Store</th>
             <th>Closing Stock</th>
         </tr>
         {% for data in report_data %}
         <tr>
             <td>{{ data.product_name }}</td>
+            <td>{{ data.batch_number }}</td>
             <td>{{ data.opening_stock }}</td>
-            <td>{{ data.adjustments }}</td>
-            <td>{{ data.transfers }}</td>
+            <td class="text-success">
+                {% if data.positive_adjustments %}
+                <a href="{% url 'product_adjustments' product_name=data.product_name batch_number=data.batch_number date=selected_date|date:'Y-m-d' %}" 
+                       class="text-success">
+                        +{{ data.positive_adjustments }}
+                        
+                    </a>
+                {% endif %}
+            </td>
+            <td class="text-danger">{% if data.negative_adjustments %}
+                <a href="{% url 'product_adjustments' product_name=data.product_name batch_number=data.batch_number date=selected_date|date:'Y-m-d' %}" 
+                       class="text-warning">
+                        {{ data.negative_adjustments }}
+                        
+                    </a>
+                {% endif %}
+            </td>
             <td>{{ data.closing_stock }}</td>
         </tr>
         {% endfor %}
     </table>
-    <form method="get">
-        <label for="date">Select Date:</label>
-        <input type="date" id="date" name="date" value="{{ selected_date }}">
-        <button type="submit">View Report</button>
-    </form>
+    
 
 {% endblock content %}
