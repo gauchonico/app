@@ -768,12 +768,12 @@ class AccessorySaleItemForm(ModelForm):
 class ProductSaleItemForm(ModelForm):
     class Meta:
         model = ProductSaleItem
-        fields = ['product','quantity','price_type','sale']
+        fields = ['product','quantity','price_group','sale']
         widgets ={
             'sale': forms.HiddenInput(),
             'product':forms.Select(attrs={'class':'form-control'}),
             'quantity':forms.NumberInput(attrs={'class':'form-control'}),
-            'price_type': forms.Select(attrs={'class': 'form-control'}),
+            'price_group': forms.Select(attrs={'class': 'form-control'}),
         }
     def __init__(self, *args, **kwargs):
         store = kwargs.pop('store', None)

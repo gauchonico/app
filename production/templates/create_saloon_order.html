@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load humanize %}
+
+{% block title %}POS - Customer Order System{% endblock %}
+{% block css %}
+	<link href="/assets/plugins/select-picker/dist/picker.min.css" rel="stylesheet">
+{% endblock %}
+{% block js %}
+	<script>
+		// Define the base URL using Django's template tag
+		const PRICE_GROUPS_URL = "{% url 'get_product_price_groups' '0' %}".replace('0', '').replace('//', '/');
+	</script>
+	<script src="{% static 'js/demo/pos-customer-order.demo.js' %}"></script>
+	<script src="/assets/plugins/select-picker/dist/picker.min.js"></script>
+{% endblock %}
+
+{% block content %}
+	<!-- Add hidden store ID -->
+	<input type="hidden" id="storeId" value="{{ current_store.id }}">
+
+	<!-- BEGIN pos -->
+	<div class="pos card" id="pos">
+		<div class="pos-container card-body">
+			<!-- BEGIN pos-menu -->
+			<div class="pos-menu">
+				<!-- BEGIN logo -->
+				<div class="logo">
+					<a href="{% url 'DjangoHUDApp:index' %}">
+						<div class="logo-img"><i class="bi bi-x-diamond" style="font-size: 2.1rem;"></i></div>
+						<div class="logo-text">Dashboard</div>
+					</a>
+				</div>
+				<!-- END logo -->
+				<!-- BEGIN nav-container -->
+				<div class="nav-container">
+					<div data-scrollbar="true" data-height="100%" data-skip-mobile="true">
+						<ul class="nav nav-tabs">
+							<li class="nav-item">
+								<a class="nav-link active" href="#" data-filter="services">
+									<div class="card">
+										<div class="card-body">
+											<i class="fa fa-fw fa-utensils"></i>Services
+										</div>
+										<div class="card-arrow">
+											<div class="card-arrow-top-left"></div>
+											<div class="card-arrow-top-right"></div>
+											<div class="card-arrow-bottom-left"></div>
+											<div class="card-arrow-bottom-right"></div>
+										</div>
+									</div>
+								</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link" href="#" data-filter="products">
+									<div class="card">
+										<div class="card-body">
+											<i class="fa fa-fw fa-drumstick-bite"></i> Products
+										</div>
+										<div class="card-arrow">
+											<div class="card-arrow-top-left"></div>
+											<div class="card-arrow-top-right"></div>
+											<div class="card-arrow-bottom-left"></div>
+											<div class="card-arrow-bottom-right"></div>
+										</div>
+									</div>
+								</a>
+							</li>
+							<li class="nav-item">
+								<a class="nav-link" href="#" data-filter="accessories">
+									<div class="card">
+										<div class="card-body">
+											<i class="fa fa-fw fa-drumstick-bite"></i> Accessories
+										</div>
+										<div class="card-arrow">
+											<div class="card-arrow-top-left"></div>
+											<div class="card-arrow-top-right"></div>
+											<div class="card-arrow-bottom-left"></div>
+											<div class="card-arrow-bottom-right"></div>
+										</div>
+									</div>
+								</a>
+							</li>
+							
+						</ul>
+					</div>
+				</div>
+				<!-- END nav-container -->
+			</div>
+			<!-- END pos-menu -->
+
+		
+			<!-- BEGIN Services-content -->
+			<!-- BEGIN pos-content -->
+<div class="pos-content">
+    <div class="pos-content-container h-100 p-4" data-scrollbar="true" data-height="100%">
+        <div class="row gx-4">
+            <!-- Services -->
+            {% for service in store_services %}
+            <div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="services">
+                <div class="card h-100">
+                    <div class="card-body h-100 p-1">
+                        <a href="#" class="pos-product service-item" onclick="showServiceModal(
+                            '{{ service.service.id }}', 
+                            '{{ service.service.name }}', 
+                            '{{ service.service.price|floatformat }}',
+                            '{{ service.service.commission_rate }}'
+                        ); return false;">
+                            {% comment %} <div class="img" style="background-image: url({% if service.service.image %}{{ service.service.image.url }}{% else %}{% static 'img/pos/default-service.jpg' %}{% endif %})"></div> {% endcomment %}
+                            <div class="info">
+                                <div class="title">{{ service.service.name }}</div>
+                                <div class="desc">{{ service.service.description|default:'' }}</div>
+                                <div class="price">{{ service.service.price|floatformat|intcomma }}</div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="card-arrow">
+                        <div class="card-arrow-top-left"></div>
+                        <div class="card-arrow-top-right"></div>
+                        <div class="card-arrow-bottom-left"></div>
+                        <div class="card-arrow-bottom-right"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Products -->
+            {% for product in store_products %}
+            <div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="products">
+                <div class="card h-100">
+                    <div class="card-body h-100 p-1">
+                        <a href="#" class="pos-product product-item" onclick="showProductModal(
+                            '{{ product.product.id }}', 
+                            '{{ product.product.product_name|escapejs }}', 
+                           	
+                            '{{ product.quantity }}'
+                        ); return false;">
+                            {% comment %} <div class="img" style="background-image: url({% if product.product.image %}{{ product.product.image.url }}{% else %}{% static 'img/pos/default-product.jpg' %}{% endif %})"></div> {% endcomment %}
+                            <div class="info">
+                                <div class="title">{{ product.product.product_name }}</div>
+                                <div class="desc">Stock: {{ product.quantity }}</div>
+								
+                            </div>
+                        </a>
+                    </div>
+                    <div class="card-arrow">
+                        <div class="card-arrow-top-left"></div>
+                        <div class="card-arrow-top-right"></div>
+                        <div class="card-arrow-bottom-left"></div>
+                        <div class="card-arrow-bottom-right"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+			<!-- Accessories -->
+			{% for accessory in store_accessories %}
+			<div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="accessories">
+				<div class="card h-100">
+					<div class="card-body h-100 p-1">
+						<a href="#" class="pos-product accessory-item" onclick="showAccessoryModal(
+							'{{ accessory.accessory.id }}', 
+							'{{ accessory.accessory.name }}',
+							'{{ accessory.accessory.price|floatformat|intcomma  }}',
+							'{{ accessory.quantity }}'
+						); return false;">
+							<div class="info">
+								<div class="title">{{ accessory.accessory.name }}</div>
+								<div class="desc">Stock: {{ accessory.quantity }}</div>
+								<div class="price">{{ accessory.accessory.price|floatformat|intcomma  }}</div>
+							</div>
+						</a>
+					</div>
+					<div class="card-arrow">
+						<!-- Your card arrows -->
+					</div>
+				</div>
+			</div>
+			{% endfor %}
+        </div>
+    </div>
+</div>
+
+		<!-- END pos-content -->
+		<!-- BEGIN pos-sidebar -->
+        <div class="pos-sidebar" id="pos-sidebar">
+            <div class="pos-sidebar-header">
+                <div class="back-btn">
+                    <button type="button" data-toggle-class="pos-mobile-sidebar-toggled" data-toggle-target="#pos" class="btn">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                </div>
+                <div class="customer-row mb-3">
+					
+                    <select class="form-select" id="customerSelect">
+                        <option value="">Select Customer</option>
+                        {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-sm btn-outline-theme mt-1" onclick="showNewCustomerModal()">
+                        <i class="bi bi-person-plus"></i> New Customer
+                    </button>
+                </div>
+            </div>
+            <div class="pos-sidebar-body">
+                <div class="pos-cart" id="cartItems">
+                    <!-- Cart items will be dynamically added here -->
+                </div>
+            </div>
+            <div class="pos-sidebar-footer">
+                <div class="d-flex align-items-center mb-2">
+                    <div>Subtotal</div>
+                    <div class="flex-1 text-end h6 mb-0" id="subtotal">0.00</div>
+                </div>
+                <div class="d-flex align-items-center mb-2">
+                    <div>Total</div>
+                    <div class="flex-1 text-end h4 mb-0" id="total">0.00</div>
+                </div>
+                <div class="mt-3">
+                    <div class="mb-2">
+                        <select class="form-select" id="paymentMode">
+                            <option value="cash">Cash</option>
+                            <option value="mobile_money">Mobile Money</option>
+                            <option value="airtel_money">Airtel Money</option>
+                            <option value="visa">Visa</option>
+                            <option value="mixed">Mixed</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" class="form-control" id="paymentRemarks" placeholder="Payment remarks...">
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-default w-150px" onclick="clearCart()">
+                            <i class="bi bi-trash"></i> Clear Cart
+                        </button>
+                        <button class="btn btn-theme w-150px" onclick="submitSale()">
+                            <i class="bi bi-check-circle"></i> Submit Order
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- END pos-sidebar -->
+			
+		</div>
+		<div class="card-arrow">
+			<div class="card-arrow-top-left"></div>
+			<div class="card-arrow-top-right"></div>
+			<div class="card-arrow-bottom-left"></div>
+			<div class="card-arrow-bottom-right"></div>
+		</div>
+	</div>
+	<!-- END pos -->
+	
+	<!-- BEGIN pos-mobile-sidebar-toggler -->
+	<a href="#" class="pos-mobile-sidebar-toggler" data-toggle-class="pos-mobile-sidebar-toggled" data-toggle-target="#pos">
+		<i class="bi bi-bag"></i>
+		<span class="badge">5</span>
+	</a>
+	<!-- END pos-mobile-sidebar-toggler -->
+
+
+
+	<!-- Product Modal -->
+
+	<div class="modal fade" id="productModal" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="card">
+					<div class="card-body">
+						<h5 class="card-title" id="productName"></h5>
+
+						<!-- Price Group Selection -->
+						<div class="mb-3">
+							<label class="form-label">Price Group:</label>
+							<select class="form-select" id="priceGroup">
+								<option value="">Select a Price Groupe</option>
+							</select>
+						</div>
+
+						<!-- Selected Price Display -->
+						<div class="mb-3">
+							<label class="form-label">Price:</label>
+							<div class="h5" id="selectedPrice">Please select a price group</div>
+						</div>
+
+						<div class="mb-3">
+							<label class="form-label">Quantity:</label>
+							<div class="input-group">
+								<button class="btn btn-outline-secondary" type="button" onclick="decrementQuantity('product')">-</button>
+								<input type="number" class="form-control text-center" id="productQuantity" min="1" value="1">
+								<button class="btn btn-outline-secondary" type="button" onclick="incrementQuantity('product')">+</button>
+							</div>
+						</div>
+						<div class="text-end">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+							<button type="button" class="btn btn-theme" onclick="addProductToCart()">Add Product</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<!-- Service Modal -->
+	<div class="modal fade" id="serviceModal" tabindex="-1">
+		<div class="modal-dialog modal-lg">
+			<div class="modal-content">
+				<div class="card">
+					<div class="card-body">
+						<a href="#" data-bs-dismiss="modal" class="btn-close position-absolute top-0 end-0 m-4"></a>
+						<div class="modal-pos-product">
+							<div class="modal-pos-product-info">
+								<div class="h4 mb-2" id="serviceName"></div>
+								<div class="h4 mb-3">Price: <span id="servicePrice"></span></div>
+								<div class="mb-3">
+									<label class="form-label">Select Staff:</label>
+									<select class="form-select" id="serviceStaff" multiple>
+										{% for staff in available_staff %}
+										<option value="{{ staff.id }}">{{ staff.first_name }} {{ staff.last_name }}</option>
+										{% endfor %}
+									</select>
+									<small class="text-muted">Hold Ctrl/Cmd to select multiple staff</small>
+								</div>
+								<div class="row mt-4">
+									<div class="col-6">
+										<button class="btn btn-secondary w-100" data-bs-dismiss="modal">Cancel</button>
+									</div>
+									<div class="col-6">
+										<button class="btn btn-theme w-100" onclick="addServiceToCart()">
+											Add Service
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- Accessory Modal -->
+	<div class="modal fade" id="accessoryModal" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="card">
+					<div class="card-body">
+						<h5 class="card-title" id="accessoryName"></h5>
+						<div class="mb-3">
+							<label class="form-label">Quantity:</label>
+							<div class="input-group">
+								<button class="btn btn-outline-secondary" type="button" onclick="decrementAccessoryQuantity('accessory')">-</button>
+								<input type="number" class="form-control text-center" id="accessoryQuantity" min="1" value="1">
+								<button class="btn btn-outline-secondary" type="button" onclick="incrementAccessoryQuantity('accessory')">+</button>
+							</div>
+						</div>
+						<div class="text-end">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+							<button type="button" class="btn btn-theme" onclick="addAccessoryToCart()">Add Accessory</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<!-- New Customer Modal -->
+	<div class="modal fade" id="newCustomerModal" tabindex="-1">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="card">
+					<div class="card-body">
+						<h5 class="card-title">New Customer</h5>
+						<form id="newCustomerForm">
+							{% csrf_token %}
+							<div class="mb-3">
+								<label class="form-label">First Name</label>
+								<input type="text" class="form-control" name="first_name" required>
+							</div>
+							<div class="mb-3">
+								<label class="form-label">Last Name</label>
+								<input type="text" class="form-control" name="last_name" required>
+							</div>
+							<div class="mb-3">
+								<label class="form-label">Phone Number</label>
+								<input type="tel" class="form-control" name="phone_number" required>
+							</div>
+							<div class="mb-3">
+								<label class="form-label">Email (Optional)</label>
+								<input type="email" class="form-control" name="email">
+							</div>
+							<div class="text-end">
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+								<button type="submit" class="btn btn-theme">Save Customer</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- END MODALS -->
+	
+{% endblock %}
+
+{% block outter_content %}
+
+
+{% endblock outter_content %}

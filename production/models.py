@@ -926,7 +926,7 @@ class ServiceSale(models.Model):
         ('paid', 'Paid'),
     ]
     service_sale_number = models.CharField(max_length=20, unique=True,editable=False, null=True)
-    store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='service_sales')
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='service_sales')
     customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='service_sales')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_date = models.DateTimeField(auto_now_add=True)
@@ -1157,28 +1157,29 @@ class AccessorySaleItem(models.Model):
         return f"{self.quantity} x {self.accessory.accessory.name} for Sale #{self.sale.id}"
         
 class ProductSaleItem(models.Model):
-    PRICE_TYPE_CHOICES = [
-        ('wholesale', 'Wholesale Price'),
-        ('carrefour', 'Carrefour Price'),
-        ('retail', 'Retail Price'),
-    ]
     sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='product_sale_items')
     product = models.ForeignKey(StoreInventory, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
-    price_type = models.CharField(max_length=10, choices=PRICE_TYPE_CHOICES, default='retail')
+    price_group = models.ForeignKey(PriceGroup, on_delete=models.SET_NULL, null=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     def calculate_price(self):
-        # Determine the correct price based on the selected price type
-        if self.price_type == 'wholesale':
-            return self.product.product.wholesale_price
-        elif self.price_type == 'carrefour':
-            return self.product.product.carrefour_price
-        else:
-            return self.product.product.price
+        # First check if there's a specific price for this product in the selected price group
+        if self.price_group:
+            try:
+                product_price = ProductPrice.objects.get(
+                    product=self.product.product,
+                    price_group=self.price_group
+                )
+                return product_price.price
+            except ProductPrice.DoesNotExist:
+                pass
+        
+        # If no specific price group or price not found, return default price
+        return self.product.product.price
     
     def save(self, *args, **kwargs):
-        # Use the selected price type for the total price calculation
+        # Calculate total price based on price group
         unit_price = self.calculate_price()
         self.total_price = self.quantity * unit_price
         super().save(*args, **kwargs)

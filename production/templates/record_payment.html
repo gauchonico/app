@@ -1,11 +1,32 @@
 {% extends "base.html" %}
 {% load static %}
 
+{% load humanize %}
+
 {% block title %}Replace Note Detail{% endblock %}
 
 {% block content %}
 <div class="container">
     <h1>Record Payment for Sale #{{ sale.id }}</h1>
+
+    <!-- Add amount due display -->
+    <div class="card mb-4">
+      <div class="card-body">
+          <h5 class="card-title">Payment Summary</h5>
+          <div class="row">
+              <div class="col-md-4">
+                  <p>Total Amount: <span id="totalAmount">{{ sale.total_amount|intcomma }}</span></p>
+              </div>
+              <div class="col-md-4">
+                  <p>Amount Paid: <span id="amountPaid">{{ sale.paid_amount|intcomma }}</span></p>
+              </div>
+              <div class="col-md-4">
+                  <p>Amount Due: <span id="amountDue">{{ sale.balance|intcomma }}</span></p>
+              </div>
+          </div>
+      </div>
+    </div>
+
     <form method="post">
       {% csrf_token %}
       <div class="mb-3">
@@ -19,6 +40,10 @@
           {{ form.amount.label }}
           {{ form.amount }}
         </div>
+        <div class="mb-3">
+          <label class="form-label">Change</label>
+          <input type="text" class="form-control" id="singleChange" readonly>
+      </div>
       </div>
   
       <!-- Mixed Payment -->
@@ -35,6 +60,14 @@
           {{ form.visa_amount.label }}
           {{ form.visa_amount }}
         </div>
+        <div class="mb-3">
+          <label class="form-label">Total Entered</label>
+          <input type="text" class="form-control" id="mixedTotal" readonly>
+      </div>
+      <div class="mb-3">
+          <label class="form-label">Change</label>
+          <input type="text" class="form-control" id="mixedChange" readonly>
+      </div>
       </div>
   
       <div class="mb-3">
@@ -50,16 +83,58 @@
     const paymentMethodField = document.getElementById('id_payment_method');
     const singlePaymentDiv = document.getElementById('single-payment');
     const mixedPaymentDiv = document.getElementById('mixed-payment');
-  
-    paymentMethodField.addEventListener('change', function () {
-      if (this.value === 'mixed') {
-        singlePaymentDiv.style.display = 'none';
-        mixedPaymentDiv.style.display = 'block';
-      } else {
-        singlePaymentDiv.style.display = 'block';
-        mixedPaymentDiv.style.display = 'none';
-      }
+    const amountDue = parseFloat('{{ sale.balance }}');
+
+    // Single payment handling
+    const singleAmountField = document.getElementById('id_amount');
+    const singleChangeField = document.getElementById('singleChange');
+
+    singleAmountField?.addEventListener('input', function() {
+        const amountPaid = parseFloat(this.value) || 0;
+        const change = amountPaid - amountDue;
+        singleChangeField.value = change > 0 ? change.toFixed(0) : '0.00';
     });
-  </script>
+
+    // Mixed payment handling
+    const cashField = document.getElementById('id_cash_amount');
+    const mobileMoneyField = document.getElementById('id_mobile_money_amount');
+    const visaField = document.getElementById('id_visa_amount');
+    const mixedTotalField = document.getElementById('mixedTotal');
+    const mixedChangeField = document.getElementById('mixedChange');
+
+    const calculateMixedTotal = () => {
+        const cash = parseFloat(cashField.value) || 0;
+        const mobileMoney = parseFloat(mobileMoneyField.value) || 0;
+        const visa = parseFloat(visaField.value) || 0;
+        
+        const total = cash + mobileMoney + visa;
+        mixedTotalField.value = total.toFixed(0);
+        
+        const change = total - amountDue;
+        mixedChangeField.value = change > 0 ? change.toFixed(0) : '0.00';
+    };
+
+    // Add input listeners to all mixed payment fields
+    [cashField, mobileMoneyField, visaField].forEach(field => {
+        field?.addEventListener('input', calculateMixedTotal);
+    });
+
+    paymentMethodField.addEventListener('change', function() {
+        if (this.value === 'mixed') {
+            singlePaymentDiv.style.display = 'none';
+            mixedPaymentDiv.style.display = 'block';
+            calculateMixedTotal();
+        } else {
+            singlePaymentDiv.style.display = 'block';
+            mixedPaymentDiv.style.display = 'none';
+            if (singleAmountField.value) {
+                const event = new Event('input');
+                singleAmountField.dispatchEvent(event);
+            }
+        }
+    });
+
+    
+</script>
   {% endblock content %}
   

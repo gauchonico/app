@@ -592,6 +592,16 @@ def sidebar_menu(request):
                         'name':'payment_list'
                     }]
             })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Staff Commissions',
+                'children': [{
+                    'url': '/production/monthly-commissions/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Monthly Commissions',
+                    'name': 'monthly_commission_list',
+                }]
+            })
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

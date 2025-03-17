@@ -31,6 +31,7 @@
 
 {% block content %}
     <!-- BEGIN page-header -->
+	{% csrf_token %}
 	<div class="d-flex align-items-center mb-3">
 		<div>
 			<ul class="breadcrumb">
@@ -153,96 +154,69 @@
         </div>
     </div>
 </div>
+<script>
+    let currentOrderId = null;
+
+    function showRejectModal(orderId, orderDetails) {
+        currentOrderId = orderId;
+        document.getElementById('orderDetails').textContent = orderDetails;
+        const modal = new bootstrap.Modal(document.getElementById('rejectOrderModal'));
+        modal.show();
+    }
+
+    document.getElementById('confirmReject').addEventListener('click', function() {
+        const reason = document.getElementById('rejectionReason').value.trim();
+        if (!reason) {
+            alert('Please provide a rejection reason');
+            return;
+        }
+
+        // Get CSRF token
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // Use the url template tag to generate the correct URL
+        const url = "{% url 'reject_production_order' 999 %}".replace('999', currentOrderId);
+
+        // Send the rejection request
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrftoken
+            },
+            body: `rejection_reason=${encodeURIComponent(reason)}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Close the modal
+                bootstrap.Modal.getInstance(document.getElementById('rejectOrderModal')).hide();
+                
+                // Show success message
+                alert(data.message);
+                
+                // Refresh the page to show updated status
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to reject order');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while rejecting the order');
+        });
+    });
+</script>
+
 	<!-- END container -->
 {% endblock %}
 {% block outter_content %}
-<script>
-	let currentOrderId = null;
-	
-	function showRejectModal(orderId, orderDetails) {
-		currentOrderId = orderId;
-		document.getElementById('orderDetails').textContent = orderDetails;
-		document.getElementById('rejectionReason').value = '';
-		
-		const modal = new bootstrap.Modal(document.getElementById('rejectOrderModal'));
-		modal.show();
-	}
-	
-	document.getElementById('confirmReject').addEventListener('click', function() {
-		const reason = document.getElementById('rejectionReason').value.trim();
-		if (!reason) {
-			document.getElementById('rejectionReason').classList.add('is-invalid');
-			return;
-		}
-		
-		// Send rejection request
-		fetch(`/production/production-order/${currentOrderId}/reject/`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-				'X-CSRFToken': getCookie('csrftoken')
-			},
-			body: `rejection_reason=${encodeURIComponent(reason)}`
-		})
-		.then(response => response.json())
-		.then(data => {
-			if (data.success) {
-				// Update UI to show rejected status
-				const statusCell = document.querySelector(`#order-${currentOrderId} .status-cell`);
-				if (statusCell) {
-					statusCell.innerHTML = `<span class="badge bg-danger">Rejected</span>`;
-				}
-				
-				// Close modal
-				bootstrap.Modal.getInstance(document.getElementById('rejectOrderModal')).hide();
-				
-				// Show success message
-				showToast('Success', 'Production order rejected successfully', 'success');
-			} else {
-				showToast('Error', data.message, 'error');
-			}
-		})
-		.catch(error => {
-			showToast('Error', 'Failed to reject order', 'error');
-		});
-	});
-	
-	// Helper function to get CSRF token
-	function getCookie(name) {
-		let cookieValue = null;
-		if (document.cookie && document.cookie !== '') {
-			const cookies = document.cookie.split(';');
-			for (let i = 0; i < cookies.length; i++) {
-				const cookie = cookies[i].trim();
-				if (cookie.substring(0, name.length + 1) === (name + '=')) {
-					cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-					break;
-				}
-			}
-		}
-		return cookieValue;
-	}
-	
-	// Helper function to show toast messages
-	function showToast(title, message, type) {
-		// Implement your preferred toast notification here
-		// Example using Bootstrap toast:
-		const toastHtml = `
-			<div class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert">
-				<div class="d-flex">
-					<div class="toast-body">
-						<strong>${title}:</strong> ${message}
-					</div>
-					<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-				</div>
-			</div>
-		`;
-		const toastContainer = document.getElementById('toast-container');
-		toastContainer.innerHTML = toastHtml;
-		const toast = new bootstrap.Toast(toastContainer.querySelector('.toast'));
-		toast.show();
-	}
-	</script>
+
 {% if messages %}
     <div class="toasts-container">
         {% for message in messages %}

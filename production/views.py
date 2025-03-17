@@ -1,10 +1,12 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+import decimal
 from io import StringIO
 from uuid import uuid4
 import os
 from django.db import models
+from django.views.decorators.http import require_http_methods
 from urllib import error
 from django.db.models import Sum, F, Q, Case, When, Count
 from django.contrib.auth.models import Group
@@ -36,6 +38,7 @@ from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
+from django.core.exceptions import ObjectDoesNotExist
 from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
 from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
@@ -654,7 +657,7 @@ def view_pricing_groups(request):
                 messages.success(request, f"Prices updated for {price_group.name} successfully!")
             except Exception as e:
                 messages.error(request, f"Error processing CSV: {e}")
-            return redirect('price_group_list')
+            return redirect('view_pricing_groups')
     else:
         csv_form = PriceGroupCSVForm()
 
@@ -686,27 +689,75 @@ def price_group_details(request, pk):
 
 def handle_csv_upload(csv_file, price_group):
     """Handle the uploaded CSV to bulk update or add product prices."""
-    decoded_file = csv_file.read().decode('utf-8')
-    csv_reader = csv.DictReader(StringIO(decoded_file))
-    with transaction.atomic():
-        for row in csv_reader:
-            product_name = row.get('product_name')
-            price = row.get('price')
+    try:
+        # Read the file content
+        decoded_file = csv_file.read().decode('utf-8-sig')  # Handle BOM if present
+        csv_reader = csv.DictReader(StringIO(decoded_file))
+        
+        # Validate CSV headers
+        required_headers = {'product_name', 'price'}
+        headers = set(csv_reader.fieldnames) if csv_reader.fieldnames else set()
+        
+        if not required_headers.issubset(headers):
+            missing = required_headers - headers
+            raise ValueError(f"Missing required columns: {', '.join(missing)}")
 
-            if not product_name or not price:
-                raise ValueError("Each row must contain 'product_name' and 'price'.")
+        success_count = 0
+        errors = []
 
-            try:
-                product = Production.objects.get(product_name=product_name)
-            except Production.DoesNotExist:
-                raise ValueError(f"Product '{product_name}' does not exist.")
+        with transaction.atomic():
+            for row_num, row in enumerate(csv_reader, start=2):  # Start from 2 to account for header row
+                try:
+                    # Validate row data
+                    product_name = row.get('product_name', '').strip()
+                    price = row.get('price', '').strip()
 
-            # Create or update the ProductPrice for the price group
-            ProductPrice.objects.update_or_create(
-                product=product,
-                price_group=price_group,
-                defaults={'price': price}
-            )
+                    if not product_name:
+                        errors.append(f"Row {row_num}: Product name is empty")
+                        continue
+
+                    if not price:
+                        errors.append(f"Row {row_num}: Price is empty")
+                        continue
+
+                    try:
+                        price = float(price)
+                        if price < 0:
+                            errors.append(f"Row {row_num}: Price cannot be negative")
+                            continue
+                    except ValueError:
+                        errors.append(f"Row {row_num}: Invalid price format - {price}")
+                        continue
+
+                    # Try to find the product
+                    try:
+                        product = Production.objects.get(product_name=product_name)
+                    except Production.DoesNotExist:
+                        errors.append(f"Row {row_num}: Product not found - {product_name}")
+                        continue
+
+                    # Create or update price
+                    ProductPrice.objects.update_or_create(
+                        product=product,
+                        price_group=price_group,
+                        defaults={'price': price}
+                    )
+                    success_count += 1
+
+                except Exception as e:
+                    errors.append(f"Row {row_num}: Unexpected error - {str(e)}")
+
+        # If there were any errors, raise them
+        if errors:
+            error_message = "\n".join(errors)
+            if success_count > 0:
+                error_message = f"Partially successful: {success_count} prices updated.\nErrors:\n{error_message}"
+            raise ValueError(error_message)
+
+        return success_count
+
+    except Exception as e:
+        raise ValueError(f"Error processing CSV: {str(e)}")
 
 
 @login_required(login_url='/login/')
@@ -2160,34 +2211,22 @@ def approve_production_order(request, pk):
 def reject_production_order(request, order_id):
     try:
         order = ProductionOrder.objects.get(id=order_id)
-        reason = request.POST.get('rejection_reason', '')
+        reason = request.POST.get('rejection_reason')
         
         if not reason:
-            return JsonResponse({
-                'success': False,
-                'message': 'Rejection reason is required'
-            }, status=400)
-            
-        order.reject_order(request.user, reason)
+            return JsonResponse({'success': False, 'message': 'Rejection reason is required'})
         
-        return JsonResponse({
-            'success': True,
-            'message': 'Production order rejected successfully',
-            'new_status': order.status,
-            'rejected_at': order.rejected_at.strftime('%Y-%m-%d %H:%M'),
-            'rejected_by': order.rejected_by.get_full_name() or order.rejected_by.username
-        })
+        order.status = 'Rejected'
+        order.rejection_reason = reason
+        order.rejected_by = request.user
+        order.rejected_at = timezone.now()
+        order.save()
         
+        return JsonResponse({'success': True})
     except ProductionOrder.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'message': 'Production order not found'
-        }, status=404)
+        return JsonResponse({'success': False, 'message': 'Order not found'})
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=500)
+        return JsonResponse({'success': False, 'message': str(e)})
 
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Production Manager'])
@@ -2679,6 +2718,257 @@ def error_page(request):
     return render(request, 'error.html', context)
 
 
+#POS of service sale
+def saloon_sale(request):
+    current_store = Store.objects.get(manager=request.user)
+    
+    # Customer Details
+    customers = Customer.objects.all()
+    # Get store-specific services and products
+    store_services = StoreService.objects.filter(
+        store=current_store,
+        
+    ).select_related('service')
+
+    store_products = StoreInventory.objects.filter(
+        store=current_store,
+        quantity__gt=0  # Only show products with stock
+    ).select_related('product')
+    
+    store_accessories = StoreAccessoryInventory.objects.filter(
+        store=current_store,
+    ).select_related('accessory')
+    
+    # Get available staff for services
+    available_staff = Staff.objects.filter(
+        store=current_store,
+    )
+    context ={
+        'available_staff': available_staff,
+        'store_services':store_services,
+        'store_products':store_products,
+        'store_accessories':store_accessories,
+        'customers': customers,
+        'appSidebarHide':1,
+        'current_store': current_store,
+        'appHeaderHide':1,
+        'appContentFullHeight':1,
+        'appContentClass':"p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3"
+    }
+
+    return render(request, 'create_saloon_order.html', context)
+
+
+# Get price group for product
+def get_product_price_groups(request, product_id):
+    print(f"Fetching price groups for product {product_id}")  # Debug log
+    try:
+        
+        product = Production.objects.get(id=product_id)
+        
+        # Get all price groups
+        price_groups = PriceGroup.objects.all()
+        
+        # Get all prices for this product
+        product_prices = ProductPrice.objects.filter(
+            product=product
+        ).select_related('price_group')
+        
+        
+        price_map = {pp.price_group_id: pp.price for pp in product_prices}
+        
+        # Debug print
+        print(f"Found {product_prices.count()} price groups for product")
+        
+        price_groups_data = []
+        for pp in product_prices:
+            price_groups_data.append({
+                'id': pp.price_group.id,
+                'name': pp.price_group.name,
+                'description': pp.price_group.description,
+                'is_active': pp.price_group.is_active,
+                'price': str(pp.price)
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'product_name': product.product_name,
+            'price_groups': price_groups_data
+        })
+        
+    except Production.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Product not found'
+        }, status=404)
+    except Exception as e:
+        print(f"Error in get_product_price_groups: {str(e)}")  # Debug log
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+        
+@require_http_methods(["POST"])
+def new_create_service_sale(request):
+    
+    try:
+        data = json.loads(request.body)
+        store_id = data['store_id']
+        
+        # Debug: Print all services for this store
+        store_services = StoreService.objects.filter(store_id=store_id)
+        available_service_ids = list(store_services.values_list('service__id', flat=True))
+        print(f"\nAvailable service IDs in store {store_id}: {available_service_ids}")
+        print(f"\nAvailable services in store {store_id}:")
+        for service in store_services:
+            print(f"Service ID: {service.service.id}, Name: {service.service.name}")
+        
+        with transaction.atomic():
+            # Create the main sale record
+            sale = ServiceSale.objects.create(
+                store_id=store_id,
+                customer_id=data['customer_id'],
+                total_amount=Decimal(str(data['total_amount'])),
+                paid_status=data['paid_status'],
+                payment_mode=data['payment_mode']
+            )
+            
+            # Handle service items first
+            if 'service_items' in data and data['service_items']:
+                print("\nProcessing service items:", data['service_items'])
+                for item in data['service_items']:
+                    service_id = item['service_id']
+                    print(f"\nProcessing service item:")
+                    print(f"- Service ID: {service_id}")
+                    print(f"- Available services: {available_service_ids}")
+                    
+                    # Try to get the service using a more detailed query
+                    store_service = StoreService.objects.filter(
+                        store_id=store_id,
+                        service__id=service_id
+                    ).select_related('service').first()
+                    
+                    if not store_service:
+                        # Debug: Show all available services in this store
+                        available_services = list(StoreService.objects.filter(
+                            store_id=store_id
+                        ).values('id', 'service__id', 'service__name'))
+                        
+                        print(f"\nAvailable services in store {store_id}:")
+                        for svc in available_services:
+                            print(f"StoreService ID: {svc['id']}, "
+                                f"Service ID: {svc['service__id']}, "
+                                f"Name: {svc['service__name']}")
+                        
+                        raise ValueError(
+                            f"Service {service_id} not found in store {store_id}. "
+                            f"Available services: {[s['service__id'] for s in available_services]}"
+                        )
+                    
+                    print(f"Found store service: {store_service.service.name}")
+                    
+                    # Create the service sale item
+                    service_item = ServiceSaleItem.objects.create(
+                        sale=sale,
+                        service=store_service,
+                        quantity=int(item['quantity']),
+                        total_price=Decimal(str(item['total_price']))
+                    )
+                    
+                    # Add staff if provided
+                    if item.get('staff_ids'):
+                        staff_ids = [int(sid) for sid in item['staff_ids']]
+                        service_item.staff.add(*staff_ids)
+                        print(f"Added staff IDs: {staff_ids} to service item")
+            
+            # Create product sale items
+            for item in data['product_items']:
+                try:
+                    # Get the store inventory instance
+                    store_inventory = StoreInventory.objects.get(
+                        store_id=store_id,
+                        product_id=item['product_id']
+                    )
+                    
+                    # Check if enough stock is available
+                    if store_inventory.quantity < item['quantity']:
+                        raise ValueError(f"Insufficient stock for product {store_inventory.product.product_name}")
+                    
+                    ProductSaleItem.objects.create(
+                        sale=sale,
+                        product=store_inventory,  # Use the store_inventory instance
+                        quantity=item['quantity'],
+                        price_group_id=item.get('price_group_id'),
+                        total_price=Decimal(str(item['total_price']))
+                    )
+                except StoreInventory.DoesNotExist:
+                    raise ValueError(f"Product with ID {item['product_id']} not found in store {store_id}")
+            
+            
+            
+            # Create accessory sale items
+            if 'accessory_items' in data and data['accessory_items']:
+                for item in data['accessory_items']:
+                    try:
+                        print(f"Processing accessory item: {item}")  # Debug log
+                        
+                        store_accessory = StoreAccessoryInventory.objects.get(
+                            store_id=store_id,
+                            accessory_id=item['accessory_id']
+                        )
+                        
+                        if store_accessory.quantity < item['quantity']:
+                            raise ValueError(f"Insufficient stock for accessory {store_accessory.accessory.name}")
+                        
+                        # Ensure proper decimal conversion
+                        try:
+                            price = Decimal(str(item['price']))
+                            total_price = Decimal(str(item['total_price']))
+                        except (decimal.InvalidOperation, decimal.ConversionSyntax) as e:
+                            print(f"Price conversion error: {e}")  # Debug log
+                            print(f"Price value: {item['price']}")  # Debug log
+                            print(f"Total price value: {item['total_price']}")  # Debug log
+                            raise ValueError(f"Invalid price format for accessory {store_accessory.accessory.name}")
+                        
+                        AccessorySaleItem.objects.create(
+                            sale=sale,
+                            accessory=store_accessory,
+                            quantity=int(item['quantity']),
+                            price=price,
+                            total_price=total_price
+                        )
+                        print(f"Created accessory sale item for: {store_accessory.accessory.name}")  # Debug log
+                        
+                    except StoreAccessoryInventory.DoesNotExist:
+                        raise ValueError(f"Accessory with ID {item['accessory_id']} not found in store {store_id}")
+                    except Exception as e:
+                        print(f"Error processing accessory: {str(e)}")  # Debug log
+                        raise
+            
+            # Calculate the total
+            sale.calculate_total()
+            
+            return JsonResponse({
+                'success': True,
+                'sale_id': sale.id,
+                'sale_number': sale.service_sale_number,
+                'redirect_url': reverse('service_sale_details', args=[sale.id])
+            })
+            
+    except Exception as e:
+        print(f"Error creating sale: {str(e)}")  # Debug log
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+@login_required
+def sale_details(request, sale_id):
+    sale = get_object_or_404(ServiceSale, id=sale_id)
+    return render(request, 'saloon_order_details.html', {'sale': sale})
+        
 @login_required
 def create_service_sale(request):
     user_groups = request.user.groups.all()
