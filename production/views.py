@@ -2,13 +2,13 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import decimal
-from io import StringIO
+from io import StringIO, TextIOWrapper
 from uuid import uuid4
 import os
-from django.db import models
+from django.db import IntegrityError, models
 from django.views.decorators.http import require_http_methods
 from urllib import error
-from django.db.models import Sum, F, Q, Case, When, Count
+from django.db.models import Sum, F, Q, Case, When, Count, Value, CharField
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import user_passes_test
@@ -21,7 +21,7 @@ from django.templatetags.static import static
 import logging
 from POSMagicApp.decorators import unauthenticated_user, allowed_users
 
-from itertools import product
+from itertools import chain, product
 from django.db.models.functions import Coalesce, TruncDate
 import json
 from django import forms
@@ -39,8 +39,8 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -758,6 +758,178 @@ def handle_csv_upload(csv_file, price_group):
 
     except Exception as e:
         raise ValueError(f"Error processing CSV: {str(e)}")
+    
+# Create Services
+@login_required
+def create_service(request):
+    if request.method == 'POST':
+        form = ServiceNameForm(request.POST)
+        if form.is_valid():
+            service = form.save()
+            messages.success(request, f'Service "{service.name}" created successfully!')
+            return redirect('service_list')
+    else:
+        form = ServiceNameForm()
+    
+    context = {
+        'form': form,
+        'title': 'Create New Service',
+        'button_text': 'Create Service'
+    }
+            
+    return render(request, 'services/service_form.html', context)
+
+@login_required
+def upload_store_services(request):
+    if request.method == 'POST':
+        csv_file = request.FILES.get('csv_file')
+        if not csv_file:
+            messages.error(request, 'Please upload a CSV file')
+            return redirect('upload_store_services')
+
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'File must be a CSV')
+            return redirect('upload_store_services')
+
+        # Process CSV file
+        try:
+            decoded_file = TextIOWrapper(csv_file.file, encoding='utf-8-sig')
+            reader = csv.DictReader(decoded_file)
+            
+            success_count = 0
+            error_rows = []
+            
+            with transaction.atomic():
+                for row_number, row in enumerate(reader, start=2):  # Start at 2 to account for header row
+                    try:
+                        # Get or create service
+                        service, created = ServiceName.objects.get_or_create(
+                            name=row['service_name'],
+                            defaults={'price': float(row['price'])}
+                        )
+                        
+                        # If service exists but price is different, update it
+                        if not created and service.price != float(row['price']):
+                            service.price = float(row['price'])
+                            service.save()
+
+                        # Get store
+                        try:
+                            store = Store.objects.get(name=row['store_name'])
+                        except Store.DoesNotExist:
+                            error_rows.append(f"Row {row_number}: Store '{row['store_name']}' not found")
+                            continue
+
+                        # Create store service
+                        store_service, created = StoreService.objects.get_or_create(
+                            store=store,
+                            service=service,
+                            defaults={'commission_rate': float(row['commission_rate'])}
+                        )
+
+                        # If store service exists but commission rate is different, update it
+                        if not created and store_service.commission_rate != float(row['commission_rate']):
+                            store_service.commission_rate = float(row['commission_rate'])
+                            store_service.save()
+
+                        success_count += 1
+
+                    except Exception as e:
+                        error_rows.append(f"Row {row_number}: {str(e)}")
+
+            if error_rows:
+                messages.warning(request, f"Processed with {len(error_rows)} errors. {success_count} services were created/updated successfully.")
+                for error in error_rows:
+                    messages.error(request, error)
+            else:
+                messages.success(request, f"Successfully processed {success_count} services")
+
+        except Exception as e:
+            messages.error(request, f"Error processing CSV file: {str(e)}")
+            
+    return render(request, 'services/bulk_service_upload.html')
+
+@login_required
+def download_service_template(request):
+    # Create the HttpResponse object with CSV header
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="store_services_template.csv"'
+
+    # Create the CSV writer
+    writer = csv.writer(response)
+    
+    # Write the header row
+    writer.writerow(['store_name', 'service_name', 'price', 'commission_rate'])
+    
+    # Write a sample row
+    writer.writerow(['Store Name', 'Hair Cut', '2000', '0.10'])
+
+    return response
+
+@login_required
+def service_list(request):
+    services = ServiceName.objects.all().order_by('name')
+    return render(request, 'services/service_list.html', {'services': services})
+
+@login_required
+def assign_service_to_store(request):
+    if request.method == 'POST':
+        form = StoreServiceForm(request.POST)
+        if form.is_valid():
+            store_service = form.save()
+            messages.success(request, f'Service "{store_service.service.name}" assigned to {store_service.store.name} successfully!')
+            return redirect('store_service_list_detail')  # Fixed the redirect
+    else:
+        form = StoreServiceForm()
+    
+    context = {
+        'form': form,
+        'title': 'Assign Service to Store',
+        'button_text': 'Assign Service'
+    }
+    return render(request, 'services/assign_service.html', context)
+
+@login_required
+def store_service_list_detail(request):
+    store_services = StoreService.objects.all().select_related('store', 'service')
+    return render(request, 'services/store_service_list_detail.html', {
+        'store_services': store_services
+    })
+
+@login_required
+def edit_store_service(request, pk):
+    service = get_object_or_404(ServiceName, pk=pk)
+    if request.method == 'POST':
+        form = ServiceNameForm(request.POST, instance=service)
+        if form.is_valid():
+            service = form.save()
+            messages.success(request, f'Service "{service.name}" updated successfully!')
+            return redirect('service_list')
+    else:
+        form = ServiceNameForm(instance=service)
+    
+    context = {
+        'form': form,
+        'title': f'Edit Service: {service.name}',
+        'button_text': 'Update Service'
+    }
+    
+    return render(request, 'services/service_form.html', context)
+
+@login_required
+def delete_service(request, pk):
+    service = get_object_or_404(ServiceName, pk=pk)
+    if request.method == 'POST':
+        service_name = service.name
+        service.delete()
+        messages.success(request, f'Service "{service_name}" deleted successfully!')
+        return redirect('service_list')
+    
+    context = {
+        'service': service,
+        'title': 'Delete Service'
+    }
+    return render(request, 'services/service_confirm_delete.html', context)
 
 
 @login_required(login_url='/login/')
@@ -2721,23 +2893,39 @@ def error_page(request):
 #POS of service sale
 def saloon_sale(request):
     current_store = Store.objects.get(manager=request.user)
-    
+    search_query = request.GET.get('search', '')
     # Customer Details
     customers = Customer.objects.all()
-    # Get store-specific services and products
+    # Get store-specific services and products with search filter
     store_services = StoreService.objects.filter(
         store=current_store,
         
     ).select_related('service')
+    
+    if search_query:
+        store_services = store_services.filter(
+            Q(service__name__icontains=search_query) |
+            Q(service__price__icontains=search_query)
+        )
 
     store_products = StoreInventory.objects.filter(
         store=current_store,
         quantity__gt=0  # Only show products with stock
     ).select_related('product')
     
+    if search_query:
+        store_products = store_products.filter(
+            Q(product__product_name__icontains=search_query)
+        )
+    
     store_accessories = StoreAccessoryInventory.objects.filter(
         store=current_store,
     ).select_related('accessory')
+    
+    if search_query:
+        store_accessories = store_accessories.filter(
+            Q(accessory__name__icontains=search_query)
+        )
     
     # Get available staff for services
     available_staff = Staff.objects.filter(
@@ -2753,7 +2941,8 @@ def saloon_sale(request):
         'current_store': current_store,
         'appHeaderHide':1,
         'appContentFullHeight':1,
-        'appContentClass':"p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3"
+        'appContentClass':"p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+        'search_query': search_query,
     }
 
     return render(request, 'create_saloon_order.html', context)
@@ -2767,34 +2956,31 @@ def get_product_price_groups(request, product_id):
         product = Production.objects.get(id=product_id)
         
         # Get all price groups
-        price_groups = PriceGroup.objects.all()
-        
-        # Get all prices for this product
-        product_prices = ProductPrice.objects.filter(
-            product=product
-        ).select_related('price_group')
+        retail_price = ProductPrice.objects.filter(
+            product=product,
+            price_group__name__iexact='retail price'  # Assuming your retail price group is named "Retail"
+        ).select_related('price_group').first()
         
         
-        price_map = {pp.price_group_id: pp.price for pp in product_prices}
-        
-        # Debug print
-        print(f"Found {product_prices.count()} price groups for product")
-        
-        price_groups_data = []
-        for pp in product_prices:
-            price_groups_data.append({
-                'id': pp.price_group.id,
-                'name': pp.price_group.name,
-                'description': pp.price_group.description,
-                'is_active': pp.price_group.is_active,
-                'price': str(pp.price)
+        if retail_price:
+            price_groups_data = [{
+                'id': retail_price.price_group.id,
+                'name': retail_price.price_group.name,
+                'description': retail_price.price_group.description,
+                'is_active': retail_price.price_group.is_active,
+                'price': str(retail_price.price)
+            }]
+            
+            return JsonResponse({
+                'success': True,
+                'product_name': product.product_name,
+                'price_groups': price_groups_data
             })
-        
-        return JsonResponse({
-            'success': True,
-            'product_name': product.product_name,
-            'price_groups': price_groups_data
-        })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Retail price not found for this product'
+            }, status=404)
         
     except Production.DoesNotExist:
         return JsonResponse({
@@ -2807,6 +2993,21 @@ def get_product_price_groups(request, product_id):
             'success': False,
             'error': str(e)
         }, status=500)
+        
+        
+# Search for Staff       
+def search_staff(request):
+    search_term = request.GET.get('term', '')
+    if len(search_term) < 2:
+        return JsonResponse({'results': []})
+        
+    staff = Staff.objects.filter(
+        Q(first_name__icontains=search_term) |
+        Q(last_name__icontains=search_term)
+    )[:10]  # Limit to 10 results
+    
+    results = [{'id': s.id, 'text': f"{s.first_name} {s.last_name}"} for s in staff]
+    return JsonResponse({'results': results})
         
 @require_http_methods(["POST"])
 def new_create_service_sale(request):
@@ -2894,13 +3095,20 @@ def new_create_service_sale(request):
                     if store_inventory.quantity < item['quantity']:
                         raise ValueError(f"Insufficient stock for product {store_inventory.product.product_name}")
                     
-                    ProductSaleItem.objects.create(
+                    product_sale_item = ProductSaleItem.objects.create(
                         sale=sale,
                         product=store_inventory,  # Use the store_inventory instance
                         quantity=item['quantity'],
                         price_group_id=item.get('price_group_id'),
                         total_price=Decimal(str(item['total_price']))
                     )
+                    # Assign staff if provided
+                    if item.get('staff_id'):
+                        # product_sale_item = ProductSaleItem.objects.get(id=item['product_sale_item_id'])
+                        product_sale_item.staff_id = item['staff_id']
+                        product_sale_item.save()
+                        
+                        print(f"DEBUG: Assigned staff {item['staff_id']} to product {product_sale_item.id}")
                 except StoreInventory.DoesNotExist:
                     raise ValueError(f"Product with ID {item['product_id']} not found in store {store_id}")
             
@@ -3131,7 +3339,7 @@ def record_payment_view(request, sale_id):
                     
                     if previous_status != 'paid' and sale.paid_status == 'paid':
                         sale.create_service_commissions()
-                        
+                        sale.create_product_commissions()
                         messages.success(request, "Payment recorded and commissions calculated successfully.")
                     else:
                         messages.success(request, "Payment recorded successfully.")
@@ -3236,7 +3444,7 @@ def finance_store_sale_list(request):
     # Pass the store sales to the template
     return render(request,'finance_store_sale_list.html', {'sales': sales})
 
-#Staff Commissions
+#Staff Commissions for service and product sales
 @login_required
 def monthly_commission_list(request):
     """View to list all monthly commission compilations"""
@@ -3245,11 +3453,102 @@ def monthly_commission_list(request):
     month = request.GET.get('month')
     staff_id = request.GET.get('staff_id')
     
-    # Start with all commissions
-    commissions = StaffCommission.objects.select_related(
+    # Get service commissions
+    service_commissions = StaffCommission.objects.select_related(
         'staff',
         'service_sale_item__service__service',
         'service_sale_item__sale'
+    ).annotate(
+        commission_type=Value('service', CharField())
+    ).order_by('-created_at')
+    
+    # Get product commissions
+    product_commissions = StaffProductCommission.objects.select_related(
+        'staff',
+        'product_sale_item__product__product',
+        'product_sale_item__sale'
+    ).annotate(
+        commission_type=Value('product', CharField())
+    ).order_by('-created_at')
+    
+    # Apply filters if provided
+    if year and month:
+        service_commissions = service_commissions.filter(
+            created_at__year=year,
+            created_at__month=month
+        )
+        product_commissions = product_commissions.filter(
+            created_at__year=year,
+            created_at__month=month
+        )
+    
+    if staff_id:
+        service_commissions = service_commissions.filter(staff_id=staff_id)
+        product_commissions = product_commissions.filter(staff_id=staff_id)
+    
+    # Combine both querysets
+    all_commissions = list(chain(service_commissions, product_commissions))
+    all_commissions.sort(key=lambda x: x.created_at, reverse=True)
+    
+    # Get unique years and months for the filter dropdowns
+    service_dates = StaffCommission.objects.dates('created_at', 'month', order='DESC')
+    product_dates = StaffProductCommission.objects.dates('created_at', 'month', order='DESC')
+    all_dates = set(service_dates) | set(product_dates)
+    years = sorted(set(date.year for date in all_dates), reverse=True)
+    
+    # Get all staff for the filter dropdown
+    staff_members = Staff.objects.all().order_by('first_name')
+    
+    # Calculate totals for both commission types
+    service_totals = service_commissions.aggregate(
+        total_amount=Sum('commission_amount'),
+        total_unpaid=Sum('commission_amount', filter=models.Q(paid=False)),
+        total_paid=Sum('commission_amount', filter=models.Q(paid=True))
+    )
+    # Calculate totals for product commissions
+    product_totals = product_commissions.aggregate(
+        total_amount=Sum('commission_amount')
+    )
+    
+    # Initialize product paid/unpaid totals
+    product_totals['total_paid'] = product_commissions.filter(paid=True).aggregate(
+        total=Sum('commission_amount'))['total'] or 0
+    product_totals['total_unpaid'] = product_commissions.filter(paid=False).aggregate(
+        total=Sum('commission_amount'))['total'] or 0
+    
+    # Combine totals
+    totals = {
+        'total_amount': (service_totals['total_amount'] or 0) + (product_totals['total_amount'] or 0),
+        'total_unpaid': (service_totals['total_unpaid'] or 0) + (product_totals['total_unpaid'] or 0),
+        'total_paid': (service_totals['total_paid'] or 0) + (product_totals['total_paid'] or 0),
+    }
+    
+    context = {
+        'commissions': all_commissions,
+        'years': years,
+        'months': range(1, 13),  # 1 to 12
+        'staff_members': staff_members,
+        'selected_year': year,
+        'selected_month': month,
+        'selected_staff': staff_id,
+        'totals': totals,
+        'current_year': timezone.now().year,
+        'current_month': timezone.now().month,
+    }
+    return render(request, 'monthly_commission_list.html', context)
+
+def product_commission_list(request):
+    """View to list all product commission compilations"""
+    # Get filter parameters
+    year = request.GET.get('year')
+    month = request.GET.get('month')
+    staff_id = request.GET.get('staff_id')
+    
+    # Get product commissions with related data
+    commissions = StaffProductCommission.objects.select_related(
+        'staff',
+        'product_sale_item__product__product',
+        'product_sale_item__sale'
     ).order_by('-created_at')
     
     # Apply filters if provided
@@ -3262,7 +3561,7 @@ def monthly_commission_list(request):
         commissions = commissions.filter(staff_id=staff_id)
     
     # Get unique years and months for the filter dropdowns
-    available_dates = StaffCommission.objects.dates('created_at', 'month', order='DESC')
+    available_dates = StaffProductCommission.objects.dates('created_at', 'month', order='DESC')
     years = sorted(set(date.year for date in available_dates), reverse=True)
     
     # Get all staff for the filter dropdown
@@ -3278,7 +3577,7 @@ def monthly_commission_list(request):
     context = {
         'commissions': commissions,
         'years': years,
-        'months': range(1, 13),  # 1 to 12
+        'months': range(1, 13),
         'staff_members': staff_members,
         'selected_year': year,
         'selected_month': month,
@@ -3287,7 +3586,7 @@ def monthly_commission_list(request):
         'current_year': timezone.now().year,
         'current_month': timezone.now().month,
     }
-    return render(request, 'monthly_commission_list.html', context)
+    return render(request, 'product_commission_list.html', context)
 
 @login_required
 def staff_monthly_commission_detail(request, staff_id, year, month):

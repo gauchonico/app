@@ -6,15 +6,798 @@
 {% block title %}POS - Customer Order System{% endblock %}
 {% block css %}
 	<link href="/assets/plugins/select-picker/dist/picker.min.css" rel="stylesheet">
+	
+	<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+	<style>
+		.select2-container .select2-selection {
+			height: calc(1.5em + 0.75rem + 2px);
+			padding: 0.375rem 0.75rem;
+			font-size: 1rem;
+			color: rgb(24, 19, 18);
+			border: 1px solid rgb(15, 184, 85);
+		}
+		
+		.select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+			line-height: 1.5;
+			padding-left: 0;
+		}
+		
+		.select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
+			height: calc(1.5em + 0.75rem);
+		}
+		.select2-container--default .select2-search--inline .select2-search__field {
+			color: rgb(24, 19, 18);
+		}
+		.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+			background-color: rgb(15, 184, 85);
+			color: rgb(24, 19, 18);
+		}
+		.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+			background-color: rgb(15, 184, 85);
+			color: rgb(255, 255, 255);
+		}
+		.select2-container--default .select2-selection--multiple .select2-selection__choice {
+			background-color: rgb(15, 184, 85);
+			border: 1px solid #ffffff;
+		}
+		
+		.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+			color: rgb(9, 77, 37);
+			border-right: 1px solid rgb(6, 70, 33);
+
+		}
+		.item-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+			gap: 1.5rem;
+			padding: 1rem;
+		}
+	
+		.item-card {
+			background: rgba(255, 255, 255, 0.1);
+			backdrop-filter: blur(10px);
+			border-radius: 15px;
+			overflow: hidden;
+			transition: all 0.3s ease;
+			height: 100%;
+		}
+	
+		.item-card:hover {
+			transform: translateY(-5px);
+			box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+		}
+	
+		.item-content {
+			padding: 1.5rem;
+		}
+	
+		.item-title {
+			font-size: 0.8rem;
+			font-weight: 600;
+			margin-bottom: 0.5rem;
+			color: var(--bs-theme);
+		}
+	
+		.item-price {
+			font-size: 1.2rem;
+			font-weight: 700;
+			color: var(--bs-theme);
+		}
+	
+		.item-stock {
+			font-size: 0.9rem;
+			color: #6c757d;
+			margin-bottom: 1rem;
+		}
+	
+		.item-badge {
+			position: absolute;
+			top: 1rem;
+			right: 1rem;
+			padding: 0.1rem 1rem;
+			border-radius: 20px;
+			font-size: 0.5rem;
+			font-weight: 600;
+		}
+		.cart-section-header {
+			border-bottom: 1px solid rgba(255,255,255,0.1);
+			margin-bottom: 10px;
+		}
+		
+		.cart-section-header h6 {
+			color: var(--bs-theme);
+			font-weight: 600;
+		}
+		
+		.pos-order {
+			margin-bottom: 8px;
+		}
+	
+		.badge-service {
+			background-color: rgba(var(--bs-theme-rgb), 0.1);
+			color: var(--bs-theme);
+		}
+	
+		.badge-product {
+			background-color: rgba(var(--bs-info-rgb), 0.1);
+			color: var(--bs-info);
+		}
+	
+		.badge-accessory {
+			background-color: rgba(var(--bs-warning-rgb), 0.1);
+			color: var(--bs-warning);
+		}
+	
+		.empty-state {
+			text-align: center;
+			padding: 3rem;
+			color: #6c757d;
+		}
+	
+		.empty-state i {
+			font-size: 3rem;
+			margin-bottom: 1rem;
+		}
+		
+		.text-danger i {
+			margin-right: 0.5rem;
+		}
+		
+		#selectedPrice .text-danger {
+			font-size: 0.9rem;
+			margin-bottom: 0.5rem;
+		}
+		
+		#selectedPrice .text-muted {
+			font-size: 0.8rem;
+		}
+		
+		#addPriceLink {
+			margin-top: 1rem;
+		}
+	</style>
 {% endblock %}
 {% block js %}
+	<script>
+		// Cart management
+		let cart = {
+			customer: null,
+			items: [],
+			totals: {
+				subtotal: 0,
+				total: 0
+			}
+		};
+
+		function addServiceToCart() {
+			const staffSelect = document.getElementById('serviceStaff');
+			const selectedStaff = Array.from(staffSelect.selectedOptions).map(option => ({
+				id: option.value,
+				name: option.text
+			}));
+			
+			if (selectedStaff.length === 0) {
+				alert('Please select at least one staff member');
+				return;
+			}
+			
+			
+			const serviceItem = {
+				type: 'service',
+				id: parseInt(selectedService.id),
+				name: selectedService.name,
+				quantity: 1,
+				price: parseFloat(selectedService.price),
+				total: parseFloat(selectedService.price),
+				selected_staff: selectedStaff.map(staff => staff.id)  // Just keep the IDs
+			};
+			
+			cart.items.push(serviceItem);
+			updateCartDisplay();
+			calculateTotals();
+			
+			bootstrap.Modal.getInstance(document.getElementById('serviceModal')).hide();
+		}
+
+		// add product to cart
+		function addProductToCart() {
+			
+			const staffSelect = document.getElementById('productStaff');
+			const selectedStaff = staffSelect.value ? {
+				id: staffSelect.value,
+				name: staffSelect.options[staffSelect.selectedIndex].text
+			} : null;
+		
+			// Ensure we have a valid price
+			if (!selectedProduct.price || isNaN(selectedProduct.price)) {
+				alert('Invalid price for this product');
+				return;
+			}
+		
+			
+			const quantity = parseInt(document.getElementById('productQuantity').value) || 1;
+			const unitPrice = parseFloat(selectedProduct.price);
+    		const total = quantity * unitPrice;
+
+			// Validate the calculations
+			if (isNaN(total)) {
+				alert('Error calculating total price');
+				return;
+			}
+			
+			const productItem = {
+				type: 'product',
+				id: selectedProduct.id,
+				name: selectedProduct.name,
+				quantity: quantity,
+				unit_price: unitPrice,
+				total: total,
+				staff: selectedStaff
+			};
+			
+			console.log('Adding product to cart:', productItem);
+			
+			cart.items.push(productItem);
+			updateCartDisplay();
+			calculateTotals();
+			
+			bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
+		}
+
+		//add accessories to cart
+		function addAccessoryToCart() {
+			const quantity = parseInt(document.getElementById('accessoryQuantity').value);
+			const unitPrice = parseFloat(selectedAccessory.price);
+			
+			const accessoryItem = {
+				type: 'accessory',
+				id: parseInt(selectedAccessory.id),
+				name: selectedAccessory.name,
+				quantity: quantity,
+				unit_price: unitPrice,
+				total: unitPrice * quantity
+			};
+			
+			console.log('Adding accessory to cart:', accessoryItem);
+			
+			cart.items.push(accessoryItem);
+			updateCartDisplay();
+			
+			
+			bootstrap.Modal.getInstance(document.getElementById('accessoryModal')).hide();
+		}
+
+		// show service model
+		function showServiceModal(serviceId, serviceName, servicePrice) {
+			console.log('Opening service modal:', serviceId);
+			selectedService = {
+				id: serviceId,
+				name: serviceName,
+				price: parseFloat(servicePrice)
+			};
+			
+			// Update modal content
+			document.getElementById('serviceName').textContent = serviceName;
+			
+			// Show the modal using Bootstrap
+			const modal = new bootstrap.Modal(document.getElementById('serviceModal'));
+			modal.show();
+		}
+
+		// Update the product modal display
+		function showProductModal(productId, productName, stock) {
+			// Store product details
+			selectedProduct = {
+				id: productId,
+				name: productName,
+				price: null,
+				stock: parseInt(stock) || 0
+			};
+			
+			// Update modal title
+			document.getElementById('productName').textContent = productName;
+			document.getElementById('productQuantity').value = 1;
+			document.getElementById('productQuantity').max = stock;
+			document.getElementById('selectedPrice').textContent = 'Loading price...';
+
+			const url = `/production/get_product_price_groups/${productId}/`;
+
+			// Fetch retail price
+			fetch(url)
+				.then(response => {
+					if (!response.ok) {
+						throw new Error(`HTTP error! status: ${response.status}`);
+					}
+					return response.json();
+				})
+				.then(data => {
+					console.log('Received price data:', data); // Debug log
+            
+					if (data.success && data.price_groups && data.price_groups.length > 0) {
+						const retailPrice = parseFloat(data.price_groups[0].price);
+						
+						if (isNaN(retailPrice)) {
+							throw new Error('Invalid price received from server');
+						}
+						
+						selectedProduct.price = retailPrice;
+						document.getElementById('selectedPrice').textContent = 
+							`UGX ${retailPrice.toLocaleString()}`;
+						document.getElementById('priceGroup').value = data.price_groups[0].id;
+						document.querySelector('#productModal .btn-theme').disabled = false;
+					} else {
+						// Show message and disable Add Product button when no retail price is found
+						document.getElementById('selectedPrice').innerHTML = `
+							<div class="text-danger">
+								<i class="bi bi-exclamation-triangle"></i> No retail price set
+							</div>
+							<small class="text-muted">Please add a retail price for this product first</small>
+						`;
+						// Disable the Add Product button
+						document.querySelector('#productModal .btn-theme').disabled = true;
+					}
+				})
+				.catch(error => {
+					console.error('Error fetching price:', error);
+					document.getElementById('selectedPrice').innerHTML = `
+						<div class="text-danger">
+							<i class="bi bi-exclamation-triangle"></i> Error loading price
+						</div>
+						<small class="text-muted">Please ensure a retail price is set for this product</small>
+					`;
+					// Disable the Add Product button
+					document.querySelector('#productModal .btn-theme').disabled = true;
+				});
+
+			// Show the modal
+			const modal = new bootstrap.Modal(document.getElementById('productModal'));
+			modal.show();
+		}
+
+		// Function to update the displayed price when price group changes
+		function updateProductPrice() {
+			const priceGroupSelect = document.getElementById('priceGroup');
+			const selectedOption = priceGroupSelect.selectedOptions[0];
+			const priceDisplay = document.getElementById('selectedPrice');
+			
+			if (selectedOption && selectedOption.dataset.price) {
+				const price = parseFloat(selectedOption.dataset.price);
+				const formattedPrice = price.toLocaleString('en-US', {
+					style: 'currency',
+					currency: 'UGX',
+					minimumFractionDigits: 0,
+					maximumFractionDigits: 0
+				});
+				priceDisplay.textContent = formattedPrice;
+			} else {
+				priceDisplay.textContent = 'Please select a price group';
+			}
+		}
+	
+
+
+
+		// Update the modal HTML to pass the modal ID
+
+		function showAccessoryModal(accessoryId, name, price, stock) {
+			console.log('Opening accessory modal:', accessoryId);
+			selectedAccessory = {
+				id: accessoryId,
+				name: name,
+				price: parseFloat(price),
+				stock: parseInt(stock)
+			};
+			
+			document.getElementById('accessoryName').textContent = name;
+			document.getElementById('accessoryQuantity').value = 1;
+			document.getElementById('accessoryQuantity').max = stock;
+			
+			const modal = new bootstrap.Modal(document.getElementById('accessoryModal'));
+			modal.show();
+		}
+
+		// Add new customer model 
+		function showNewCustomerModal() {
+			const modal = new bootstrap.Modal(document.getElementById('newCustomerModal'));
+			modal.show();
+		}
+
+		// Add event listener for new customer form submission
+		document.addEventListener('DOMContentLoaded', function() {
+			document.getElementById('newCustomerForm').addEventListener('submit', function(e) {
+				e.preventDefault();
+				
+				const formData = new FormData(this);
+				
+				fetch('/api/customers/create/', {
+					method: 'POST',
+					headers: {
+						'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+					},
+					body: formData
+				})
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						// Add new customer to select dropdown
+						const select = document.getElementById('customerSelect');
+						const option = new Option(
+							`${data.customer.first_name} ${data.customer.last_name}`,
+							data.customer.id
+						);
+						select.add(option);
+						select.value = data.customer.id;
+						
+						// Close modal and reset form
+						bootstrap.Modal.getInstance(document.getElementById('newCustomerModal')).hide();
+						this.reset();
+					} else {
+						alert(data.message || 'Error creating customer');
+					}
+				})
+				.catch(error => {
+					console.error('Error:', error);
+					alert('Error creating customer');
+				});
+			});
+		});
+
+		// Product quantity handlers
+		function incrementQuantity(modalId) {
+			const input = document.getElementById(`${modalId}Quantity`);
+			const max = parseInt(input.max) || Infinity;
+			const currentValue = parseInt(input.value);
+			if (currentValue < max) {
+				input.value = currentValue + 1;
+			}
+		}
+
+		function decrementQuantity(modalId) {
+			const input = document.getElementById(`${modalId}Quantity`);
+			const currentValue = parseInt(input.value);
+			if (currentValue > 1) {
+				input.value = currentValue - 1;
+			}
+		}
+
+		// Cart Display and Management Functions
+		function updateCartDisplay() {
+			const cartContainer = document.getElementById('cartItems');
+			if (!cartContainer) {
+				console.error('Cart container not found');
+				return;
+			}
+			
+			console.log('Updating cart with items:', cart.items);
+			cartContainer.innerHTML = '';
+			
+			// Group items by type for organized display
+			const groupedItems = {
+				services: cart.items.filter(item => item.type === 'service'),
+				products: cart.items.filter(item => item.type === 'product'),
+				accessories: cart.items.filter(item => item.type === 'accessory')
+			};
+
+			// Display Services
+			if (groupedItems.services.length > 0) {
+				appendCartHeader(cartContainer, 'Services');
+				groupedItems.services.forEach((item, index) => {
+					appendCartItem(cartContainer, item, index);
+				});
+			}
+
+			// Display Products
+			if (groupedItems.products.length > 0) {
+				appendCartHeader(cartContainer, 'Products');
+				groupedItems.products.forEach((item, index) => {
+					appendCartItem(cartContainer, item, index);
+				});
+			}
+
+			// Display Accessories
+			if (groupedItems.accessories.length > 0) {
+				appendCartHeader(cartContainer, 'Accessories');
+				groupedItems.accessories.forEach((item, index) => {
+					appendCartItem(cartContainer, item, index);
+				});
+			}
+		}
+
+		function appendCartHeader(container, title) {
+			const header = document.createElement('div');
+			header.className = 'cart-section-header';
+			header.innerHTML = `<h6 class="mb-2 mt-3">${title}</h6>`;
+			container.appendChild(header);
+		}
+
+		function appendCartItem(container, item, index) {
+			const itemElement = document.createElement('div');
+			itemElement.className = 'pos-order';
+			
+			let staffHtml = '';
+			if (item.type === 'service' && item.selected_staff) {
+				staffHtml = `
+					<div class="small">
+						Staff: ${item.selected_staff.map(s => s.name).join(', ')}
+					</div>
+				`;
+			} else if (item.type === 'product' && item.staff) {
+				staffHtml = `
+					<div class="small">
+						Commission Staff: ${item.staff.name}
+					</div>
+				`;
+			}
+
+			let quantityHtml = item.type !== 'service' ? 
+				`<div class="small">Quantity: ${item.quantity} x UGX ${item.unit_price.toLocaleString()}</div>` : '';
+
+			itemElement.innerHTML = `
+				<div class="pos-order-product">
+					<div class="flex-1">
+						<div class="h6 mb-1">${item.name}</div>
+						${quantityHtml}
+						${staffHtml}
+					</div>
+					<div class="pos-order-price">
+						UGX ${item.total.toLocaleString()}
+					</div>
+					<button class="btn btn-sm btn-danger ms-2" onclick="removeFromCart(${index})">
+						<i class="bi bi-trash"></i>
+					</button>
+				</div>
+			`;
+			
+			container.appendChild(itemElement);
+		}
+
+		function removeFromCart(index) {
+			cart.items.splice(index, 1);
+			updateCartDisplay();
+			calculateTotals();
+		}
+
+		function calculateTotals() {
+			cart.totals.subtotal = cart.items.reduce((sum, item) => {
+				// Skip accessories in total calculation
+				if (item.type === 'accessory') {
+					return sum;
+				}
+				
+				const itemTotal = parseFloat(item.total) || 0;
+				return sum + itemTotal;
+			}, 0);
+			
+			cart.totals.total = cart.totals.subtotal;
+			
+			// Format the totals with proper number handling
+			const formattedSubtotal = cart.totals.subtotal.toLocaleString();
+			const formattedTotal = cart.totals.total.toLocaleString();
+			
+			document.getElementById('subtotal').textContent = `UGX ${formattedSubtotal}`;
+			document.getElementById('total').textContent = `UGX ${formattedTotal}`;
+		
+			return cart.totals.total;
+		}
+
+		function clearCart() {
+			cart.items = [];
+			updateCartDisplay();
+			calculateTotals();
+		}
+
+		// Helper function to get CSRF token
+		function getCookie(name) {
+			let cookieValue = null;
+			if (document.cookie && document.cookie !== '') {
+				const cookies = document.cookie.split(';');
+				for (let i = 0; i < cookies.length; i++) {
+					const cookie = cookies[i].trim();
+					if (cookie.substring(0, name.length + 1) === (name + '=')) {
+						cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+						break;
+					}
+				}
+			}
+			return cookieValue;
+		}
+		function submitSale() {
+			// Get required data
+			const customerId = document.getElementById('customerSelect').value;
+			const storeId = document.getElementById('storeId').value; // Add this hidden input to your template
+			console.log('Store ID:', storeId);  // Debug log
+			// Debug log for cart items
+			console.log('Full cart contents:', cart.items);
+			
+			if (!customerId) {
+				alert('Please select a customer');
+				return;
+			}
+
+			if (!storeId || storeId === '') {
+				alert('Store ID is missing. Please contact your administrator.');
+				return;
+			}
+
+			if (!cart.items || cart.items.length === 0) {
+				alert('Cart is empty');
+				return;
+			}
+			// Get the total amount from calculateTotals
+			const totalAmount = calculateTotals();
+
+			// Separate items by type
+			const productItems = [];
+			const serviceItems = [];
+			const accessoryItems = [];
+			const url = `/production/new_create_service_sale/`;
+
+			// Filter and validate items before mapping
+			const saleData = {
+				customer_id: parseInt(customerId),  // Convert to integer
+				store_id: parseInt(storeId),       // Convert to integer
+				product_items: cart.items
+					.filter(item => item.type === 'product')
+					.map(item => ({
+						product_id: parseInt(item.id),
+						quantity: parseInt(item.quantity),
+						price_group_id: item.price_group_id ? parseInt(item.price_group_id) : null,
+						total_price: parseFloat(item.total),
+						staff_id: item.staff ? parseInt(item.staff.id) : null  // Add staff ID here
+					})),
+				service_items: cart.items
+					.filter(item => item.type === 'service')
+					.map(item => ({
+						service_id: parseInt(item.id),
+						quantity: parseInt(item.quantity),
+						staff_ids: item.selected_staff,
+						total_price: parseFloat(item.total)
+					})),
+				accessory_items: cart.items
+					.filter(item => item.type === 'accessory')
+					.map(item => ({
+						accessory_id: parseInt(item.id),
+						quantity: parseInt(item.quantity),
+						price: parseFloat(item.unit_price).toFixed(2),
+						total_price: parseFloat(item.total).toFixed(2) 
+					})),
+				total_amount: totalAmount.toFixed(2),
+				paid_status: 'not_paid',
+				payment_mode: 'cash'
+			};
+
+			console.log('Submitting sale data:', saleData);  // Debug log
+
+
+
+			// Submit the sale
+			fetch(url, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRFToken': getCookie('csrftoken')
+				},
+				body: JSON.stringify(saleData)
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					alert('Sale created successfully!');
+					// Clear the cart
+					cart.items = [];
+					updateCartDisplay();
+					// Redirect to the sale detail page
+					window.location.href = data.redirect_url;
+				} else {
+					alert('Error creating sale: ' + data.error);
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				alert('Error creating sale. Please try again.');
+			});
+		}
+	</script>
+	<script>
+		document.addEventListener('DOMContentLoaded', function() {
+			const searchInput = document.getElementById('globalSearch');
+			if (!searchInput) {
+				console.error('Search input not found');
+				return;
+			}
+			
+			searchInput.addEventListener('keyup', debounce(function() {
+				try {
+					const searchText = (this.value || '').toLowerCase();
+					console.log('Searching for:', searchText);
+					
+					// Get all item containers
+					const allItems = document.querySelectorAll('.col-xxl-3');
+					console.log('Found items:', allItems.length);
+					
+					allItems.forEach(itemContainer => {
+						try {
+							// Find the info section within the item
+							const info = itemContainer.querySelector('.info');
+							if (!info) {
+								console.log('No info section found for item');
+								return;
+							}
+							
+							// Get text content safely
+							const title = info.querySelector('.title')?.textContent || '';
+							const desc = info.querySelector('.desc')?.textContent || '';
+							const price = info.querySelector('.price')?.textContent || '';
+							
+							// Convert to lowercase for comparison
+							const titleLower = title.toLowerCase();
+							const descLower = desc.toLowerCase();
+							const priceLower = price.toLowerCase();
+							
+							// Check if any text matches the search
+							const matches = searchText === '' || 
+										  titleLower.includes(searchText) || 
+										  descLower.includes(searchText) || 
+										  priceLower.includes(searchText);
+							
+							// Show/hide the item
+							itemContainer.style.display = matches ? '' : 'none';
+							
+							console.log(`Item "${title}": ${matches ? 'shown' : 'hidden'}`);
+						} catch (itemError) {
+							console.error('Error processing item:', itemError);
+						}
+					});
+				} catch (error) {
+					console.error('Search error:', error);
+				}
+			}, 300));
+		});
+		
+		// Debounce function
+		function debounce(func, wait) {
+			let timeout;
+			return function executedFunction(...args) {
+				const later = () => {
+					clearTimeout(timeout);
+					func(...args);
+				};
+				clearTimeout(timeout);
+				timeout = setTimeout(later, wait);
+			};
+		}
+		
+		// Handle tab switching
+		document.querySelectorAll('.nav-link').forEach(tab => {
+			tab.addEventListener('click', function(e) {
+				e.preventDefault();
+				
+				// Get the type of items to show
+				const filterType = this.getAttribute('data-filter');
+				
+				// Update active tab
+				document.querySelectorAll('.nav-link').forEach(t => {
+					t.classList.remove('active');
+				});
+				this.classList.add('active');
+				
+				// Show/hide items based on type
+				document.querySelectorAll('.col-xxl-3').forEach(item => {
+					const itemType = item.getAttribute('data-type');
+					item.style.display = (itemType === filterType) ? '' : 'none';
+				});
+			});
+		});
+	</script>
 	<script>
 		// Define the base URL using Django's template tag
 		const PRICE_GROUPS_URL = "{% url 'get_product_price_groups' '0' %}".replace('0', '').replace('//', '/');
 	</script>
 	<script src="{% static 'js/demo/pos-customer-order.demo.js' %}"></script>
 	<script src="/assets/plugins/select-picker/dist/picker.min.js"></script>
-{% endblock %}
+	<!-- Add before closing body tag, after jQuery -->
+	<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock js %}
 
 {% block content %}
 	<!-- Add hidden store ID -->
@@ -28,7 +811,7 @@
 				<!-- BEGIN logo -->
 				<div class="logo">
 					<a href="{% url 'DjangoHUDApp:index' %}">
-						<div class="logo-img"><i class="bi bi-x-diamond" style="font-size: 2.1rem;"></i></div>
+						<div class="logo-img"><i class="bi bi-pc-display" style="font-size: 2.1rem;"></i></div>
 						<div class="logo-text">Dashboard</div>
 					</a>
 				</div>
@@ -96,11 +879,44 @@
 <div class="pos-content">
     <div class="pos-content-container h-100 p-4" data-scrollbar="true" data-height="100%">
         <div class="row gx-4">
+			<div class="row mb-3">
+				<div class="col-8">
+					<div class="search-container">
+						<form method="GET" class="search-container">
+							<div class="input-group">
+								<span class="input-group-text">
+									<i class="bi bi-search"></i>
+								</span>
+								<input type="text" 
+									   class="form-control search-input" 
+									   name="search"
+									   id="globalSearch" 
+									   value="{{ search_query }}"
+									   placeholder="Search for services, products, or accessories..."
+									   autocomplete="off">
+								<button type="submit" class="btn btn-outline-theme">Search</button>
+								{% if search_query %}
+									<a href="{% url 'saloon_sale' %}" class="btn btn-outline-secondary">Clear</a>
+								{% endif %}
+							</div>
+						</form>
+					</div>
+				</div>
+			</div>
+			{% if not store_services and not store_products and not store_accessories %}
+				<div class="empty-state">
+					<i class="bi bi-search"></i>
+					<h4>No items found</h4>
+					<p class="text-theme">Try adjusting your search terms or browse all items</p>
+				</div>
+			{% endif %}
             <!-- Services -->
+			
             {% for service in store_services %}
             <div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="services">
-                <div class="card h-100">
+                <div class="item-card h-100">
                     <div class="card-body h-100 p-1">
+						<span class="item-badge badge-service">%{{service.commission_rate}}</span>
                         <a href="#" class="pos-product service-item" onclick="showServiceModal(
                             '{{ service.service.id }}', 
                             '{{ service.service.name }}', 
@@ -109,47 +925,47 @@
                         ); return false;">
                             {% comment %} <div class="img" style="background-image: url({% if service.service.image %}{{ service.service.image.url }}{% else %}{% static 'img/pos/default-service.jpg' %}{% endif %})"></div> {% endcomment %}
                             <div class="info">
-                                <div class="title">{{ service.service.name }}</div>
-                                <div class="desc">{{ service.service.description|default:'' }}</div>
+                                <div class="item-title">{{ service.service.name }}</div>
+                               
                                 <div class="price">{{ service.service.price|floatformat|intcomma }}</div>
                             </div>
                         </a>
                     </div>
-                    <div class="card-arrow">
-                        <div class="card-arrow-top-left"></div>
-                        <div class="card-arrow-top-right"></div>
-                        <div class="card-arrow-bottom-left"></div>
-                        <div class="card-arrow-bottom-right"></div>
-                    </div>
+                    
                 </div>
             </div>
             {% endfor %}
 
             <!-- Products -->
+			 
+			
             {% for product in store_products %}
             <div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="products">
-                <div class="card h-100">
+                <div class="item-card h-100">
                     <div class="card-body h-100 p-1">
+						<span class="item-badge badge-product">%0.05</span>
                         <a href="#" class="pos-product product-item" onclick="showProductModal(
                             '{{ product.product.id }}', 
-                            '{{ product.product.product_name|escapejs }}', 
-                           	
-                            '{{ product.quantity }}'
+                            '{{ product.product.product_name|escapejs }}',
+							'{{ product.product.price_group|escapejs }}',
+							'{{ product.quantity}}', 
+                    
                         ); return false;">
-                            {% comment %} <div class="img" style="background-image: url({% if product.product.image %}{{ product.product.image.url }}{% else %}{% static 'img/pos/default-product.jpg' %}{% endif %})"></div> {% endcomment %}
                             <div class="info">
-                                <div class="title">{{ product.product.product_name }}</div>
-                                <div class="desc">Stock: {{ product.quantity }}</div>
+                                <div class="item-title">{{ product.product.product_name }}</div>
+                                <div class="">Stock: {{ product.quantity }}</div>
 								
+								<div class="price">
+									{% for price in product.product.prices.all %}
+										{% if price.price_group.name|lower == 'retail price' %}
+											{{ price.price|floatformat|intcomma }}
+										{% endif %}
+									{% endfor %}
+								</div>
                             </div>
                         </a>
                     </div>
-                    <div class="card-arrow">
-                        <div class="card-arrow-top-left"></div>
-                        <div class="card-arrow-top-right"></div>
-                        <div class="card-arrow-bottom-left"></div>
-                        <div class="card-arrow-bottom-right"></div>
-                    </div>
+                   
                 </div>
             </div>
             {% endfor %}
@@ -157,24 +973,23 @@
 			<!-- Accessories -->
 			{% for accessory in store_accessories %}
 			<div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="accessories">
-				<div class="card h-100">
+				<div class="item-card h-100">
 					<div class="card-body h-100 p-1">
+						<span class="item-badge badge-accessory">In Stock</span>
 						<a href="#" class="pos-product accessory-item" onclick="showAccessoryModal(
 							'{{ accessory.accessory.id }}', 
 							'{{ accessory.accessory.name }}',
-							'{{ accessory.accessory.price|floatformat|intcomma  }}',
+							'{{ accessory.accessory.price|floatformat  }}',
 							'{{ accessory.quantity }}'
 						); return false;">
 							<div class="info">
-								<div class="title">{{ accessory.accessory.name }}</div>
-								<div class="desc">Stock: {{ accessory.quantity }}</div>
+								<div class="item-title">{{ accessory.accessory.name }}</div>
+								<div class="item-desc">Stock: {{ accessory.quantity }}</div>
 								<div class="price">{{ accessory.accessory.price|floatformat|intcomma  }}</div>
 							</div>
 						</a>
 					</div>
-					<div class="card-arrow">
-						<!-- Your card arrows -->
-					</div>
+					
 				</div>
 			</div>
 			{% endfor %}
@@ -272,18 +1087,27 @@
 					<div class="card-body">
 						<h5 class="card-title" id="productName"></h5>
 
-						<!-- Price Group Selection -->
-						<div class="mb-3">
-							<label class="form-label">Price Group:</label>
-							<select class="form-select" id="priceGroup">
-								<option value="">Select a Price Groupe</option>
-							</select>
-						</div>
-
-						<!-- Selected Price Display -->
+						<!-- Price Display -->
 						<div class="mb-3">
 							<label class="form-label">Price:</label>
-							<div class="h5" id="selectedPrice">Please select a price group</div>
+							<div class="h5" id="selectedPrice">Loading price...</div>
+							<input type="hidden" id="priceGroup">
+							<div id="addPriceLink" class="d-none">
+								<a href="/production/price-groups/" class="btn btn-sm btn-outline-theme mt-2">
+									<i class="bi bi-plus-circle"></i> Add Retail Price
+								</a>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<label for="productStaff" class="form-label">Commission Staff (Optional)</label>
+							<select id="productStaff" class="form-select">
+								<option value="">No staff commission</option>
+								{% for staff in available_staff %}
+									<option value="{{ staff.id }}">{{ staff.first_name }} {{ staff.last_name }}</option>
+								{% endfor %}
+							</select>
+							<small class="text-muted">Select staff member if they recommended this product (5% commission)</small>
 						</div>
 
 						<div class="mb-3">
@@ -317,7 +1141,7 @@
 								<div class="h4 mb-3">Price: <span id="servicePrice"></span></div>
 								<div class="mb-3">
 									<label class="form-label">Select Staff:</label>
-									<select class="form-select" id="serviceStaff" multiple>
+									<select class="form-select select2-staff" id="serviceStaff" multiple>
 										{% for staff in available_staff %}
 										<option value="{{ staff.id }}">{{ staff.first_name }} {{ staff.last_name }}</option>
 										{% endfor %}
@@ -341,6 +1165,36 @@
 			</div>
 		</div>
 	</div>
+	<script>
+		$(document).ready(function() {
+			$('.select2-staff').select2({
+				dropdownParent: $('#serviceModal'),
+				placeholder: 'Select Staff',
+				allowClear: true,
+				multiple: true,
+				minimumInputLength: 3,
+				ajax: {
+					url: '/production/search-staff/',  // Update with your actual URL
+					dataType: 'json',
+					delay: 250,
+					data: function(params) {
+						return {
+							term: params.term
+						};
+					},
+					processResults: function(data) {
+						return {
+							results: [{
+								id: '',
+								text: 'No staff commission'
+							}].concat(data.results)
+						};
+					},
+					cache: true
+				}
+			});
+		});
+	</script>
 	<!-- Accessory Modal -->
 	<div class="modal fade" id="accessoryModal" tabindex="-1">
 		<div class="modal-dialog">
@@ -351,9 +1205,9 @@
 						<div class="mb-3">
 							<label class="form-label">Quantity:</label>
 							<div class="input-group">
-								<button class="btn btn-outline-secondary" type="button" onclick="decrementAccessoryQuantity('accessory')">-</button>
+								<button class="btn btn-outline-secondary" type="button" onclick="decrementQuantity('accessory')">-</button>
 								<input type="number" class="form-control text-center" id="accessoryQuantity" min="1" value="1">
-								<button class="btn btn-outline-secondary" type="button" onclick="incrementAccessoryQuantity('accessory')">+</button>
+								<button class="btn btn-outline-secondary" type="button" onclick="incrementQuantity('accessory')">+</button>
 							</div>
 						</div>
 						<div class="text-end">

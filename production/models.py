@@ -1005,6 +1005,41 @@ class ServiceSale(models.Model):
                         commission_amount=per_staff_commission
                     )
                     print(f"DEBUG: Created commission for {staff_member.first_name}: {commission.commission_amount}")
+    def create_product_commissions(self):
+        """Create commission records for products with assigned staff"""
+        print(f"\nDEBUG: Creating product commissions for sale {self.service_sale_number}")
+        
+        with transaction.atomic():
+            product_items = self.product_sale_items.all()
+            print(f"DEBUG: Found {product_items.count()} product items")
+            
+            for product_item in product_items:
+                print(f"\nDEBUG: Processing product: {product_item.product.product.product_name}")
+                print(f"DEBUG: Staff assigned: {product_item.staff}")
+                print(f"DEBUG: Product total price: {product_item.total_price}")
+                
+                if product_item.staff:
+                    commission_amount = product_item.total_price * Decimal('0.05')  # 5% commission
+                    print(f"DEBUG: Calculated commission amount: {commission_amount}")
+                    
+                    # Delete any existing commission
+                    existing_commission = StaffProductCommission.objects.filter(product_sale_item=product_item)
+                    if existing_commission.exists():
+                        print(f"DEBUG: Deleting existing commission")
+                        existing_commission.delete()
+                    
+                    try:
+                        # Create new commission
+                        commission = StaffProductCommission.objects.create(
+                            staff=product_item.staff,
+                            product_sale_item=product_item,
+                            commission_amount=commission_amount
+                        )
+                        print(f"DEBUG: Successfully created commission for {product_item.staff.first_name}: {commission_amount}")
+                    except Exception as e:
+                        print(f"ERROR creating commission: {str(e)}")
+                else:
+                    print(f"DEBUG: No staff assigned to this product item")
         
     def mark_as_paid(self):
         if self.paid_status != 'paid' and self.balance <= 0:
@@ -1012,19 +1047,21 @@ class ServiceSale(models.Model):
                 self.paid_status = 'paid'
                 self.save()
                 
-                #create commissions
+                # Create service commissions
                 self.create_service_commissions()
-            try:
+                
+                # Create product commissions
+                self.create_product_commissions()
+                
+                try:
+                    # Adjust inventory for accessories
+                    self._deduct_accessory_inventory()
                     
-                # Adjust inventory for accessories
-                self._deduct_accessory_inventory()
-
-                # Adjust inventory for products
-                self._deduct_product_inventory()
-
-            except ValueError as e:
-                # Log errors for debugging
-                raise ValueError(f"Inventory adjustment failed: {str(e)}")
+                    # Adjust inventory for products
+                    self._deduct_product_inventory()
+                    
+                except ValueError as e:
+                    raise ValueError(f"Inventory adjustment failed: {str(e)}")
 
     def _deduct_accessory_inventory(self):
         """Deduct inventory for accessories and log adjustments."""
@@ -1076,6 +1113,8 @@ class ServiceSale(models.Model):
             remarks=remarks
         )
         self.calculate_total()
+        
+    
         
     def create_invoice(self):
         """Create an invoice for this sale."""
@@ -1162,6 +1201,12 @@ class ProductSaleItem(models.Model):
     quantity = models.PositiveIntegerField()
     price_group = models.ForeignKey(PriceGroup, on_delete=models.SET_NULL, null=True)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    staff = models.ForeignKey('POSMagicApp.Staff', 
+                                on_delete=models.SET_NULL,
+                                null=True,
+                                related_name='product_sales',
+                                help_text="Staff member who recommended this product")
+    PRODUCT_COMMISSION_RATE = Decimal('0.05')  # 10% commission rate
     
     def calculate_price(self):
         # First check if there's a specific price for this product in the selected price group
@@ -1178,11 +1223,30 @@ class ProductSaleItem(models.Model):
         # If no specific price group or price not found, return default price
         return self.product.product.price
     
+    def calculate_and_create_commission(self):
+        """Calculate and create commission record for staff member if assigned"""
+        if self.staff and self.sale.paid_status == 'paid':
+            # Delete any existing commission for this product sale item
+            StaffProductCommission.objects.filter(product_sale_item=self).delete()
+            commission_amount = self.total_price * self.PRODUCT_COMMISSION_RATE
+            
+            # Create or update commission record
+            StaffProductCommission.objects.create(
+                staff=self.staff,
+                product_sale_item=self,
+                commission_amount=commission_amount
+            )
+            print(f"DEBUG: Created product commission for {self.staff.first_name}: {commission_amount}")
+    
     def save(self, *args, **kwargs):
         # Calculate total price based on price group
         unit_price = self.calculate_price()
         self.total_price = self.quantity * unit_price
         super().save(*args, **kwargs)
+        
+        # Calculate commission if staff is assigned and sale is paid
+        if self.sale.paid_status == 'paid':
+            self.calculate_and_create_commission()
         
         # Recalculate the total for the related sale
         self.sale.calculate_total()
@@ -1658,3 +1722,13 @@ def update_lpo_payment(sender, instance, **kwargs):
     lpo.is_paid = total_paid >= lpo.requisition.total_cost
     lpo.payment_date = timezone.now() if lpo.is_paid else None
     lpo.save()
+
+class StaffProductCommission(models.Model):
+    staff = models.ForeignKey('POSMagicApp.Staff', on_delete=models.CASCADE, related_name='product_commissions')
+    product_sale_item = models.OneToOneField(ProductSaleItem, on_delete=models.CASCADE, related_name='commission')
+    commission_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return f"Commission for {self.staff.first_name} - {self.product_sale_item}"

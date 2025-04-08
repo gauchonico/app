@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="card-title">Store Services</h4>
+            <a href="{% url 'assign_service_to_store' %}" class="btn btn-theme">
+                <i class="bi bi-plus-circle"></i> Assign New Service
+            </a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Store</th>
+                        <th>Service</th>
+                        <th>Commission Rate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for store_service in store_services %}
+                    <tr>
+                        <td>{{ store_service.store.name }}</td>
+                        <td>{{ store_service.service.name }}</td>
+                        <td>{{ store_service.commission_rate|multiply:100 }}%</td>
+                        <td>
+                            <a href="{% url 'edit_store_service' store_service.pk %}" class="btn btn-sm btn-info">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">No store services found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

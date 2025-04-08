@@ -57,6 +57,10 @@
           {{ form.mobile_money_amount }}
         </div>
         <div class="mb-3">
+          {{ form.airtel_money_amount.label }}
+          {{ form.airtel_money_amount }}
+      </div>
+        <div class="mb-3">
           {{ form.visa_amount.label }}
           {{ form.visa_amount }}
         </div>
@@ -98,6 +102,7 @@
     // Mixed payment handling
     const cashField = document.getElementById('id_cash_amount');
     const mobileMoneyField = document.getElementById('id_mobile_money_amount');
+    const airtelMoneyField = document.getElementById('id_airtel_money_amount');
     const visaField = document.getElementById('id_visa_amount');
     const mixedTotalField = document.getElementById('mixedTotal');
     const mixedChangeField = document.getElementById('mixedChange');
@@ -105,9 +110,10 @@
     const calculateMixedTotal = () => {
         const cash = parseFloat(cashField.value) || 0;
         const mobileMoney = parseFloat(mobileMoneyField.value) || 0;
+        const airtelMoney = parseFloat(airtelMoneyField.value) || 0;
         const visa = parseFloat(visaField.value) || 0;
         
-        const total = cash + mobileMoney + visa;
+        const total = cash + mobileMoney + airtelMoney + visa;
         mixedTotalField.value = total.toFixed(0);
         
         const change = total - amountDue;
@@ -115,7 +121,7 @@
     };
 
     // Add input listeners to all mixed payment fields
-    [cashField, mobileMoneyField, visaField].forEach(field => {
+    [cashField, mobileMoneyField, airtelMoneyField, visaField].forEach(field => {
         field?.addEventListener('input', calculateMixedTotal);
     });
 

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Store Services{% endblock %}
+{% block css %}
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
+    
+{% endblock %}
+{% block js %}
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.colVis.min.js"></script>
+
+    <!-- DataTables Responsive -->
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
+    <script>
+        $('#storeServicesTable').DataTable({
+            dom: "<'row mb-3'<'col-sm-4'l><'col-sm-8 text-end'<'d-flex justify-content-end'fB>>>t<'d-flex align-items-center mt-3'<'me-auto'i><'mb-0'p>>",
+            lengthMenu: [ 10, 20, 30, 40, 50 ],
+            responsive: true,
+            buttons: [ 
+                { extend: 'print', className: 'btn btn-default' },
+                { extend: 'csv', className: 'btn btn-default' }
+            ]
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="card-title">Store Services</h4>
+            <div>
+                <a href="{% url 'upload_store_services' %}" class="btn btn-secondary me-2">
+                    <i class="bi bi-upload"></i> Bulk Upload
+                </a>
+                <a href="{% url 'assign_service_to_store' %}" class="btn btn-theme">
+                    <i class="bi bi-plus-circle"></i> Assign New Service
+                </a>
+            </div>
+        </div>
+
+        <div class="">
+            <table id="storeServicesTable" class="table table-hover text-nowrap w-100">
+                <thead>
+                    <tr>
+                        <th>Store</th>
+                        <th>Service</th>
+                        <th>Price</th>
+                        <th>Commission Rate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for store_service in store_services %}
+                    <tr>
+                        <td>{{ store_service.store.name }}</td>
+                        <td>{{ store_service.service.name }}</td>
+                        <td>{{ store_service.service.price|floatformat|intcomma }} UGX</td>
+                        <td>{{ store_service.commission_rate }}%</td>
+                        <td>
+                            <a href="#" class="btn btn-sm btn-info">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center">No services assigned to stores yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %} 

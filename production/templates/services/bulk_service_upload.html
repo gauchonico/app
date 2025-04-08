@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="card-title">Bulk Upload Store Services</h4>
+            <div>
+                <a href="{% url 'download_service_template' %}" class="btn btn-secondary me-2">
+                    <i class="bi bi-download"></i> Download Template
+                </a>
+                <a href="{% url 'store_service_list_detail' %}" class="btn btn-theme">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+
+        <div class="card bg-light mb-4">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-info-circle"></i> CSV File Requirements
+                </h6>
+                <ul class="mb-0">
+                    <li>CSV file must have headers: store_name, service_name, price, commission_rate</li>
+                    <li>Commission rate should be in decimal format (e.g., 0.10 for 10%)</li>
+                    <li>Price should be a number without currency symbols</li>
+                    <li>Store name must match existing store names</li>
+                </ul>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            {% if messages %}
+            <div class="mb-3">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="mb-3">
+                <label class="form-label">Upload CSV File</label>
+                <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+            </div>
+
+            <div class="text-end">
+                <button type="submit" class="btn btn-theme">
+                    <i class="bi bi-upload"></i> Upload and Process
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

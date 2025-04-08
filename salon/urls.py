@@ -14,7 +14,7 @@ urlpatterns = [
     path('services/<int:pk>/edit/', ServiceUpdateView.as_view(), name='service_edit'),
     path('services/<int:pk>/delete/', ServiceDeleteView.as_view(), name='service_delete'),
     path('products/', SalonProductListView.as_view(), name='salonproduct_list'),
-    path('services/', ServiceListView.as_view(), name='service_list'),
+    path('services/', ServiceListView.as_view(), name='service_listunused'),
     
     ##Genereate Requisition
     path('requisition/new/', views.create_general_requisition, name='create_general_requisition'),

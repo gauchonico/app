@@ -361,6 +361,12 @@ def sidebar_menu(request):
             'icon': 'bi bi-box-seam',
             'text': 'Raw-material P.O',
             'name': 'financePurchase'
+        },
+        {
+            'url': '/production/services/',
+            'icon': 'bi bi-receipt',
+            'text': 'Services',
+            'name': 'service_list',
         },{
             'url': '/production/finance-restock-requests/',
             'icon': 'bi bi-receipt',
@@ -606,6 +612,18 @@ def sidebar_menu(request):
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['financeProduction','supplierList','productsList','rawmaterialsList','pageCustomer','discrepancy_delivery_report_list','goods_received_note_list']]
+            sidebar_menu.append({
+            
+                'icon': 'bi bi-receipt',
+                'text': 'Services',
+                'children': [{
+                    'url': '/production/services/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Services',
+                    'name': 'service_list',
+                }]
+                
+            })
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',

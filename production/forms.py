@@ -1,6 +1,6 @@
 from django import forms
 
-from POSMagicApp.models import Customer
+from POSMagicApp.models import Customer, Staff
 from .models import *
 from django.forms import BaseModelFormSet, ModelForm, ValidationError, inlineformset_factory, modelformset_factory
 
@@ -766,14 +766,21 @@ class AccessorySaleItemForm(ModelForm):
             self.fields['accessory'].queryset = StoreAccessoryInventory.objects.filter(store=store)
 
 class ProductSaleItemForm(ModelForm):
+    staff = forms.ModelChoiceField(
+        queryset=Staff.objects.all(),
+        required=False,
+        empty_label="No staff commission",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
     class Meta:
         model = ProductSaleItem
-        fields = ['product','quantity','price_group','sale']
+        fields = ['product','quantity','price_group','sale','staff']
         widgets ={
             'sale': forms.HiddenInput(),
             'product':forms.Select(attrs={'class':'form-control'}),
             'quantity':forms.NumberInput(attrs={'class':'form-control'}),
             'price_group': forms.Select(attrs={'class': 'form-control'}),
+            'staff': forms.Select(attrs={'class': 'form-control'})
         }
     def __init__(self, *args, **kwargs):
         store = kwargs.pop('store', None)
@@ -825,7 +832,7 @@ class PaymentForm(forms.Form):
     payment_method = forms.ChoiceField(choices=PAYMENT_METHOD_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
     amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Total Amount'}), required=False)
     cash_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cash Amount'}), required=False)
-    mobile_money_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Mobile Money Amount'}), required=False)
+    mobile_money_amount = forms.DecimalField(label='MTM MOMO',widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Momo Pay'}), required=False)
     airtel_money_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Airtel Money Amount'}), required=False)
     visa_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Visa Amount'}), required=False)
     remarks = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Remarks'}), required=False)
@@ -936,3 +943,33 @@ class StoreWriteOffForm(forms.ModelForm):
                 )
 
         return cleaned_data
+
+class ServiceNameForm(forms.ModelForm):
+    class Meta:
+        model = ServiceName
+        fields = ['name', 'price']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control'})
+        }
+
+class StoreServiceForm(forms.ModelForm):
+    class Meta:
+        model = StoreService
+        fields = ['store', 'service', 'commission_rate']
+        widgets = {
+            'store': forms.Select(attrs={'class': 'form-control'}),
+            'service': forms.Select(attrs={'class': 'form-control'}),
+            'commission_rate': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'max': '1'
+            })
+        }
+
+    def clean_commission_rate(self):
+        rate = self.cleaned_data['commission_rate']
+        if rate <= 0 or rate >= 1:
+            raise forms.ValidationError("Commission rate must be between 0 and 1 (e.g., 0.10 for 10%)")
+        return rate

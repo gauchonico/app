@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="text-center mb-4">
+            <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+            <h4 class="mt-3">Confirm Delete Service</h4>
+            <p class="text-muted">
+                Are you sure you want to delete the service "{{ service.name }}"?<br>
+                This action cannot be undone.
+            </p>
+        </div>
+
+        <div class="card border-0 mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Service Details</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Name:</strong> {{ service.name }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Price:</strong> {{ service.price|floatformat|intcomma }} UGX</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <form method="post" class="text-center">
+            {% csrf_token %}
+            <div class="btn-group">
+                <a href="{% url 'service_list' %}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Cancel
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Delete Service
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

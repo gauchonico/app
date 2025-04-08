@@ -147,6 +147,7 @@ urlpatterns = [
     path('payments/', views.payment_list_view, name='payment_list'),
     path('get_product_price_groups/<int:product_id>/', views.get_product_price_groups, name='get_product_price_groups'),
     path('new_create_service_sale/', views.new_create_service_sale, name='new_create_service_sale'),
+    path('search-staff/', views.search_staff, name='search_staff'),
     # path('sale/<int:sale_id>/', views.sale_details, name='sale_details'),
     
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
@@ -176,6 +177,7 @@ urlpatterns = [
     path('store_sale_order_details/<int:pk>/', views.store_sale_order_details, name='store_sale_order_details'),
     path('monthly-commissions/', views.monthly_commission_list, name='monthly_commission_list'),
     path('monthly-commissions/<int:staff_id>/<int:year>/<int:month>/', views.staff_monthly_commission_detail, name='staff_monthly_commission_detail'),
+    path('product-commissions/', views.product_commission_list, name='product_commission_list'),
     path('mark_transfer_completed/<int:transfer_id>/', views.mark_transfer_completed, name='mark_transfer_completed'),
     
     path('write_offs', views.write_offs, name="writeoffs"),
@@ -191,8 +193,16 @@ urlpatterns = [
     path('outstanding_payables/',  views.outstanding_payables, name='outstanding_payables'),
     path('create_incident_write_off/', views.create_incident_write_off, name="create_incident_write_off"),
     path('incident_write_off_list/', views.incident_write_off_list, name='incident_write_off_list'),
+    path('services/', views.service_list, name='service_list'),
+    path('services/create/', views.create_service, name='create_service'),
+    path('services/<int:pk>/edit/', views.edit_store_service, name='edit_service'),
+    path('services/<int:pk>/delete/', views.delete_service, name='delete_service'),
+    path('services-details/', views.store_service_list_detail, name='store_service_list_detail'),
+    path('services/assign/', views.assign_service_to_store, name='assign_service_to_store'),
     
     path('update_reorder_point/<int:pk>/', views.update_reorder_point, name="update_reorder_point"),
     #Sale Receipt
     path('service-sale/<int:sale_id>/receipt/', views.service_sale_receipt, name='service_sale_receipt'),
+    path('services/upload/', views.upload_store_services, name='upload_store_services'),
+    path('services/template/download/', views.download_service_template, name='download_service_template'),
 ]

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% block css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="card-title">{{ title }}</h4>
+            <a href="{% url 'store_service_list_detail' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back to List
+            </a>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="row">
+                <!-- Store Selection -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">{{ form.store.label }}</label>
+                    {{ form.store }}
+                    {% if form.store.errors %}
+                    <div class="text-danger">
+                        {{ form.store.errors }}
+                    </div>
+                    {% endif %}
+                    <small class="text-muted">Select the store to assign the service to</small>
+                </div>
+
+                <!-- Service Selection -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">{{ form.service.label }}</label>
+                    {{ form.service }}
+                    {% if form.service.errors %}
+                    <div class="text-danger">
+                        {{ form.service.errors }}
+                    </div>
+                    {% endif %}
+                    <small class="text-muted">Select the service to be assigned</small>
+                </div>
+
+                <!-- Commission Rate -->
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">{{ form.commission_rate.label }}</label>
+                    <div class="input-group">
+                        {{ form.commission_rate }}
+                        <span class="input-group-text">%</span>
+                    </div>
+                    {% if form.commission_rate.errors %}
+                    <div class="text-danger">
+                        {{ form.commission_rate.errors }}
+                    </div>
+                    {% endif %}
+                    <small class="text-muted">Enter commission rate as a decimal (e.g., 0.10 for 10%)</small>
+                </div>
+            </div>
+
+            <div class="card bg-light mb-4">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="bi bi-info-circle"></i> Important Information
+                    </h6>
+                    <ul class="mb-0">
+                        <li>Commission rate must be between 0 and 1 (e.g., 0.10 for 10%)</li>
+                        <li>Each service can only be assigned once to each store</li>
+                        <li>Make sure the store and service are active before assigning</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="text-end">
+                <button type="submit" class="btn btn-theme">
+                    <i class="bi bi-check-circle"></i> {{ button_text }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block outter_content %}
+<script>
+    // Add select2 for better dropdown experience
+    $(document).ready(function() {
+        $('#id_store').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select a store'
+        });
+
+        $('#id_service').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select a service'
+        });
+    });
+</script>
+{% endblock outter_content %} 
