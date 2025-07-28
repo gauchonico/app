@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{{ store.name }}Livara Accessories{% endblock %}
+
+{% block css %}
+	
+{% endblock %}
+
+{% block js %}
+
+{% endblock %}
+{% block content %}
+
+
+<div class="container mt-4">
+    <h2>Price History for {{ raw_material.name }}</h2>
+    
+    <div class="table-responsive mt-4">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Supplier</th>
+                    <th>Price (per {{ raw_material.unit_of_measurement }})</th>
+                    <th>Current</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for price in prices %}
+                <tr>
+                    <td>{{ price.effective_date|date:"Y-m-d" }}</td>
+                    <td>{{ price.supplier.name }}</td>
+                    <td>{{ price.price|floatformat:2 }}</td>
+                    <td>{% if price.is_current %}<span class="badge bg-success">✓</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <a href="{% url 'raw_material_details' raw_material.id %}" class="btn btn-secondary">Back to Material</a>
+</div>
+{% endblock %}

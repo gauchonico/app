@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Update Price - {{ raw_material.name }} from {{ supplier.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0">Update Price</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'price_comparison' %}">Price Comparison</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Update Price</li>
+            </ol>
+        </nav>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold">
+                        Update Price for {{ raw_material.name }} from {{ supplier.name }}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if current_price_value is not None %}
+                    <div class="alert alert-info">
+                        <strong>Current Price:</strong> {{ current_price_value|floatformat:2 }} per {{ raw_material.unit_measurement }}
+                        <br>
+                        {% if current_price %}
+                        <small class="text-muted">Last updated on {{ current_price.effective_date|date:"M d, Y" }}</small>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        No current price set for this supplier. Please set the initial price.
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        {% if next %}
+                            <input type="hidden" name="next" value="{{ next }}">
+                        {% endif %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Raw Material</label>
+                                    <input type="text" class="form-control" value="{{ raw_material.name }}" disabled>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Supplier</label>
+                                    <input type="text" class="form-control" value="{{ supplier.name }}" disabled>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.price.id_for_label }}" class="form-label">{{ form.price.label }}</label>
+                            {{ form.price }}
+                            {% if form.price.errors %}
+                                <div class="text-danger">{{ form.price.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.price.help_text }}</small>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="{{ form.effective_date.id_for_label }}" class="form-label">{{ form.effective_date.label }}</label>
+                            {{ form.effective_date }}
+                            {% if form.effective_date.errors %}
+                                <div class="text-danger">{{ form.effective_date.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">{{ form.effective_date.help_text }}</small>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% if next %}{{ next }}{% else %}{% url 'price_comparison' %}{% endif %}" 
+                               class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to List
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Price
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold">Price History</h6>
+                </div>
+                <div class="card-body">
+                    {% if price_history %}
+                        <div class="list-group list-group-flush">
+                            {% for price in price_history|slice:":5" %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ price.price|floatformat:2 }}</h6>
+                                        <small>{{ price.effective_date|timesince }} ago</small>
+                                    </div>
+                                    <small class="text-muted">
+                                        {% if price.is_current %}
+                                            <span class="badge bg-success">Current</span>
+                                        {% endif %}
+                                        {{ price.effective_date|date:"M d, Y" }}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% if price_history.count > 5 %}
+                            <div class="text-center mt-2">
+                                <a href="{% url 'price_history' raw_material.id %}" class="btn btn-sm btn-link">
+                                    View all price history
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted">No price history available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

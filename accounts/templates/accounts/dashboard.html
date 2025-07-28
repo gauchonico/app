@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Accounting Dashboard - POS Magic{% endblock %}
+
+{% block content %}
+<!-- BEGIN row -->
+<div class="row">
+    <!-- Dashboard Header -->
+    <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 mb-8 shadow-2xl">
+        <h1 class="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+            Accounting Dashboard
+        </h1>
+        <p class="text-xl">Financial overview and insights for your business</p>
+    </div>
+    <!-- Statistics Cards -->
+    <div class="col-12 mb-4">
+        <div class="row mb-10">
+            <div class="col-12 col-md-6 col-lg-3 mb-4">
+                <div class="rounded-3xl card shadow-2xl p-8 h-100 d-flex flex-column justify-content-between">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-chart-line text-2xl text-white"></i>
+                    </div>
+                    <div class="font-medium uppercase tracking-wider mb-3">Total Revenue</div>
+                    <div class="text-4xl font-bold mb-3">{{ total_revenue|floatformat:0|intcomma }}</div>
+                    
+                    <div class="font-semibold text-sm">
+                        <i class="fas fa-arrow-up mr-1"></i> +12.5% from last month
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl h-100 d-flex flex-column justify-content-between">
+                    <div class="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-chart-bar text-2xl text-white"></i>
+                    </div>
+                    <div class="text-4xl font-bold text-gray-800 mb-3">{{ total_expenses|floatformat:0|intcomma }}</div>
+                    <div class="text-gray-600 font-medium uppercase tracking-wider mb-3">Total Expenses</div>
+                    <div class="text-red-600 font-semibold text-sm">
+                        <i class="fas fa-arrow-up mr-1"></i> +8.3% from last month
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl h-100 d-flex flex-column justify-content-between">
+                    <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-coins text-2xl text-white"></i>
+                    </div>
+                    <div class="text-4xl font-bold text-gray-800 mb-3">{{ net_profit|floatformat:0|intcomma }}</div>
+                    <div class="text-gray-600 font-medium uppercase tracking-wider mb-3">Net Profit</div>
+                    <div class="text-green-600 font-semibold text-sm">
+                        <i class="fas fa-arrow-up mr-1"></i> +15.2% from last month
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl h-100 d-flex flex-column justify-content-between">
+                    <div class="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6">
+                        <i class="fas fa-wallet text-2xl text-white"></i>
+                    </div>
+                    <div class="text-4xl font-bold text-gray-800 mb-3">{{ cash_balance|floatformat:0|intcomma }}</div>
+                    <div class="text-gray-600 font-medium uppercase tracking-wider mb-3">Cash Balance</div>
+                    <div class="text-green-600 font-semibold text-sm">
+                        <i class="fas fa-arrow-up mr-1"></i> +5.7% from last month
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- END Statistics Cards -->
+    <div class="col-12">
+        <div class="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 p-6">
+            
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+                <div class="lg:col-span-2 bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6">Revenue vs Expenses (Last 6 Months)</h3>
+                    <canvas id="revenueChart" class="w-full h-64"></canvas>
+                </div>
+
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6">Expense Breakdown</h3>
+                    <canvas id="expenseChart" class="w-full h-64"></canvas>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <a href="{% url 'accounts:journal_entry_create' %}" class="bg-white/95 backdrop-blur-lg rounded-2xl p-6 text-center shadow-2xl hover:transform hover:-translate-y-2 transition-all duration-300 no-underline">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-plus text-xl text-white"></i>
+                    </div>
+                    <div class="text-lg font-bold text-gray-800 mb-2">New Journal Entry</div>
+                    <div class="text-gray-600 text-sm">Create manual accounting entries</div>
+                </a>
+
+                <a href="{% url 'accounts:department_create' %}" class="bg-white/95 backdrop-blur-lg rounded-2xl p-6 text-center shadow-2xl hover:transform hover:-translate-y-2 transition-all duration-300 no-underline">
+                    <div class="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-building text-xl text-white"></i>
+                    </div>
+                    <div class="text-lg font-bold text-gray-800 mb-2">Add Department</div>
+                    <div class="text-gray-600 text-sm">Create new departments for budgeting</div>
+                </a>
+
+                <a href="{% url 'accounts:budget_create' %}" class="bg-white/95 backdrop-blur-lg rounded-2xl p-6 text-center shadow-2xl hover:transform hover:-translate-y-2 transition-all duration-300 no-underline">
+                    <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-chart-pie text-xl text-white"></i>
+                    </div>
+                    <div class="text-lg font-bold text-gray-800 mb-2">Set Budget</div>
+                    <div class="text-gray-600 text-sm">Allocate budgets to departments</div>
+                </a>
+
+                <a href="{% url 'accounts:trial_balance' %}" class="bg-white/95 backdrop-blur-lg rounded-2xl p-6 text-center shadow-2xl hover:transform hover:-translate-y-2 transition-all duration-300 no-underline">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-file-alt text-xl text-white"></i>
+                    </div>
+                    <div class="text-lg font-bold text-gray-800 mb-2">View Reports</div>
+                    <div class="text-gray-600 text-sm">Generate financial reports</div>
+                </a>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6">Recent Transactions</h3>
+                {% for entry in recent_entries %}
+                <div class="flex items-center py-4 border-b border-gray-200 last:border-b-0">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center mr-4 {% if entry.entry_type == 'sales' %}bg-gradient-to-br from-green-500 to-green-600{% elif entry.entry_type == 'production' %}bg-gradient-to-br from-red-500 to-red-600{% else %}bg-gradient-to-br from-blue-500 to-blue-600{% endif %}">
+                        <i class="fas {% if entry.entry_type == 'sales' %}fa-shopping-cart{% elif entry.entry_type == 'production' %}fa-industry{% else %}fa-credit-card{% endif %} text-white"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-semibold text-gray-800 mb-1">{{ entry.description|truncatechars:50 }}</div>
+                        <div class="text-gray-600 text-sm">{{ entry.date|date:"M d, Y" }}</div>
+                    </div>
+                    <div class="font-bold text-lg {% if entry.entry_type == 'sales' %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ entry.total_debits|floatformat:0|intcomma }}
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-600 text-center py-8">No recent transactions</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END row -->
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Revenue vs Expenses Chart
+const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+new Chart(revenueCtx, {
+    type: 'line',
+    data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+            label: 'Revenue',
+            data: [1200000, 1350000, 1100000, 1500000, 1400000, 1600000],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'Expenses',
+            data: [800000, 900000, 850000, 1000000, 950000, 1100000],
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Expense Breakdown Chart
+const expenseCtx = document.getElementById('expenseChart').getContext('2d');
+new Chart(expenseCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Raw Materials', 'Labor', 'Overhead', 'Other'],
+        datasets: [{
+            data: [45, 25, 20, 10],
+            backgroundColor: [
+                '#3b82f6',
+                '#10b981',
+                '#f59e0b',
+                '#ef4444'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

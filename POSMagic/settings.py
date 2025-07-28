@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 import os
 from pathlib import Path
+from django.contrib import messages
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,7 +44,7 @@ CSRF_TRUSTED_ORIGINS=['https://app.mylivara.com']
 # Application definition
 
 INSTALLED_APPS = [
-	'POSMagicApp.apps.POSMagicappConfig',
+    'POSMagicApp.apps.POSMagicappConfig',
     'django.contrib.humanize',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -51,11 +52,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'POSMagic',
-    'cart',
-    'payment',
-    'production',
-    'salon',
+    'cart.apps.CartConfig',
+    'payment.apps.PaymentConfig',
+    'production.apps.ProductionConfig',
+    'salon.apps.SalonConfig',
+    'accounts.apps.AccountsConfig',
     'crispy_forms',
 ]
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
@@ -83,6 +84,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',
                 'POSMagicApp.utils.context_processors.sidebar_menu',
                 'cart.context_processors.cart',
                 
@@ -153,3 +155,16 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Add currency symbol
+CURRENCY_SYMBOL = 'UGX'  # or your preferred currency
+
+# Add this at the bottom of the file
+MESSAGE_TAGS = {
+    messages.DEBUG: 'alert-info',
+    messages.INFO: 'alert-info',
+    messages.SUCCESS: 'alert-success',
+    messages.WARNING: 'alert-warning',
+    messages.ERROR: 'alert-danger',
+}

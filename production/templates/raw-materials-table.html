@@ -80,19 +80,18 @@
                     {% if rawmaterial.reorder_point <= 0 %}
                         <a href="{% url 'update_reorder_point' rawmaterial.pk %}">Set Now</a>
                     {%else %}
-                        {{ rawmaterial.reorder_point }}
+                        {{ rawmaterial.reorder_point }}{{ rawmaterial.unit_measurement}}
+                        <a href="{% url 'update_reorder_point' rawmaterial.pk %}">Update</a>
                     {% endif %}
                 </td>
                 <td>{{ rawmaterial.last_updated }}</td>
                 <td>
                     {% comment %} <a href="{% url 'delete_rawmaterial' rawmaterial.id %}" class="btn btn-danger btn-sm">Delete</a> {% endcomment %}
-                    <a href="{% url 'update_raw_material_quantity' rawmaterial.pk %}" class="btn bg-gradient-custom-teal btn-sm">Update</a>
-                    {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
-                    <i class="bi bi-caret-down-fill text-danger"></i><span class="">Low Stock</span>
-                
-                    {% else %}
-                    <i class="bi bi-caret-up-fill text-theme" /><span class="text-success">Up to date</span>
-                    {% endif %}
+                    <!-- <a href="{% url 'update_raw_material_quantity' rawmaterial.pk %}" class="btn bg-gradient-custom-teal btn-sm">Update</a> -->
+                    <div class="btn-group btn-group-sm">
+						<a href="{% url 'raw_material_details' rawmaterial.id %}" class="btn btn-outline-secondary">Details</a>
+						<a href="{% url 'price_history' rawmaterial.id %}" class="btn btn-outline-secondary">history</a>
+					</div>
                 </td>
             </tr>
             {% endfor %}

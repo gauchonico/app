@@ -77,15 +77,19 @@
 						{{rawmaterial.reorder_point}} {{ rawmaterial.unit_measurement}}
 					</div>
 					
-                    {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
+                    <!-- {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
                     <div class="mt-10">
-                        <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-danger">Purchase order</a>
+                        
                     </div>
 					{% else %}
 					<div class="mt-10">
-                        <a href="{% url 'createPurchaseOrder' rawmaterial.id %}" class="btn btn-success">Purchase order</a>
+                        
                     </div>
-                    {% endif %}
+                    {% endif %} -->
+					<div class="btn-group btn-group-sm">
+						<a href="{% url 'raw_material_details' pk=rawmaterial.pk %}" class="btn btn-outline-secondary">Details</a>
+						<a href="{% url 'price_history' rawmaterial.id %}" class="btn btn-outline-secondary">Price history</a>
+					</div>
 					
 					<!-- END stat-sm -->
 				</div>

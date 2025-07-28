@@ -25,14 +25,44 @@ from django.core.exceptions import ValidationError
 User = get_user_model()
 
 class Supplier(models.Model):
+    QUALITY_CHOICES = [
+        ('excellent', 'Excellent'),
+        ('good', 'Good'),
+        ('average', 'Average'),
+        ('poor', 'Poor'),
+    ]
+    
+    PAYMENT_TERMS_CHOICES = [
+        ('cash_on_delivery', 'Cash on Delivery'),
+        ('net_7', 'Net 7 Days'),
+        ('net_15', 'Net 15 Days'),
+        ('net_30', 'Net 30 Days'),
+        ('net_45', 'Net 45 Days'),
+        ('net_60', 'Net 60 Days'),
+        ('advance_payment', 'Advance Payment'),
+    ]
+    
     name = models.CharField(max_length=255, unique=True)
     company_name = models.CharField(max_length=255)
     email = models.EmailField(blank=True)
     address = models.TextField(blank=True)
-    contact_number = models.CharField(max_length=20, blank=True)  # Consider phone number format
+    contact_number = models.CharField(max_length=20, blank=True)
+    
+    # Enhanced supplier attributes
+    quality_rating = models.CharField(max_length=20, choices=QUALITY_CHOICES, default='good')
+    payment_terms = models.CharField(max_length=30, choices=PAYMENT_TERMS_CHOICES, default='net_30')
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, help_text="Maximum credit allowed")
+    is_active = models.BooleanField(default=True)
+    reliability_score = models.DecimalField(max_digits=3, decimal_places=1, default=5.0, help_text="Score out of 10")
+    notes = models.TextField(blank=True, help_text="Additional notes about supplier")
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.quality_rating})"
+    
+    class Meta:
+        ordering = ['name']
     
 class UnitOfMeasurement(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -108,6 +138,9 @@ class IncidentWriteOff(models.Model):
 
     def __str__(self):
         return f"Write-off of {self.quantity} {self.raw_material} on {self.date} - {self.reason[:20]}"
+
+
+
     
 
 class PurchaseOrder(models.Model):
@@ -1408,7 +1441,47 @@ class StoreSaleReceipt(models.Model):
     def __str__(self):
         return f"Receipt {self.receipt_number} for StoreSale {self.store_sale.id}"
         
-        
+
+class RawMaterialPrice(models.Model):
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    price = models.DecimalField(max_digits=12, decimal_places=5)
+    effective_date = models.DateTimeField(default=timezone.now)
+    is_current = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return f"{self.raw_material} - {self.supplier}: {self.price} (as of {self.effective_date.strftime('%Y-%m-%d')})"
+    
+    def save(self, *args, **kwargs):
+        # Set all other prices for this material-supplier combination as not current
+        if self.is_current:
+            RawMaterialPrice.objects.filter(
+                raw_material=self.raw_material,
+                supplier=self.supplier,
+                is_current=True
+            ).exclude(pk=self.pk).update(is_current=False)
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def get_current_price(cls, raw_material, supplier):
+        try:
+            return cls.objects.get(
+                raw_material=raw_material,
+                supplier=supplier,
+                is_current=True
+            ).price
+        except cls.DoesNotExist:
+            return None
+
+class PriceAlert(models.Model):
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
+    threshold_price = models.DecimalField(max_digits=12, decimal_places=5)
+    is_above = models.BooleanField(default=True, 
+        help_text="Alert when price goes above (checked) or below threshold")
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
 ################### Requsition models
 class Requisition(models.Model):
     STATUS_CHOICES = [
@@ -1475,17 +1548,80 @@ class Requisition(models.Model):
 class RequisitionItem(models.Model):
     requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
+    quantity = models.DecimalField(max_digits=12, decimal_places=5, default=0.00000)
     price_per_unit = models.DecimalField(max_digits=10, decimal_places=2,default=0)
-    delivered_quantity = models.PositiveIntegerField(default=0)
+    delivered_quantity = models.DecimalField(max_digits=12, decimal_places=5, default=0.00000)
+
+    class Meta:
+        ordering = ['raw_material__name']
 
     def __str__(self):
-        return f'{self.raw_material.name} - {self.quantity}'
+        return f'{self.raw_material.name} - {self.quantity} {self.raw_material.unit_measurement}'
+
+    def clean(self):
+        if not self.price_per_unit:
+            raise ValidationError({
+                'price_per_unit': 'Price per unit is required'
+            })
+
+    def save(self, *args, **kwargs):
+        # Only set price on initial save if not provided
+        if not self.pk and not self.price_per_unit and hasattr(self, 'requisition'):
+            current_price = RawMaterialPrice.get_current_price(
+                self.raw_material, 
+                self.requisition.supplier
+            )
+            if current_price is not None:
+                self.price_per_unit = current_price
+        
+        super().save(*args, **kwargs)
     
     @property
+    def current_price(self):
+        """Get the current price from RawMaterialPrice for this item's material and supplier"""
+        if not hasattr(self, 'requisition') or not self.requisition.supplier:
+            return self.price_per_unit
+            
+        current_price = RawMaterialPrice.get_current_price(
+            self.raw_material,
+            self.requisition.supplier
+        )
+        return current_price if current_price is not None else self.price_per_unit
+
+    @property
     def total_cost(self):
-        # Calculate the total cost for this specific item
-        return self.price_per_unit * self.delivered_quantity
+        """Calculate the total cost based on delivered quantity and price per unit"""
+        if self.delivered_quantity is None or self.price_per_unit is None:
+            return Decimal('0.00')
+        return (Decimal(str(self.delivered_quantity)) * 
+                Decimal(str(self.price_per_unit))).quantize(Decimal('0.01'))
+
+    @property
+    def expected_total_cost(self):
+        """Calculate the expected total cost based on requested quantity"""
+        if self.quantity is None or self.price_per_unit is None:
+            return Decimal('0.00')
+        return (Decimal(str(self.quantity)) * 
+                Decimal(str(self.price_per_unit))).quantize(Decimal('0.01'))
+
+    # def __str__(self):
+    #     return f'{self.raw_material.name} - {self.quantity}'
+
+    # def save(self, *args, **kwargs):
+    #     # If this is a new item and no price is set, get the current price
+    #     if not self.pk and not self.price_per_unit:
+    #         current_price = RawMaterialPrice.get_current_price(
+    #             self.raw_material, 
+    #             self.requisition.supplier
+    #         )
+    #         if current_price is not None:
+    #             self.price_per_unit = current_price
+    #     super().save(*args, **kwargs)
+    
+    # @property
+    # def total_cost(self):
+    #     # Calculate the total cost for this specific item
+    #     return self.price_per_unit * self.delivered_quantity
     
 class LPO(models.Model):
     STATUS_CHOICES = [

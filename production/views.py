@@ -2,8 +2,11 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 import decimal
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
 from io import StringIO, TextIOWrapper
 from uuid import uuid4
+from django.db.models import OuterRef, Subquery
 import os
 from django.db import IntegrityError, models
 from django.views.decorators.http import require_http_methods
@@ -39,8 +42,8 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -3808,47 +3811,80 @@ def manager_store_accessory_report(request):
 
 ################REQUISITIONS################################################################################################
 def create_requisition(request):
-    RequisitionItemFormSet = modelformset_factory(RequisitionItem, form=RequisitionItemForm, extra=1)
+    _RequisitionItemFormSet = modelformset_factory(RequisitionItem, form=RequisitionItemForm, extra=1)
 
+    # Initialize item_formset to None outside the if/else to ensure it's always defined
+    item_formset = None 
+    
     if request.method == 'POST':
         requisition_form = RequisitionForm(request.POST, request.FILES)
-        supplier_id = request.POST.get('supplier')  # Get the selected supplier ID from the POST data
-        item_formset = RequisitionItemFormSet(request.POST, queryset=RequisitionItem.objects.none())
         
-        # Set the supplier_id for each form in the formset
-        for form in item_formset:
-            form.fields['raw_material'].queryset = RawMaterial.objects.filter(suppliers__id=supplier_id)
+        # --- Start of critical change ---
+        # Initialize supplier to None or a default before conditional blocks
+        current_supplier = None 
+        
+        # Try to get the supplier from the submitted data *before* full validation,
+        # so we can pass it to the item_formset even if the main form has other errors.
+        # Use the correct POST key for your supplier field based on its prefix.
+        # If RequisitionForm uses prefix='requisition' and field is 'supplier', it's 'requisition-supplier'.
+        # If RequisitionForm has no prefix, and field is 'supplier', it's just 'supplier'.
+        # Let's assume you're using 'requisition-supplier' based on typical prefixing.
+        posted_supplier_id = request.POST.get('supplier') # ADJUST THIS IF YOUR FIELD NAME IS DIFFERENT
 
+        if posted_supplier_id:
+            try:
+                current_supplier = Supplier.objects.get(pk=posted_supplier_id)
+            except Supplier.DoesNotExist:
+                # Handle case where posted supplier ID is invalid (e.g., tampered with)
+                # The main form's validation will also catch this if it's a ModelChoiceField
+                pass 
+        # --- End of critical change ---
+
+        # Initialize the formset with the potentially available supplier
+        # This formset instance will be used for rendering if the main form is invalid.
+        item_formset = _RequisitionItemFormSet(
+            request.POST,
+            request.FILES,
+            queryset=RequisitionItem.objects.none(),
+            form_kwargs={'supplier': current_supplier} # Use the safely defined 'current_supplier'
+        )
+        
         if requisition_form.is_valid() and item_formset.is_valid():
-            requisition = requisition_form.save()
+            # If both are valid, proceed to save
+            requisition = requisition_form.save(commit=False)
+            # requisition.supplier is already set by requisition_form.save() if it's a direct field
+            requisition.save()
             
-            #save each form in the formset
+            # Save each form in the formset
             for form in item_formset:
                 if form.cleaned_data and form.cleaned_data.get('quantity') and form.cleaned_data.get('raw_material'):
                     requisition_item = form.save(commit=False)
                     requisition_item.requisition = requisition
+                    
+                    raw_material = form.cleaned_data['raw_material']
+                    current_price = RawMaterialPrice.get_current_price(
+                        raw_material=raw_material,
+                        supplier=current_supplier # Use current_supplier here too
+                    )
+                    
+                    if current_price is not None:
+                        requisition_item.price_per_unit = current_price
+                    
                     requisition_item.save()
             
-
-            # Redirect to a success page or requisition detail page
             return redirect('requisition_details', requisition_id=requisition.id)
         else:
-            print("Requisition form errors:", requisition_form.errors)
-            print("Formset errors:", item_formset.errors)
-            for form in item_formset:
-                print("Form errors:", form.errors)
-                # Print queryset IDs to match against submitted data
-                available_ids = form.fields['raw_material'].queryset.values_list('id', flat=True)
-                print("Submitted raw material IDs:", form.cleaned_data.get('raw_material'))
-                print("Available raw material IDs:", available_ids)
-                # Verify if the submitted ID exists in the available IDs
-                if form.cleaned_data.get('raw_material') not in available_ids:
-                    print(f"Error: Raw material ID {form.cleaned_data.get('raw_material')} not found in available choices.")
-            print("POST data:", request.POST)
+            # If either form or formset is invalid, they will contain errors.
+            # They are already initialized with request.POST data, so they'll render with errors.
+            print("Requisition Form Errors:", requisition_form.errors)
+            print("Item Formset Errors:", item_formset.errors)
+            print("Item Formset Non-Field Errors:", item_formset.non_field_errors())
 
-    else:
+
+    else: # GET request
         requisition_form = RequisitionForm()
-        item_formset = RequisitionItemFormSet(queryset=RequisitionItem.objects.none())
+        # For a GET request, no supplier is selected yet, so formset is initialized with None
+        item_formset = _RequisitionItemFormSet(queryset=RequisitionItem.objects.none(), form_kwargs={'supplier': None})
 
     return render(request, 'create_requisition.html', {
         'requisition_form': requisition_form,
@@ -4322,3 +4358,344 @@ def production_payment_voucher_detail(request, voucher_number):
 
 
 # now we must add the additional quantities for comformation e.g requested, available 
+
+
+
+@login_required
+def update_raw_material_price(request, raw_material_id, supplier_id):
+    raw_material = get_object_or_404(RawMaterial, id=raw_material_id)
+    supplier = get_object_or_404(Supplier, id=supplier_id)
+    
+    # Get the current price value
+    current_price_value = RawMaterialPrice.get_current_price(raw_material, supplier)
+    
+    # Get the current price object if it exists
+    current_price_obj = RawMaterialPrice.objects.filter(
+        raw_material=raw_material,
+        supplier=supplier,
+        is_current=True
+    ).first()
+    
+    # Get price history for this material and supplier
+    price_history = RawMaterialPrice.objects.filter(
+        raw_material=raw_material,
+        supplier=supplier
+    ).order_by('-effective_date')
+    
+    if request.method == 'POST':
+        form = RawMaterialPriceForm(request.POST)
+        if form.is_valid():
+            # Set current prices to not current
+            RawMaterialPrice.objects.filter(
+                raw_material=raw_material,
+                supplier=supplier,
+                is_current=True
+            ).update(is_current=False)
+            
+            # Create a new price entry
+            new_price = form.cleaned_data['price']
+            effective_date = form.cleaned_data.get('effective_date', timezone.now())
+            
+            RawMaterialPrice.objects.create(
+                raw_material=raw_material,
+                supplier=supplier,
+                price=new_price,
+                effective_date=effective_date,
+                is_current=True,
+                created_by=request.user
+            )
+            
+            messages.success(
+                request, 
+                f"Price for {raw_material.name} from {supplier.name} has been updated to {new_price}."
+            )
+            next_url = request.GET.get('next', reverse('price_comparison'))
+            return redirect(f"{next_url}?material={raw_material_id}")
+    else:
+        initial = {'effective_date': timezone.now()}
+        if current_price_value is not None:
+            initial['price'] = current_price_value
+        form = RawMaterialPriceForm(initial=initial)
+    
+    return render(request, 'update_price.html', {
+        'form': form,
+        'raw_material': raw_material,
+        'supplier': supplier,
+        'current_price': current_price_obj,  # Use the full object here for template context
+        'current_price_value': current_price_value,  # Pass the raw value as well
+        'price_history': price_history,
+        'next': request.GET.get('next', '')
+    })
+
+@login_required
+def price_history(request, raw_material_id):
+    raw_material = get_object_or_404(RawMaterial, id=raw_material_id)
+    prices = RawMaterialPrice.objects.filter(
+        raw_material=raw_material
+    ).select_related('supplier').order_by('-effective_date')
+    
+    return render(request, 'price_history.html', {
+        'raw_material': raw_material,
+        'prices': prices
+    })
+
+@login_required
+def price_comparison(request, raw_material_id=None):
+    raw_materials = RawMaterial.objects.all()
+    selected_material = None
+    price_data = []
+    price_history = [] # This is what your chart needs!
+    
+    # Get material_id from URL parameter or GET parameter
+    material_id = raw_material_id or request.GET.get('material')
+
+    # Calculate six months ago from now
+    six_months_ago = timezone.now() - timedelta(days=180)  # Approximately 6 months
+    
+    if material_id:
+        try:
+            selected_material = RawMaterial.objects.get(id=material_id)
+            
+            # Get all current prices for this material from all suppliers
+            price_data = RawMaterialPrice.objects.filter(
+                raw_material=selected_material,
+                is_current=True
+            ).select_related('supplier').order_by('price')
+
+            price_history = RawMaterialPrice.objects.filter(
+                raw_material=selected_material,
+                effective_date__gte=six_months_ago # Filter for prices within the last 6 months
+            ).select_related('supplier').order_by('effective_date')
+            
+            # If no prices found with is_current=True, try to get any prices
+            if not price_data.exists():
+                price_data = RawMaterialPrice.objects.filter(
+                    raw_material=selected_material
+                ).select_related('supplier').order_by('price')
+
+            # though your current JS infers them from price_history
+            suppliers_for_chart = Supplier.objects.filter(
+                rawmaterialprice__raw_material=selected_material
+            ).distinct().order_by('name')
+                
+        except RawMaterial.DoesNotExist:
+            # If material doesn't exist, just continue with empty price_data
+            pass
+    
+    return render(request, 'price_comparison.html', {
+        'raw_materials': raw_materials,
+        'selected_material': selected_material,
+        'price_data': price_data,
+        'price_history': price_history,
+        'suppliers_for_chart': suppliers_for_chart,
+        'CURRENCY_SYMBOL': settings.CURRENCY_SYMBOL,
+    })
+
+@login_required
+def price_trends(request, raw_material_id, days=90):
+    raw_material = get_object_or_404(RawMaterial, id=raw_material_id)
+    date_from = timezone.now() - timedelta(days=days)
+    
+    # Get all suppliers who have ever supplied this material
+    suppliers = Supplier.objects.filter(
+        rawmaterialprice__raw_material=raw_material
+    ).distinct()
+    
+    # Prepare data for chart
+    chart_data = {
+        'labels': [],
+        'datasets': []
+    }
+    
+    # Get price history for each supplier
+    for supplier in suppliers:
+        prices = RawMaterialPrice.objects.filter(
+            raw_material=raw_material,
+            supplier=supplier,
+            effective_date__gte=date_from
+        ).order_by('effective_date')
+        
+        if prices.exists():
+            dataset = {
+                'label': supplier.name,
+                'data': [{'x': price.effective_date.strftime('%Y-%m-%d'), 
+                         'y': float(price.price)} 
+                        for price in prices],
+                'borderColor': f'#{hash(supplier.name) % 0xffffff:06x}',
+                'tension': 0.1
+            }
+            chart_data['datasets'].append(dataset)
+    
+    return render(request, 'price_trends.html', {
+        'raw_material': raw_material,
+        'chart_data': json.dumps(chart_data),
+        'days': days,
+        'suppliers': suppliers
+    })
+
+@login_required
+def manage_price_alerts(request):
+    if request.method == 'POST':
+        form = PriceAlertForm(request.POST)
+        if form.is_valid():
+            alert = form.save(commit=False)
+            alert.created_by = request.user
+            alert.save()
+            messages.success(request, "Price alert created successfully.")
+            return redirect('manage_price_alerts')
+    else:
+        form = PriceAlertForm()
+    
+    alerts = PriceAlert.objects.filter(created_by=request.user).select_related('raw_material')
+    return render(request, 'manage_alerts.html', {
+        'form': form,
+        'alerts': alerts
+    })
+
+@login_required
+def toggle_alert(request, alert_id):
+    alert = get_object_or_404(PriceAlert, id=alert_id, created_by=request.user)
+    alert.is_active = not alert.is_active
+    alert.save()
+    return redirect('manage_price_alerts')
+
+@login_required
+def delete_alert(request, alert_id):
+    alert = get_object_or_404(PriceAlert, id=alert_id, created_by=request.user)
+    alert.delete()
+    messages.success(request, "Alert deleted successfully.")
+    return redirect('manage_price_alerts')
+
+
+@login_required
+def add_raw_material_price(request):
+    if request.method == 'POST':
+        form = RawMaterialPriceForm(request.POST)
+        if form.is_valid():
+            raw_material = form.cleaned_data['raw_material']
+            supplier = form.cleaned_data['supplier']
+            
+            # Check if supplier is valid for this raw material
+            if not supplier or not raw_material.suppliers.filter(
+                pk=supplier.pk
+            ).exists():
+                form.add_error('supplier', 'Please select a valid supplier for this raw material')
+            else:
+                # Set any existing prices for this material and supplier as not current
+                RawMaterialPrice.objects.filter(
+                    raw_material=raw_material,
+                    supplier=supplier,
+                    is_current=True
+                ).update(is_current=False)
+                
+                # Create the new price
+                price = form.save(commit=False)
+                price.is_current = True
+                price.save()
+                
+                messages.success(request, f"Price for {raw_material.name} from {supplier.name} has been added.")
+                return redirect('price_history', raw_material_id=raw_material.id)
+    else:
+        form = RawMaterialPriceForm()
+    
+    return render(request, 'add_raw_material_price.html', {
+        'form': form,
+        'title': 'Add New Raw Material Price'
+    })
+
+
+
+@require_GET
+def get_suppliers_for_raw_material(request, raw_material_id):
+    try:
+        # Get the raw material
+        raw_material = RawMaterial.objects.get(pk=raw_material_id)
+        
+        # Get all suppliers who can supply this raw material
+        # Using the many-to-many relationship
+        suppliers = raw_material.suppliers.all()
+        
+        # Get the most recent price for each supplier (if it exists)
+        latest_prices = RawMaterialPrice.objects.filter(
+            raw_material=raw_material,
+            supplier=OuterRef('pk')
+        ).order_by('-effective_date')
+        
+        # Annotate suppliers with their latest price
+        suppliers = suppliers.annotate(
+            latest_price=Subquery(latest_prices.values('price')[:1])
+        ).values('id', 'name', 'latest_price')
+        
+        return JsonResponse(list(suppliers), safe=False)
+        
+    except RawMaterial.DoesNotExist:
+        return JsonResponse({'error': 'Raw material not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+class RawMaterialDetailView(DetailView):
+    model = RawMaterial
+    template_name = 'raw_material_detail.html'
+    context_object_name = 'raw_material'
+    
+    def get_queryset(self):
+        return RawMaterial.objects.prefetch_related(
+            'suppliers',
+            'rawmaterialprice_set__supplier',
+            'requisitionitem_set__requisition'
+        )
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        raw_material = self.object
+        
+        # Get current price information
+        current_prices = raw_material.rawmaterialprice_set.filter(
+            is_current=True
+        ).select_related('supplier')
+        
+        # Get price history (last 6 months)
+        six_months_ago = timezone.now() - timedelta(days=180)
+        price_history = raw_material.rawmaterialprice_set.filter(
+            effective_date__gte=six_months_ago
+        ).order_by('-effective_date').select_related('supplier')[:30]  # Limit to 30 most recent
+        
+       # Get recent requisition items for this raw material
+        recent_requisitions = raw_material.requisitionitem_set.select_related(
+            'requisition', 'requisition__supplier'
+        ).order_by('-requisition__created_at')[:10]  # Get 10 most recent
+        
+        context.update({
+            'current_prices': current_prices,
+            'price_history': price_history,
+            'recent_requisitions': recent_requisitions,
+            'suppliers': raw_material.suppliers.all(),
+        })
+        return context
+
+from django.http import JsonResponse
+
+def get_raw_material_price_list(request):
+    raw_material_id = request.GET.get('raw_material_id')
+    supplier_id = request.GET.get('supplier_id')
+    
+    try:
+        raw_material = RawMaterial.objects.get(id=raw_material_id)
+        supplier = Supplier.objects.get(id=supplier_id)
+        
+        current_price = RawMaterialPrice.get_current_price(
+            raw_material=raw_material,
+            supplier=supplier
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'price': str(current_price) if current_price else '0.00',
+            'has_price': current_price is not None
+        })
+    except (RawMaterial.DoesNotExist, Supplier.DoesNotExist, ValueError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid raw material or supplier'
+        }, status=400)

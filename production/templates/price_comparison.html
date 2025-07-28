@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% load price_filters %}
+
+{% block css %}
+	
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/assets/plugins/chart.js/dist/chart.umd.js"/></script>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0">Price Comparison</h1>
+        <div>
+            
+        </div>
+    </div>
+    
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold">Select Raw Material</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="mb-0">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <select name="material" class="form-select" id="materialSelect">
+                                <option value="">Select a material to compare prices</option>
+                                {% for material in raw_materials %}
+                                <option value="{{ material.id }}" 
+                                        {% if material.id == selected_material.id %}selected{% endif %}>
+                                    {{ material.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if selected_material %}
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold">Price Comparison - {{ selected_material.name }}</h6>
+                    <div>
+                        <span class="badge bg-primary">{{ selected_material.unit_measurement|default:'units' }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if price_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Last Updated</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in price_data %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2">
+                                                <i class="fas fa-store text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ item.supplier.name }}</div>
+                                                <small class="text-muted">{{ item.supplier.contact_person|default:'' }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end fw-bold">
+                                        {{ item.price|intcomma }}
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-muted" title="{{ item.effective_date|date:'M d, Y H:i' }}">
+                                            {{ item.effective_date|naturalday|capfirst }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'update_raw_material_price' selected_material.id item.supplier.id %}?next={{ request.get_full_path|urlencode }}" 
+                                               class="btn btn-outline-primary" 
+                                               title="Update price">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'price_trends' selected_material.id %}" 
+                                               class="btn btn-outline-info" 
+                                               title="View price history">
+                                                <i class="fas fa-chart-line"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-light">
+                                    <th>Average</th>
+                                    <th class="text-end">{{ price_data|avg_price|intcomma }}</th>
+                                    <th colspan="2" class="text-muted text-end small">
+                                        {{ price_data|length }} suppliers
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <div class="mb-3">
+                            <i class="fas fa-tags fa-3x text-muted"></i>
+                        </div>
+                        <h5>No price data available</h5>
+                        <p class="text-muted">Add prices from different suppliers to compare.</p>
+                        <a href="{% url 'add_raw_material_price' %}?raw_material={{ selected_material.id }}" 
+                           class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus"></i> Add Price
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold">Quick Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">
+                            Current Stock
+                        </div>
+                        <div class="h4 mb-0 font-weight-bold">
+                            {{ selected_material.quantity|floatformat:0 }} {{ selected_material.unit_measurement }}
+                        </div>
+                        <div class="mt-2">
+                            <span class="badge {% if selected_material.quantity <= selected_material.reorder_point %}bg-danger{% else %}bg-success{% endif %}">
+                                {% if selected_material.quantity <= selected_material.reorder_point %}
+                                    Below Reorder Point
+                                {% else %}
+                                    Stock Level OK
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Lowest Price:</span>
+                            <strong>{{ price_data|min_price|intcomma }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Highest Price:</span>
+                            <strong>{{ price_data|max_price|intcomma }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Price Range:</span>
+                            <strong>{{ price_data|price_range|intcomma }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Number of Suppliers:</span>
+                            <strong>{{ price_data|length }}</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'add_raw_material_price' %}?raw_material={{ selected_material.id }}" 
+                           class="btn btn-primary w-100">
+                            <i class="fas fa-plus"></i> Add New Price
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if price_data %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Price Comparison</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area" style="position: relative; height: 400px;">
+                        <canvas id="priceDistributionChart" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="text-center py-5">
+        <div class="mb-3">
+            <i class="fas fa-balance-scale fa-4x text-muted"></i>
+        </div>
+        <h4>Select a raw material to compare prices</h4>
+        <p class="text-muted">Choose from the dropdown above to view and compare prices from different suppliers.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% if price_data %}
+
+<script>
+    // Price Comparison Line Chart
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get the canvas element
+        const ctx = document.getElementById('priceDistributionChart').getContext('2d');
+        
+        // Prepare data from Django template
+        const chartData = [
+            {% for price in price_data %}
+            {
+                'label': '{{ price.supplier.name|escapejs }}',
+                'price': {{ price.price|floatformat:2 }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Sort data by price (ascending)
+        chartData.sort((a, b) => a.price - b.price);
+        
+        // Extract sorted labels and prices
+        const labels = chartData.map(item => item.label);
+        const prices = chartData.map(item => item.price);
+        
+        // Define chart colors
+        const themeColor = '#4e73df';  // Default blue color
+        const hoverColor = '#2e59d9';  // Slightly darker blue for hover
+        
+        // Initialize the chart
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Price per {{ price_data.0.raw_material.unit_measurement }}',
+                    data: prices,
+                    borderColor: themeColor,
+                    backgroundColor: themeColor + '20',
+                    borderWidth: 2,
+                    pointBackgroundColor: themeColor,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: hoverColor,
+                    pointHoverBorderColor: '#fff',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + context.parsed.y.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                }) + ' {{ price_data.0.raw_material.currency|default:"UGX" }}';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Price ({{ price_data.0.raw_material.unit_measurement }})',
+                            font: {
+                                weight: 'bold',
+                                size: 12
+                            },
+                            padding: {top: 10, bottom: 10}
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '{{ price_data.0.raw_material.currency|default:"UGX" }} ' + value.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Supplier',
+                            font: {
+                                weight: 'bold',
+                                size: 12
+                            },
+                            padding: {top: 10, bottom: 10}
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index',
+                    axis: 'x'
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 10,
+                        bottom: 10
+                    }
+                }
+            }
+        });
+    });
+    
+    // Auto-submit form when material is selected
+    document.getElementById('materialSelect').addEventListener('change', function() {
+        if (this.value) {
+            this.form.submit();
+        }
+    });
+</script>
+{% endif %}
+
+{% endblock %}

@@ -126,3 +126,19 @@ class StaffCommissionAdmin(admin.ModelAdmin):
     list_filter = ['paid', 'staff', 'created_at']
     search_fields = ['staff__name', 'service_sale_item__sale__service_sale_number']
 
+@admin.register(RawMaterialPrice)
+class RawMaterialPriceAdmin(admin.ModelAdmin):
+    list_display = ('raw_material', 'supplier', 'price', 'effective_date', 'is_current')
+    list_filter = ('is_current', 'supplier', 'raw_material')
+    search_fields = ('raw_material__name', 'supplier__name')
+    date_hierarchy = 'effective_date'
+    list_editable = ('is_current', 'price')
+    ordering = ('-effective_date',)
+
+@admin.register(PriceAlert)
+class PriceAlertAdmin(admin.ModelAdmin):
+    list_display = ('raw_material', 'threshold_price', 'is_above', 'is_active', 'created_by', 'created_at')
+    list_filter = ('is_active', 'is_above')
+    search_fields = ('raw_material__name', 'created_by__username')
+    list_editable = ('is_active',)
+    raw_id_fields = ('raw_material', 'created_by')

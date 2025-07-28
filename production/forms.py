@@ -76,6 +76,44 @@ class ReorderPointForm(forms.ModelForm):
         model = RawMaterial
         fields = ['reorder_point']
 
+class RawMaterialPriceForm(forms.ModelForm):
+    class Meta:
+        model = RawMaterialPrice
+        fields = ['raw_material', 'supplier', 'price', 'effective_date']
+        widgets = {
+            'effective_date': forms.DateInput(attrs={
+                'type': 'date', 
+                'class': 'form-select'
+            }),
+            'raw_material': forms.Select(attrs={
+                'class': 'form-select',
+                'data-placeholder': 'Select a raw material...'
+            }),
+            'supplier': forms.Select(attrs={
+                'class': 'form-select',
+                'data-placeholder': 'Select a supplier...',
+                'disabled': True
+            }),
+            'price': forms.NumberInput(attrs={
+                'class': 'form-control', 
+                'step': '0.01', 
+                'min': '0.01'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make supplier field not required initially
+        self.fields['supplier'].required = False
+
+class PriceAlertForm(forms.ModelForm):
+    class Meta:
+        model = PriceAlert
+        fields = ['threshold_price', 'is_above']
+        widgets = {
+            'threshold_price': forms.NumberInput(attrs={'step': '0.01'}),
+        }
+
 class BulkUploadRawMaterialForm(forms.Form):
     file = forms.FileField()
 class CreatePurchaseOrderForm(forms.ModelForm):
@@ -495,17 +533,40 @@ class RequisitionItemForm(forms.ModelForm):
         model = RequisitionItem
         fields = ['raw_material', 'quantity','price_per_unit']
         widgets = {
-            'raw_material': forms.Select(attrs={'class': 'form-control','id':'id_raw_material'}),
+            'raw_material': forms.Select(attrs={'class': 'form-control'}), #add 'id':'id_raw_material'
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
             'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Price per Unit (Kg, Liter, Piece)'}),
         }
     def __init__(self, *args, **kwargs):
-        supplier_id = kwargs.pop('supplier_id', None)
+        print(f"RequisitionItemForm __init__ kwargs before pop: {kwargs}") # DEBUG
+        self.supplier = kwargs.pop('supplier', None)
+        print(f"RequisitionItemForm __init__ kwargs after pop: {kwargs}") # DEBUG
         super().__init__(*args, **kwargs)
-        if supplier_id:
-            self.fields['raw_material'].queryset = RawMaterial.objects.filter(supplier__id=supplier_id)
+
+        # Filter raw_material queryset based on the supplier
+        if self.supplier:  # Changed from 'supplier' to 'self.supplier'
+            # Assuming RawMaterial has a many-to-many or some relation to Supplier
+            # or you want only materials associated with prices from this supplier
+            self.fields['raw_material'].queryset = RawMaterial.objects.filter(
+                rawmaterialprice__supplier=self.supplier  # Changed from 'supplier' to 'self.supplier'
+            ).distinct()
         else:
-            self.fields['raw_material'].queryset = RawMaterial.objects.none()
+            # If no supplier is selected yet (initial form load), provide an empty queryset
+            # or a queryset of all materials, depending on your desired initial state
+            self.fields['raw_material'].queryset = RawMaterial.objects.none() # No choices initially
+            # OR: self.fields['raw_material'].queryset = RawMaterial.objects.all() # All choices initially
+            # Choosing .none() is often better for dynamic forms as it forces a supplier selection first.
+         
+        # Add a placeholder for the raw_material select
+        self.fields['raw_material'].empty_label = "Select Raw Material"
+
+# Create your formset factory
+RequisitionItemFormSet = forms.inlineformset_factory(
+    Requisition, RequisitionItem,
+    form=RequisitionItemForm,
+    extra=1, # Number of empty forms to display initially
+    can_delete=True
+)
         
 class LPOForm(forms.ModelForm):
     class Meta:

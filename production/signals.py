@@ -7,7 +7,7 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.db import transaction
-from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
+from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory,RawMaterialPrice, PriceAlert, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
 
 @receiver(post_save, sender=RawMaterialInventory)
 def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
@@ -19,6 +19,9 @@ def send_alert_for_rawmaterial(sender, instance, created, **kwargs):
             message=f"The reorder point for {instance.raw_material.name} is {instance.raw_material.reorder_point}",
             alert_type="purchase_order"
         )
+
+
+
 
 
 # @receiver(pre_save, sender=SaleItem)
@@ -154,3 +157,22 @@ def send_email_for_internal_accessory_request(sender, instance, created, **kwarg
             send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)
         except Exception as e:
             print(f"Failed to send creation email for internal accessory request {instance.pk}: {e}")
+
+
+@receiver(post_save, sender=RawMaterialPrice)
+def check_price_alerts(sender, instance, created, **kwargs):
+    if created and instance.is_current:
+        alerts = PriceAlert.objects.filter(
+            raw_material=instance.raw_material,
+            is_active=True
+        )
+        
+        for alert in alerts:
+            condition_met = (
+                (alert.is_above and instance.price > alert.threshold_price) or
+                (not alert.is_above and instance.price < alert.threshold_price)
+            )
+            
+            if condition_met:
+                # Send notification (implement your notification logic)
+                send_price_alert_notification(alert, instance)

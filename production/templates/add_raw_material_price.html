@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add Raw Material Price{% endblock %}
+{% block css %}
+
+{% endblock %}
+
+{% block js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Add Select2 for better dropdowns -->
+
+
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header">
+            <h4>Add New Raw Material Price</h4>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.raw_material.id_for_label }}" class="form-label">Raw Material</label>
+                            {{ form.raw_material }}
+                            {% if form.raw_material.errors %}
+                                <div class="text-danger">{{ form.raw_material.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.supplier.id_for_label }}" class="form-label">Supplier</label>
+                            {{ form.supplier }}
+                            {% if form.supplier.errors %}
+                                <div class="text-danger">{{ form.supplier.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.price.id_for_label }}" class="form-label">Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">{{ CURRENCY_SYMBOL }}</span>
+                                {{ form.price }}
+                            </div>
+                            {% if form.price.errors %}
+                                <div class="text-danger">{{ form.price.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.effective_date.id_for_label }}" class="form-label">Effective Date</label>
+                            {{ form.effective_date }}
+                            {% if form.effective_date.errors %}
+                                <div class="text-danger">{{ form.effective_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Price
+                    </button>
+                    <a href="{% url 'price_comparison' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- Add this script at the bottom of your template, before the closing </body> tag -->
+<script>
+    $(document).ready(function() {
+        console.log('Document ready');
+        
+        // Initialize Select2
+        $('select').select2({
+            theme: 'bootstrap-5',
+            width: '100%'
+        });
+        
+        // Initialize date picker
+        $('#id_effective_date').attr('type', 'date');
+        
+        // When raw material changes, update suppliers
+        $('#id_raw_material').on('change', function() {
+            const rawMaterialId = $(this).val();
+            const $supplierSelect = $('#id_supplier');
+            
+            console.log('Raw material changed:', rawMaterialId);
+            
+            if (!rawMaterialId) {
+                $supplierSelect.empty().prop('disabled', true);
+                return;
+            }
+            
+            // Show loading state
+            $supplierSelect.empty().prop('disabled', true).append(
+                $('<option>', {
+                    value: '',
+                    text: 'Loading suppliers...'
+                })
+            );
+            
+            // Fetch suppliers for this raw material
+            $.ajax({
+                url: `/production/api/suppliers-for-raw-material/${rawMaterialId}/`,
+                type: 'GET',
+                success: function(data) {
+                    console.log('Received data:', data);
+                    $supplierSelect.empty();
+                    
+                    if (data.length === 0) {
+                        $supplierSelect.append(
+                            $('<option>', {
+                                value: '',
+                                text: 'No suppliers found for this material'
+                            })
+                        );
+                    } else {
+                        $supplierSelect.append(
+                            $('<option>', {
+                                value: '',
+                                text: 'Select a supplier...'
+                            })
+                        );
+                        
+                        // Add each supplier with their latest price
+                        data.forEach(function(supplier) {
+                            const priceText = supplier.latest_price ? 
+                                ` (Last price: ${parseFloat(supplier.latest_price).toFixed(2)})` : '';
+                            $supplierSelect.append(
+                                $('<option>', {
+                                    value: supplier.id,
+                                    text: `${supplier.name}${priceText}`
+                                })
+                            );
+                        });
+                        
+                        $supplierSelect.prop('disabled', false);
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error('Error loading suppliers:', textStatus, errorThrown);
+                    console.log('Response:', jqXHR.responseText);
+                    $supplierSelect.empty().append(
+                        $('<option>', {
+                            value: '',
+                            text: 'Error loading suppliers'
+                        })
+                    );
+                }
+            });
+        });
+        
+        // Trigger change on page load if raw material is already selected
+        if ($('#id_raw_material').val()) {
+            $('#id_raw_material').trigger('change');
+        }
+    });
+    </script>
+{% endblock %}

@@ -205,4 +205,29 @@ urlpatterns = [
     path('service-sale/<int:sale_id>/receipt/', views.service_sale_receipt, name='service_sale_receipt'),
     path('services/upload/', views.upload_store_services, name='upload_store_services'),
     path('services/template/download/', views.download_service_template, name='download_service_template'),
+
+    # Price Management
+    path('raw-material/<int:raw_material_id>/supplier/<int:supplier_id>/update-price/', 
+         views.update_raw_material_price, name='update_raw_material_price'),
+    path('raw-material/<int:raw_material_id>/price-history/', 
+         views.price_history, name='price_history'),
+    path('price-comparison/', views.price_comparison, name='price_comparison'),
+    path('price-comparison/<int:raw_material_id>/', views.price_comparison, name='price_comparison_detail'),
+    path('price-trends/<int:raw_material_id>/', views.price_trends, name='price_trends'),
+    path('price-trends/<int:raw_material_id>/<int:days>/', views.price_trends, name='price_trends_days'),
+    
+    # Price Alerts
+    path('price-alerts/', views.manage_price_alerts, name='manage_price_alerts'),
+    path('price-alerts/toggle/<int:alert_id>/', views.toggle_alert, name='toggle_alert'),
+    path('price-alerts/delete/<int:alert_id>/', views.delete_alert, name='delete_alert'),
+    path('raw-material-prices/add/', views.add_raw_material_price, name='add_raw_material_price'),
+    # In urls.py
+path('get-raw-material-price-list/', views.get_raw_material_price_list, name='get_raw_material_price_list'),
+    path('update-price/<int:raw_material_id>/<int:supplier_id>/', 
+         views.update_raw_material_price, 
+         name='update_raw_material_price'),
+    path('api/suppliers-for-raw-material/<int:raw_material_id>/', 
+         views.get_suppliers_for_raw_material, 
+         name='get_suppliers_for_raw_material'),
+    path('raw-material/<int:pk>/details/', views.RawMaterialDetailView.as_view(), name='raw_material_details'),
 ]

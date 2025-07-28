@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Departments - POS Magic{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 p-6">
+    <!-- Page Header -->
+    <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 mb-8 shadow-2xl flex justify-between items-center flex-wrap gap-6">
+        <div>
+            <h1 class="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                Departments
+            </h1>
+            <p class="text-gray-600 text-xl">Manage departments for budget allocation and expense tracking</p>
+        </div>
+        <a href="{% url 'accounts:department_create' %}" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4 rounded-xl font-semibold hover:transform hover:-translate-y-2 transition-all duration-300 shadow-lg no-underline flex items-center gap-2">
+            <i class="fas fa-plus"></i>
+            Add Department
+        </a>
+    </div>
+
+    <!-- Departments Grid -->
+    {% if departments %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+        {% for department in departments %}
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl hover:transform hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-purple-600"></div>
+            
+            <div class="flex items-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mr-5">
+                    <i class="fas fa-building text-2xl text-white"></i>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">{{ department.name }}</h3>
+                    <span class="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                        {{ department.code }}
+                    </span>
+                </div>
+            </div>
+
+            {% if department.description %}
+            <div class="text-gray-600 mb-6 leading-relaxed">
+                {{ department.description }}
+            </div>
+            {% endif %}
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="text-center p-4 bg-blue-50 rounded-xl">
+                    <div class="text-2xl font-bold text-gray-800 mb-1">{{ department.total_budget|floatformat:0|intcomma }}</div>
+                    <div class="text-gray-600 text-sm uppercase tracking-wider">Total Budget</div>
+                </div>
+                <div class="text-center p-4 bg-blue-50 rounded-xl">
+                    <div class="text-2xl font-bold text-gray-800 mb-1">{{ department.total_spent|floatformat:0|intcomma }}</div>
+                    <div class="text-gray-600 text-sm uppercase tracking-wider">Total Spent</div>
+                </div>
+            </div>
+
+            {% if department.manager %}
+            <div class="flex items-center mb-6 p-4 bg-green-50 rounded-xl">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mr-4 text-white font-semibold">
+                    {{ department.manager.first_name|first }}{{ department.manager.last_name|first }}
+                </div>
+                <div>
+                    <h4 class="font-semibold text-gray-800 mb-1">{{ department.manager.get_full_name }}</h4>
+                    <p class="text-gray-600 text-sm">Department Manager</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="flex gap-3">
+                <a href="{% url 'accounts:department_update' department.pk %}" class="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 text-center no-underline">
+                    <i class="fas fa-edit mr-2"></i> Edit
+                </a>
+                <a href="{% url 'accounts:department_delete' department.pk %}" class="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-4 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 text-center no-underline" 
+                   onclick="return confirm('Are you sure you want to delete this department?')">
+                    <i class="fas fa-trash mr-2"></i> Delete
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-16 text-center shadow-2xl">
+        <div class="w-24 h-24 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-8">
+            <i class="fas fa-building text-4xl text-white"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-800 mb-4">No Departments Yet</h2>
+        <p class="text-gray-600 text-lg mb-8 max-w-md mx-auto">
+            Get started by creating your first department to organize your budget allocation and expense tracking.
+        </p>
+        <a href="{% url 'accounts:department_create' %}" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-4 rounded-xl font-semibold hover:transform hover:-translate-y-2 transition-all duration-300 shadow-lg no-underline inline-flex items-center gap-2">
+            <i class="fas fa-plus"></i>
+            Create First Department
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

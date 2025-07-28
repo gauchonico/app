@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% load static humanize %}
+
+{% block title %}{{ raw_material.name }} - Raw Material Details{% endblock %}
+
+{% block js %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0">{{ raw_material.name }}</h1>
+        <div>
+            <a href="{% url 'add_raw_material_price' %}?raw_material={{ raw_material.pk }}" 
+               class="btn btn-success btn-sm">
+                <i class="fas fa-tags fa-sm"></i> Add Price
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">
+                                Current Stock</div>
+                            <div class="h5 mb-0 font-weight-bold">
+                                {{ raw_material.quantity|floatformat:2 }} {{ raw_material.unit_measurement }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-boxes fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Reorder Level</div>
+                            <div class="h5 mb-0 font-weight-bold">
+                                {{ raw_material.reorder_point }} {{ raw_material.unit_measurement }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">
+                                Suppliers</div>
+                            <div class="h5 mb-0 font-weight-bold">
+                                {{ suppliers|length }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-truck fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Current Prices -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold">Current Prices by Supplier</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th>Price</th>
+                                    <th>Effective Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for price in current_prices %}
+                                <tr>
+                                    <td>{{ price.supplier.name }}</td>
+                                    <td>{{ CURRENCY_SYMBOL }}{{ price.price|floatformat:2 }}</td>
+                                    <td>{{ price.effective_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center">No current prices available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold">Recent Transactions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Reference</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in recent_requisitions %}
+                                <tr>
+                                    <td>{{ item.requisition.created_at|date:"M d, Y" }}</td>
+                                    <td>Requisition #{{ item.requisition.requisition_no }}</td>
+                                    <td class="{% if item.quantity > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ item.quantity|floatformat:2 }}
+                                    </td>
+                                    <td>{{ item.requisition.supplier.name }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No recent requisitions</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Price History Chart -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold">Price History (Last 6 Months)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="priceHistoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // Helper function to generate colors for chart
+    function getColor(index) {
+        const colors = [
+            '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+            '#5a5c69', '#858796', '#3a3b45', '#1a56a7', '#17a673', '#9b59b6' // Added more colors
+        ];
+        return colors[index % colors.length];
+    }
+
+    // Ensure the DOM is fully loaded before trying to access canvas
+    $(document).ready(function() {
+        // Prepare data for the chart
+        const supplierData = {}; // This will hold datasets for each supplier
+        const allDates = new Set(); // To collect all unique dates for the x-axis labels
+
+        // Process the price history data from Django template
+        {% for price in price_history %}
+            const supplierId = '{{ price.supplier.id }}';
+            const supplierName = '{{ price.supplier.name|escapejs }}';
+            const priceValue = parseFloat('{{ price.price|floatformat:2 }}');
+            // Format date to 'YYYY-MM-DD' for consistent sorting and Chart.js x-axis
+            const effectiveDate = new Date('{{ price.effective_date|date:"Y-m-d" }}');
+            const formattedDate = effectiveDate.toISOString().split('T')[0];
+
+            allDates.add(formattedDate);
+
+            if (!supplierData[supplierId]) {
+                supplierData[supplierId] = {
+                    label: supplierName,
+                    data: [],
+                    borderColor: getColor(Object.keys(supplierData).length), // Assign color based on order of discovery
+                    backgroundColor: 'rgba(78, 115, 223, 0.05)', // A light background for the fill
+                    fill: false, // Don't fill area under the line
+                    tension: 0.3 // Smoothness of the line
+                };
+            }
+
+            supplierData[supplierId].data.push({
+                x: formattedDate,
+                y: priceValue
+            });
+        {% endfor %}
+
+        // Sort all unique dates for the x-axis labels
+        const sortedDates = Array.from(allDates).sort();
+
+        // Create datasets for the chart
+        const datasets = Object.values(supplierData).map(supplier => {
+            // Fill in missing dates with null for consistent plotting across suppliers
+            const filledData = sortedDates.map(date => {
+                const existingPoint = supplier.data.find(point => point.x === date);
+                return existingPoint ? existingPoint : { x: date, y: null }; // Use null for missing points
+            });
+            supplier.data = filledData; // Update supplier's data with filled points
+            return supplier;
+        });
+
+        // Get the canvas element
+        const ctx = document.getElementById('priceHistoryChart');
+
+        // Check if canvas element exists
+        if (ctx) {
+            const priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates, // X-axis labels
+                    datasets: datasets // The prepared datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Allow chart to fill parent div
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom', // Or 'top', 'right', 'left'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += '{{ CURRENCY_SYMBOL }}' + context.parsed.y.toFixed(2);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time', // Important for date/time data
+                            time: {
+                                unit: 'month', // Adjust as needed (day, week, month, year)
+                                tooltipFormat: 'MMM D, YYYY',
+                                displayFormats: {
+                                    month: 'MMM YYYY'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Effective Date'
+                            },
+                            grid: {
+                                display: false // Hide x-axis grid lines
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Price ({{ CURRENCY_SYMBOL }})'
+                            },
+                            ticks: {
+                                callback: function(value, index, ticks) {
+                                    return '{{ CURRENCY_SYMBOL }}' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            console.error("Canvas element with ID 'priceHistoryChart' not found.");
+        }
+    });
+</script>
+{% endblock %}
+
+{% block extra_js %}
+
+
+{% endblock %}

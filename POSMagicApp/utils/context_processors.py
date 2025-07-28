@@ -802,7 +802,7 @@ def sidebar_menu(request):
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests','rawmaterialsList']]
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': 'Production Logistics',
@@ -862,6 +862,23 @@ def sidebar_menu(request):
                     'icon':'bi bi-box-seam',
                     'text': 'Rawmaterial Writeoffs',
                     'name': 'incident_write_off_list'
+                    }]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-folder',
+                'text':'Rawmaterials Unit',
+                'children': [{
+                    'url': '/production/raw-materials/',
+                    'text': 'All Rawmaterials',
+                    'name':'rawmaterialsList',
+                },{
+                    'url': '/production/raw-material-prices/add/',
+                    'text': 'Raw Material Price',
+                    'name':'add_raw_material_price',
+                    },{
+                        'url': '/production/price-comparison/',
+                        'text': 'Price Comparison',
+                        'name':'price_comparison',
                     }]
             })
         elif 'Saloon Managers' in group_names:

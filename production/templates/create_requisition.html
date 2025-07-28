@@ -78,6 +78,8 @@
                         <th>Raw Material</th>
                         <th>Quantity Ordered</th>
                         <th>Unit Price</th>
+                        <th>Total Cost</th>
+                       
                     </tr>
                 </thead>
                 {{ item_formset.management_form }}
@@ -86,7 +88,9 @@
                         <tr class="form-row">
                             <td>{{ form.raw_material }}</td>
                             <td>{{ form.quantity }}</td>
-                            <td>{{ form.price_per_unit }}</td>
+                            <td>{{ form.price_per_unit }} <div class="invalid-feedback"></div></td>
+                            <td class="total-cost">0.00</td>
+                            
                         </tr>
                         <tr>
                             <td colspan="2">{{ form.errors}}</td>
@@ -190,7 +194,92 @@
                 }
             });
         });
+
+        // Handle raw material selection to auto-fill price
+        $(document).on('change', 'select[id$="-raw_material"]', function() {
+        var rawMaterialId = $(this).val();
+        var supplierId = $('#supplier-select').val();
+        var priceInput = $(this).closest('tr').find('input[id$="-price_per_unit"]');
+        var row = $(this).closest('tr');
+        
+        if (rawMaterialId && supplierId) {
+            // Show loading state
+            priceInput.val('Loading...');
+            
+            $.ajax({
+                url: '{% url "get_raw_material_price_list" %}',
+                data: {
+                    'raw_material_id': rawMaterialId,
+                    'supplier_id': supplierId
+                },
+                success: function(data) {
+                    if (data.success) {
+                        if (data.has_price) {
+                            priceInput.val(data.price);
+                            priceInput.removeClass('is-invalid');
+                            priceInput.after('<div class="valid-feedback">Price loaded from price list</div>');
+                        } else {
+                            priceInput.val('');
+                            priceInput.addClass('is-invalid');
+                            priceInput.after('<div class="invalid-feedback">No price found. Please enter manually.</div>');
+                            priceInput.focus();
+                        }
+                        updateTotalCost(row);
+                    } else {
+                        showError('Error: ' + (data.error || 'Failed to load price'));
+                    }
+                },
+                error: function() {
+                    priceInput.val('');
+                    showError('Error loading price. Please enter manually.');
+                }
+            });
+        }
     });
+
+    // Add this helper function for error messages
+    function showError(message) {
+        // You can implement a toast or alert here
+        alert(message);
+    }
+
+        // Function to update total cost for a row
+        function updateTotalCost(row) {
+            var quantity = parseFloat(row.find('input[id$="-quantity"]').val()) || 0;
+            var pricePerUnit = parseFloat(row.find('input[id$="-price_per_unit"]').val()) || 0;
+            var totalCost = quantity * pricePerUnit;
+            row.find('.total-cost').text('UGX ' + totalCost.toFixed(2));
+        }
+
+        // Update total cost when quantity or price changes
+        $(document).on('input', 'input[id$="-quantity"], input[id$="-price_per_unit"]', function() {
+            updateTotalCost($(this).closest('tr'));
+        });
+
+        // Update the form submission to validate prices
+        $('form').on('submit', function(e) {
+            var hasMissingPrices = false;
+            $('select[id$="-raw_material"]').each(function() {
+                var row = $(this).closest('tr');
+                var priceInput = row.find('input[id$="-price_per_unit"]');
+                if ($(this).val() && !priceInput.val()) {
+                    hasMissingPrices = true;
+                    priceInput.addClass('is-invalid');
+                    if (!priceInput.next('.invalid-feedback').length) {
+                        priceInput.after('<div class="invalid-feedback">Please enter a price for this item</div>');
+                    }
+                }
+            });
+            
+            if (hasMissingPrices) {
+                e.preventDefault();
+                showError('Please enter prices for all selected raw materials');
+            }
+        });
+    });
+
+
+    
 </script>
 {% if form.errors %}
     <div class="toasts-container">
