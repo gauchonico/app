@@ -154,7 +154,7 @@ def sidebar_menu(request):
         },{
             'url': '/production/factory-inventory/',
             'icon': 'bi bi-box-fill',
-            'text': 'Production Inventory',
+            'text': 'URI Inventory',
             'name': 'factoryInventory'
         },{
             'url': '/production/production-orders/',
@@ -503,16 +503,16 @@ def sidebar_menu(request):
                     'url': '/production/production-production-orders/',
                     'icon': 'bi bi-node-plus-fill',
                     'text': mark_safe(
-                        f'Production Orders <span class="badge rounded-circle bg-danger">{created_production_orders_count}</span>' 
-                        if created_production_orders_count > 0 else 'Production Orders'),
+                        f'Product Orders <span class="badge rounded-circle bg-danger">{created_production_orders_count}</span>' 
+                        if created_production_orders_count > 0 else 'Product Orders'),
                     'name': 'productionProduction'
                 },
-                    {
-                        'url': '/production/create_production_order/',
-                        'icon': 'bi bi-node-plus-fill',
-                        'text': 'Inventory Order',
-                        'name': 'create_production_order'
-                    },
+                    # {
+                    #     'url': '/production/create_production_order/',
+                    #     'icon': 'bi bi-node-plus-fill',
+                    #     'text': 'Product Order',
+                    #     'name': 'create_production_order'
+                    # },
                     {
                     'url': '/production/livara_main_store_inventory',
                     'icon': 'bi bi-box-fill',
@@ -759,7 +759,7 @@ def sidebar_menu(request):
             },{
             'url': '/production/factory-inventory/',
             'icon': 'bi bi-box-fill',
-            'text': 'Production Inventory',
+            'text': 'URI Inventory',
             'name': 'factoryInventory'
         },{
                     'url':'/production/accessory_store/',

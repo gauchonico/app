@@ -1,117 +1,520 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% load static %}
 
-{% block title %}Goods Recieved Notes List{% endblock %}
+{% block title %}Goods Received Notes - Production{% endblock %}
 
-{% block css %}
-	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
-{% endblock %}
-
-{% block js %}
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
-	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
-{% endblock %}
 {% block content %}
-<h1>Goods Received Notes</h1>
-
-<table id="datatableDefault" class="table text-nowrap w-100">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>GCR No.</th>
-            <th>Date</th>
-            <th>Reason</th>
-            <th>Raw Material</th>
-            <th>...</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for note in goods_received_notes %}
-            
-        <tr>
-            <td>{{ note.id }}</td>
-            <td>{{ note.gcr_number }}</td>
-            <td>{{ note.created_at|date:"Y-m-d" }}</td>
-            <td>{{ note.reason }}</td>
-            
-            <td>
-                <ul class="list-group">
-                    {% for item in note.requisition.requisitionitem_set.all %}
-                    <li class="list-group-item">{{ item.raw_material.name }}<span class="text-theme"> {{ item.delivered_quantity }}</span></li>
-                    {% endfor %}
-                </ul>
-            </td>
-            
-            
-
-            
-            <td>
-                <a href="{% url 'goods_received_note_detail' note.id %}"><i class="far fa-sm fa-fw me-2 fa-eye"></i></a>
-                <!-- Add more actions here if needed -->
-            </td>
-        </tr>
-        {% empty %}
-    
-            No goods received notes found.
-       
-            
-        {% endfor %}
-    </tbody>
-</table>
-
-{% if is_paginated %}
-  <div class="pagination">
-    <span class="step-links">
-        {% if page_obj.has_previous %}
-            <a href="?page=1">&laquo; first</a>
-            <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-        {% endif %}
-
-        <span class="current">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
-        </span>
-
-        {% if page_obj.has_next %}
-            <a href="?page={{ page_obj.next_page_number }}">next</a>
-            <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
-        {% endif %}
-    </span>
-  </div>
-{% endif %}
-
-{% endblock %}
-{% block outter_content %}
-{% if messages %}
-    <div class="toasts-container">
-        {% for message in messages %}
-            <div class="toast fade show">
-                <div class="toast-header">
-                    <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Info</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-white fw-bold">
+                        <i class="fas fa-truck me-2"></i>
+                        Goods Received Notes
+                    </h1>
+                    <p class="text-light mb-0">Track and manage all incoming raw material deliveries</p>
                 </div>
-                <div class="toast-body">
-                    <p>{{ message }}</p>
+                <div>
+                    <a href="{% url 'all_requisitions' %}" class="btn btn-outline-light btn-lg me-2">
+                        <i class="fas fa-list me-2"></i>
+                        View Requisitions
+                    </a>
+                    <a href="{% url 'lpos_list' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-file-invoice me-2"></i>
+                        View LPOs
+                    </a>
                 </div>
             </div>
-        {% endfor %}
+        </div>
     </div>
-{% endif %}
-{% endblock outter_content %}
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-truck fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ total_notes }}</h5>
+                            <p class="text-white-50 mb-0">Total Deliveries</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-calendar-check fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ recent_count }}</h5>
+                            <p class="text-white-50 mb-0">Recent (30 Days)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-boxes fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ total_delivered_quantity|floatformat:0 }}</h5>
+                            <p class="text-white-50 mb-0">Total Quantity</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-dollar-sign fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ total_delivered_value|floatformat:0|intcomma }}</h5>
+                            <p class="text-white-50 mb-0">Total Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Breakdown Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body text-center">
+                    <div class="bg-success bg-opacity-25 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-check-circle text-success fa-2x"></i>
+                    </div>
+                    <h4 class="text-white fw-bold mb-1">{{ successful_deliveries }}</h4>
+                    <p class="text-light mb-0">Successful</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body text-center">
+                    <div class="bg-warning bg-opacity-25 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-exclamation-triangle text-warning fa-2x"></i>
+                    </div>
+                    <h4 class="text-white fw-bold mb-1">{{ quality_issues }}</h4>
+                    <p class="text-light mb-0">Quality Issues</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body text-center">
+                    <div class="bg-danger bg-opacity-25 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-times-circle text-danger fa-2x"></i>
+                    </div>
+                    <h4 class="text-white fw-bold mb-1">{{ expired_items }}</h4>
+                    <p class="text-light mb-0">Expired Items</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body text-center">
+                    <div class="bg-info bg-opacity-25 rounded-circle p-3 mx-auto mb-3" style="width: 80px; height: 80px;">
+                        <i class="fas fa-tint text-info fa-2x"></i>
+                    </div>
+                    <h4 class="text-white fw-bold mb-1">{{ spillage_issues }}</h4>
+                    <p class="text-light mb-0">Spillage Issues</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Analytics Row -->
+    <div class="row mb-4">
+        <!-- Monthly Trends Chart -->
+        <div class="col-xl-8 mb-4">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="text-white fw-bold mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Monthly Delivery Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyTrendsChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Suppliers -->
+        <div class="col-xl-4 mb-4">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="text-white fw-bold mb-0">
+                        <i class="fas fa-building me-2"></i>
+                        Top Suppliers
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for supplier in top_suppliers %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="text-white mb-1">{{ supplier.requisition__supplier__name }}</h6>
+                            <small class="text-light">{{ supplier.delivery_count }} deliveries</small>
+                        </div>
+                        <div class="bg-primary bg-opacity-25 rounded-circle p-2">
+                            <i class="fas fa-truck text-primary"></i>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-light py-3">
+                        <i class="fas fa-building fa-2x mb-2"></i>
+                        <p>No supplier data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity and Discrepancy Summary -->
+    <div class="row mb-4">
+        <!-- Recent Deliveries -->
+        <div class="col-xl-8 mb-4">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="text-white fw-bold mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Recent Deliveries
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead style="background: rgba(255, 255, 255, 0.1);">
+                                <tr>
+                                    <th class="text-white border-0">GCR Number</th>
+                                    <th class="text-white border-0">Supplier</th>
+                                    <th class="text-white border-0">Status</th>
+                                    <th class="text-white border-0">Date</th>
+                                    <th class="text-white border-0 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for note in recent_deliveries %}
+                                <tr style="border-color: rgba(255, 255, 255, 0.1);">
+                                    <td class="text-white">
+                                        <div class="d-flex align-items-center">
+                                            <div class="bg-primary bg-opacity-25 rounded-circle p-2 me-3">
+                                                <i class="fas fa-file-invoice text-primary"></i>
+                                            </div>
+                                            <div class="fw-bold">{{ note.gcr_number }}</div>
+                                        </div>
+                                    </td>
+                                    <td class="text-white">{{ note.requisition.supplier.name }}</td>
+                                    <td>
+                                        {% if note.reason == 'Successful' %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Successful
+                                        </span>
+                                        {% elif note.reason == 'expired' %}
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>Expired
+                                        </span>
+                                        {% elif note.reason == 'quality' %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-exclamation me-1"></i>Quality Issue
+                                        </span>
+                                        {% elif note.reason == 'spillage' %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-tint me-1"></i>Spillage
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-white">{{ note.created_at|date:"M d, Y" }}</td>
+                                    <td class="text-center">
+                                        <a href="{% url 'goods_received_note_detail' note.id %}" class="btn btn-sm btn-outline-light">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="text-light">
+                                            <i class="fas fa-truck fa-2x mb-3"></i>
+                                            <p>No recent deliveries found</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Discrepancy Summary -->
+        <div class="col-xl-4 mb-4">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="text-white fw-bold mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Discrepancy Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="bg-warning bg-opacity-25 rounded-circle p-3 mx-auto mb-2" style="width: 60px; height: 60px;">
+                                <i class="fas fa-file-alt text-warning fa-2x"></i>
+                            </div>
+                            <h6 class="text-white fw-bold mb-1">{{ discrepancy_reports }}</h6>
+                            <small class="text-light">Reports</small>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="bg-info bg-opacity-25 rounded-circle p-3 mx-auto mb-2" style="width: 60px; height: 60px;">
+                                <i class="fas fa-sync text-info fa-2x"></i>
+                            </div>
+                            <h6 class="text-white fw-bold mb-1">{{ pending_replacements }}</h6>
+                            <small class="text-light">Pending Replacements</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-success bg-opacity-25 rounded-circle p-3 mx-auto mb-2" style="width: 60px; height: 60px;">
+                                <i class="fas fa-money-bill text-success fa-2x"></i>
+                            </div>
+                            <h6 class="text-white fw-bold mb-1">{{ total_refunds }}</h6>
+                            <small class="text-light">Total Refunds</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-primary bg-opacity-25 rounded-circle p-3 mx-auto mb-2" style="width: 60px; height: 60px;">
+                                <i class="fas fa-users text-primary fa-2x"></i>
+                            </div>
+                            <h6 class="text-white fw-bold mb-1">{{ suppliers_count }}</h6>
+                            <small class="text-light">Active Suppliers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Goods Received Notes Table -->
+    <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+        <div class="card-header bg-transparent border-0">
+            <h5 class="text-white fw-bold mb-0">
+                <i class="fas fa-list me-2"></i>
+                All Goods Received Notes
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead style="background: rgba(255, 255, 255, 0.1);">
+                        <tr>
+                            <th class="text-white border-0">GCR Number</th>
+                            <th class="text-white border-0">Supplier</th>
+                            <th class="text-white border-0">Raw Materials</th>
+                            <th class="text-white border-0">Status</th>
+                            <th class="text-white border-0">Date</th>
+                            <th class="text-white border-0 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for note in goods_received_notes %}
+                        <tr style="border-color: rgba(255, 255, 255, 0.1);">
+                            <td class="text-white">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-25 rounded-circle p-2 me-3">
+                                        <i class="fas fa-file-invoice text-primary"></i>
+                                    </div>
+                                    <div class="fw-bold">{{ note.gcr_number }}</div>
+                                </div>
+                            </td>
+                            <td class="text-white">{{ note.requisition.supplier.name }}</td>
+                            <td class="text-white">
+                                <div class="d-flex flex-column">
+                                    {% for item in note.requisition.requisitionitem_set.all %}
+                                    <small class="text-light">
+                                        {{ item.raw_material.name }}: 
+                                        <span class="text-white fw-bold">{{ item.delivered_quantity|floatformat:2 }}</span>
+                                    </small>
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if note.reason == 'Successful' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Successful
+                                </span>
+                                {% elif note.reason == 'expired' %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times me-1"></i>Expired
+                                </span>
+                                {% elif note.reason == 'quality' %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-exclamation me-1"></i>Quality Issue
+                                </span>
+                                {% elif note.reason == 'spillage' %}
+                                <span class="badge bg-info">
+                                    <i class="fas fa-tint me-1"></i>Spillage
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-white">{{ note.created_at|date:"M d, Y" }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'goods_received_note_detail' note.id %}" class="btn btn-sm btn-outline-light">
+                                    <i class="fas fa-eye me-1"></i>View
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="text-light">
+                                    <i class="fas fa-truck fa-3x mb-3"></i>
+                                    <h5 class="text-white mb-2">No Goods Received Notes Found</h5>
+                                    <p class="text-light mb-3">Start by processing deliveries from your requisitions</p>
+                                    <a href="{% url 'all_requisitions' %}" class="btn btn-primary">
+                                        <i class="fas fa-plus me-2"></i>View Requisitions
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+body {
+    
+    min-height: 100vh;
+}
+
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+.table {
+    color: white;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Monthly Trends Chart
+    const monthlyCtx = document.getElementById('monthlyTrendsChart').getContext('2d');
+    const monthlyData = {{ monthly_data|safe }};
+    
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(item => item.month),
+            datasets: [{
+                label: 'Deliveries',
+                data: monthlyData.map(item => item.count),
+                borderColor: 'rgba(255, 255, 255, 0.8)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: 'rgba(255, 255, 255, 0.9)',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -4538,8 +4538,106 @@ class ProDeView(FormView):
             return self.form_invalid(form)        
 
 def goods_recieved_notes(request):
-    goods_received_notes = GoodsReceivedNote.objects.all().order_by('-created_at')
-    context = {'goods_received_notes': goods_received_notes}
+    """Enhanced goods received notes with beautiful statistics dashboard"""
+    from django.db.models import Sum, Count, Q
+    from datetime import datetime, timedelta
+    
+    # Get all goods received notes
+    goods_received_notes = GoodsReceivedNote.objects.select_related(
+        'requisition', 'requisition__supplier', 'lpo'
+    ).prefetch_related(
+        'requisition__requisitionitem_set__raw_material'
+    ).all().order_by('-created_at')
+    
+    # Calculate comprehensive statistics
+    total_notes = goods_received_notes.count()
+    
+    # Recent activity (last 30 days)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    recent_notes = goods_received_notes.filter(created_at__gte=thirty_days_ago)
+    recent_count = recent_notes.count()
+    
+    # Status breakdown
+    successful_deliveries = goods_received_notes.filter(reason='Successful').count()
+    expired_items = goods_received_notes.filter(reason='expired').count()
+    quality_issues = goods_received_notes.filter(reason='quality').count()
+    spillage_issues = goods_received_notes.filter(reason='spillage').count()
+    
+    # Calculate total delivered quantities and values
+    total_delivered_quantity = 0
+    total_delivered_value = 0
+    suppliers_count = 0
+    raw_materials_count = 0
+    
+    # Track unique suppliers and raw materials
+    suppliers_set = set()
+    raw_materials_set = set()
+    
+    for note in goods_received_notes:
+        suppliers_set.add(note.requisition.supplier.id)
+        
+        for item in note.requisition.requisitionitem_set.all():
+            if item.delivered_quantity:
+                total_delivered_quantity += item.delivered_quantity
+                total_delivered_value += item.delivered_quantity * (item.price_per_unit or 0)
+                raw_materials_set.add(item.raw_material.id)
+    
+    suppliers_count = len(suppliers_set)
+    raw_materials_count = len(raw_materials_set)
+    
+    # Monthly trends (last 6 months)
+    monthly_data = []
+    for i in range(6):
+        month_start = datetime.now().replace(day=1) - timedelta(days=30*i)
+        month_end = month_start.replace(day=28) + timedelta(days=4)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+        
+        month_notes = goods_received_notes.filter(
+            created_at__gte=month_start,
+            created_at__lte=month_end
+        ).count()
+        
+        monthly_data.append({
+            'month': month_start.strftime('%b %Y'),
+            'count': month_notes
+        })
+    
+    monthly_data.reverse()  # Show oldest to newest
+    
+    # Top suppliers by delivery count
+    top_suppliers = goods_received_notes.values(
+        'requisition__supplier__name'
+    ).annotate(
+        delivery_count=Count('id')
+    ).order_by('-delivery_count')[:5]
+    
+    # Recent deliveries for timeline
+    recent_deliveries = goods_received_notes[:10]
+    
+    # Discrepancy statistics
+    discrepancy_reports = DiscrepancyDeliveryReport.objects.count()
+    pending_replacements = ReplaceNote.objects.filter(status='pending').count()
+    total_refunds = DebitNote.objects.count()
+    
+    context = {
+        'goods_received_notes': goods_received_notes,
+        'total_notes': total_notes,
+        'recent_count': recent_count,
+        'successful_deliveries': successful_deliveries,
+        'expired_items': expired_items,
+        'quality_issues': quality_issues,
+        'spillage_issues': spillage_issues,
+        'total_delivered_quantity': total_delivered_quantity,
+        'total_delivered_value': total_delivered_value,
+        'suppliers_count': suppliers_count,
+        'raw_materials_count': raw_materials_count,
+        'monthly_data': monthly_data,
+        'top_suppliers': top_suppliers,
+        'recent_deliveries': recent_deliveries,
+        'discrepancy_reports': discrepancy_reports,
+        'pending_replacements': pending_replacements,
+        'total_refunds': total_refunds,
+    }
     return render(request, 'goods_received_notes.html', context)
 
 def goods_received_note_detail(request, note_id):
