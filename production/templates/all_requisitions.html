@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% load static %}
 
 {% block title %}All Requisitions{% endblock %}
@@ -14,6 +14,8 @@
 	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
 {% endblock %}
 
 {% block js %}
@@ -46,6 +48,11 @@
 	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
 	<script src="{% static 'js/demo/form-plugins.demo.js' %}"></script>
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -58,38 +65,177 @@
         <h1 class="page-header mb-0">
             All Requisitions
         </h1>
-    <div>
+    </div>
     {% if user_is_production_manager %}
-	<div class="ms-auto mt-4">
-		<a href="{% url 'create_requisition' %}" class="btn btn-outline-theme me-2">Generate Requisition</a>
-	</div>
+    <div class="ms-auto mt-4">
+        <a href="{% url 'create_requisition' %}" class="btn btn-outline-theme me-2">
+            <i class="fas fa-plus me-2"></i>Generate Requisition
+        </a>
+    </div>
     {% endif %}
 </div>
 
-<div id="datatable" class="mb-5 mt-4">
-		
-    <p>A list of all our suppliers and their contact information.</p>
-    
-    <div class="card">
-        <div class="card-body text-center">
-            <table id="datatableDefault" class="table text-nowrap w-100">
-                <thead>
+<!-- Dashboard Statistics -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clipboard-list text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ total_requisitions }}</div>
+                <div class="text-lg">Total Requisitions</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-green-500 to-green-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ approved_requisitions }}</div>
+                <div class="text-lg">Approved</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-clock text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ pending_requisitions }}</div>
+                <div class="text-lg">Pending</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-times-circle text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ rejected_requisitions }}</div>
+                <div class="text-lg">Rejected</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filter Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-search me-2"></i>Search & Filter Requisitions
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="get" id="requisitionFilterForm">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label for="search" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ request.GET.search }}" placeholder="Requisition number, supplier...">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Statuses</option>
+                        <option value="created" {% if request.GET.status == 'created' %}selected{% endif %}>Created</option>
+                        <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                        <option value="checking" {% if request.GET.status == 'checking' %}selected{% endif %}>Checking</option>
+                        <option value="delivered" {% if request.GET.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="supplier" class="form-label">Supplier</label>
+                    <select class="form-select" id="supplier" name="supplier">
+                        <option value="">All Suppliers</option>
+                        {% for supplier in suppliers %}
+                        <option value="{{ supplier.id }}" {% if request.GET.supplier == supplier.id|stringformat:"s" %}selected{% endif %}>
+                            {{ supplier.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="date_range" class="form-label">Date Range</label>
+                    <input type="text" class="form-control" id="date_range" name="date_range" 
+                           value="{{ request.GET.date_range }}" placeholder="Select date range">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="min_cost" class="form-label">Min Cost (UGX)</label>
+                    <input type="number" class="form-control" id="min_cost" name="min_cost" 
+                           value="{{ request.GET.min_cost }}" placeholder="Minimum cost">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="max_cost" class="form-label">Max Cost (UGX)</label>
+                    <input type="number" class="form-control" id="max_cost" name="max_cost" 
+                           value="{{ request.GET.max_cost }}" placeholder="Maximum cost">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-2"></i>Search
+                    </button>
+                    <a href="{% url 'all_requisitions' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-2"></i>Clear Filters
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results Summary -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <p class="text-muted mb-0">
+            Showing <strong>{{ requisitions|length }}</strong> of <strong>{{ total_requisitions }}</strong> requisitions
+            {% if request.GET.search or request.GET.status or request.GET.supplier or request.GET.date_range %}
+                (filtered results)
+            {% endif %}
+        </p>
+    </div>
+    <div class="col-md-6 text-end">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportToCSV()">
+                <i class="fas fa-download me-1"></i>Export CSV
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.print()">
+                <i class="fas fa-print me-1"></i>Print
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Requisitions Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="requisitionsTable" class="table table-hover">
+                <thead class="table-dark">
                     <tr>
-                        <th class="border-top-0 pt-0 pb-2">#</th>
-                        <th class="border-top-0 pt-0 pb-2">Requisition Number</th>
-                        <th class="border-top-0 pt-0 pb-2">Supplier</th>
-                        <th class="border-top-0 pt-0 pb-2">Status</th>
-                        <th class="border-top-0 pt-0 pb-2">Created Date</th>
-                        <th class="border-top-0 pt-0 pb-2">Total Cost</th>
-                        <th class="border-top-0 pt-0 pb-2">Actions</th>
+                        <th>#</th>
+                        <th>Requisition Number</th>
+                        <th>Supplier</th>
+                        <th>Status</th>
+                        <th>Created Date</th>
+                        <th>Total Cost</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for requisition in requisitions %}
                     <tr>
                         <td>{{ forloop.counter }}</td>
-                        <td>{{ requisition.requisition_no }}</td>
-                        <td>{{ requisition.supplier.name }}</td>
+                        <td>
+                            <strong>{{ requisition.requisition_no }}</strong>
+                            {% if requisition.requisitionitem_set.count > 0 %}
+                            <br><small class="text-muted">{{ requisition.requisitionitem_set.count }} items</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ requisition.supplier.name }}</div>
+                            <small class="text-muted">{{ requisition.supplier.company_name }}</small>
+                        </td>
                         <td>
                             {% if requisition.status == 'created' %}
                                 <span class="badge bg-secondary">{{ requisition.get_status_display }}</span>
@@ -102,36 +248,92 @@
                             {% elif requisition.status == 'delivered' %}
                                 <span class="badge bg-success">{{ requisition.get_status_display }}</span>
                             {% else %}
-                                <span class="badge badge-status-default">{{ requisition.get_status_display }}</span>
+                                <span class="badge bg-secondary">{{ requisition.get_status_display }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ requisition.created_at|date:"Y-m-d H:i" }}</td>
-                        <td>{{ requisition.total_cost }}</td>
                         <td>
-                            <a href="{% url 'requisition_details' requisition.id %}"><i class="bi bi-eye"></i> </a>
-                            {% comment %} <a href="{% url 'requisition_edit' requisition.id %}">Edit</a> | {% endcomment %}
-                            {% comment %} <a class="text-danger" href="{% url 'delete_requisition' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a> {% endcomment %}
+                            <div>{{ requisition.created_at|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ requisition.created_at|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <strong>UGX {{ requisition.total_cost|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'requisition_details' requisition.id %}" 
+                                   class="btn btn-sm btn-outline-primary" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if user_is_production_manager and requisition.status == 'created' %}
+                                <a href="#" onclick="approveRequisition({{ requisition.id }})" 
+                                   class="btn btn-sm btn-outline-success" title="Approve">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                <a href="#" onclick="rejectRequisition({{ requisition.id }})" 
+                                   class="btn btn-sm btn-outline-danger" title="Reject">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6">No requisitions found.</td>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No requisitions found matching your criteria.</p>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <div class="card-arrow">
-            <div class="card-arrow-top-left"></div>
-            <div class="card-arrow-top-right"></div>
-            <div class="card-arrow-bottom-left"></div>
-            <div class="card-arrow-bottom-right"></div>
+    </div>
+</div>
+
+<!-- Recent Activity Section -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    {% for activity in recent_activities %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-{{ activity.color }}"></div>
+                        <div class="timeline-content">
+                            <h6 class="mb-1">{{ activity.title }}</h6>
+                            <p class="text-muted mb-0">{{ activity.description }}</p>
+                            <small class="text-muted">{{ activity.time }}</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center">No recent activity</p>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
-        
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Status Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
     </div>
 </div>
 
 {% endblock %}
+
 {% block outter_content %}
 {% if messages %}
     <div class="toasts-container">
@@ -163,12 +365,123 @@
                     <ul>
                         <li>{{ error_msg }}</li>
                     </ul>
-                        
-                        <br>
+                    <br>
                     {% endfor %}
                 {% endfor %}
             </div>
         </div>
     </div>
 {% endif %}
+
+
+<script>
+$(document).ready(function() {
+    // Initialize date range picker
+    $('#date_range').daterangepicker({
+        opens: 'left',
+        locale: {
+            format: 'YYYY-MM-DD'
+        }
+    });
+
+    // Initialize DataTable
+    $('#requisitionsTable').DataTable({
+        responsive: true,
+        pageLength: 25,
+        order: [[4, 'desc']], // Sort by created date descending
+        language: {
+            search: "Search requisitions:",
+            lengthMenu: "Show _MENU_ requisitions per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ requisitions"
+        }
+    });
+
+    // Status Chart
+    var ctx = document.getElementById('statusChart').getContext('2d');
+    var statusChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Created', 'Approved', 'Rejected', 'Checking', 'Delivered'],
+            datasets: [{
+                data: [
+                    {{ created_count }},
+                    {{ approved_count }},
+                    {{ rejected_count }},
+                    {{ checking_count }},
+                    {{ delivered_count }}
+                ],
+                backgroundColor: [
+                    '#6c757d',
+                    '#17a2b8',
+                    '#dc3545',
+                    '#ffc107',
+                    '#28a745'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+
+function approveRequisition(requisitionId) {
+    if (confirm('Are you sure you want to approve this requisition?')) {
+        window.location.href = `/production/approve-requisition/${requisitionId}/`;
+    }
+}
+
+function rejectRequisition(requisitionId) {
+    if (confirm('Are you sure you want to reject this requisition?')) {
+        window.location.href = `/production/reject-requisition/${requisitionId}/`;
+    }
+}
+
+function exportToCSV() {
+    // Get current filter parameters
+    const searchParams = new URLSearchParams(window.location.search);
+    const exportUrl = `/production/export_requisitions_csv/?${searchParams.toString()}`;
+    window.location.href = exportUrl;
+}
+</script>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -35px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.timeline-content {
+    padding-left: 15px;
+    border-left: 2px solid #e9ecef;
+    padding-bottom: 10px;
+}
+
+.bg-created { background-color: #6c757d; }
+.bg-approved { background-color: #17a2b8; }
+.bg-rejected { background-color: #dc3545; }
+.bg-checking { background-color: #ffc107; }
+.bg-delivered { background-color: #28a745; }
+</style>
 {% endblock outter_content %}

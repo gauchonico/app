@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Incident Write-Off Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex align-items-center mb-3">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'incident_write_off_list' %}">INCIDENT WRITE-OFFS</a></li>
+                        <li class="breadcrumb-item active">DETAILS</li>
+                    </ul>
+                    <h1 class="page-header mb-0">Incident Write-Off Details</h1>
+                </div>
+                <div class="ms-auto">
+                    <a href="{% url 'incident_write_off_list' %}" class="btn btn-outline-theme me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to List
+                    </a>
+                    {% if write_off.status == 'pending' %}
+                        <a href="{% url 'approve_incident_write_off' write_off.id %}" 
+                           class="btn btn-success me-2"
+                           onclick="return confirm('Are you sure you want to approve this write-off? This will deduct {{ write_off.quantity }} {{ write_off.raw_material.unit_measurement }} from {{ write_off.raw_material.name }} inventory.')">
+                            <i class="fas fa-check me-2"></i>Approve Write-Off
+                        </a>
+                        <a href="{% url 'reject_incident_write_off' write_off.id %}" 
+                           class="btn btn-danger"
+                           onclick="return confirm('Are you sure you want to reject this write-off?')">
+                            <i class="fas fa-times me-2"></i>Reject Write-Off
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Write-Off Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Raw Material:</label>
+                                <p class="form-control-plaintext">{{ write_off.raw_material.name }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Quantity Written Off:</label>
+                                <p class="form-control-plaintext text-danger fw-bold">{{ write_off.quantity }} {{ write_off.raw_material.unit_measurement }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Date:</label>
+                                <p class="form-control-plaintext">{{ write_off.date|date:"F d, Y" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Status:</label>
+                                <p class="form-control-plaintext">
+                                    {% if write_off.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                    {% elif write_off.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Pending</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Initiated By:</label>
+                                <p class="form-control-plaintext">{{ write_off.written_off_by.get_full_name|default:write_off.written_off_by.username|default:"Unknown" }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Write-Off ID:</label>
+                                <p class="form-control-plaintext">#{{ write_off.id }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Reason for Write-Off:</label>
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <p class="mb-0">{{ write_off.reason }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if write_off.status == 'pending' %}
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-info-circle me-2"></i>
+                                This write-off is pending approval. Only authorized personnel can approve this incident.
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Financial Loss Section -->
+            <div class="card mt-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-dollar-sign me-2"></i>Financial Impact Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="display-6 text-danger fw-bold">
+                                    UGX {{ total_loss|floatformat:2 }}
+                                </div>
+                                <div class="text-muted">Total Financial Loss</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="h4 text-primary fw-bold">
+                                    UGX {{ price_per_unit|floatformat:2 }}
+                                </div>
+                                <div class="text-muted">Price per {{ write_off.raw_material.unit_measurement }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <div class="h5 text-success fw-bold">
+                                    {{ write_off.quantity }} {{ write_off.raw_material.unit_measurement }}
+                                </div>
+                                <div class="text-muted">Quantity Lost</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Price Source:</label>
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <p class="mb-0">
+                                            <i class="fas fa-info-circle me-2 text-info"></i>
+                                            {{ price_source }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if total_loss > 0 %}
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Financial Impact:</strong> This incident has resulted in a financial loss of 
+                                <strong>UGX {{ total_loss|floatformat:2 }}</strong>. This represents the cost of the lost raw material 
+                                based on the most recent pricing information available.
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="alert alert-warning">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Note:</strong> Unable to calculate financial loss due to insufficient pricing information. 
+                                Please ensure pricing data is available for accurate loss assessment.
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if write_off.status == 'approved' %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Approval Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Approval Date:</label>
+                                <p class="form-control-plaintext">{{ write_off.date|date:"F d, Y" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Stock Impact:</label>
+                                <p class="form-control-plaintext text-danger">
+                                    <i class="fas fa-minus-circle me-1"></i>
+                                    {{ write_off.quantity }} {{ write_off.raw_material.unit_measurement }} removed from inventory
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

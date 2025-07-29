@@ -69,38 +69,60 @@
             <div class="row">
                 <div class="col-xl-6">
                     <div class="form-group mb-3">
-                        <label class="form-label" for="first_name">Name of Supplier</label>
+                        <label class="form-label" for="name">Name of Supplier</label>
                         {{form.name}}
                     </div>
                     <div class="form-group mb-3">
-                        <label class="form-label" for="last_name">Company name:</label>
+                        <label class="form-label" for="company_name">Company name:</label>
                         {{form.company_name}}
                     </div>
-                    <div>
-                        <label class="form-label" for="sex">Located at:</label>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="address">Located at:</label>
                         {{form.address}}
                     </div>
-                
-                </div>
-                <div class="col-xl-6">
                     <div class="form-group mb-3">
-                        <label class="form-label" for="location">Email</label>
+                        <label class="form-label" for="email">Email</label>
                         {{form.email}}
                     </div>
                     <div class="form-group mb-3">
-                        <label class="form-label" for="nin_no">Telephone No.</label>
+                        <label class="form-label" for="contact_number">Telephone No.</label>
                         {{form.contact_number}}
                     </div>
-                    <div class="form-group mb-3 mt-3">
-                        <label class="form-label">Raw Material Supplied</label>
-                        {{form.raw_material}}
+                </div>
+                <div class="col-xl-6">
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="quality_rating">Quality Rating</label>
+                        {{form.quality_rating}}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="payment_terms">Payment Terms</label>
+                        {{form.payment_terms}}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="credit_limit">Credit Limit (UGX)</label>
+                        {{form.credit_limit}}
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="reliability_score">Reliability Score (0-10)</label>
+                        {{form.reliability_score}}
+                    </div>
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            {{form.is_active}}
+                            <label class="form-check-label" for="is_active">
+                                Active Supplier
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="notes">Notes</label>
+                        {{form.notes}}
                     </div>
                 </div>
             </div>
             <div class="ms-auto mt-5">
-                <button type="submit" class="btn btn-outline-theme me-2">Edit Supplier Details</button>
+                <button type="submit" class="btn btn-outline-theme me-2">Update Supplier Details</button>
             </div>
-            
         </form>
     </div>
     <div class="card-arrow">
@@ -109,7 +131,6 @@
         <div class="card-arrow-bottom-left"></div>
         <div class="card-arrow-bottom-right"></div>
     </div>
-
 </div>
 {% endblock %}
 <!-- {% block outter_content %}

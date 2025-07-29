@@ -4,8 +4,9 @@
 {% block title %}{{ raw_material.name }} - Raw Material Details{% endblock %}
 
 {% block js %}
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Chart.js with required adapters -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="container-fluid">
@@ -164,8 +165,131 @@
                     <h6 class="m-0 font-weight-bold">Price History (Last 6 Months)</h6>
                 </div>
                 <div class="card-body">
-                    <div class="chart-area">
+                    <div class="chart-area" style="height: 400px;">
                         <canvas id="priceHistoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Incident Write-Offs Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Incident Write-Offs
+                    </h6>
+                    <a href="{% url 'create_incident_write_off' %}?raw_material={{ raw_material.pk }}" 
+                       class="btn btn-warning btn-sm">
+                        <i class="fas fa-plus fa-sm"></i> Report Incident
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Quantity</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Reported By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for write_off in incident_write_offs %}
+                                <tr>
+                                    <td>{{ write_off.date|date:"M d, Y" }}</td>
+                                    <td class="text-danger fw-bold">
+                                        {{ write_off.quantity|floatformat:2 }} {{ raw_material.unit_measurement }}
+                                    </td>
+                                    <td>{{ write_off.reason|truncatechars:50 }}</td>
+                                    <td>
+                                        {% if write_off.status == 'approved' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif write_off.status == 'rejected' %}
+                                            <span class="badge bg-danger">Rejected</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ write_off.written_off_by.get_full_name|default:write_off.written_off_by.username|default:"Unknown" }}</td>
+                                    <td>
+                                        <a href="{% url 'incident_write_off_detail' write_off.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% if write_off.status == 'pending' %}
+                                            <a href="{% url 'approve_incident_write_off' write_off.id %}" 
+                                               class="btn btn-sm btn-outline-success"
+                                               onclick="return confirm('Approve this write-off?')">
+                                                <i class="fas fa-check"></i> Approve
+                                            </a>
+                                            <a href="{% url 'reject_incident_write_off' write_off.id %}" 
+                                               class="btn btn-sm btn-outline-danger"
+                                               onclick="return confirm('Reject this write-off?')">
+                                                <i class="fas fa-times"></i> Reject
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No incident write-offs recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Adjustments Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-chart-line me-2"></i>Recent Inventory Adjustments
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Adjustment</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for adjustment in inventory_adjustments %}
+                                <tr>
+                                    <td>{{ adjustment.last_updated|date:"M d, Y H:i" }}</td>
+                                    <td class="{% if adjustment.adjustment > 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                        {% if adjustment.adjustment > 0 %}+{% endif %}{{ adjustment.adjustment|floatformat:2 }} {{ raw_material.unit_measurement }}
+                                    </td>
+                                    <td>
+                                        {% if adjustment.adjustment > 0 %}
+                                            <span class="badge bg-success">Addition</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Deduction</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center">No inventory adjustments recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -177,13 +301,21 @@
     function getColor(index) {
         const colors = [
             '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
-            '#5a5c69', '#858796', '#3a3b45', '#1a56a7', '#17a673', '#9b59b6' // Added more colors
+            '#5a5c69', '#858796', '#3a3b45', '#1a56a7', '#17a673', '#9b59b6'
         ];
         return colors[index % colors.length];
     }
 
     // Ensure the DOM is fully loaded before trying to access canvas
     $(document).ready(function() {
+        // Check if we have price history data
+        const hasPriceData = {% if price_history %}true{% else %}false{% endif %};
+        
+        if (!hasPriceData) {
+            console.log("No price history data available");
+            return;
+        }
+
         // Prepare data for the chart
         const supplierData = {}; // This will hold datasets for each supplier
         const allDates = new Set(); // To collect all unique dates for the x-axis labels
@@ -193,7 +325,6 @@
             const supplierId = '{{ price.supplier.id }}';
             const supplierName = '{{ price.supplier.name|escapejs }}';
             const priceValue = parseFloat('{{ price.price|floatformat:2 }}');
-            // Format date to 'YYYY-MM-DD' for consistent sorting and Chart.js x-axis
             const effectiveDate = new Date('{{ price.effective_date|date:"Y-m-d" }}');
             const formattedDate = effectiveDate.toISOString().split('T')[0];
 
@@ -203,10 +334,10 @@
                 supplierData[supplierId] = {
                     label: supplierName,
                     data: [],
-                    borderColor: getColor(Object.keys(supplierData).length), // Assign color based on order of discovery
-                    backgroundColor: 'rgba(78, 115, 223, 0.05)', // A light background for the fill
-                    fill: false, // Don't fill area under the line
-                    tension: 0.3 // Smoothness of the line
+                    borderColor: getColor(Object.keys(supplierData).length),
+                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                    fill: false,
+                    tension: 0.3
                 };
             }
 
@@ -224,9 +355,9 @@
             // Fill in missing dates with null for consistent plotting across suppliers
             const filledData = sortedDates.map(date => {
                 const existingPoint = supplier.data.find(point => point.x === date);
-                return existingPoint ? existingPoint : { x: date, y: null }; // Use null for missing points
+                return existingPoint ? existingPoint : { x: date, y: null };
             });
-            supplier.data = filledData; // Update supplier's data with filled points
+            supplier.data = filledData;
             return supplier;
         });
 
@@ -235,19 +366,21 @@
 
         // Check if canvas element exists
         if (ctx) {
+            console.log("Creating price history chart with", datasets.length, "datasets");
+            
             const priceChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: sortedDates, // X-axis labels
-                    datasets: datasets // The prepared datasets
+                    labels: sortedDates,
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false, // Allow chart to fill parent div
+                    maintainAspectRatio: false,
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'bottom', // Or 'top', 'right', 'left'
+                            position: 'bottom',
                         },
                         tooltip: {
                             mode: 'index',
@@ -268,9 +401,9 @@
                     },
                     scales: {
                         x: {
-                            type: 'time', // Important for date/time data
+                            type: 'time',
                             time: {
-                                unit: 'month', // Adjust as needed (day, week, month, year)
+                                unit: 'month',
                                 tooltipFormat: 'MMM D, YYYY',
                                 displayFormats: {
                                     month: 'MMM YYYY'
@@ -281,7 +414,7 @@
                                 text: 'Effective Date'
                             },
                             grid: {
-                                display: false // Hide x-axis grid lines
+                                display: false
                             }
                         },
                         y: {
@@ -304,9 +437,4 @@
         }
     });
 </script>
-{% endblock %}
-
-{% block extra_js %}
-
-
 {% endblock %}

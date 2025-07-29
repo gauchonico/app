@@ -33,3 +33,8 @@ def is_image(file_url):
 @register.filter
 def days_difference(date1, date2):
     return (date2 - date1).days
+
+@register.filter
+def get_item(dictionary, key):
+    """Get an item from a dictionary using a key"""
+    return dictionary.get(key)

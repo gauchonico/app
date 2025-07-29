@@ -29,7 +29,7 @@ def cost_per_unit(self):
         else:
             price_per_base_unit = purchase_price_per_unit  # Use price per unit for items like bottles or pieces
         
-        cost_per_ingredient =  price_per_base_unit
+        cost_per_ingredient = price_per_base_unit * ingredient.quantity_per_unit_product_volume
     else:
       # Handle case where no purchase history exists (optional: set default cost)
       cost_per_ingredient = 0  # You might want to set a default cost here

@@ -1,0 +1,519 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Manufacturing Report - POS Magic{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'plugins/chart.js/dist/chart.min.css' %}">
+{% endblock %}
+
+{% block js %}
+<!-- required js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
+
+<script>
+// Daily Production Chart
+var ctx1 = document.getElementById('dailyProductionChart');
+var dailyChart = new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: [{% for day in daily_production %}'{{ day.day|date:"M d" }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Quantity Produced',
+            data: [{% for day in daily_production %}{{ day.total_quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y'
+        }, {
+            label: 'Production Cost',
+            data: [{% for day in daily_production %}{{ day.total_cost }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        scales: {
+            x: {
+                display: true,
+                title: {
+                    display: true,
+                    text: 'Date'
+                }
+            },
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Quantity'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Cost (UGX)'
+                },
+                grid: {
+                    drawOnChartArea: false,
+                },
+            }
+        }
+    }
+});
+
+// Cost Breakdown Chart - Debug and Fix
+console.log('Cost breakdown data:', {
+    {% for category, amount in cost_breakdown.items %}
+    '{{ category }}': {{ amount|floatformat:2 }}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+});
+
+var ctx5 = document.getElementById('costBreakdownChart');
+console.log('Cost breakdown canvas:', ctx5);
+
+if (ctx5) {
+    // Check if we have data
+    var costData = [{% for category, amount in cost_breakdown.items %}{{ amount|floatformat:2 }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+    var costLabels = [{% for category, amount in cost_breakdown.items %}'{{ category }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+    
+    console.log('Cost data:', costData);
+    console.log('Cost labels:', costLabels);
+    
+    // Only create chart if we have data
+    if (costData.length > 0 && costData.some(function(val) { return val > 0; })) {
+        var pieChart = new Chart(ctx5, {
+            type: 'pie',
+            data: {
+                labels: costLabels,
+                datasets: [{
+                    data: costData,
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.75)',
+                        'rgba(16, 185, 129, 0.75)',
+                        'rgba(245, 158, 11, 0.75)',
+                        'rgba(239, 68, 68, 0.75)',
+                        'rgba(139, 92, 246, 0.75)',
+                        'rgba(6, 182, 212, 0.75)'
+                    ],
+                    hoverBackgroundColor: [
+                        'rgba(59, 130, 246, 0.5)',
+                        'rgba(16, 185, 129, 0.5)',
+                        'rgba(245, 158, 11, 0.5)',
+                        'rgba(239, 68, 68, 0.5)',
+                        'rgba(139, 92, 246, 0.5)',
+                        'rgba(6, 182, 212, 0.5)'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        display: true,
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        console.log('Pie chart created successfully');
+    } else {
+        console.log('No cost data available for pie chart');
+        // Show a message in the canvas area
+        ctx5.style.display = 'none';
+        var noDataDiv = document.createElement('div');
+        noDataDiv.innerHTML = '<p class="text-center text-muted mt-4">No cost breakdown data available</p>';
+        ctx5.parentNode.appendChild(noDataDiv);
+    }
+} else {
+    console.error('Cost breakdown canvas not found');
+}
+</script>
+{% endblock %}
+
+
+{% block content %}
+<!-- BEGIN row -->
+<div class="row">
+    <!-- Header -->
+    <div class="col-12 mb-4">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+            <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                Manufacturing Report
+            </h1>
+            <p class="text-xl">Production quantities and costs analysis</p>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+            <form method="post" class="row align-items-end">
+                {% csrf_token %}
+                <div class="col-md-4">
+                    <label for="{{ form.start_date.id_for_label }}" class="form-label fw-bold">Start Date</label>
+                    {{ form.start_date }}
+                </div>
+                <div class="col-md-4">
+                    <label for="{{ form.end_date.id_for_label }}" class="form-label fw-bold">End Date</label>
+                    {{ form.end_date }}
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>Generate Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="col-12 mb-6">
+        <div class="row mt-5">
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow bg-gradient-to-br from-green-500 to-green-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                    <div class="card-body">
+                        <div class="">
+                            <i class="fas fa-boxes text-3xl text-white mb-4"></i>
+                        
+                            <div class="text-6xl font-bold mb-3">{{ total_products_manufactured|floatformat:0|intcomma }}</div>
+                            <div class="font-medium text-lg">Total Products Manufactured</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+
+                <div class="card border-0 shadow bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                    <div class="card-body">
+                        <i class="fas fa-dollar-sign text-3xl text-white mb-4"></i>
+                        <div class="text-6xl font-bold mb-3">{{ total_cost_incurred|floatformat:0|intcomma }}</div>
+                    <div class="font-medium text-lg">Total Production Cost</div>
+                    </div>
+                    
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                    <div class="card-body">
+                        <i class="fas fa-calculator text-3xl text-white mb-4"></i>
+                        <div class="text-6xl font-bold mb-3">{{ avg_cost_per_product|floatformat:0|intcomma }}</div>
+                        <div class="font-medium text-lg">Avg Cost per Product</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line text-3xl text-white mb-4"></i>
+                        <div class="text-6xl font-bold mb-3">{{ production_data|length }}</div>
+                        <div class="font-medium text-lg">Products Manufactured</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production by Product -->
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6">
+                <i class="fas fa-boxes me-3 text-blue-600"></i>Production by Product
+            </h3>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Product Name</th>
+                            <th class="text-center">Quantity Manufactured</th>
+                            <th class="text-end">Total Cost</th>
+                            <th class="text-end">Avg Cost per Unit</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in production_data %}
+                        <tr>
+                            <td class="fw-bold">{{ item.product__product_name }}</td>
+                            <td class="text-center">{{ item.total_quantity|floatformat:0|intcomma }}</td>
+                            <td class="text-end">{{ item.total_cost|floatformat:0|intcomma }}</td>
+                            <td class="text-end">{{ item.avg_cost_per_unit|floatformat:0|intcomma }}</td>
+                            <td class="text-center">
+                                <a href="/production/manufactured-product-list/?product={{ item.product__product_name }}" 
+                                   class="btn btn-sm btn-outline-primary" title="View Manufacturing Records">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No production data found for the selected period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Manufacturing Records -->
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6">
+                <i class="fas fa-history me-3 text-purple-600"></i>Recent Manufacturing Records
+            </h3>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Batch Number</th>
+                            <th>Product</th>
+                            <th class="text-center">Quantity</th>
+                            <th class="text-center">Manufactured Date</th>
+                            <th class="text-center">Production Order</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in recent_manufacturing_records %}
+                        <tr>
+                            <td class="fw-bold">{{ record.batch_number }}</td>
+                            <td>{{ record.product.product_name }}</td>
+                            <td class="text-center">{{ record.quantity|floatformat:0|intcomma }}</td>
+                            <td class="text-center">{{ record.manufactured_at|date:"M d, Y" }}</td>
+                            <td class="text-center">
+                                {% if record.production_order %}
+                                    <a href="/production/production-orders/{{ record.production_order.id }}/" 
+                                       class="btn btn-sm btn-outline-info" title="View Production Order">
+                                        {{ record.production_order.prod_order_no }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="/production/manufactured-product-details/{{ record.id }}/" 
+                                   class="btn btn-sm btn-outline-primary" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No manufacturing records found for the selected period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="col-12 mb-6">
+        <div class="row">
+            <!-- Daily Production Chart -->
+            <div class="col-lg-8 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+                    <h3 class="text-2xl font-bold mb-6">
+                        <i class="fas fa-chart-line me-3 text-green-600"></i>Daily Production Trend
+                    </h3>
+                    <canvas id="dailyProductionChart" class="w-100" style="height: 300px;"></canvas>
+                </div>
+            </div>
+
+            <!-- Cost Breakdown Chart -->
+            <div class="col-lg-4 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-chart-pie me-3 text-orange-600"></i>Cost Breakdown
+                    </h3>
+                    <div style="height: 200px; position: relative;">
+                        <canvas id="costBreakdownChart" style="max-height: 200px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Inventory -->
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6">
+                <i class="fas fa-warehouse me-3 text-purple-600"></i>Current Inventory Levels
+            </h3>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Product Name</th>
+                            <th class="text-center">Current Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in current_inventory %}
+                        <tr>
+                            <td class="fw-bold">{{ item.product__product_name }}</td>
+                            <td class="text-center">{{ item.total_quantity|floatformat:0|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted py-4">No inventory data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="col-12">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+            <h4 class="text-xl font-bold mb-4">
+                <i class="fas fa-download me-3 text-blue-600"></i>Export Report
+            </h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="?export=csv&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}" 
+                       class="btn btn-success w-100">
+                        <i class="fas fa-file-csv me-2"></i>Export to CSV
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <button onclick="window.print()" class="btn btn-primary w-100">
+                        <i class="fas fa-print me-2"></i>Print Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END row -->
+{% endblock %}
+
+{% block extra_js %}
+<!-- required js -->
+<script src="{% static 'plugins/chart.js/dist/chart.umd.js' %}"></script>
+
+<script>
+// Daily Production Chart
+var ctx1 = document.getElementById('dailyProductionChart');
+var dailyChart = new Chart(ctx1, {
+    type: 'line',
+    data: {
+        labels: [{% for day in daily_production %}'{{ day.day|date:"M d" }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Quantity Produced',
+            data: [{% for day in daily_production %}{{ day.total_quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y'
+        }, {
+            label: 'Production Cost',
+            data: [{% for day in daily_production %}{{ day.total_cost }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        scales: {
+            x: {
+                display: true,
+                title: {
+                    display: true,
+                    text: 'Date'
+                }
+            },
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Quantity'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Cost (UGX)'
+                },
+                grid: {
+                    drawOnChartArea: false,
+                },
+            }
+        }
+    }
+});
+
+// Cost Breakdown Chart
+var ctx5 = document.getElementById('costBreakdownChart');
+var pieChart = new Chart(ctx5, {
+    type: 'pie',
+    data: {
+        labels: [{% for category, amount in cost_breakdown.items %}'{{ category }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            data: [{% for category, amount in cost_breakdown.items %}{{ amount }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: [
+                'rgba(59, 130, 246, 0.75)',
+                'rgba(16, 185, 129, 0.75)',
+                'rgba(245, 158, 11, 0.75)',
+                'rgba(239, 68, 68, 0.75)',
+                'rgba(139, 92, 246, 0.75)',
+                'rgba(6, 182, 212, 0.75)'
+            ],
+            hoverBackgroundColor: [
+                'rgba(59, 130, 246, 0.5)',
+                'rgba(16, 185, 129, 0.5)',
+                'rgba(245, 158, 11, 0.5)',
+                'rgba(239, 68, 68, 0.5)',
+                'rgba(139, 92, 246, 0.5)',
+                'rgba(6, 182, 212, 0.5)'
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+            }
+        }
+    }
+});
+</script>
+{% endblock %} 

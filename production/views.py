@@ -11,7 +11,7 @@ import os
 from django.db import IntegrityError, models
 from django.views.decorators.http import require_http_methods
 from urllib import error
-from django.db.models import Sum, F, Q, Case, When, Count, Value, CharField
+from django.db.models import Sum, F, Q, Case, When, Count, Value, CharField, Max
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import user_passes_test
@@ -185,14 +185,17 @@ def supplier_details (request, supplier_id):
     supplier = get_object_or_404(Supplier, pk=supplier_id)
     rawmaterials = RawMaterial.objects.filter(suppliers=supplier)
     requisitions = Requisition.objects.filter(supplier=supplier)
-    # Get the breakdown of raw materials for the specific supplier
+    
+    # Get the breakdown of raw materials for the specific supplier with last delivery date
     breakdown = RequisitionItem.objects.filter(
         requisition__supplier=supplier
     ).values(
         'raw_material__name'
     ).annotate(
-        total_delivered=Sum('delivered_quantity')
+        total_delivered=Sum('delivered_quantity'),
+        last_delivery=Max('requisition__updated_at')
     ).order_by('raw_material__name')
+    
     # Get the LPOs related to requisitions made to the supplier
     purchase_orders = LPO.objects.filter(requisition__supplier=supplier)
     
@@ -357,29 +360,123 @@ def create_incident_write_off(request):
             messages.success(request, f"Incident report writeoff has been initiated")
             return redirect('incident_write_off_list')  # Redirect to a list view
     else:
-        form = IncidentWriteOffForm()
+        # Check if raw_material parameter is provided
+        raw_material_id = request.GET.get('raw_material')
+        if raw_material_id:
+            try:
+                raw_material = RawMaterial.objects.get(id=raw_material_id)
+                form = IncidentWriteOffForm(initial={'raw_material': raw_material})
+            except RawMaterial.DoesNotExist:
+                form = IncidentWriteOffForm()
+        else:
+            form = IncidentWriteOffForm()
     return render(request, 'incident_write_off_form.html', {'form': form})
 
 @login_required(login_url='/login/')
 def approve_incident_write_off(request, pk):
-    write_off = IncidentWriteOff.objects.get(pk=pk)
-    if write_off.status == 'pending':
-        write_off.status = 'approved'
-        write_off.save()
+    try:
+        write_off = get_object_or_404(IncidentWriteOff, pk=pk)
+        
+        if write_off.status == 'pending':
+            with transaction.atomic():
+                # Update the write-off status
+                write_off.status = 'approved'
+                write_off.save()
 
-        raw_material = write_off.raw_material
-        raw_material.remove_stock(write_off.quantity)
-        raw_material.save()
-    messages.success(request, f"A write off for {raw_material.name} has been approved successfully.")
-    return redirect('incident_write_off_list')  # Redirect to a list view
+                # Deduct from raw material inventory
+                raw_material = write_off.raw_material
+                
+                # Create inventory adjustment record
+                RawMaterialInventory.objects.create(
+                    raw_material=raw_material,
+                    adjustment=-write_off.quantity  # Negative for deductions
+                )
+                
+                messages.success(request, f"Write-off for {raw_material.name} has been approved successfully.")
+        else:
+            messages.warning(request, f"This write-off is already {write_off.status}.")
+            
+    except Exception as e:
+        messages.error(request, f"Error approving write-off: {str(e)}")
+    
+    return redirect('incident_write_off_list')
+
+def calculate_incident_write_off_loss(write_off):
+    """Helper function to calculate financial loss for an incident write-off"""
+    total_loss = Decimal('0.00')
+    price_per_unit = Decimal('0.00')
+    price_source = "No requisition history found"
+    
+    try:
+        # Get the most recent requisition item for this raw material
+        latest_requisition_item = RequisitionItem.objects.filter(
+            raw_material=write_off.raw_material,
+            price_per_unit__gt=0  # Only consider items with valid prices
+        ).order_by('-requisition__created_at').first()
+        
+        if latest_requisition_item:
+            price_per_unit = latest_requisition_item.price_per_unit
+            total_loss = write_off.quantity * price_per_unit
+            price_source = f"Latest requisition: {latest_requisition_item.requisition.requisition_no}"
+        else:
+            # Try to get from RawMaterialPrice if no requisition history
+            latest_price = RawMaterialPrice.objects.filter(
+                raw_material=write_off.raw_material,
+                is_current=True
+            ).order_by('-effective_date').first()
+            
+            if latest_price:
+                price_per_unit = latest_price.price
+                total_loss = write_off.quantity * price_per_unit
+                price_source = f"Market price: {latest_price.supplier.name}"
+            else:
+                price_source = "No pricing information available"
+                
+    except Exception as e:
+        price_source = f"Error calculating price: {str(e)}"
+    
+    return {
+        'total_loss': total_loss,
+        'price_per_unit': price_per_unit,
+        'price_source': price_source,
+    }
 
 @login_required(login_url='/login/')
 def incident_write_off_list(request):
     write_offs = IncidentWriteOff.objects.all().order_by('-date')
+    
+    # Calculate financial loss for each write-off
+    write_offs_with_loss = []
+    total_company_loss = Decimal('0.00')
+    
+    for write_off in write_offs:
+        loss_data = calculate_incident_write_off_loss(write_off)
+        write_off.total_loss = loss_data['total_loss']
+        write_off.price_per_unit = loss_data['price_per_unit']
+        write_off.price_source = loss_data['price_source']
+        write_offs_with_loss.append(write_off)
+        total_company_loss += loss_data['total_loss']
+    
     context = {
-        'write_offs': write_offs,
+        'write_offs': write_offs_with_loss,
+        'total_company_loss': total_company_loss,
     }
     return render(request, "incident_write_off_list.html", context)
+
+@login_required(login_url='/login/')
+def incident_write_off_detail(request, write_off_id):
+    write_off = get_object_or_404(IncidentWriteOff, pk=write_off_id)
+    
+    # Calculate financial loss using helper function
+    loss_data = calculate_incident_write_off_loss(write_off)
+    
+    context = {
+        'write_off': write_off,
+        'total_loss': loss_data['total_loss'],
+        'price_per_unit': loss_data['price_per_unit'],
+        'price_source': loss_data['price_source'],
+    }
+    return render(request, "incident_write_off_detail.html", context)
 
 @login_required(login_url='/login/')
 def download_example_csv(request):
@@ -1258,7 +1355,7 @@ def raw_material_date_report(request):
             'rawmaterialinventory__adjustment',
             filter=Q(rawmaterialinventory__adjustment__gt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
         ),Decimal(0)),
-        # Calculate deductions on the selected date
+        # Calculate deductions on the selected date (including incident write-offs)
         deductions=Coalesce(Sum(
             'rawmaterialinventory__adjustment',
             filter=Q(rawmaterialinventory__adjustment__lt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
@@ -1267,10 +1364,111 @@ def raw_material_date_report(request):
         # Calculate closing stock based on calculated_stock, additions, and deductions
         closing_stock=F('previous_stock') + (F('additions')) + (F('deductions'))
     )
-    print(raw_materials[8].__dict__)
+    
+    # Get requisitions delivered on the selected date (for additions)
+    requisitions_delivered = Requisition.objects.filter(
+        status='delivered',
+        updated_at__date=selected_date
+    ).prefetch_related('requisitionitem_set__raw_material')
+    
+    # Get manufacturing records on the selected date (for deductions)
+    manufacturing_records = ManufactureProduct.objects.filter(
+        manufactured_at__date=selected_date
+    ).prefetch_related('used_ingredients__raw_material')
+    
+    # Get incident write-offs on the selected date (for deductions)
+    incident_write_offs = IncidentWriteOff.objects.filter(
+        date=selected_date,
+        status='approved'
+    ).select_related('raw_material', 'written_off_by')
+    
+    # Create a mapping of raw material to its related transactions
+    raw_material_transactions = {}
+    
+    for material in raw_materials:
+        material_transactions = {
+            'additions': [],
+            'deductions': []
+        }
+        
+        # Find requisitions that added this material
+        requisition_additions = {}
+        for requisition in requisitions_delivered:
+            for item in requisition.requisitionitem_set.all():
+                if item.raw_material == material:
+                    # Use requisition ID as key to prevent duplicates
+                    if requisition.id not in requisition_additions:
+                        requisition_additions[requisition.id] = {
+                            'type': 'requisition',
+                            'id': requisition.id,
+                            'number': requisition.requisition_no,
+                            'quantity': item.delivered_quantity,
+                            'date': requisition.updated_at,
+                            'supplier': requisition.supplier.name
+                        }
+                    else:
+                        # If same requisition has this material multiple times, sum the quantities
+                        requisition_additions[requisition.id]['quantity'] += item.delivered_quantity
+        
+        # Add unique requisition additions to the list
+        material_transactions['additions'].extend(requisition_additions.values())
+        
+        # Find manufacturing records that consumed this material
+        manufacturing_deductions = {}
+        for manufacturing in manufacturing_records:
+            for ingredient in manufacturing.used_ingredients.all():
+                if ingredient.raw_material == material:
+                    # Use manufacturing ID as key to prevent duplicates
+                    if manufacturing.id not in manufacturing_deductions:
+                        manufacturing_deductions[manufacturing.id] = {
+                            'type': 'manufacturing',
+                            'id': manufacturing.id,
+                            'batch_number': manufacturing.batch_number,
+                            'quantity': ingredient.quantity_used,
+                            'date': manufacturing.manufactured_at,
+                            'product': manufacturing.product.product_name
+                        }
+                    else:
+                        # If same manufacturing record uses this material multiple times, sum the quantities
+                        manufacturing_deductions[manufacturing.id]['quantity'] += ingredient.quantity_used
+        
+        # Add unique manufacturing deductions to the list
+        material_transactions['deductions'].extend(manufacturing_deductions.values())
+        
+        # Find incident write-offs for this material
+        for write_off in incident_write_offs:
+            if write_off.raw_material == material:
+                material_transactions['deductions'].append({
+                    'type': 'incident_write_off',
+                    'id': write_off.id,
+                    'quantity': write_off.quantity,
+                    'date': write_off.date,
+                    'reason': write_off.reason,
+                    'written_off_by': write_off.written_off_by.get_full_name() if write_off.written_off_by else 'Unknown'
+                })
+        
+        raw_material_transactions[material.id] = material_transactions
+    
+    # Now we need to manually adjust the deductions and closing stock to include incident write-offs
+    # since they are not included in the RawMaterialInventory calculations
+    for material in raw_materials:
+        # Calculate total incident write-off deductions for this material on the selected date
+        incident_deductions = sum(
+            write_off.quantity 
+            for write_off in incident_write_offs 
+            if write_off.raw_material == material
+        )
+        
+        # Add incident write-off deductions to the material's deductions
+        material.deductions -= incident_deductions  # Subtract because deductions are negative
+        
+        # Recalculate closing stock
+        material.closing_stock = material.previous_stock + material.additions + material.deductions
+    
     context = {
         'raw_materials': raw_materials,
         'selected_date': selected_date,
+        'raw_material_transactions': raw_material_transactions,
     }
     return render(request, 'raw_material_date_report.html', context)
 
@@ -3898,13 +4096,214 @@ def get_raw_materials_by_supplier(request):
     return JsonResponse(data, safe=False)
 
 def all_requisitions(request):
-    requisitions = Requisition.objects.all().order_by('-created_at')
+    from django.db.models import Q, Count
+    from datetime import datetime, timedelta
+    
+    # Get filter parameters
+    search = request.GET.get('search', '')
+    status = request.GET.get('status', '')
+    supplier = request.GET.get('supplier', '')
+    date_range = request.GET.get('date_range', '')
+    min_cost = request.GET.get('min_cost', '')
+    max_cost = request.GET.get('max_cost', '')
+    
+    # Start with all requisitions
+    requisitions = Requisition.objects.select_related('supplier').prefetch_related('requisitionitem_set')
+    
+    # Apply filters
+    if search:
+        requisitions = requisitions.filter(
+            Q(requisition_no__icontains=search) |
+            Q(supplier__name__icontains=search) |
+            Q(supplier__company_name__icontains=search)
+        )
+    
+    if status:
+        requisitions = requisitions.filter(status=status)
+    
+    if supplier:
+        requisitions = requisitions.filter(supplier_id=supplier)
+    
+    if date_range:
+        try:
+            start_date, end_date = date_range.split(' - ')
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            requisitions = requisitions.filter(created_at__date__range=[start_date, end_date])
+        except:
+            pass
+    
+    if min_cost:
+        try:
+            min_cost = float(min_cost)
+            requisitions = requisitions.filter(total_cost__gte=min_cost)
+        except:
+            pass
+    
+    if max_cost:
+        try:
+            max_cost = float(max_cost)
+            requisitions = requisitions.filter(total_cost__lte=max_cost)
+        except:
+            pass
+    
+    # Order by created date descending
+    requisitions = requisitions.order_by('-created_at')
+    
+    # Dashboard Statistics
+    all_requisitions_count = Requisition.objects.count()
+    total_requisitions = all_requisitions_count
+    approved_requisitions = Requisition.objects.filter(status='approved').count()
+    pending_requisitions = Requisition.objects.filter(status__in=['created', 'checking']).count()
+    rejected_requisitions = Requisition.objects.filter(status='rejected').count()
+    
+    # Status counts for chart
+    created_count = Requisition.objects.filter(status='created').count()
+    checking_count = Requisition.objects.filter(status='checking').count()
+    delivered_count = Requisition.objects.filter(status='delivered').count()
+    
+    # Get all suppliers for filter dropdown
+    suppliers = Supplier.objects.all().order_by('name')
+    
+    # Recent activities (last 10 requisitions with status changes)
+    recent_activities = []
+    recent_requisitions = Requisition.objects.select_related('supplier').order_by('-updated_at')[:10]
+    
+    for req in recent_requisitions:
+        if req.status == 'created':
+            color = 'created'
+            title = f"New Requisition Created"
+            description = f"Requisition {req.requisition_no} created for {req.supplier.name}"
+        elif req.status == 'approved':
+            color = 'approved'
+            title = f"Requisition Approved"
+            description = f"Requisition {req.requisition_no} approved"
+        elif req.status == 'rejected':
+            color = 'rejected'
+            title = f"Requisition Rejected"
+            description = f"Requisition {req.requisition_no} rejected"
+        elif req.status == 'checking':
+            color = 'checking'
+            title = f"Requisition in Checking"
+            description = f"Requisition {req.requisition_no} moved to checking"
+        elif req.status == 'delivered':
+            color = 'delivered'
+            title = f"Requisition Delivered"
+            description = f"Requisition {req.requisition_no} delivered"
+        else:
+            color = 'created'
+            title = f"Requisition Updated"
+            description = f"Requisition {req.requisition_no} status updated"
+        
+        recent_activities.append({
+            'title': title,
+            'description': description,
+            'time': req.updated_at.strftime('%M minutes ago') if req.updated_at > timezone.now() - timedelta(hours=1) else req.updated_at.strftime('%H:%M, %b %d'),
+            'color': color
+        })
+    
     user_is_production_manager = request.user.groups.filter(name='Production Manager').exists()
-    context ={
+    
+    context = {
         'requisitions': requisitions,
-        'user_is_production_manager':user_is_production_manager
+        'user_is_production_manager': user_is_production_manager,
+        'total_requisitions': total_requisitions,
+        'approved_requisitions': approved_requisitions,
+        'pending_requisitions': pending_requisitions,
+        'rejected_requisitions': rejected_requisitions,
+        'created_count': created_count,
+        'checking_count': checking_count,
+        'delivered_count': delivered_count,
+        'suppliers': suppliers,
+        'recent_activities': recent_activities,
     }
+    
     return render(request, 'all_requisitions.html', context)
+
+def export_requisitions_csv(request):
+    import csv
+    from django.http import HttpResponse
+    from django.db.models import Q
+    from datetime import datetime
+    
+    # Get filter parameters (same as all_requisitions view)
+    search = request.GET.get('search', '')
+    status = request.GET.get('status', '')
+    supplier = request.GET.get('supplier', '')
+    date_range = request.GET.get('date_range', '')
+    min_cost = request.GET.get('min_cost', '')
+    max_cost = request.GET.get('max_cost', '')
+    
+    # Start with all requisitions
+    requisitions = Requisition.objects.select_related('supplier').prefetch_related('requisitionitem_set')
+    
+    # Apply filters (same logic as all_requisitions view)
+    if search:
+        requisitions = requisitions.filter(
+            Q(requisition_no__icontains=search) |
+            Q(supplier__name__icontains=search) |
+            Q(supplier__company_name__icontains=search)
+        )
+    
+    if status:
+        requisitions = requisitions.filter(status=status)
+    
+    if supplier:
+        requisitions = requisitions.filter(supplier_id=supplier)
+    
+    if date_range:
+        try:
+            start_date, end_date = date_range.split(' - ')
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            requisitions = requisitions.filter(created_at__date__range=[start_date, end_date])
+        except:
+            pass
+    
+    if min_cost:
+        try:
+            min_cost = float(min_cost)
+            requisitions = requisitions.filter(total_cost__gte=min_cost)
+        except:
+            pass
+    
+    if max_cost:
+        try:
+            max_cost = float(max_cost)
+            requisitions = requisitions.filter(total_cost__lte=max_cost)
+        except:
+            pass
+    
+    # Order by created date descending
+    requisitions = requisitions.order_by('-created_at')
+    
+    # Create the HttpResponse object with CSV header
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="requisitions_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Requisition Number',
+        'Supplier Name',
+        'Supplier Company',
+        'Status',
+        'Created Date',
+        'Total Cost (UGX)',
+        'Items Count'
+    ])
+    
+    for requisition in requisitions:
+        writer.writerow([
+            requisition.requisition_no,
+            requisition.supplier.name,
+            requisition.supplier.company_name,
+            requisition.get_status_display(),
+            requisition.created_at.strftime('%Y-%m-%d %H:%M'),
+            requisition.total_cost,
+            requisition.requisitionitem_set.count()
+        ])
+    
+    return response
 
 def requisition_details(request, requisition_id):
     requisition = get_object_or_404(Requisition, pk=requisition_id)
@@ -4445,6 +4844,7 @@ def price_comparison(request, raw_material_id=None):
     selected_material = None
     price_data = []
     price_history = [] # This is what your chart needs!
+    suppliers_for_chart = []  # Initialize to empty list to prevent UnboundLocalError
     
     # Get material_id from URL parameter or GET parameter
     material_id = raw_material_id or request.GET.get('material')
@@ -4661,16 +5061,25 @@ class RawMaterialDetailView(DetailView):
             effective_date__gte=six_months_ago
         ).order_by('-effective_date').select_related('supplier')[:30]  # Limit to 30 most recent
         
-       # Get recent requisition items for this raw material
+        # Get recent requisition items for this raw material
         recent_requisitions = raw_material.requisitionitem_set.select_related(
             'requisition', 'requisition__supplier'
         ).order_by('-requisition__created_at')[:10]  # Get 10 most recent
+        
+        # Get incident write-offs for this raw material
+        incident_write_offs = raw_material.write_offs.all().order_by('-date')[:10]  # Get 10 most recent
+        
+        # Get inventory adjustments for this raw material
+        inventory_adjustments = raw_material.rawmaterialinventory_set.all().order_by('-last_updated')[:20]  # Get 20 most recent
         
         context.update({
             'current_prices': current_prices,
             'price_history': price_history,
             'recent_requisitions': recent_requisitions,
+            'incident_write_offs': incident_write_offs,
+            'inventory_adjustments': inventory_adjustments,
             'suppliers': raw_material.suppliers.all(),
+            'CURRENCY_SYMBOL': 'UGX ',  # Add currency symbol for the template
         })
         return context
 
@@ -4699,3 +5108,23 @@ def get_raw_material_price_list(request):
             'success': False,
             'error': 'Invalid raw material or supplier'
         }, status=400)
+
+@login_required(login_url='/login/')
+def reject_incident_write_off(request, pk):
+    try:
+        write_off = get_object_or_404(IncidentWriteOff, pk=pk)
+        
+        if write_off.status == 'pending':
+            with transaction.atomic():
+                # Update the write-off status
+                write_off.status = 'rejected'
+                write_off.save()
+                
+                messages.success(request, f"Write-off for {write_off.raw_material.name} has been rejected.")
+        else:
+            messages.warning(request, f"This write-off is already {write_off.status}.")
+            
+    except Exception as e:
+        messages.error(request, f"Error rejecting write-off: {str(e)}")
+    
+    return redirect('incident_write_off_list')

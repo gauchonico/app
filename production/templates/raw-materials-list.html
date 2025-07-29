@@ -89,6 +89,15 @@
 					<div class="btn-group btn-group-sm">
 						<a href="{% url 'raw_material_details' pk=rawmaterial.pk %}" class="btn btn-outline-secondary">Details</a>
 						<a href="{% url 'price_history' rawmaterial.id %}" class="btn btn-outline-secondary">Price history</a>
+						 {% if rawmaterial.current_stock <= rawmaterial.reorder_point %}
+                    
+                        <a href="#" class="btn btn-danger"><i class="fa fa-times"></i></a>
+                    
+					{% else %}
+					
+					<a href="#" class="btn btn-success"><i class="fa fa-check"></i></a>
+                    
+                {% endif %} 
 					</div>
 					
 					<!-- END stat-sm -->

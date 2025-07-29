@@ -101,8 +101,10 @@ class Department(models.Model):
     @property
     def total_spent(self):
         """Get total spent for this department"""
-        return self.journal_entries.aggregate(
-            total=Sum('amount')
+        return self.journal_entries.filter(
+            entries__entry_type='debit'
+        ).aggregate(
+            total=Sum('entries__amount')
         )['total'] or Decimal('0.00')
     
     @property
@@ -139,11 +141,13 @@ class Budget(models.Model):
     @property
     def spent_amount(self):
         """Calculate amount spent against this budget"""
-        return self.journal_entries.filter(
+        return self.department.journal_entries.filter(
+            entries__account=self.account,
+            entries__entry_type='debit',
             date__gte=self.start_date,
             date__lte=self.end_date
         ).aggregate(
-            total=Sum('amount')
+            total=Sum('entries__amount')
         )['total'] or Decimal('0.00')
     
     @property
@@ -451,9 +455,10 @@ class StoreBudget(models.Model):
     @property
     def spent_amount(self):
         """Calculate amount spent against this store budget"""
-        return self.journal_entries.filter(
-            date__gte=self.start_date,
-            date__lte=self.end_date
+        return self.account.journal_entries.filter(
+            entry_type='debit',
+            journal_entry__date__gte=self.start_date,
+            journal_entry__date__lte=self.end_date
         ).aggregate(
             total=Sum('amount')
         )['total'] or Decimal('0.00')

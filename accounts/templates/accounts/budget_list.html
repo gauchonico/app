@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Budgets - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-white fw-bold">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Budget Management
+                    </h1>
+                    <p class="text-light mb-0">Track and manage budget allocations across departments</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:budget_create' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus me-2"></i>
+                        Allocate Budget
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-chart-pie fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ budgets.count }}</h5>
+                            <p class="text-white-50 mb-0">Total Budgets</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-dollar-sign fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ total_allocated|floatformat:0 }}</h5>
+                            <p class="text-white-50 mb-0">Total Allocated</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-chart-line fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ total_spent|floatformat:0 }}</h5>
+                            <p class="text-white-50 mb-0">Total Spent</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-percentage fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ avg_utilization|floatformat:1 }}%</h5>
+                            <p class="text-white-50 mb-0">Avg Utilization</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budgets Table -->
+    <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+        <div class="card-header bg-transparent border-0">
+            <h5 class="text-white fw-bold mb-0">
+                <i class="fas fa-list me-2"></i>
+                Budget Allocations
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead style="background: rgba(255, 255, 255, 0.1);">
+                        <tr>
+                            <th class="text-white border-0">Department</th>
+                            <th class="text-white border-0">Account</th>
+                            <th class="text-white border-0">Period</th>
+                            <th class="text-white border-0 text-end">Allocated</th>
+                            <th class="text-white border-0 text-end">Spent</th>
+                            <th class="text-white border-0 text-end">Remaining</th>
+                            <th class="text-white border-0 text-center">Utilization</th>
+                            <th class="text-white border-0 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for budget in budgets %}
+                        <tr style="border-color: rgba(255, 255, 255, 0.1);">
+                            <td class="text-white">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-25 rounded-circle p-2 me-3">
+                                        <i class="fas fa-building text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">{{ budget.department.name }}</div>
+                                        <small class="text-light">{{ budget.department.code }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-white">
+                                <div>
+                                    <div class="fw-bold">{{ budget.account.account_name }}</div>
+                                    <small class="text-light">{{ budget.account.account_code }}</small>
+                                </div>
+                            </td>
+                            <td class="text-white">
+                                <span class="badge bg-primary bg-opacity-25 text-white">
+                                    {{ budget.get_period_display }}
+                                </span>
+                                <div class="small text-light mt-1">
+                                    {{ budget.start_date|date:"M d" }} - {{ budget.end_date|date:"M d, Y" }}
+                                </div>
+                            </td>
+                            <td class="text-white text-end">
+                                <div class="fw-bold">{{ budget.amount|floatformat:0 }}</div>
+                            </td>
+                            <td class="text-white text-end">
+                                <div class="fw-bold">{{ budget.spent_amount|floatformat:0 }}</div>
+                            </td>
+                            <td class="text-white text-end">
+                                <div class="fw-bold {% if budget.remaining_amount < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ budget.remaining_amount|floatformat:0 }}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-flex flex-column align-items-center">
+                                    <div class="mb-1">
+                                        <span class="badge {% if budget.utilization_percentage < 70 %}bg-success{% elif budget.utilization_percentage < 90 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ budget.utilization_percentage|floatformat:1 }}%
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="width: 60px; height: 6px;">
+                                        {% if budget.utilization_percentage < 70 %}
+                                            <div class="progress-bar bg-success" style="width: {{ budget.utilization_percentage }}%"></div>
+                                        {% elif budget.utilization_percentage < 90 %}
+                                            <div class="progress-bar bg-warning" style="width: {{ budget.utilization_percentage }}%"></div>
+                                        {% else %}
+                                            <div class="progress-bar bg-danger" style="width: {{ budget.utilization_percentage }}%"></div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-white p-0" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="{% url 'accounts:budget_update' budget.pk %}">
+                                            <i class="fas fa-edit me-2"></i>Edit Budget
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="{% url 'accounts:budget_delete' budget.pk %}">
+                                            <i class="fas fa-trash me-2"></i>Delete Budget
+                                        </a></li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="mb-3">
+                                    <i class="fas fa-chart-pie fa-3x text-light"></i>
+                                </div>
+                                <h5 class="text-white mb-2">No Budgets Found</h5>
+                                <p class="text-light mb-3">Get started by allocating your first budget</p>
+                                <a href="{% url 'accounts:budget_create' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>Allocate Budget
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+.table {
+    color: white;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.progress {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-menu {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+</style>
+{% endblock %} 

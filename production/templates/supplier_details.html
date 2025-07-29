@@ -1,216 +1,512 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}Supplier Profile{% endblock %}
+{% block title %}Supplier Profile - {{ supplier.name }}{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/lity/dist/lity.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'supplierList' %}">SUPPLIERS</a></li>
+            <li class="breadcrumb-item active">SUPPLIER DETAILS</li>
+        </ul>
+        <h1 class="page-header mb-0">
+            {{ supplier.name }}
+        </h1>
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'editSupplier' supplier.id %}" class="btn btn-outline-theme me-2">
+            <i class="fas fa-edit me-2"></i>Edit Supplier
+        </a>
+    </div>
+</div>
+
+<!-- Supplier Overview Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-shopping-cart text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ purchase_orders.count }}</div>
+                <div class="text-lg">Total Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-green-500 to-green-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-boxes text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ rawmaterials.count }}</div>
+                <div class="text-lg">Raw Materials</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-star text-3xl mb-3"></i>
+                {% if supplier.reliability_score <= 5.0 %}
+                    <div class="text-4xl text-warning font-bold mb-2">{{ supplier.reliability_score }}/10</div>
+                    <div class="text-lg text-warning">Reliability Score</div>
+                {% else %}
+                    <div class="text-4xl font-bold text-success mb-2">{{ supplier.reliability_score }}/10</div>
+                    <div class="text-lg">Reliability Score</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-4 text-white">
+            <div class="card-body text-center">
+                <i class="fas fa-credit-card text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">UGX {{ supplier.credit_limit|floatformat:0|intcomma }}</div>
+                <div class="text-lg">Credit Limit</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Supplier Information Card -->
+    <div class="col-xl-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Supplier Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Name:</strong>
+                    </div>
+                    <div class="col-8">
+                        {{ supplier.name }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Company:</strong>
+                    </div>
+                    <div class="col-8">
+                        {{ supplier.company_name }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Email:</strong>
+                    </div>
+                    <div class="col-8">
+                        {% if supplier.email %}
+                            <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>
+                        {% else %}
+                            <span class="text-muted">Not provided</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Phone:</strong>
+                    </div>
+                    <div class="col-8">
+                        {% if supplier.contact_number %}
+                            <a href="tel:{{ supplier.contact_number }}">{{ supplier.contact_number }}</a>
+                        {% else %}
+                            <span class="text-muted">Not provided</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Address:</strong>
+                    </div>
+                    <div class="col-8">
+                        {% if supplier.address %}
+                            {{ supplier.address }}
+                        {% else %}
+                            <span class="text-muted">Not provided</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <hr>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Status:</strong>
+                    </div>
+                    <div class="col-8">
+                        {% if supplier.is_active %}
+                            <span class="badge bg-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Quality:</strong>
+                    </div>
+                    <div class="col-8">
+                        {% if supplier.quality_rating == 'excellent' %}
+                            <span class="badge bg-success">{{ supplier.get_quality_rating_display }}</span>
+                        {% elif supplier.quality_rating == 'good' %}
+                            <span class="badge bg-info">{{ supplier.get_quality_rating_display }}</span>
+                        {% elif supplier.quality_rating == 'average' %}
+                            <span class="badge bg-warning">{{ supplier.get_quality_rating_display }}</span>
+                        {% else %}
+                            <span class="badge bg-danger">{{ supplier.get_quality_rating_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Payment Terms:</strong>
+                    </div>
+                    <div class="col-8">
+                        <span class="badge bg-secondary">{{ supplier.get_payment_terms_display }}</span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Reliability:</strong>
+                    </div>
+                    <div class="col-8">
+                        <div class="progress" style="height: 20px;">
+                            {% if supplier.reliability_score <= 5.0 %}
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ supplier.reliability_score|floatformat:0 }}0%" 
+                                 aria-valuenow="{{ supplier.reliability_score }}" 
+                                 aria-valuemin="0" aria-valuemax="10">
+                                {{ supplier.reliability_score }}/10
+                            </div>
+                            {% else %}
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ supplier.reliability_score|floatformat:0 }}0%" 
+                                 aria-valuenow="{{ supplier.reliability_score }}" 
+                                 aria-valuemin="0" aria-valuemax="10">
+                                {{ supplier.reliability_score }}/10
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% if supplier.notes %}
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <strong>Notes:</strong>
+                        <p class="text-muted mt-2">{{ supplier.notes }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Created:</strong>
+                    </div>
+                    <div class="col-8">
+                        {{ supplier.created_at|date:"M d, Y" }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4">
+                        <strong>Updated:</strong>
+                    </div>
+                    <div class="col-8">
+                        {{ supplier.updated_at|date:"M d, Y" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="col-xl-8">
+        <div class="">
+            <div class="nav-wizards-container">
+                <nav class="nav nav-tabs nav-tabs-v2">
+                    <div class="nav-item col">
+                        <a href="#purchase_orders" class="nav-link active" data-bs-toggle="tab">
+                            <div class="nav-text">LPO's</div>
+                            <div class="nav-value">{{ purchase_orders.count }}</div>
+                        </a>
+                    </div>
+                    <div class="nav-item col">
+                        <a href="#raw_materials" class="nav-link" data-bs-toggle="tab">
+                            <div class="nav-text">Supplies</div>
+                            <div class="nav-value">{{ rawmaterials.count }}</div>
+                        </a>
+                    </div>
+                    <div class="nav-item col">
+                        <a href="#supply_history" class="nav-link" data-bs-toggle="tab">
+                            <div class="nav-text">History</div>
+                            <div class="nav-value">{{ breakdown.count }}</div>
+                        </a>
+                    </div>
+                    <div class="nav-item col">
+                        <a href="#performance" class="nav-link" data-bs-toggle="tab">
+                            <div class="nav-text"></div>
+                            <div class="nav-value">Stats</div>
+                        </a>
+                    </div>
+                </nav>
+                
+                <div class="tab-content p-4">
+                    <!-- Purchase Orders Tab -->
+                    <div class="tab-pane fade show active" id="purchase_orders">
+                        <div class="table-responsive">
+                            <table id="purchaseOrdersTable" class="table table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>LPO Number</th>
+                                        <th>Created Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lpo in purchase_orders %}
+                                    <tr>
+                                        <td><strong>{{ lpo.lpo_number }}</strong></td>
+                                        <td>{{ lpo.created_at|date:"M d, Y" }}</td>
+                                        <td>
+                                            {% if lpo.status == 'pending' %}
+                                                <span class="badge bg-warning">Pending</span>
+                                            {% elif lpo.status == 'verified' %}
+                                                <span class="badge bg-info">Verified</span>
+                                            {% elif lpo.status == 'delivered' %}
+                                                <span class="badge bg-success">Delivered</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ lpo.status|title }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'lpo_detail' lpo.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i> View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">
+                                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">No purchase orders found for this supplier.</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Raw Materials Tab -->
+                    <div class="tab-pane fade" id="raw_materials">
+                        <div class="row">
+                            {% for rawmaterial in rawmaterials %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card border">
+                                    <div class="card-body">
+                                        <h6 class="card-title">{{ rawmaterial.name }}</h6>
+                                        <p class="text-muted mb-2">Unit: {{ rawmaterial.unit_measurement }}</p>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small class="text-muted">Current Stock</small>
+                                                <div class="fw-bold">{{ rawmaterial.current_stock|floatformat:2 }}</div>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted">Reorder Point</small>
+                                                <div class="fw-bold">{{ rawmaterial.reorder_point }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="col-12 text-center py-4">
+                                <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No raw materials supplied by this supplier.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Supply History Tab -->
+                    <div class="tab-pane fade" id="supply_history">
+                        <div class="table-responsive">
+                            <table id="supplyHistoryTable" class="table table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Raw Material</th>
+                                        <th>Total Delivered</th>
+                                        <th>Last Delivery</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in breakdown %}
+                                    <tr>
+                                        <td><strong>{{ item.raw_material__name }}</strong></td>
+                                        <td>{{ item.total_delivered|floatformat:2 }}</td>
+                                        <td>
+                                            {% if item.last_delivery %}
+                                                {{ item.last_delivery|date:"M d, Y" }}
+                                            {% else %}
+                                                <span class="text-muted">No deliveries</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4">
+                                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">No supply history available.</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Performance Tab -->
+                    <div class="tab-pane fade" id="performance">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="card-title mb-0">Quality Rating Distribution</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="qualityChart" width="300" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="card-title mb-0">Order Status Distribution</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="orderStatusChart" width="300" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Danger Zone -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Danger Zone
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6>Delete Supplier</h6>
+                        <p class="text-muted mb-0">This action cannot be undone. This will permanently delete the supplier and all associated data.</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="{% url 'deleteSupplier' supplier.id %}" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>Delete Supplier
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block js %}
 	<script src="{% static 'plugins/lity/dist/lity.min.js' %}"></script>
-{% endblock %}
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
+	
+<script>
+$(document).ready(function() {
+    // Initialize DataTables
+    $('#purchaseOrdersTable').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[1, 'desc']]
+    });
 
-{% block content %}
+    $('#supplyHistoryTable').DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[1, 'desc']]
+    });
 
-	<div class="card">
-		<div class="card-body p-0">
-			<!-- BEGIN profile -->
-			<div class="profile">
-				<!-- BEGIN profile-container -->
-				<div class="profile-container">
-					<!-- BEGIN profile-sidebar -->
-					<div class="profile-sidebar">
-						<div class="desktop-sticky-top">
-							{% comment %} <div class="profile-img">
-								<img src="{{ customer.profile_image }}" alt="">
-							</div> {% endcomment %}
-							<!-- profile info -->
-							<h4>{{ supplier.name }}</h4>
-							<div class="mb-3 text-inverse text-opacity-50 fw-bold mt-n2">{{supplier.contact_number}}</div>
-							<p>
-								
-							</p>
-							<div class="mb-1">
-								<i class="fa fa-map-marker-alt fa-fw text-inverse text-opacity-50"></i> {{supplier.address}}
-							</div>
-							<div class="mb-3">
-								<i class="fa fa-link fa-fw text-inverse text-opacity-50"></i> {{ supplier.name }}
-							</div>
-					
-							<hr class="mt-4 mb-4">
-					
-							<!-- people-to-follow -->
-							<div class="fw-bold mb-3 fs-16px">Supplier Account</div>
-							<div class="d-flex align-items-center mb-3">
-								<div class="flex-fill px-3">
-									
-									<div class="fs-12px text-inverse text-opacity-50">This is a Permanent Action</div>
-								</div>
-								<a href="{% url 'deleteSupplier' supplier.id %}" class="btn btn-sm btn-danger fs-11px">Delete</a>
-							</div>
-						</div>
-					</div>
-					<!-- END profile-sidebar -->
-			
-					<!-- BEGIN profile-content -->
-					<div class="profile-content">
-						<ul class="profile-tab nav nav-tabs nav-tabs-v2">
-							<li class="nav-item">
-								<a href="#purchase_orders" class="nav-link active" data-bs-toggle="tab">
-									<div class="nav-field">All Purchase Orders</div>
-									<div class="nav-value"><span></span></div>
-								</a>
-							</li>
-                            <li class="nav-item">
-								<a href="#all-rawmaterials" class="nav-link" data-bs-toggle="tab">
-									<div class="nav-field">Raw Materials</div>
-									<div class="nav-value">
-                                    
-                                    </div>
-								</a>
-							</li>
-                            <li class="nav-item">
-                                <a href="#quantity_supplied" class="nav-link" data-bs-toggle="tab">
-                                    <div class="nav-field">Total Supplied</div>
-                                    <div class="nav-value">
-                                    
-                                    </div>
-                                </a>
-                            </li>
-							
-							
-						</ul>
-						<div class="profile-content-container">
-							<div class="row gx-4">
-								<div class="col-xl-12">
-									<div class="tab-content p-0">
-										<!-- BEGIN tab-pane -->
-										<div class="tab-pane fade show active" id="purchase_orders">
-                                            <div class="card">
-                                                <div class="card-body text-center">
-                                                    <div class="container">
-                                                
-                        
-                                                        <table class="table">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Requisition No.</th>
-                                                                    <th>Created at</th>
-                                                                    <th>Status</th>
-                                                                    <th>View</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {% for lpo in purchase_orders %}
-                                                                <tr>
-                                                                    <td>{{ lpo.lpo_number }}</td>
-                                                                    <td>{{ lpo.created_at }}</td>
-                                                                    <td>{{ lpo.status }}</td>
-                                                                    <td><a href="{% url 'lpo_detail' lpo.id %}"><i class="bi bi-eye text-theme"></i></a></td>
-                                                                </tr>
-                                                                {% empty %}
-                                                                <tr>
-                                                                    <td colspan="4">No P.O's found.</td>
-                                                                </tr>
-                                                                {% endfor %}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                                <div class="card-arrow">
-                                                    <div class="card-arrow-top-left"></div>
-                                                    <div class="card-arrow-top-right"></div>
-                                                    <div class="card-arrow-bottom-left"></div>
-                                                    <div class="card-arrow-bottom-right"></div>
-                                                </div>
-                                                
-                                            </div>
-                                        </div>
-										
-										<!-- END tab-pane -->
-                                        <div class="tab-pane fade show" id="all-rawmaterials">
-                                            <div class="card">
-                                                <div class="card-body text-center">
-                                                    <div class="container">
-                                                        <ol class="list-group">
-                                                            {% for rawmaterial in rawmaterials %}
-                                                            <li class="list-group-item d-flex align-items-center">{{ rawmaterial.name }}</li>
-                                                            {% empty %}
-                                                            <li class="list-group-item d-flex align-items-center">No raw materials supplied by this supplier.</li>
-                                                            {% endfor %}
-                                                        </ol>
-                                                    </div>
-                                                </div>
-                                                <div class="card-arrow">
-                                                    <div class="card-arrow-top-left"></div>
-                                                    <div class="card-arrow-top-right"></div>
-                                                    <div class="card-arrow-bottom-left"></div>
-                                                    <div class="card-arrow-bottom-right"></div>
-                                                </div>
-                                                
-                                            </div>
-                                        </div>
-										<!-- BEGIN tab-pane -->
-										<div class="tab-pane fade show" id="quantity_supplied">
-                                            <div class="card">
-                                                <div class="card-body text-center">
-                                                    <div class="container">
-                                                        <table class="table">
-                                                            <thead>
-                                                                <tr>
-                                                                    
-                                                                    <th>Raw Material</th>
-                                                                    <th>Total Delivered Quantity</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {% for item in breakdown %}
-                                                                <tr>
-                                                                    
-                                                                    <td>{{ item.raw_material__name }}</td>
-                                                                    <td>{{ item.total_delivered }}</td>
-                                                                </tr>
-                                                                {% endfor %}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
-                                                <div class="card-arrow">
-                                                    <div class="card-arrow-top-left"></div>
-                                                    <div class="card-arrow-top-right"></div>
-                                                    <div class="card-arrow-bottom-left"></div>
-                                                    <div class="card-arrow-bottom-right"></div>
-                                                </div>
-                                                
-                                            </div>
-                                        </div>
-										<!-- END tab-pane -->
-							
-										<!-- BEGIN tab-pane -->
-										
-										<!-- END tab-pane -->
-							
+    // Quality Rating Chart
+    var qualityCtx = document.getElementById('qualityChart').getContext('2d');
+    var qualityChart = new Chart(qualityCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Excellent', 'Good', 'Average', 'Poor'],
+            datasets: [{
+                data: [
+                    {% if supplier.quality_rating == 'excellent' %}1{% else %}0{% endif %},
+                    {% if supplier.quality_rating == 'good' %}1{% else %}0{% endif %},
+                    {% if supplier.quality_rating == 'average' %}1{% else %}0{% endif %},
+                    {% if supplier.quality_rating == 'poor' %}1{% else %}0{% endif %}
+                ],
+                backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
 
-									</div>
-								</div>
-								
-							</div>
-						</div>
-                        
-					</div>
-					<!-- END profile-content -->
-				</div>
-				<!-- END profile-container -->
-			</div>
-			<!-- END profile -->
-		</div>
-		<div class="card-arrow">
-			<div class="card-arrow-top-left"></div>
-			<div class="card-arrow-top-right"></div>
-			<div class="card-arrow-bottom-left"></div>
-			<div class="card-arrow-bottom-right"></div>
-		</div>
-	</div>
+    // Order Status Chart
+    var orderCtx = document.getElementById('orderStatusChart').getContext('2d');
+    var orderStatusChart = new Chart(orderCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'Verified', 'Delivered'],
+            datasets: [{
+                data: [
+                    {{ purchase_orders|dictsort:"status"|length }},
+                    {{ purchase_orders|dictsort:"status"|length }},
+                    {{ purchase_orders|dictsort:"status"|length }}
+                ],
+                backgroundColor: ['#ffc107', '#17a2b8', '#28a745'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

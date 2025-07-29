@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Departments - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-white fw-bold">
+                        <i class="fas fa-building me-2"></i>
+                        Departments Management
+                    </h1>
+                    <p class="text-light mb-0">Manage your organizational departments and budget allocations</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:department_create' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus me-2"></i>
+                        Add Department
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-building fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ departments.count }}</h5>
+                            <p class="text-white-50 mb-0">Total Departments</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-dollar-sign fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ total_budget|floatformat:0 }}</h5>
+                            <p class="text-white-50 mb-0">Total Budget</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-chart-line fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ total_spent|floatformat:0 }}</h5>
+                            <p class="text-white-50 mb-0">Total Spent</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-piggy-bank fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ remaining_budget|floatformat:0 }}</h5>
+                            <p class="text-white-50 mb-0">Remaining Budget</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Departments Grid -->
+    <div class="row">
+        {% for department in departments %}
+        <div class="col-xl-4 col-lg-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="card-title text-white fw-bold mb-1">
+                                <i class="fas fa-building me-2"></i>
+                                {{ department.name }}
+                            </h5>
+                            <p class="text-light mb-0">{{ department.code }}</p>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-link text-white p-0" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{% url 'accounts:department_detail' department.pk %}">
+                                    <i class="fas fa-eye me-2"></i>View Details
+                                </a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:department_update' department.pk %}">
+                                    <i class="fas fa-edit me-2"></i>Edit
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" href="{% url 'accounts:department_delete' department.pk %}">
+                                    <i class="fas fa-trash me-2"></i>Delete
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {% if department.description %}
+                    <p class="text-light mb-3">{{ department.description|truncatewords:15 }}</p>
+                    {% endif %}
+
+                    <!-- Budget Summary -->
+                    <div class="bg-dark bg-opacity-25 rounded p-3 mb-3">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <h6 class="text-white fw-bold mb-1">{{ department.total_budget|floatformat:0 }}</h6>
+                                <small class="text-light">Budget</small>
+                            </div>
+                            <div class="col-4">
+                                <h6 class="text-white fw-bold mb-1">{{ department.total_spent|floatformat:0 }}</h6>
+                                <small class="text-light">Spent</small>
+                            </div>
+                            <div class="col-4">
+                                <h6 class="text-white fw-bold mb-1">{{ department.remaining_budget|floatformat:0 }}</h6>
+                                <small class="text-light">Remaining</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Budget Utilization -->
+                    {% if department.total_budget > 0 %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-light">Budget Utilization</small>
+                            <small class="text-light">
+                                {% widthratio department.total_spent department.total_budget 100 %}%
+                            </small>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            {% widthratio department.total_spent department.total_budget 100 as utilization %}
+                            {% if utilization < 70 %}
+                                <div class="progress-bar bg-success" style="width: {{ utilization }}%"></div>
+                            {% elif utilization < 90 %}
+                                <div class="progress-bar bg-warning" style="width: {{ utilization }}%"></div>
+                            {% else %}
+                                <div class="progress-bar bg-danger" style="width: {{ utilization }}%"></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Manager Info -->
+                    {% if department.manager %}
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="bg-primary bg-opacity-25 rounded-circle p-2 me-2">
+                            <i class="fas fa-user text-primary"></i>
+                        </div>
+                        <div>
+                            <small class="text-light d-block">Manager</small>
+                            <small class="text-white">{{ department.manager.get_full_name|default:department.manager.username }}</small>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'accounts:department_detail' department.pk %}" class="btn btn-outline-light btn-sm">
+                            <i class="fas fa-eye me-1"></i>View Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+                <div class="card-body text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-building fa-3x text-light"></i>
+                    </div>
+                    <h5 class="text-white mb-2">No Departments Found</h5>
+                    <p class="text-light mb-3">Get started by creating your first department</p>
+                    <a href="{% url 'accounts:department_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create Department
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+body {
+    background: linear-gradient(135deg, #2f5241 0%, #13241c 100%);
+    min-height: 100vh;
+}
+
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+.progress {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-outline-light:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dropdown-menu {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+</style>
+{% endblock %} 

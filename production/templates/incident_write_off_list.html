@@ -45,17 +45,40 @@
     </div>
 </div>
 
+<!-- Financial Loss Summary -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="mb-1">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Total Company Loss from Write-Offs
+                        </h4>
+                        <p class="mb-0">Cumulative financial impact of all incident write-offs</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="display-6 fw-bold">UGX {{ total_company_loss|floatformat:0|intcomma }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <table id="datatableDefault" class="table text-nowrap table-striped">
     <thead>
       <tr>
         <th>RM/WR-NO</th>
         <th>RawMaterial</th>
         <th>Quantity</th>
+        <th>Financial Loss</th>
         <th>Reason</th>
         <th>Date</th>
         <th>Status</th>
         <th>Inititiated by:</th>
-        <th>View</td>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -63,21 +86,49 @@
       <tr>
         <td>{{ forloop.counter }}</td>
         <td>{{ write_off.raw_material }}</td>
-        <td>{{ write_off.quantity }}</td>
+        <td>{{ write_off.quantity }} {{ write_off.raw_material.unit_measurement }}</td>
+        <td>
+          {% if write_off.total_loss > 0 %}
+            <span class="text-danger fw-bold">UGX {{ write_off.total_loss|floatformat:0|intcomma }}</span>
+            <br><small class="text-muted">{{ write_off.price_source }}</small>
+          {% else %}
+            <span class="text-muted">No price data</span>
+          {% endif %}
+        </td>
         <td>{{ write_off.reason }}</td>
         <td>{{ write_off.date }}</td>
-        <td>{{ write_off.status }}</td>
+        <td>
+          {% if write_off.status == 'approved' %}
+            <span class="badge bg-success">Approved</span>
+          {% elif write_off.status == 'rejected' %}
+            <span class="badge bg-danger">Rejected</span>
+          {% else %}
+            <span class="badge bg-warning">Pending</span>
+          {% endif %}
+        </td>
         <td>{{ write_off.written_off_by}}</td>
         <td>
-          <a href="#">
-            <i class="fas fa-eye"></i>
-          </a>
+          <div class="btn-group" role="group">
+            <a href="{% url 'incident_write_off_detail' write_off.id %}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-eye"></i> View
+            </a>
+            {% if write_off.status == 'pending' %}
+              <a href="{% url 'approve_incident_write_off' write_off.id %}" 
+                 class="btn btn-sm btn-outline-success"
+                 onclick="return confirm('Are you sure you want to approve this write-off? This will deduct {{ write_off.quantity }} {{ write_off.raw_material.unit_measurement }} from {{ write_off.raw_material.name }} inventory.')">
+                <i class="fas fa-check"></i> Approve
+              </a>
+              <a href="{% url 'reject_incident_write_off' write_off.id %}" 
+                 class="btn btn-sm btn-outline-danger"
+                 onclick="return confirm('Are you sure you want to reject this write-off?')">
+                <i class="fas fa-times"></i> Reject
+              </a>
+            {% endif %}
+          </div>
         </td>
       </tr>
-      
-      
+      {% endfor %}
     </tbody>
-    {% endfor %}
   </table>
 
 {% endblock content %}

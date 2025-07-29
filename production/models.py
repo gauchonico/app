@@ -129,7 +129,7 @@ class IncidentWriteOff(models.Model):
     quantity = models.DecimalField(max_digits=5, decimal_places=3, default=0)
     reason = models.TextField()
     date = models.DateField(auto_now_add=True)
-    status = models.CharField(max_length=20, default='pending', choices=[('pending', 'Pending'), ('approved', 'Approved')])
+    status = models.CharField(max_length=20, default='pending', choices=[('pending', 'Pending'), ('approved', 'Approved'), ('rejected', 'Rejected')])
     written_off_by = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
 
     class Meta:
@@ -181,8 +181,10 @@ class RawMaterialInventory(models.Model):
     last_updated = models.DateTimeField(auto_now=True)
     
     def save(self, *args, **kwargs):
-        # Call update_stock method after creating or updating the RawMaterialInventory object
+        # Save the inventory adjustment first
         super().save(*args, **kwargs)
+        # Then update the raw material quantity
+        self.raw_material.update_quantity()
 
 class StoreAlerts (models.Model):
     message = models.TextField(blank=True, max_length=100)
@@ -1852,12 +1854,22 @@ class PaymentVoucher(models.Model):
 # Signal to update LPO on PaymentVoucher save
 @receiver(post_save, sender=PaymentVoucher)
 def update_lpo_payment(sender, instance, **kwargs):
+    # Update the LPO payment status when a payment voucher is created
     lpo = instance.lpo
-    total_paid = PaymentVoucher.objects.filter(lpo=lpo).aggregate(total=models.Sum('amount_paid'))['total'] or 0
-    lpo.amount_paid = total_paid
-    lpo.is_paid = total_paid >= lpo.requisition.total_cost
-    lpo.payment_date = timezone.now() if lpo.is_paid else None
+    lpo.amount_paid = lpo.paymentvoucher_set.aggregate(total=models.Sum('amount_paid'))['total'] or 0
+    lpo.is_paid = lpo.amount_paid >= lpo.total_cost
+    if lpo.is_paid:
+        lpo.payment_date = timezone.now()
     lpo.save()
+
+@receiver(post_save, sender=RawMaterialInventory)
+def update_raw_material_quantity_on_inventory_change(sender, instance, **kwargs):
+    """Automatically update raw material quantity when inventory adjustment is made"""
+    try:
+        instance.raw_material.update_quantity()
+    except Exception as e:
+        # Log the error but don't prevent the save
+        print(f"Error updating raw material quantity: {e}")
 
 class StaffProductCommission(models.Model):
     staff = models.ForeignKey('POSMagicApp.Staff', on_delete=models.CASCADE, related_name='product_commissions')

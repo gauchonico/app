@@ -237,6 +237,21 @@
         </div>
     </div>
 </div>
+<style>
+    body {
+        background: linear-gradient(135deg, #2f5241 0%, #13241c 100%);
+        min-height: 100vh;
+    }
+    
+    .card {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+    }
+</style>
 {% endblock %}
 
 {% block js %}
@@ -335,4 +350,4 @@ if (ctx5) {
     console.error('Expense chart canvas not found');
 }
 </script>
-{% endblock %} 
+{% endblock %}

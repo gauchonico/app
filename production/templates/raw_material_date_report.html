@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
-{% block title %}Report{% endblock %}
+{% block title %}Raw Material Date Report{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -27,51 +28,118 @@
 	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
-{% block content %}
-<form method="get" action="{% url 'raw_material_date_report' %}">
-    <label for="date">Select Date:</label>
-    <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-    <button class="btn btn-theme" type="submit">Generate Report</button>
-</form>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Raw Material</th>
-            <th>Openning Stock</th>
-            <th>Additions</th>
-            <th>Deductions</th>
-            <th>Closing Stock</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for material in raw_materials %}
-            <tr>
-                <td>{{ material.name }}</td>
-                <td>{{ material.previous_stock|floatformat:2 }}</td>
-                <td>
-                    {% if material.additions > 0 %}
-                        <span class="text-success">{{ material.additions|floatformat:5 }}</span>
-                    {% else %}
-                        <span class="text-theme">0</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if material.deductions < 0 %}
-                        <span class="text-danger">{{ material.deductions|floatformat:5 }}</span>
-                    {% else %}
-                        <span class="text-danger">0</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {%if material.closing_stock == 0 %}
-                    <span class="text-danger">0</span>
-                    {% else %}
-                    {{ material.closing_stock|floatformat:2 }}
-                    {% endif %}
-                </td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Raw Material Date Report</h4>
+                    <p class="card-subtitle">Stock movements for {{ selected_date|date:"F d, Y" }}</p>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'raw_material_date_report' %}" class="mb-4">
+                        <div class="row align-items-end">
+                            <div class="col-md-4">
+                                <label for="date" class="form-label fw-bold">Select Date:</label>
+                                <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-theme" type="submit">
+                                    <i class="fas fa-search me-2"></i>Generate Report
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Raw Material</th>
+                                    <th class="text-center">Opening Stock</th>
+                                    <th class="text-center">Additions</th>
+                                    <th class="text-center">Deductions</th>
+                                    <th class="text-center">Closing Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for material in raw_materials %}
+                                    <tr>
+                                        <td class="fw-bold">{{ material.name }}</td>
+                                        <td class="text-center">{{ material.previous_stock|floatformat:2 }}</td>
+                                        <td class="text-center">
+                                            {% if material.additions > 0 %}
+                                                <span class="text-success fw-bold">{{ material.additions|floatformat:5 }}</span>
+                                                {% with transactions=raw_material_transactions|get_item:material.id %}
+                                                    {% if transactions.additions %}
+                                                        <div class="mt-1">
+                                                            <small class="text-muted">From:</small>
+                                                            {% for transaction in transactions.additions %}
+                                                                <a href="{% url 'requisition_details' transaction.id %}" 
+                                                                   class="badge bg-success text-decoration-none me-1" 
+                                                                   title="Requisition {{ transaction.number }} - {{ transaction.supplier }}">
+                                                                    <i class="fas fa-plus-circle me-1"></i>{{ transaction.number }}
+                                                                </a>
+                                                            {% endfor %}
+                                                        </div>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                <span class="text-muted">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if material.deductions < 0 %}
+                                                <span class="text-danger fw-bold">{{ material.deductions|floatformat:5 }}</span>
+                                                {% with transactions=raw_material_transactions|get_item:material.id %}
+                                                    {% if transactions.deductions %}
+                                                        <div class="mt-1">
+                                                            <small class="text-muted">Used in:</small>
+                                                            {% for transaction in transactions.deductions %}
+                                                                {% if transaction.type == 'manufacturing' %}
+                                                                    <a href="{% url 'manufacturedProductDetails' transaction.id %}" 
+                                                                       class="badge bg-danger text-decoration-none me-1" 
+                                                                       title="Manufacturing {{ transaction.batch_number }} - {{ transaction.product }}">
+                                                                        <i class="fas fa-minus-circle me-1"></i>{{ transaction.batch_number }}
+                                                                    </a>
+                                                                {% elif transaction.type == 'incident_write_off' %}
+                                                                    <a href="{% url 'incident_write_off_detail' transaction.id %}" 
+                                                                       class="badge bg-warning text-decoration-none me-1" 
+                                                                       title="Incident Write-Off - {{ transaction.reason|truncatechars:30 }}">
+                                                                        <i class="fas fa-exclamation-triangle me-1"></i>Write-Off #{{ transaction.id }}
+                                                                    </a>
+                                                                {% endif %}
+                                                            {% endfor %}
+                                                        </div>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                <span class="text-muted">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if material.closing_stock == 0 %}
+                                                <span class="text-danger fw-bold">0</span>
+                                            {% else %}
+                                                <span class="fw-bold">{{ material.closing_stock|floatformat:2 }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">
+                                            <i class="fas fa-info-circle me-2"></i>No raw materials found for the selected date
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock content %}

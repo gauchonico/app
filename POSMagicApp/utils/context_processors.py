@@ -337,6 +337,42 @@ def sidebar_menu(request):
             'text': 'FINANCE',
             'is_header': 1
         },{
+            'url':'/accounts/accounts-dashboard/',
+            'icon': 'bi bi-receipt',
+            'text': 'Accounts',
+            'name': 'accounts_dashboard',
+        },{
+            'url':'/accounts/chart-of-accounts/',
+            'icon': 'bi bi-receipt',
+            'text': 'Chart of Accounts',
+            'name': 'chart_of_accounts_list',
+        },{
+            'url':'/accounts/departments/',
+            'icon': 'bi bi-receipt',
+            'text': 'Departments',
+            'name': 'department_list',
+        },{
+            'url':'/accounts/budgets/',
+            'icon': 'bi bi-receipt',
+            'text': 'Budgets',
+            'name': 'budget_list',
+        },{
+            'url':'/accounts/journal-entries/',
+            'icon': 'bi bi-receipt',
+            'text': 'Journal Entries',
+            'name': 'journal_entry_list',
+        },{
+            'url':'/accounts/trial-balance/',
+            'icon': 'bi bi-receipt',
+            'text': 'Trial Balance',
+            'name': 'trial_balance',
+        },{
+            'url':'/accounts/ledger-entries/',
+            'icon': 'bi bi-receipt',
+            'text': 'Ledger Entries',
+            'name': 'ledger_entry_list',
+        },{
+            'url':'/accounts/ledger-entries/',
             'url':'/production/price-groups/',
             'icon': 'bi bi-folder-fill',
             'text': 'Pricing Groups',
@@ -799,6 +835,46 @@ def sidebar_menu(request):
                     'name': 'monthly_commission_list',
                 }]
             })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Accounts',
+                'children': [{
+                    'url': '/accounts/accounting_dashboard/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Accounts',
+                    'name': 'accounting_dashboard',
+                },{
+                    'url': '/accounts/chart-of-accounts/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Chart of Accounts',
+                    'name': 'chart_of_accounts_list',
+                },{
+                    'url': '/accounts/departments/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Departments',
+                    'name': 'department_list',
+                },{
+                    'url': '/accounts/budgets/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Budgets',
+                    'name': 'budget_list',
+                },{
+                    'url': '/accounts/journal-entries/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Journal Entries',
+                    'name': 'journal_entry_list',
+                },{
+                    'url': '/accounts/trial-balance/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Trial Balance',
+                    'name': 'trial_balance',
+                },{
+                    'url': '/accounts/ledger-entries/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Ledger Entries',
+                    'name': 'ledger_entry_list',
+                }]
+            })
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
@@ -862,6 +938,11 @@ def sidebar_menu(request):
                     'icon':'bi bi-box-seam',
                     'text': 'Rawmaterial Writeoffs',
                     'name': 'incident_write_off_list'
+                    },{
+                    'url': '/accounts/manufacturing-report/',
+                    'icon': 'bi bi-folder',
+                    'text': 'Manufacturing Report',
+                    'name': 'manufacturing_report',
                     }]
             })
             sidebar_menu.append({

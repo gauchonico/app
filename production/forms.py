@@ -9,7 +9,11 @@ class AddSupplierForm(forms.ModelForm):
     raw_material = forms.ChoiceField(choices=[(rm.pk, rm.name) for rm in RawMaterial.objects.all()], required=False)
     class Meta:
         model = Supplier
-        fields = ['name', 'company_name', 'address', 'contact_number', 'email']
+        fields = [
+            'name', 'company_name', 'address', 'contact_number', 'email',
+            'quality_rating', 'payment_terms', 'credit_limit', 'is_active',
+            'reliability_score', 'notes'
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'class':'form-control','placeholder':'John'}),
             'company_name': forms.TextInput(attrs={'class':'form-control','placeholder':'Tusuubila Ltd.'}),
@@ -17,6 +21,12 @@ class AddSupplierForm(forms.ModelForm):
             'address': forms.TextInput(attrs={'class':'form-control','placeholder':'Mbarara'}),
             'email': forms.TextInput(attrs={'class':'form-control','placeholder':'email@mylivara.com'}),
             'raw_material': forms.Select(attrs={'class':'form-control'}),
+            'quality_rating': forms.Select(attrs={'class':'form-select'}),
+            'payment_terms': forms.Select(attrs={'class':'form-select'}),
+            'credit_limit': forms.NumberInput(attrs={'class':'form-control','placeholder':'0.00'}),
+            'is_active': forms.CheckboxInput(attrs={'class':'form-check-input'}),
+            'reliability_score': forms.NumberInput(attrs={'class':'form-control','min':'0','max':'10','step':'0.1','placeholder':'5.0'}),
+            'notes': forms.Textarea(attrs={'class':'form-control','rows':'3','placeholder':'Additional notes about the supplier...'}),
         }
 
 class BulkUploadForm(forms.Form):
@@ -26,7 +36,11 @@ class EditSupplierForm(forms.ModelForm):
     raw_material = forms.ChoiceField(choices=[(rm.pk, rm.name) for rm in RawMaterial.objects.all()], required=False)
     class Meta:
         model = Supplier
-        fields = ['name', 'company_name', 'address', 'contact_number', 'email']
+        fields = [
+            'name', 'company_name', 'address', 'contact_number', 'email',
+            'quality_rating', 'payment_terms', 'credit_limit', 'is_active',
+            'reliability_score', 'notes'
+        ]
         widgets = {
             'name': forms.TextInput(attrs={'class':'form-control','placeholder':'John'}),
             'company_name': forms.TextInput(attrs={'class':'form-control','placeholder':'Tusuubila Ltd.'}),
@@ -34,6 +48,12 @@ class EditSupplierForm(forms.ModelForm):
             'address': forms.TextInput(attrs={'class':'form-control','placeholder':'Mbarara'}),
             'email': forms.TextInput(attrs={'class':'form-control','placeholder':'email@mylivara.com'}),
             'raw_material': forms.Select(attrs={'class':'form-control'}),
+            'quality_rating': forms.Select(attrs={'class':'form-select'}),
+            'payment_terms': forms.Select(attrs={'class':'form-select'}),
+            'credit_limit': forms.NumberInput(attrs={'class':'form-control','placeholder':'0.00'}),
+            'is_active': forms.CheckboxInput(attrs={'class':'form-check-input'}),
+            'reliability_score': forms.NumberInput(attrs={'class':'form-control','min':'0','max':'10','step':'0.1','placeholder':'5.0'}),
+            'notes': forms.Textarea(attrs={'class':'form-control','rows':'3','placeholder':'Additional notes about the supplier...'}),
         }
 
 class AddRawmaterialForm(forms.ModelForm):

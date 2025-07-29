@@ -1,55 +1,121 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% load static %}
-{% block title %}{{ store.name }}Initialize Rawmaterial WriteOff{% endblock %}
+{% block title %}Initialize Raw Material Write-Off{% endblock %}
 
-{% block css %}
-	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
-{% endblock %}
-
-{% block js %}
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
-	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
-{% endblock %}
 {% block content %}
-<div class="d-flex align-items-center mb-3">
-    <div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
-            <li class="breadcrumb-item active">RAWMATERIAL WRITE-OFFS</li>
-        </ul>
+<div class="container-fluid">
+    <div class="d-flex align-items-center mb-3">
+        <div>
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'incident_write_off_list' %}">INCIDENT WRITE-OFFS</a></li>
+                <li class="breadcrumb-item active">CREATE</li>
+            </ul>
+            <h1 class="page-header mb-0">Report Incident Write-Off</h1>
+        </div>
+        <div class="ms-auto">
+            <a href="{% url 'incident_write_off_list' %}" class="btn btn-outline-theme">
+                <i class="fas fa-arrow-left me-2"></i>Back to List
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Incident Write-Off Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.raw_material.id_for_label }}" class="form-label fw-bold">
+                                        Raw Material <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.raw_material }}
+                                    {% if form.raw_material.errors %}
+                                        <div class="text-danger small">{{ form.raw_material.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.quantity.id_for_label }}" class="form-label fw-bold">
+                                        Quantity <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.quantity }}
+                                    {% if form.quantity.errors %}
+                                        <div class="text-danger small">{{ form.quantity.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.reason.id_for_label }}" class="form-label fw-bold">
+                                Reason for Write-Off <span class="text-danger">*</span>
+                            </label>
+                            {{ form.reason }}
+                            {% if form.reason.errors %}
+                                <div class="text-danger small">{{ form.reason.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">Please provide a detailed explanation of why this material needs to be written off (e.g., spillage, expiry, damage, etc.)</div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-warning" type="submit">
+                                <i class="fas fa-save me-2"></i>Submit Write-Off Report
+                            </button>
+                            <a href="{% url 'incident_write_off_list' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
         
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Important Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Write-Off Process</h6>
+                        <ul class="mb-0">
+                            <li>All write-offs require approval before affecting inventory</li>
+                            <li>Only approved write-offs will deduct from stock</li>
+                            <li>Provide detailed reasons for audit purposes</li>
+                            <li>Write-offs are tracked for reporting and analysis</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-lightbulb me-2"></i>Common Reasons</h6>
+                        <ul class="mb-0">
+                            <li>Spillage during handling</li>
+                            <li>Expired materials</li>
+                            <li>Quality issues</li>
+                            <li>Damage during transport</li>
+                            <li>Contamination</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-<h1>Incident Write-Off Form</h1>
-    <form method="POST">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button class="btn btn-outline-theme" type="submit">Initiate Write-Off</button>
-    </form>
-
-
-
-
-
-
 {% endblock content %}
+
 {% block outter_content %}
 {% if messages %}
     <div class="toasts-container">
@@ -57,7 +123,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">RawMaterial Write Offs</strong>
+                    <strong class="me-auto">Incident Write-Off</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">
@@ -68,6 +134,18 @@
     </div>
 {% endif %}
 
-{% if form.errors %}  {% endif %}
-
-{% endblock outter_content %}m 
+{% if form.errors %}
+    <div class="toasts-container">
+        <div class="toast fade show">
+            <div class="toast-header">
+                <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                <strong class="me-auto">Form Errors</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+                <p>Please correct the errors in the form.</p>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock outter_content %} 

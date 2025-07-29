@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Chart of Accounts - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-white fw-bold">
+                        <i class="fas fa-list-ol me-2"></i>
+                        Chart of Accounts
+                    </h1>
+                    <p class="text-light mb-0">Manage your accounting structure and account classifications</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:chart_of_accounts_create' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-plus me-2"></i>
+                        Add Account
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-list-ol fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ accounts.count }}</h5>
+                            <p class="text-white-50 mb-0">Total Accounts</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-chart-line fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ active_accounts }}</h5>
+                            <p class="text-white-50 mb-0">Active Accounts</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-sitemap fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ account_types }}</h5>
+                            <p class="text-white-50 mb-0">Account Types</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow border-0 h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                                <i class="fas fa-folder-tree fa-2x text-white"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h5 class="text-white fw-bold mb-1">{{ parent_accounts }}</h5>
+                            <p class="text-white-50 mb-0">Parent Accounts</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Groups -->
+    {% for account_type, accounts_list in account_groups.items %}
+    <div class="card shadow border-0 mb-4" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+        <div class="card-header bg-transparent border-0">
+            <h5 class="text-white fw-bold mb-0">
+                <i class="fas fa-folder me-2"></i>
+                {{ account_type|title }} Accounts
+                <span class="badge bg-primary bg-opacity-25 ms-2">{{ accounts_list|length }}</span>
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead style="background: rgba(255, 255, 255, 0.1);">
+                        <tr>
+                            <th class="text-white border-0">Account Code</th>
+                            <th class="text-white border-0">Account Name</th>
+                            <th class="text-white border-0">Category</th>
+                            <th class="text-white border-0 text-end">Balance</th>
+                            <th class="text-white border-0 text-center">Status</th>
+                            <th class="text-white border-0 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for account in accounts_list %}
+                        <tr style="border-color: rgba(255, 255, 255, 0.1);">
+                            <td class="text-white">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-25 rounded-circle p-2 me-3">
+                                        <i class="fas fa-hashtag text-primary"></i>
+                                    </div>
+                                    <div class="fw-bold">{{ account.account_code }}</div>
+                                </div>
+                            </td>
+                            <td class="text-white">
+                                <div>
+                                    <div class="fw-bold">{{ account.account_name }}</div>
+                                    {% if account.description %}
+                                    <small class="text-light">{{ account.description|truncatewords:10 }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="text-white">
+                                <span class="badge bg-info bg-opacity-25 text-white">
+                                    {{ account.get_account_category_display }}
+                                </span>
+                            </td>
+                            <td class="text-white text-end">
+                                <div class="fw-bold {% if account.balance < 0 %}text-danger{% elif account.balance > 0 %}text-success{% endif %}">
+                                    {{ account.balance|floatformat:2|intcomma }}
+                                </div>
+                                <small class="text-light">
+                                    {% if account.is_debit_balance %}Debit{% else %}Credit{% endif %} Balance
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                {% if account.is_active %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Active
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-times me-1"></i>Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="dropdown">
+                                    <button class="btn btn-link text-white p-0" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="{% url 'accounts:chart_of_accounts_update' account.pk %}">
+                                            <i class="fas fa-edit me-2"></i>Edit Account
+                                        </a></li>
+                                        {% if account.sub_accounts.exists %}
+                                        <li><a class="dropdown-item" href="#">
+                                            <i class="fas fa-sitemap me-2"></i>View Sub-accounts ({{ account.sub_accounts.count }})
+                                        </a></li>
+                                        {% endif %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="{% url 'accounts:chart_of_accounts_delete' account.pk %}">
+                                            <i class="fas fa-trash me-2"></i>Delete Account
+                                        </a></li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-light">
+                                    <i class="fas fa-folder-open fa-2x mb-3"></i>
+                                    <p>No {{ account_type|title }} accounts found</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+        <div class="card-body text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-list-ol fa-3x text-light"></i>
+            </div>
+            <h5 class="text-white mb-2">No Chart of Accounts Found</h5>
+            <p class="text-light mb-3">Get started by creating your first account</p>
+            <a href="{% url 'accounts:chart_of_accounts_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Create Account
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+body {
+    background: linear-gradient(135deg, #2f5241 0%, #13241c 100%);
+    min-height: 100vh;
+}
+
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+}
+
+.table {
+    color: white;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dropdown-menu {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dropdown-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+</style>
+{% endblock %} 
