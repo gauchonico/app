@@ -1,0 +1,577 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Raw Materials Dashboard - POS Magic{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'plugins/chart.js/dist/chart.min.css' %}">
+<style>
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    .status-critical { background-color: #dc3545; }
+    .status-warning { background-color: #ffc107; }
+    .status-good { background-color: #28a745; }
+    .status-neutral { background-color: #6c757d; }
+    
+    .metric-card {
+        transition: transform 0.2s ease-in-out;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .alert-card {
+        border-left: 4px solid #dc3545;
+    }
+    .warning-card {
+        border-left: 4px solid #ffc107;
+    }
+    .success-card {
+        border-left: 4px solid #28a745;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    
+    .quick-action-btn {
+        transition: all 0.3s ease;
+    }
+    .quick-action-btn:hover {
+        transform: scale(1.05);
+    }
+</style>
+{% endblock %}
+
+{% block js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
+<script>
+// Stock Level Chart
+var ctx1 = document.getElementById('stockLevelChart');
+var stockChart = new Chart(ctx1, {
+    type: 'doughnut',
+    data: {
+        labels: ['Healthy Stock', 'Low Stock', 'Out of Stock'],
+        datasets: [{
+            data: [{{ healthy_stock_materials|length }}, {{ low_stock_materials|length }}, {{ out_of_stock_materials|length }}],
+            backgroundColor: [
+                'rgba(40, 167, 69, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(220, 53, 69, 0.8)'
+            ],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Monthly Trends Chart
+var ctx2 = document.getElementById('monthlyTrendsChart');
+var trendsChart = new Chart(ctx2, {
+    type: 'line',
+    data: {
+        labels: [{% for trend in monthly_trends %}'{{ trend.month }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Total Stock Level',
+            data: [{% for trend in monthly_trends %}{{ trend.total_stock }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Total Stock'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// Supplier Performance Chart
+var ctx3 = document.getElementById('supplierPerformanceChart');
+var supplierChart = new Chart(ctx3, {
+    type: 'bar',
+    data: {
+        labels: [{% for supplier in supplier_performance %}'{{ supplier.supplier.name|truncatechars:15 }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Fulfillment Rate (%)',
+            data: [{% for supplier in supplier_performance %}{{ supplier.fulfillment_rate|floatformat:1 }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+            backgroundColor: 'rgba(75, 192, 192, 0.8)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                title: {
+                    display: true,
+                    text: 'Fulfillment Rate (%)'
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- BEGIN row -->
+<div class="row">
+    <!-- Header -->
+    <div class="col-12 mb-4">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                        Raw Materials Dashboard
+                    </h1>
+                    <p class="text-xl text-muted">Production Manager Overview</p>
+                </div>
+                <div class="text-end">
+                    <div class="text-2xl font-bold text-success">{{ total_raw_materials }}</div>
+                    <div class="text-sm text-muted">Total Materials</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Cards -->
+    <div class="col-12 mb-6">
+        <div class="row">
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow bg-gradient-to-br from-green-500 to-green-600 rounded-3xl p-6 shadow-2xl text-center text-white metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-boxes text-3xl text-white mb-4"></i>
+                        <div class="text-4xl font-bold mb-2">{{ healthy_stock_materials|length }}</div>
+                        <div class="font-medium">Healthy Stock</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-3xl p-6 shadow-2xl text-center text-white metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-exclamation-triangle text-3xl text-white mb-4"></i>
+                        <div class="text-4xl font-bold mb-2">{{ low_stock_count }}</div>
+                        <div class="font-medium">Low Stock</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-6 shadow-2xl text-center text-white metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-times-circle text-3xl text-white mb-4"></i>
+                        <div class="text-4xl font-bold mb-2">{{ out_of_stock_count }}</div>
+                        <div class="font-medium">Out of Stock</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="card border-0 shadow bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-6 shadow-2xl text-center text-white metric-card">
+                    <div class="card-body">
+                        <i class="fas fa-dollar-sign text-3xl text-white mb-4"></i>
+                        <div class="text-4xl font-bold mb-2">{{ total_inventory_value|floatformat:0|intcomma }}</div>
+                        <div class="font-medium">Inventory Value</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+            <h3 class="text-2xl font-bold mb-4">
+                <i class="fas fa-bolt me-3 text-yellow-600"></i>Quick Actions
+            </h3>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'addRawmaterial' %}" class="btn btn-primary w-100 quick-action-btn">
+                        <i class="fas fa-plus me-2"></i>Add Raw Material
+                    </a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'create_requisition' %}" class="btn btn-success w-100 quick-action-btn">
+                        <i class="fas fa-shopping-cart me-2"></i>Create Requisition
+                    </a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'rawmaterialsList' %}" class="btn btn-info w-100 quick-action-btn">
+                        <i class="fas fa-list me-2"></i>View All Materials
+                    </a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'manage_price_alerts' %}" class="btn btn-warning w-100 quick-action-btn">
+                        <i class="fas fa-bell me-2"></i>Price Alerts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="col-12 mb-6">
+        <div class="row">
+            <!-- Stock Level Chart -->
+            <div class="col-lg-4 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-chart-pie me-3 text-blue-600"></i>Stock Status
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="stockLevelChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Trends Chart -->
+            <div class="col-lg-8 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-chart-line me-3 text-green-600"></i>Monthly Stock Trends
+                    </h3>
+                    <div class="chart-container">
+                        <canvas id="monthlyTrendsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Alerts -->
+    {% if critical_materials %}
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl alert-card">
+            <h3 class="text-2xl font-bold mb-4 text-danger">
+                <i class="fas fa-exclamation-triangle me-3"></i>Critical Stock Alerts
+            </h3>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-danger">
+                        <tr>
+                            <th>Material</th>
+                            <th class="text-center">Current Stock</th>
+                            <th class="text-center">Reorder Point</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for material in critical_materials %}
+                        <tr>
+                            <td class="fw-bold">{{ material.name }}</td>
+                            <td class="text-center">{{ material.current_stock|floatformat:2 }} {{ material.unit_measurement }}</td>
+                            <td class="text-center">{{ material.reorder_point }} {{ material.unit_measurement }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-danger">Critical</span>
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'createPurchaseOrder' material.id %}" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-shopping-cart me-1"></i>Order
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activity -->
+    <div class="col-12 mb-6">
+        <div class="row">
+            <!-- Recent Purchase Orders -->
+            <div class="col-lg-6 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-shopping-cart me-3 text-blue-600"></i>Recent Purchase Orders
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Material</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-center">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for po in recent_purchase_orders %}
+                                <tr>
+                                    <td class="fw-bold">{{ po.raw_material.name }}</td>
+                                    <td class="text-center">{{ po.quantity }} {{ po.raw_material.unit_measurement }}</td>
+                                    <td class="text-center">
+                                        {% if po.requisition.status == 'delivered' %}
+                                            <span class="badge bg-success">{{ po.requisition.status|title }}</span>
+                                        {% elif po.requisition.status == 'created' %}
+                                            <span class="badge bg-warning">{{ po.requisition.status|title }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ po.requisition.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ po.requisition.created_at|date:"M d, Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">No recent purchase orders</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Adjustments -->
+            <div class="col-lg-6 mb-4">
+                <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-exchange-alt me-3 text-green-600"></i>Recent Stock Adjustments
+                    </h3>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Material</th>
+                                    <th class="text-center">Adjustment</th>
+                                    <th class="text-center">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for adjustment in recent_adjustments %}
+                                <tr>
+                                    <td class="fw-bold">{{ adjustment.raw_material.name }}</td>
+                                    <td class="text-center">
+                                        {% if adjustment.adjustment > 0 %}
+                                            <span class="text-success">+{{ adjustment.adjustment|floatformat:2 }}</span>
+                                        {% else %}
+                                            <span class="text-danger">{{ adjustment.adjustment|floatformat:2 }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ adjustment.last_updated|date:"M d, Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">No recent adjustments</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supplier Performance -->
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6">
+                <i class="fas fa-chart-bar me-3 text-purple-600"></i>Top Supplier Performance
+            </h3>
+            <div class="chart-container">
+                <canvas id="supplierPerformanceChart"></canvas>
+            </div>
+            <div class="row mt-4">
+                {% for supplier in supplier_performance %}
+                <div class="col-md-4 mb-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <h6 class="card-title fw-bold">{{ supplier.supplier.name }}</h6>
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="text-primary fw-bold">{{ supplier.po_count }}</div>
+                                    <small class="text-muted">Orders</small>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-success fw-bold">{{ supplier.fulfillment_rate|floatformat:1 }}%</div>
+                                    <small class="text-muted">Fulfillment</small>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <small class="text-muted">Reliability: {{ supplier.reliability_score }}/10</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Price Alerts -->
+    {% if price_alerts %}
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl warning-card">
+            <h3 class="text-2xl font-bold mb-4 text-warning">
+                <i class="fas fa-bell me-3"></i>Active Price Alerts
+            </h3>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-warning">
+                        <tr>
+                            <th>Material</th>
+                            <th class="text-center">Threshold Price</th>
+                            <th class="text-center">Alert Type</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for alert in price_alerts %}
+                        <tr>
+                            <td class="fw-bold">{{ alert.raw_material.name }}</td>
+                            <td class="text-center">{{ alert.threshold_price|floatformat:2 }}</td>
+                            <td class="text-center">
+                                {% if alert.is_above %}
+                                    <span class="badge bg-warning">Above Threshold</span>
+                                {% else %}
+                                    <span class="badge bg-info">Below Threshold</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-success">Active</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Materials by Unit -->
+    <div class="col-12 mb-6">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+            <h3 class="text-2xl font-bold mb-6">
+                <i class="fas fa-ruler me-3 text-indigo-600"></i>Materials by Unit
+            </h3>
+            <div class="row">
+                {% for unit, materials in materials_by_unit.items %}
+                <div class="col-md-4 mb-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0 fw-bold">{{ unit|title }}</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-3">
+                                <div class="text-2xl font-bold text-primary">{{ materials|length }}</div>
+                                <small class="text-muted">Materials</small>
+                            </div>
+                            <div class="small">
+                                {% for material in materials|slice:":3" %}
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>{{ material.name|truncatechars:20 }}</span>
+                                    <span class="fw-bold">{{ material.current_stock|floatformat:1 }}</span>
+                                </div>
+                                {% endfor %}
+                                {% if materials|length > 3 %}
+                                <div class="text-center text-muted">
+                                    <small>+{{ materials|length|add:"-3" }} more</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="col-12">
+        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-6 shadow-2xl">
+            <h4 class="text-xl font-bold mb-4">
+                <i class="fas fa-download me-3 text-blue-600"></i>Export & Reports
+            </h4>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'raw_material_utilization_report' %}" class="btn btn-outline-primary w-100">
+                        <i class="fas fa-chart-line me-2"></i>Utilization Report
+                    </a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'raw_material_date_report' %}" class="btn btn-outline-success w-100">
+                        <i class="fas fa-calendar me-2"></i>Date Report
+                    </a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <a href="{% url 'detailed_inventory_report' %}" class="btn btn-outline-info w-100">
+                        <i class="fas fa-file-alt me-2"></i>Detailed Report
+                    </a>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <button onclick="window.print()" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-print me-2"></i>Print Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- END row -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh dashboard every 5 minutes
+setTimeout(function() {
+    location.reload();
+}, 300000);
+
+// Add smooth scrolling for better UX
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector(this.getAttribute('href')).scrollIntoView({
+            behavior: 'smooth'
+        });
+    });
+});
+</script>
+{% endblock %} 

@@ -3,6 +3,7 @@ from django import forms
 from POSMagicApp.models import Customer, Staff
 from .models import *
 from django.forms import BaseModelFormSet, ModelForm, ValidationError, inlineformset_factory, modelformset_factory
+import os
 
 
 class AddSupplierForm(forms.ModelForm):
@@ -256,25 +257,110 @@ class WriteOffForm(forms.Form):
 class StoreTransferForm(forms.ModelForm):
     class Meta:
         model = StoreTransfer
-        fields = ['notes','delivery_document']
+        fields = ['notes', 'delivery_document']
         widgets = {
-            'delivery_document': forms.FileInput(attrs={'class':'form-control-file'}),
-            'notes': forms.Textarea(attrs={'class':'form-control', 'placeholder':'Notes about the Transfer'}),
+            'delivery_document': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': '.pdf,.doc,.docx,.jpg,.jpeg,.png,.xlsx,.xls',
+                'help_text': 'Upload delivery note, invoice, or any supporting document'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control', 
+                'placeholder': 'Notes about the Transfer',
+                'rows': 4
+            }),
         }
+    
+    def clean_delivery_document(self):
+        document = self.cleaned_data.get('delivery_document')
+        if document:
+            # Check file size (max 10MB)
+            if document.size > 10 * 1024 * 1024:
+                raise forms.ValidationError("File size must be under 10MB.")
+            
+            # Check file extension
+            allowed_extensions = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.xlsx', '.xls']
+            file_extension = os.path.splitext(document.name)[1].lower()
+            if file_extension not in allowed_extensions:
+                raise forms.ValidationError(
+                    f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}"
+                )
+        
+        return document
 
 class StoreTransferItemForm(forms.ModelForm):
     class Meta:
         model = StoreTransferItem
         fields = ['product', 'quantity']
         widgets = {
-            'product': forms.Select(attrs={'class':'form-control'}),
-            'quantity': forms.NumberInput(attrs={'class':'form-control'}),
+            'product': forms.Select(attrs={
+                'class': 'form-control',
+                'data-live-search': 'true'
+            }),
+            'quantity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Enter quantity'
+            }),
         }
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Example: Limit queryset to active ManufacturedProductInventory instances
-        self.fields['product'].queryset = ManufacturedProductInventory.objects.all()
+        # Filter to only show products with available inventory
+        self.fields['product'].queryset = ManufacturedProductInventory.objects.filter(
+            quantity__gt=0
+        ).select_related('product').order_by('product__product_name')
+        
+        # Add custom labels
+        self.fields['product'].label = "Product"
+        self.fields['quantity'].label = "Transfer Quantity"
+        
+    
+    def clean_quantity(self):
+        quantity = self.cleaned_data.get('quantity')
+        product = self.cleaned_data.get('product')
+        
+        if quantity and product:
+            if quantity <= 0:
+                raise forms.ValidationError("Quantity must be greater than 0.")
+            
+            if quantity > product.quantity:
+                raise forms.ValidationError(
+                    f"Transfer quantity ({quantity}) cannot exceed available inventory ({product.quantity})"
+                )
+        
+        return quantity
+
+class StoreTransferItemFormSet(forms.BaseModelFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.queryset = StoreTransferItem.objects.none()
+    
+    def clean(self):
+        super().clean()
+        
+        # Check if at least one item is provided
+        if not any(form.cleaned_data and not form.cleaned_data.get('DELETE', False) 
+                  for form in self.forms):
+            raise forms.ValidationError("At least one item must be added to the transfer.")
+        
+        # Check for duplicate products
+        products = []
+        for form in self.forms:
+            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
+                product = form.cleaned_data.get('product')
+                if product in products:
+                    raise forms.ValidationError(f"Product '{product}' is already in the transfer.")
+                products.append(product)
+
+# Create formset factory
+StoreTransferItemFormSet = forms.modelformset_factory(
+    StoreTransferItem,
+    form=StoreTransferItemForm,
+    formset=StoreTransferItemFormSet,
+    extra=1,
+    can_delete=True
+)
         
 class TransferApprovalForm(forms.ModelForm):
     class Meta:

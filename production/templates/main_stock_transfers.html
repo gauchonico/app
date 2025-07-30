@@ -1,174 +1,660 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}Tranfers to Livara Main Store{% endblock %}
+{% block title %}Main Store Transfers Dashboard{% endblock %}
 
 {% block css %}
-	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+<style>
+    body {
+        {% comment %} background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); {% endcomment %}
+        min-height: 100vh;
+    }
+    
+    .card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stats-card {
+        {% comment %} background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); {% endcomment %}
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    .stats-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stats-card.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .stats-card.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .table {
+        {% comment %} background: white; {% endcomment %}
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .table thead th {
+        {% comment %} background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); {% endcomment %}
+        color: white;
+        border: none;
+        font-weight: 600;
+    }
+    
+    .btn-action {
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .status-pending {
+        background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+        color: white;
+    }
+    
+    .status-completed {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .status-approved {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .chart-container {
+        background: transparent;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-container canvas {
+        min-height: 200px;
+        max-height: 300px;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    .chart-container h5 {
+        color: white;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    
+    .quick-actions {
+        background: transparent;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 10px;
+        margin-right: 0.5rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+</style>
 {% endblock %}
 
 {% block js %}
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
-	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+<!-- DataTables CDN fallback -->
+<script>
+// Check if DataTables loaded from static files, if not load from CDN
+if (typeof $.fn.DataTable === 'undefined') {
+    console.log('Loading DataTables from CDN...');
+    document.write('<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"><\/script>');
+}
+</script>
+```
+</script>
 {% endblock %}
 
 {% block content %}
-    <!-- BEGIN page-header -->
-	<div class="d-flex align-items-center mb-3">
-		<div>
-			<ul class="breadcrumb">
-				<li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
-				<li class="breadcrumb-item active">LIVARA MAIN STORE</li>
-			</ul>
-			<h5>Inventory Tranfers for Main Store and Salon Branches</h5>
-		</div>
-		
-	   
-	</div>
-	<div class="mb-md-4 mb-3 d-md-flex">
-		<div class="mt-md-0 mt-2"><a href="{% url 'main_stock_transfer' %}" class="{% if request.resolver_match.url_name == 'main_stock_transfer' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Main Store Transfers</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}" class="{% if request.resolver_match.url_name == 'restockRequests' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Salon Transfers</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'detailed_inventory_report' %}" class="{% if request.resolver_match.url_name == 'detailed_inventory_report' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> MainStore Transfer Report</a></div>
-		
-	</div>
-<div class="container">
-	<div class="row justify-content-center">
-		<div class="col-xl-12">
-			<div class="row">
-				<div class="">
-					{% if user_is_production_manager %}
-						<div class="ms-auto">
-							<a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>
-						</div>
-					{% endif %}
-					<p>These are the Main store transfers from the Production Site to the Livara Main store after Production.
-					<hr class="mb-4">
-
-					<!-- BEGIN #datatable -->
-					<div class="table-responsive text-nowrap">
-						<div class="card">
-							<div class="card-body">
-								<table id="datatableDefault" class="table text-nowrap w-100 table-responsive">
-									<thead>
-										<tr class="align-middle">
-											<th class="border-top-0 pt-0 pb-2">#</th>
-											<th class="border-top-0 pt-0 pb-2">Transfer No.</th>
-											<th class="border-top-0 pt-0 pb-2 ">Create by:</th>
-											<th class="border-top-0 pt-0 pb-2">Status</th>
-                                            <th class="border-top-0 pt-0 pb-2">Action</th>
-											<th class="border-top-0 pt-0 pb-2">Notes</th>
-											<th class="border-top-0 pt-0 pb-2">Items Transfered</th>
-							
-										</tr>
-									</thead>
-									<tbody>
-										{% for transfer in store_transfers %}
-										<tr class="align-middle">
-											<td class="align-middle">{{forloop.counter}}</td>
-											<td>{{ transfer.liv_main_transfer_number }}</td>
-											<td>{{ transfer.created_by }}</td>
-                                            <td>{{ transfer.status }}</td>
-                                            <td>
-                                                {% if transfer.status == 'Pending' %}
-                                                <a class="btn btn-primary" href="{% url 'mark_transfer_completed' transfer.id %}">Transfer Delivered</a>
-                                                {% else %}
-                                                <div class="text-theme">
-                                                    <p>Transfer Successfull</p>
-                                                </div>
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ transfer.date }}</td>
-											
-											<td class="align-middle span-1">
-												<ul class="list-group">
-                                                    {% for transfer_item in transfer.items.all %}
-													<li class="list-group-item">
-                                                        {{ transfer_item.product }} - <span class="badge rounded-pill bg-dark">{{ transfer_item.quantity }} units</span> 
-                                                    </li>
-                                                    {% empty %}
-                                                        <li class="list-group-item">No transfer items found.</li>
-													{% endfor %} 
-												</ul>
-											</td>
-								
-										</tr>
-                                        {% empty %}
-                                            <tr>
-                                                <td colspan="4">No store transfers found.</td>
-                                            </tr>
-										{% endfor %}
-									</tbody>
-									
-								</table>
-							</div>
-							<div class="card-arrow">
-								<div class="card-arrow-top-left"></div>
-								<div class="card-arrow-top-right"></div>
-								<div class="card-arrow-bottom-left"></div>
-								<div class="card-arrow-bottom-right"></div>
-							</div>
-							
-						</div>
-					</div>
-				</div>
-				<!-- END col-9-->
-				
-			</div>
-		</div>
-	</div>
+<!-- BEGIN page-header -->
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
+            <li class="breadcrumb-item active">LIVARA MAIN STORE</li>
+        </ul>
+        <h2 class="text-white mb-0">Main Store Transfers Dashboard</h2>
+        <p class="text-white-50 mb-0">Manage transfers from production to Livara main store</p>
+    </div>
 </div>
 
-	<!-- BEGIN container -->
-	
-	<!-- END container -->
+<!-- Quick Actions -->
+<div class="quick-actions">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Quick Actions</h5>
+        </div>
+        <div class="col-md-6 text-end">
+            {% if user_is_production_manager %}
+                <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary btn-action me-2">
+                    <i class="fas fa-plus me-1"></i>Create Transfer
+                </a>
+            {% endif %}
+            <a href="{% url 'restockRequests' %}" class="btn btn-info btn-action me-2">
+                <i class="fas fa-store me-1"></i>Salon Transfers
+            </a>
+            <a href="{% url 'detailed_inventory_report' %}" class="btn btn-success btn-action">
+                <i class="fas fa-chart-bar me-1"></i>Transfer Report
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_transfers }}</div>
+                    <div class="stats-label">Total Transfers</div>
+                </div>
+                <i class="fas fa-truck fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ pending_transfers }}</div>
+                    <div class="stats-label">Pending Transfers</div>
+                </div>
+                <i class="fas fa-clock fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ completed_transfers }}</div>
+                    <div class="stats-label">Completed Transfers</div>
+                </div>
+                <i class="fas fa-check-circle fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_items_transferred|floatformat:0 }}</div>
+                    <div class="stats-label">Items Transferred</div>
+                </div>
+                <i class="fas fa-boxes fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-xl-8">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Monthly Transfer Trends</h5>
+            <canvas id="monthlyTrendsChart" height="100"></canvas>
+            <div id="monthlyChartFallback" class="text-center text-white" style="display: none;">
+                <i class="fas fa-chart-line fa-3x mb-3"></i>
+                <p>Chart loading...</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Transfer Status Distribution</h5>
+            <canvas id="statusDistributionChart" height="100"></canvas>
+            <div id="statusChartFallback" class="text-center text-white" style="display: none;">
+                <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                <p>Chart loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Products and Recent Activity -->
+<div class="row mb-4">
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-star me-2"></i>Top Transferred Products</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Total Quantity</th>
+                            <th>Transfer Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in top_products %}
+                        <tr>
+                            <td>{{ product.product__product__product_name }}</td>
+                            <td><span class="badge bg-primary">{{ product.total_quantity }}</span></td>
+                            <td><span class="badge bg-info">{{ product.transfer_count }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No transfer data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+            <div class="d-flex align-items-center mb-3">
+                <div class="stats-number text-primary me-3">{{ recent_transfers }}</div>
+                <div>
+                    <div class="fw-bold">Transfers in Last 7 Days</div>
+                    <small class="text-muted">Active transfer activity</small>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 8px;">
+                <div class="progress-bar bg-primary" style="width: {% widthratio recent_transfers total_transfers 100 %}%"></div>
+            </div>
+            <small class="text-muted">{{ recent_transfers }} out of {{ total_transfers }} total transfers</small>
+        </div>
+    </div>
+</div>
+
+<!-- Main Transfers Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Main Store Transfers</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="datatableDefault" class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Transfer No.</th>
+                        <th>Created By</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Items</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transfer in store_transfers %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ transfer.liv_main_transfer_number }}</strong>
+                            {% if transfer.notes %}
+                                <br><small class="text-muted">{{ transfer.notes|truncatechars:30 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}</td>
+                        <td>
+                            <span class="status-badge status-{{ transfer.status|lower }}">
+                                {{ transfer.status }}
+                            </span>
+                        </td>
+                        <td>{{ transfer.date|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                {% for transfer_item in transfer.items.all %}
+                                <div class="mb-1">
+                                    <span class="badge bg-light text-dark">
+                                        {{ transfer_item.product.product.product_name }} - {{ transfer_item.quantity }} units
+                                    </span>
+                                </div>
+                                {% empty %}
+                                <span class="text-muted">No items</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                {% if transfer.status == 'Pending' %}
+                                    <a href="{% url 'mark_transfer_completed' transfer.id %}" class="btn btn-sm btn-success btn-action">
+                                        <i class="fas fa-check me-1"></i>Complete
+                                    </a>
+                                {% elif transfer.status == 'Completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-eye me-2"></i>View Details</a></li>
+                                    {% if transfer.delivery_document %}
+                                    <li><a class="dropdown-item" href="{{ transfer.delivery_document.url }}" target="_blank">
+                                        <i class="fas fa-file-download me-2"></i>Download Document
+                                    </a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No store transfers found</p>
+                                {% if user_is_production_manager %}
+                                <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary">Create First Transfer</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
+
 {% block outter_content %}
 <script>
-$('#datatableDefault').DataTable({
-	dom: "<'row mb-3'<'col-sm-4'l><'col-sm-8 text-end'<'d-flex justify-content-end'fB>>>t<'d-flex align-items-center mt-3'<'me-auto'i><'mb-0'p>>",
-	lengthMenu: [ 10, 20, 30, 40, 50 ],
-	responsive: true,
-	buttons: [ 
-	{ extend: 'print', className: 'btn btn-default' },
-	{ extend: 'csv', className: 'btn btn-default' }
-	]
+// Global flag to prevent multiple initialization attempts
+let dataTableInitialized = false;
+let dataTableAttempts = 0;
+const maxDataTableAttempts = 10;
+
+// Initialize DataTable
+function initializeDataTable() {
+    // Check if already initialized or max attempts reached
+    if (dataTableInitialized || dataTableAttempts >= maxDataTableAttempts) {
+        console.log('DataTable initialization already attempted or max attempts reached, skipping...');
+        return;
+    }
+    
+    dataTableAttempts++;
+    
+    // Check if jQuery is available
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded!');
+        return;
+    }
+    
+    // Check if DataTable is available
+    if (typeof $.fn.DataTable === 'undefined') {
+        console.error('DataTables is not loaded!');
+        return;
+    }
+    
+    // Check if DataTable is already initialized
+    if ($.fn.DataTable.isDataTable('#datatableDefault')) {
+        console.log('DataTable already initialized, skipping...');
+        dataTableInitialized = true;
+        return;
+    }
+    
+    try {
+        $('#datatableDefault').DataTable({
+            dom: "<'row mb-3'<'col-sm-4'l><'col-sm-8 text-end'<'d-flex justify-content-end'fB>>>t<'d-flex align-items-center mt-3'<'me-auto'i><'mb-0'p>>",
+            lengthMenu: [10, 20, 30, 40, 50],
+            responsive: true,
+            buttons: [
+                { extend: 'print', className: 'btn btn-default' },
+                { extend: 'csv', className: 'btn btn-default' }
+            ]
+        });
+        console.log('DataTable initialized successfully');
+        dataTableInitialized = true;
+    } catch (error) {
+        console.error('Error initializing DataTable:', error);
+        dataTableInitialized = true; // Mark as attempted even if failed
+    }
+}
+
+// Wait for DOM and libraries to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, checking libraries...');
+    
+    // Function to try initializing DataTable
+    function tryInitDataTable() {
+        if (dataTableInitialized || dataTableAttempts >= maxDataTableAttempts) {
+            return;
+        }
+        
+        if (typeof $ !== 'undefined' && typeof $.fn.DataTable !== 'undefined') {
+            initializeDataTable();
+        } else {
+            console.log(`Waiting for DataTables to load... (attempt ${dataTableAttempts + 1}/${maxDataTableAttempts})`);
+            setTimeout(tryInitDataTable, 500);
+        }
+    }
+    
+    // Start trying to initialize after a short delay
+    setTimeout(tryInitDataTable, 1000);
+});
+
+// Chart initialization with fallback
+function initializeCharts() {
+    console.log('Initializing charts...');
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        document.getElementById('monthlyChartFallback').style.display = 'block';
+        document.getElementById('statusChartFallback').style.display = 'block';
+        return;
+    }
+    
+    // Monthly Trends Chart
+    const monthlyCtx = document.getElementById('monthlyTrendsChart');
+    console.log('Monthly chart element:', monthlyCtx);
+    
+    if (monthlyCtx) {
+        try {
+            const monthlyData = [{% for data in monthly_data %}{{ data.transfers }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const monthlyLabels = [{% for data in monthly_data %}'{{ data.month }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+            
+            console.log('Monthly data:', monthlyData);
+            console.log('Monthly labels:', monthlyLabels);
+            
+            new Chart(monthlyCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: monthlyLabels,
+                    datasets: [{
+                        label: 'Transfers',
+                        data: monthlyData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Monthly chart created successfully');
+        } catch (error) {
+            console.error('Error creating monthly chart:', error);
+            document.getElementById('monthlyChartFallback').style.display = 'block';
+        }
+    } else {
+        console.error('Monthly chart canvas not found!');
+        document.getElementById('monthlyChartFallback').style.display = 'block';
+    }
+
+    // Status Distribution Chart
+    const statusCtx = document.getElementById('statusDistributionChart');
+    console.log('Status chart element:', statusCtx);
+    
+    if (statusCtx) {
+        try {
+            const statusData = [{% for status, count in status_breakdown.items %}{{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const statusLabels = [{% for status, count in status_breakdown.items %}'{{ status }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+            
+            console.log('Status data:', statusData);
+            console.log('Status labels:', statusLabels);
+            
+            new Chart(statusCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusData,
+                        backgroundColor: [
+                            '#ffc107',  // Warning (Pending)
+                            '#4facfe',  // Info (Approved)
+                            '#28a745'   // Success (Completed)
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Status chart created successfully');
+        } catch (error) {
+            console.error('Error creating status chart:', error);
+            document.getElementById('statusChartFallback').style.display = 'block';
+        }
+    } else {
+        console.error('Status chart canvas not found!');
+        document.getElementById('statusChartFallback').style.display = 'block';
+    }
+}
+
+// Initialize charts when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, waiting for Chart.js...');
+    
+    // Wait a bit for Chart.js to load
+    setTimeout(function() {
+        initializeCharts();
+    }, 500);
 });
 </script>
 
 {% if messages %}
-    <div class="toasts-container">
-        {% for message in messages %}
-            <div class="toast fade show">
-                <div class="toast-header">
-                    <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Store Order Status</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                </div>
-                <div class="toast-body">
-                    <p>{{ message }}</p>
-                </div>
-            </div>
-        {% endfor %}
+<div class="toasts-container">
+    {% for message in messages %}
+    <div class="toast fade show">
+        <div class="toast-header">
+            <i class="far fa-bell text-muted me-2"></i>
+            <strong class="me-auto">Transfer Status</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            <p>{{ message }}</p>
+        </div>
     </div>
+    {% endfor %}
+</div>
 {% endif %}
-
-{% if form.errors %}  {% endif %}
-
-{% endblock outter_content %}
+{% endblock %}

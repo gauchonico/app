@@ -1,80 +1,816 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}URI Production Store{% endblock %}
+{% block title %}Factory Inventory Dashboard{% endblock %}
 
 {% block css %}
-	<link href="{% static 'plugins/jvectormap-next/jquery-jvectormap.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+<style>
+    body {
+        min-height: 100vh;
+    }
+    
+    .card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stats-card {
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    .stats-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stats-card.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .stats-card.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .stats-card.danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    }
+    
+    .stats-card.secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    }
+    
+    .stats-card.purple {
+        background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
+    }
+    
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .table {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .table thead th {
+        color: white;
+        border: none;
+        font-weight: 600;
+    }
+    
+    .btn-action {
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .status-instock {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .status-lowstock {
+        background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+        color: white;
+    }
+    
+    .status-outofstock {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        color: white;
+    }
+    
+    .status-expiring {
+        background: linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%);
+        color: white;
+    }
+    
+    .status-expired {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+    }
+    
+    .chart-container {
+        background: transparent;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-container canvas {
+        min-height: 200px;
+        max-height: 300px;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    .chart-container h5 {
+        color: white;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    
+    .quick-actions {
+        background: transparent;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 10px;
+        margin-right: 0.5rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .expiry-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+    
+    .expiry-safe { background-color: #28a745; }
+    .expiry-warning { background-color: #ffc107; }
+    .expiry-danger { background-color: #ff6b6b; }
+    .expiry-expired { background-color: #dc3545; }
+</style>
 {% endblock %}
 
 {% block js %}
-	<script src="{% static 'plugins/jvectormap-next/jquery-jvectormap.min.js' %}"></script>
-	<script src="{% static 'plugins/jvectormap-content/world-mill.js' %}"></script>
-	<script src="{% static 'plugins/apexcharts/dist/apexcharts.min.js' %}"></script>
-	<script src="{% static 'js/demo/dashboard.demo.js' %}"></script>
+<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+<!-- DataTables CDN fallback -->
+<script>
+// Check if DataTables loaded from static files, if not load from CDN
+if (typeof $.fn.DataTable === 'undefined') {
+    console.log('Loading DataTables from CDN...');
+    document.write('<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"><\/script>');
+}
+</script>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-3">
-	<div>
-		<ul class="breadcrumb">
-			<li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
-			<li class="breadcrumb-item active">URI INVENTORY</li>
-		</ul>
-		<h1 class="page-header mb-0">Factory Store</h1>
-	</div>
-    <div class="ms-auto">
-        <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">Bulk Stock Transfer</a>
+<!-- BEGIN page-header -->
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+            <li class="breadcrumb-item active">FACTORY INVENTORY</li>
+        </ul>
+        <h2 class="text-white mb-0">Factory Inventory Dashboard</h2>
+        <p class="text-white-50 mb-0">Monitor manufactured products, batches, and production efficiency</p>
     </div>
-	
+    <div class="ms-auto">
+        <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">
+            <i class="fas fa-truck me-1"></i>Bulk Transfer
+        </a>
+        <a href="{% url 'main_stock_transfer' %}" class="btn btn-info">
+            <i class="fas fa-exchange-alt me-1"></i>View Transfers
+        </a>
+    </div>
 </div>
-	<!-- BEGIN row -->
-<div class="row">
-    {% for product_inventory in inventory %}
-        {% if product_inventory.quantity > 0 %}
-            <div class="col-xl-3 col-lg-6">
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <div class="d-flex fw-bold small mb-3">
-                            <span class="flex-grow-1">{{ product_inventory.product.product_name }}</span>
-                            
-                            <a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
-                        </div>
-                        
-                        <div class="row align-items-center mb-2">
-                            <div class="col-7">
-                                <h3 class="mb-0">{{ product_inventory.quantity }} - Units</h3>  </div>
-                            <div class="col-5">
-                                <div class="mt-n2" data-render="apexchart" data-type="bar" data-title="Visitors" data-height="30"></div>
-                            </div>
-                        </div>
-                        <div class="small text-inverse text-opacity-50 text-truncate mb-3">
-                            <i class="bi bi-clock fs-8px text-theme me-2"></i> Last Updated<br>
-                            {{ product_inventory.last_updated }}  </div>
-                            Batch No.  <p class="text-theme">{{ product_inventory.batch_number }}</p>
-                        </div>
-                        
-                        <div class="mb-3 px-3">
-                            <a href="{% url 'productInventoryDetails' product_inventory.id %}" class="btn btn-outline-warning">Inventory Details</a>
-                            
-                        </div>
-                        <div class="mb-3 px-3">
-                            <a href="{% url 'write_off_inventory' product_inventory.id %}" class="btn btn-danger">Write Off</a>
-                        </div>
-                        
-                    <div class="card-arrow">
-                        <div class="card-arrow-top-left"></div>
-                        <div class="card-arrow-top-right"></div>
-                        <div class="card-arrow-bottom-left"></div>
-                        <div class="card-arrow-bottom-right"></div>
-                    </div>
-                    </div>
+
+<!-- Quick Actions -->
+<div class="quick-actions">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Production Overview</h5>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'create_production_order' %}" class="btn btn-primary btn-action me-2">
+                <i class="fas fa-plus me-1"></i>New Production
+            </a>
+            <a href="{% url 'manufacturedProductList' %}" class="btn btn-info btn-action me-2">
+                <i class="fas fa-list me-1"></i>Production History
+            </a>
+            <a href="{% url 'accounts:manufacturing_report' %}" class="btn btn-success btn-action">
+                <i class="fas fa-chart-bar me-1"></i>Production Report
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_products }}</div>
+                    <div class="stats-label">Total Products</div>
+                </div>
+                <i class="fas fa-boxes fa-2x opacity-75"></i>
             </div>
-        {% endif %}
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_quantity|floatformat:0 }}</div>
+                    <div class="stats-label">Total Units</div>
+                </div>
+                <i class="fas fa-layer-group fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_value|floatformat:0 }}</div>
+                    <div class="stats-label">Total Value (UGX)</div>
+                </div>
+                <i class="fas fa-money-bill-wave fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ expiring_soon }}</div>
+                    <div class="stats-label">Expiring Soon</div>
+                </div>
+                <i class="fas fa-clock fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card danger">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ expired_items }}</div>
+                    <div class="stats-label">Expired Items</div>
+                </div>
+                <i class="fas fa-times-circle fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card purple">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ unique_batches }}</div>
+                    <div class="stats-label">Active Batches</div>
+                </div>
+                <i class="fas fa-tags fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-xl-8">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Monthly Production Trends</h5>
+            <canvas id="monthlyProductionChart" height="100"></canvas>
+            <div id="monthlyChartFallback" class="text-center text-white" style="display: none;">
+                <i class="fas fa-chart-line fa-3x mb-3"></i>
+                <p>Chart loading...</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Inventory Status Distribution</h5>
+            <canvas id="inventoryStatusChart" height="100"></canvas>
+            <div id="statusChartFallback" class="text-center text-white" style="display: none;">
+                <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                <p>Chart loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Products and Expiring Products -->
+<div class="row mb-4">
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-star me-2"></i>Top Products by Quantity</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Batch</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in top_products %}
+                        <tr>
+                            <td>{{ product.product.product_name }}</td>
+                            <td><span class="badge bg-primary">{{ product.quantity }}</span></td>
+                            <td><span class="badge bg-secondary">{{ product.batch_number }}</span></td>
+                            <td>
+                                {% if product.quantity > 50 %}
+                                    <span class="status-badge status-instock">High Stock</span>
+                                {% elif product.quantity > 10 %}
+                                    <span class="status-badge status-instock">In Stock</span>
+                                {% elif product.quantity > 0 %}
+                                    <span class="status-badge status-lowstock">Low Stock</span>
+                                {% else %}
+                                    <span class="status-badge status-outofstock">Out of Stock</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No products available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-exclamation-triangle me-2"></i>Expiring Products (Next 30 Days)</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Expiry Date</th>
+                            <th>Days Left</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in expiring_products %}
+                        <tr>
+                            <td>{{ product.product.product_name }}</td>
+                            <td><span class="badge bg-warning">{{ product.quantity }}</span></td>
+                            <td>{{ product.expiry_date|date:"M d, Y" }}</td>
+                            <td>
+                                {% with days_left=product.expiry_date|timeuntil %}
+                                    {% if product.expiry_date < today %}
+                                        <span class="badge bg-danger">Expired</span>
+                                    {% elif product.expiry_date|date:"Y-m-d" == today|date:"Y-m-d" %}
+                                        <span class="badge bg-danger">Today</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ days_left }}</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">No expiring products</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Batch Distribution and Recent Updates -->
+<div class="row mb-4">
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-tags me-2"></i>Top Batches by Quantity</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Batch Number</th>
+                            <th>Total Quantity</th>
+                            <th>Products</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in batch_distribution %}
+                        <tr>
+                            <td>{{ batch.batch_number }}</td>
+                            <td><span class="badge bg-primary">{{ batch.total_quantity }}</span></td>
+                            <td><span class="badge bg-info">{{ batch.product_count }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No batch data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-history me-2"></i>Recent Inventory Updates</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for update in recent_updates %}
+                        <tr>
+                            <td>{{ update.product.product_name }}</td>
+                            <td><span class="badge bg-primary">{{ update.quantity }}</span></td>
+                            <td>{{ update.last_updated|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No recent updates</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Inventory Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Complete Factory Inventory</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="datatableDefault" class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th>Batch Number</th>
+                        <th>Quantity</th>
+                        <th>Expiry Date</th>
+                        <th>Status</th>
+                        <th>Last Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ item.product.product_name }}</strong>
+                            {% if item.product.description %}
+                                <br><small class="text-muted">{{ item.product.description|truncatechars:50 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.batch_number }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {% if item.quantity > 50 %}bg-success{% elif item.quantity > 10 %}bg-primary{% elif item.quantity > 0 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ item.quantity }} units
+                            </span>
+                        </td>
+                        <td>
+                            {% if item.expiry_date %}
+                                {% if item.expiry_date < today %}
+                                    <span class="text-danger">{{ item.expiry_date|date:"M d, Y" }}</span>
+                                {% elif item.expiry_date|date:"Y-m-d" == today|date:"Y-m-d" %}
+                                    <span class="text-warning">{{ item.expiry_date|date:"M d, Y" }}</span>
+                                {% else %}
+                                    {{ item.expiry_date|date:"M d, Y" }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">No expiry</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.quantity > 50 %}
+                                <span class="status-badge status-instock">High Stock</span>
+                            {% elif item.quantity > 10 %}
+                                <span class="status-badge status-instock">In Stock</span>
+                            {% elif item.quantity > 0 %}
+                                <span class="status-badge status-lowstock">Low Stock</span>
+                            {% else %}
+                                <span class="status-badge status-outofstock">Out of Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.last_updated|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'productInventoryDetails' item.id %}" class="btn btn-sm btn-info btn-action">
+                                    <i class="fas fa-eye me-1"></i>View
+                                </a>
+                                {% if item.quantity > 0 %}
+                                <a href="{% url 'write_off_inventory' item.id %}" class="btn btn-sm btn-danger btn-action">
+                                    <i class="fas fa-times me-1"></i>Write Off
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No inventory items found</p>
+                                <a href="{% url 'create_production_order' %}" class="btn btn-primary">Start Production</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block outter_content %}
+<script>
+// Global flag to prevent multiple initialization attempts
+let dataTableInitialized = false;
+let dataTableAttempts = 0;
+const maxDataTableAttempts = 10;
+
+// Initialize DataTable
+function initializeDataTable() {
+    // Check if already initialized or max attempts reached
+    if (dataTableInitialized || dataTableAttempts >= maxDataTableAttempts) {
+        console.log('DataTable initialization already attempted or max attempts reached, skipping...');
+        return;
+    }
+    
+    dataTableAttempts++;
+    
+    // Check if jQuery is available
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded!');
+        return;
+    }
+    
+    // Check if DataTable is available
+    if (typeof $.fn.DataTable === 'undefined') {
+        console.error('DataTables is not loaded!');
+        return;
+    }
+    
+    // Check if DataTable is already initialized
+    if ($.fn.DataTable.isDataTable('#datatableDefault')) {
+        console.log('DataTable already initialized, skipping...');
+        dataTableInitialized = true;
+        return;
+    }
+    
+    try {
+        $('#datatableDefault').DataTable({
+            dom: "<'row mb-3'<'col-sm-4'l><'col-sm-8 text-end'<'d-flex justify-content-end'fB>>>t<'d-flex align-items-center mt-3'<'me-auto'i><'mb-0'p>>",
+            lengthMenu: [10, 20, 30, 40, 50],
+            responsive: true,
+            buttons: [
+                { extend: 'print', className: 'btn btn-default' },
+                { extend: 'csv', className: 'btn btn-default' }
+            ]
+        });
+        console.log('DataTable initialized successfully');
+        dataTableInitialized = true;
+    } catch (error) {
+        console.error('Error initializing DataTable:', error);
+        dataTableInitialized = true; // Mark as attempted even if failed
+    }
+}
+
+// Chart initialization with fallback
+function initializeCharts() {
+    console.log('Initializing charts...');
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        document.getElementById('monthlyChartFallback').style.display = 'block';
+        document.getElementById('statusChartFallback').style.display = 'block';
+        return;
+    }
+    
+    // Monthly Production Chart
+    const monthlyCtx = document.getElementById('monthlyProductionChart');
+    console.log('Monthly chart element:', monthlyCtx);
+    
+    if (monthlyCtx) {
+        try {
+            const monthlyData = [{% for data in monthly_data %}{{ data.production }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const monthlyLabels = [{% for data in monthly_data %}'{{ data.month }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+            
+            console.log('Monthly data:', monthlyData);
+            console.log('Monthly labels:', monthlyLabels);
+            
+            new Chart(monthlyCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: monthlyLabels,
+                    datasets: [{
+                        label: 'Production',
+                        data: monthlyData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Monthly chart created successfully');
+        } catch (error) {
+            console.error('Error creating monthly chart:', error);
+            document.getElementById('monthlyChartFallback').style.display = 'block';
+        }
+    } else {
+        console.error('Monthly chart canvas not found!');
+        document.getElementById('monthlyChartFallback').style.display = 'block';
+    }
+
+    // Inventory Status Chart
+    const statusCtx = document.getElementById('inventoryStatusChart');
+    console.log('Status chart element:', statusCtx);
+    
+    if (statusCtx) {
+        try {
+            const statusData = [{% for status, count in inventory_status.items %}{{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const statusLabels = [{% for status, count in inventory_status.items %}'{{ status }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+            
+            console.log('Status data:', statusData);
+            console.log('Status labels:', statusLabels);
+            
+            new Chart(statusCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusData,
+                        backgroundColor: [
+                            '#28a745',  // Success (In Stock)
+                            '#ffc107',  // Warning (Low Stock)
+                            '#ff6b6b'   // Danger (Out of Stock)
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Status chart created successfully');
+        } catch (error) {
+            console.error('Error creating status chart:', error);
+            document.getElementById('statusChartFallback').style.display = 'block';
+        }
+    } else {
+        console.error('Status chart canvas not found!');
+        document.getElementById('statusChartFallback').style.display = 'block';
+    }
+}
+
+// Wait for DOM and libraries to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, checking libraries...');
+    
+    // Function to try initializing DataTable
+    function tryInitDataTable() {
+        if (dataTableInitialized || dataTableAttempts >= maxDataTableAttempts) {
+            return;
+        }
+        
+        if (typeof $ !== 'undefined' && typeof $.fn.DataTable !== 'undefined') {
+            initializeDataTable();
+        } else {
+            console.log(`Waiting for DataTables to load... (attempt ${dataTableAttempts + 1}/${maxDataTableAttempts})`);
+            setTimeout(tryInitDataTable, 500);
+        }
+    }
+    
+    // Start trying to initialize after a short delay
+    setTimeout(tryInitDataTable, 1000);
+    
+    // Initialize charts when DOM is ready
+    console.log('DOM loaded, waiting for Chart.js...');
+    
+    // Wait a bit for Chart.js to load
+    setTimeout(function() {
+        initializeCharts();
+    }, 500);
+});
+</script>
+
+{% if messages %}
+<div class="toasts-container">
+    {% for message in messages %}
+    <div class="toast fade show">
+        <div class="toast-header">
+            <i class="far fa-bell text-muted me-2"></i>
+            <strong class="me-auto">Production Status</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            <p>{{ message }}</p>
+        </div>
+    </div>
     {% endfor %}
 </div>
-		<!-- END col-3 -->
-		<!-- END col-3 -->
-	<!-- END row -->
+{% endif %}
 {% endblock %}

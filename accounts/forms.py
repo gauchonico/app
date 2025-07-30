@@ -2,6 +2,8 @@ from django import forms
 from django.forms import ModelForm, inlineformset_factory, BaseInlineFormSet
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+
+from production.models import Production
 from .models import (
     ChartOfAccounts, Department, Budget, JournalEntry, JournalEntryLine,
     FinancialPeriod, TrialBalance, ProfitLossStatement, BalanceSheet
@@ -277,3 +279,30 @@ class BulkJournalEntryForm(forms.Form):
         choices=JournalEntry.ENTRY_TYPES,
         widget=forms.Select(attrs={'class': 'form-control'})
     ) 
+class ManufacturingReportForm(forms.Form):
+    """Form for manufacturing report filters"""
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        required=True
+    )
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+        required=True
+    )
+    product = forms.ModelChoiceField(
+        queryset=Production.objects.all().order_by('product_name'),
+        required=False,
+        empty_label="All Products",
+        widget=forms.Select(attrs={'class': 'form-control'})
+    )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        
+        if start_date and end_date and start_date > end_date:
+            raise ValidationError("Start date cannot be after end date")
+        
+        return cleaned_data 
+from django import forms

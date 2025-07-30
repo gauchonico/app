@@ -943,6 +943,11 @@ def sidebar_menu(request):
                     'icon': 'bi bi-folder',
                     'text': 'Manufacturing Report',
                     'name': 'manufacturing_report',
+                    },{
+                        'url': '/production/main_stock_transfers/',
+                        'icon': 'bi bi-truck',
+                        'text': 'Inventory Transfer',
+                        'name': 'main_stock_transfer',
                     }]
             })
             sidebar_menu.append({

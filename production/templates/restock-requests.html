@@ -1,154 +1,723 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}Salon Branches Restock Requests{% endblock %}
+{% block title %}Restock Requests Dashboard{% endblock %}
 
 {% block css %}
-	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet">
-	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet">
-	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet">
+<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+<style>
+    body {
+        min-height: 100vh;
+    }
+    
+    .card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stats-card {
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    .stats-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stats-card.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .stats-card.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .stats-card.danger {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    }
+    
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+    
+    .table {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .table thead th {
+        color: white;
+        border: none;
+        font-weight: 600;
+    }
+    
+    .btn-action {
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    .status-pending {
+        background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+        color: white;
+    }
+    
+    .status-approved {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    .status-delivered {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+    }
+    
+    .status-rejected {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        color: white;
+    }
+    
+    .chart-container {
+        background: transparent;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-container canvas {
+        min-height: 200px;
+        max-height: 300px;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    .chart-container h5 {
+        color: white;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    
+    .quick-actions {
+        background: transparent;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        border-radius: 10px;
+        margin-right: 0.5rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+</style>
 {% endblock %}
 
 {% block js %}
-	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
-	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
-	<script src="{% static 'js/demo/page-scrum-board.demo.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+
+<!-- DataTables CDN fallback -->
+<script>
+// Check if DataTables loaded from static files, if not load from CDN
+if (typeof $.fn.DataTable === 'undefined') {
+    console.log('Loading DataTables from CDN...');
+    document.write('<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"><\/script>');
+    document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"><\/script>');
+}
+</script>
 {% endblock %}
 
 {% block content %}
-	<div class="d-flex align-items-center mb-md-3 mb-2">
-		<div class="flex-fill">
-			<ul class="breadcrumb">
-				<li class="breadcrumb-item"><a href="#">RESTOCK REQUESTS</a></li>
-				<li class="breadcrumb-item active">SALON BRANCHES</li>
-			</ul>
+<!-- BEGIN page-header -->
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
+            <li class="breadcrumb-item active">SALON RESTOCK REQUESTS</li>
+        </ul>
+        <h2 class="text-white mb-0">Restock Requests Dashboard</h2>
+        <p class="text-white-50 mb-0">Manage restock requests from salon branches to main store</p>
+    </div>
+</div>
 
-			<h5 class="mb-0">
-				Salon Requests.
-			</h5>
-			<p>A summary of all Product requests from our various Livara Saloon Branches
-		</div>
-		<div class="ms-auto">
-			<a href="{% url 'createRestockRequest' %}" class="btn btn-outline-theme"><i class="fa fa-plus-circle me-1"></i> Restock Order</a>
-		</div>
-	</div>
-	
-	<div class="mb-md-4 mb-3 d-md-flex">
-		<div class="mt-md-0 mt-2"><a href="{% url 'main_stock_transfer' %}" class="{% if request.resolver_match.url_name == 'main_stock_transfer' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Main Store Transfers</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'restockRequests' %}" class="{% if request.resolver_match.url_name == 'restockRequests' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> Salon Transfers</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'detailed_inventory_report' %}" class="{% if request.resolver_match.url_name == 'detailed_inventory_report' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-folder-fill fa-fw me-1 text-theme"></i> MainStore Transfer Report</a></div>
-		
-	</div>
+<!-- Quick Actions -->
+<div class="quick-actions">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Quick Start</h5>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'createRestockRequest' %}" class="btn btn-primary btn-action me-2">
+                <i class="fas fa-plus me-1"></i>New Request
+            </a>
+            <a href="{% url 'main_stock_transfer' %}" class="btn btn-info btn-action me-2">
+                <i class="fas fa-truck me-1"></i>Main Store Transfers
+            </a>
+            <a href="{% url 'detailed_inventory_report' %}" class="btn btn-success btn-action">
+                <i class="fas fa-chart-bar me-1"></i>Transfer Report
+            </a>
+        </div>
+    </div>
+</div>
 
-	<!-- BEGIN row -->
-	<div class="table-responsive text-nowrap">
-		<div class="card">
-			<div class="card-body">
-				<table id="datatableDefault" class="table text-nowrap w-100 table-responsive">
-					<thead>
-						<tr class="align-middle">
-							<th class="border-top-0 pt-0 pb-2">#</th>
-							<th class="border-top-0 pt-0 pb-2 ">Create by:</th>
-							<th class="border-top-0 pt-0 pb-2">Status</th>
-							<th class="border-top-0 pt-0 pb-2">Action</th>
-							<th class="border-top-0 pt-0 pb-2">Notes</th>
-							<th class="border-top-0 pt-0 pb-2">Items Transfered</th>
-			
-						</tr>
-					</thead>
-					<tbody>
-						{% for request in restock_requests %}
-						<tr class="align-middle">
-							<td class="align-middle">{{forloop.counter}}</td>
-							<td>{{ request.store.name }}</td>
-							<td>{{ request.created_by }}</td>
-							<td>
-								{% if request.status == 'pending' %}
-								<form action="{% url 'approve_store_request' pk=request.pk %}" method="post" style="display:inline;">
-									{% csrf_token %}
-									<button type="submit" class="btn btn-warning">Approve Request</button>
-								</form>
-								{% elif request.status == 'approved'%}
-								<form action="{% url 'deliver_store_request' pk=request.pk %}" method="post" style="display:inline;">
-									{% csrf_token %}
-									<button type="submit" class="btn btn-primary">Deliver Request</button>
-								</form>
-								{% else %}
-								<div class="text-theme">
-									<p>Goods recieved</p>
-								</div>
-								{% endif %}
-							</td>
-							<td>{{ request.comments }}</td>
-							
-							<td class="align-middle span-1">
-								<ul class="list-group">
-									{% for request_item in request.items.all %}
-									<li class="list-group-item">
-										{{ request_item.product }} - <span class="badge rounded-pill bg-dark">{{ request_item.quantity }} units</span> 
-									</li>
-									{% empty %}
-										<li class="list-group-item">No transfer items found.</li>
-									{% endfor %} 
-								</ul>
-							</td>
-							<td>
-								<a href="{% url 'restock_request_detail' request.id %}">View</a>
-							</td>
-				
-						</tr>
-						{% empty %}
-							<tr>
-								<td colspan="4">No store transfers found.</td>
-							</tr>
-						{% endfor %}
-					</tbody>
-					
-				</table>
-			</div>
-			<div class="card-arrow">
-				<div class="card-arrow-top-left"></div>
-				<div class="card-arrow-top-right"></div>
-				<div class="card-arrow-bottom-left"></div>
-				<div class="card-arrow-bottom-right"></div>
-			</div>
-			
-		</div>
-	</div>
-	<!-- END row -->
-	
-    
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card primary">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_requests }}</div>
+                    <div class="stats-label">Total Requests</div>
+                </div>
+                <i class="fas fa-clipboard-list fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ pending_requests }}</div>
+                    <div class="stats-label">Pending Requests</div>
+                </div>
+                <i class="fas fa-clock fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ approved_requests }}</div>
+                    <div class="stats-label">Approved</div>
+                </div>
+                <i class="fas fa-check fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ delivered_requests }}</div>
+                    <div class="stats-label">Delivered</div>
+                </div>
+                <i class="fas fa-truck fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card danger">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ rejected_requests }}</div>
+                    <div class="stats-label">Rejected Requests</div>
+                </div>
+                <i class="fas fa-times fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6">
+        <div class="stats-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stats-number">{{ total_items_requested|floatformat:0 }}</div>
+                    <div class="stats-label">Items Requested</div>
+                </div>
+                <i class="fas fa-boxes fa-2x opacity-75"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-xl-8">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Monthly Request Trends</h5>
+            <canvas id="monthlyTrendsChart" height="100"></canvas>
+            <div id="monthlyChartFallback" class="text-center text-white" style="display: none;">
+                <i class="fas fa-chart-line fa-3x mb-3"></i>
+                <p>Chart loading...</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-4">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Request Status Distribution</h5>
+            <canvas id="statusDistributionChart" height="100"></canvas>
+            <div id="statusChartFallback" class="text-center text-white" style="display: none;">
+                <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                <p>Chart loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Stores and Products -->
+<div class="row mb-4">
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-store me-2"></i>Top Requesting Stores</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Store</th>
+                            <th>Total Requests</th>
+                            <th>Total Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for store in top_stores %}
+                        <tr>
+                            <td>{{ store.store__name }}</td>
+                            <td><span class="badge bg-primary">{{ store.total_requests }}</span></td>
+                            <td><span class="badge bg-info">{{ store.total_quantity|default:0 }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No store data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-6">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-star me-2"></i>Top Requested Products</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Total Quantity</th>
+                            <th>Request Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product in top_products %}
+                        <tr>
+                            <td>{{ product.product__product__product__product_name }}</td>
+                            <td><span class="badge bg-primary">{{ product.total_quantity }}</span></td>
+                            <td><span class="badge bg-info">{{ product.request_count }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No product data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-history me-2"></i>Recent Activity</h5>
+            <div class="d-flex align-items-center mb-3">
+                <div class="stats-number text-primary me-3">{{ recent_requests }}</div>
+                <div>
+                    <div class="fw-bold">Requests in Last 7 Days</div>
+                    <small class="text-muted">Active request activity</small>
+                </div>
+            </div>
+            <div class="progress mb-3" style="height: 8px;">
+                <div class="progress-bar bg-primary" style="width: {% widthratio recent_requests total_requests 100 %}%"></div>
+            </div>
+            <small class="text-muted">{{ recent_requests }} out of {{ total_requests }} total requests</small>
+        </div>
+    </div>
+</div>
+
+<!-- Main Requests Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Restock Requests</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="datatableDefault" class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Request No.</th>
+                        <th>Store</th>
+                        <th>Requested By</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Items</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request in restock_requests %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ request.liv_store_transfer_number }}</strong>
+                            {% if request.comments %}
+                                <br><small class="text-muted">{{ request.comments|truncatechars:30 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ request.store.name }}</td>
+                        <td>{{ request.requested_by.get_full_name|default:request.requested_by.username }}</td>
+                        <td>
+                            <span class="status-badge status-{{ request.status }}">
+                                {{ request.status|title }}
+                            </span>
+                        </td>
+                        <td>{{ request.request_date|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                {% for request_item in request.items.all %}
+                                <div class="mb-1">
+                                    <span class="badge bg-light text-dark">
+                                        {{ request_item.product.product.product.product_name }} - {{ request_item.quantity }} units
+                                    </span>
+                                </div>
+                                {% empty %}
+                                <span class="text-muted">No items</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                {% if request.status == 'pending' %}
+                                    <a href="{% url 'approve_store_request' pk=request.pk %}" class="btn btn-sm btn-warning btn-action">
+                                        <i class="fas fa-check me-1"></i>Approve
+                                    </a>
+                                {% elif request.status == 'approved' %}
+                                    <a href="{% url 'deliver_store_request' pk=request.pk %}" class="btn btn-sm btn-success btn-action">
+                                        <i class="fas fa-truck me-1"></i>Deliver
+                                    </a>
+                                {% elif request.status == 'delivered' %}
+                                    <span class="badge bg-success">Delivered</span>
+                                {% elif request.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'restock_request_detail' request.id %}">
+                                        <i class="fas fa-eye me-2"></i>View Details
+                                    </a></li>
+                                    {% if request.status == 'pending' %}
+                                    <li><a class="dropdown-item text-danger" href="{% url 'reject_request' request.id %}">
+                                        <i class="fas fa-times me-2"></i>Reject Request
+                                    </a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No restock requests found</p>
+                                <a href="{% url 'createRestockRequest' %}" class="btn btn-primary">Create First Request</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
-
 
 {% block outter_content %}
 <script>
-	$('#datatableDefault').DataTable({
-	  dom: "<'row mb-3'<'col-sm-4'l><'col-sm-8 text-end'<'d-flex justify-content-end'fB>>>t<'d-flex align-items-center mt-3'<'me-auto'i><'mb-0'p>>",
-	  lengthMenu: [ 10, 20, 30, 40, 50 ],
-	  responsive: true,
-	  buttons: [ 
-		{ extend: 'print', className: 'btn btn-default' },
-		{ extend: 'csv', className: 'btn btn-default' }
-	  ]
-	});
+// Global flag to prevent multiple initialization attempts
+let dataTableInitialized = false;
+let dataTableAttempts = 0;
+const maxDataTableAttempts = 10;
+
+// Initialize DataTable
+function initializeDataTable() {
+    // Check if already initialized or max attempts reached
+    if (dataTableInitialized || dataTableAttempts >= maxDataTableAttempts) {
+        console.log('DataTable initialization already attempted or max attempts reached, skipping...');
+        return;
+    }
+    
+    dataTableAttempts++;
+    
+    // Check if jQuery is available
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded!');
+        return;
+    }
+    
+    // Check if DataTable is available
+    if (typeof $.fn.DataTable === 'undefined') {
+        console.error('DataTables is not loaded!');
+        return;
+    }
+    
+    // Check if DataTable is already initialized
+    if ($.fn.DataTable.isDataTable('#datatableDefault')) {
+        console.log('DataTable already initialized, skipping...');
+        dataTableInitialized = true;
+        return;
+    }
+    
+    try {
+        $('#datatableDefault').DataTable({
+            dom: "<'row mb-3'<'col-sm-4'l><'col-sm-8 text-end'<'d-flex justify-content-end'fB>>>t<'d-flex align-items-center mt-3'<'me-auto'i><'mb-0'p>>",
+            lengthMenu: [10, 20, 30, 40, 50],
+            responsive: true,
+            buttons: [
+                { extend: 'print', className: 'btn btn-default' },
+                { extend: 'csv', className: 'btn btn-default' }
+            ]
+        });
+        console.log('DataTable initialized successfully');
+        dataTableInitialized = true;
+    } catch (error) {
+        console.error('Error initializing DataTable:', error);
+        dataTableInitialized = true; // Mark as attempted even if failed
+    }
+}
+
+// Chart initialization with fallback
+function initializeCharts() {
+    console.log('Initializing charts...');
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded!');
+        document.getElementById('monthlyChartFallback').style.display = 'block';
+        document.getElementById('statusChartFallback').style.display = 'block';
+        return;
+    }
+    
+    // Monthly Trends Chart
+    const monthlyCtx = document.getElementById('monthlyTrendsChart');
+    console.log('Monthly chart element:', monthlyCtx);
+    
+    if (monthlyCtx) {
+        try {
+            const monthlyData = [{% for data in monthly_data %}{{ data.requests }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const monthlyLabels = [{% for data in monthly_data %}'{{ data.month }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+            
+            console.log('Monthly data:', monthlyData);
+            console.log('Monthly labels:', monthlyLabels);
+            
+            new Chart(monthlyCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: monthlyLabels,
+                    datasets: [{
+                        label: 'Requests',
+                        data: monthlyData,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'white'
+                            },
+                            grid: {
+                                color: 'rgba(255,255,255,0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Monthly chart created successfully');
+        } catch (error) {
+            console.error('Error creating monthly chart:', error);
+            document.getElementById('monthlyChartFallback').style.display = 'block';
+        }
+    } else {
+        console.error('Monthly chart canvas not found!');
+        document.getElementById('monthlyChartFallback').style.display = 'block';
+    }
+
+    // Status Distribution Chart
+    const statusCtx = document.getElementById('statusDistributionChart');
+    console.log('Status chart element:', statusCtx);
+    
+    if (statusCtx) {
+        try {
+            const statusData = [{% for status, count in status_breakdown.items %}{{ count }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+            const statusLabels = [{% for status, count in status_breakdown.items %}'{{ status }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
+            
+            console.log('Status data:', statusData);
+            console.log('Status labels:', statusLabels);
+            
+            new Chart(statusCtx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusData,
+                        backgroundColor: [
+                            '#ffc107',  // Warning (Pending)
+                            '#4facfe',  // Info (Approved)
+                            '#28a745',  // Success (Delivered)
+                            '#ff6b6b'   // Danger (Rejected)
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'white'
+                            }
+                        }
+                    }
+                }
+            });
+            console.log('Status chart created successfully');
+        } catch (error) {
+            console.error('Error creating status chart:', error);
+            document.getElementById('statusChartFallback').style.display = 'block';
+        }
+    } else {
+        console.error('Status chart canvas not found!');
+        document.getElementById('statusChartFallback').style.display = 'block';
+    }
+}
+
+// Wait for DOM and libraries to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, checking libraries...');
+    
+    // Function to try initializing DataTable
+    function tryInitDataTable() {
+        if (dataTableInitialized || dataTableAttempts >= maxDataTableAttempts) {
+            return;
+        }
+        
+        if (typeof $ !== 'undefined' && typeof $.fn.DataTable !== 'undefined') {
+            initializeDataTable();
+        } else {
+            console.log(`Waiting for DataTables to load... (attempt ${dataTableAttempts + 1}/${maxDataTableAttempts})`);
+            setTimeout(tryInitDataTable, 500);
+        }
+    }
+    
+    // Start trying to initialize after a short delay
+    setTimeout(tryInitDataTable, 1000);
+    
+    // Initialize charts when DOM is ready
+    console.log('DOM loaded, waiting for Chart.js...');
+    
+    // Wait a bit for Chart.js to load
+    setTimeout(function() {
+        initializeCharts();
+    }, 500);
+});
 </script>
 
-    <!-- BEGIN row -->
-    
-	<!-- BEGIN modal -->
-
-	<!-- END modal -->
-{% endblock outter_content%}
+{% if messages %}
+<div class="toasts-container">
+    {% for message in messages %}
+    <div class="toast fade show">
+        <div class="toast-header">
+            <i class="far fa-bell text-muted me-2"></i>
+            <strong class="me-auto">Request Status</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            <p>{{ message }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

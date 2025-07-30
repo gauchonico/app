@@ -12,6 +12,7 @@ urlpatterns = [
     path('error_page/', views.error_page, name="error"),
     
     path('raw-materials/', views.rawmaterialsList, name='rawmaterialsList'),
+    path('raw-materials-dashboard/', views.raw_materials_dashboard, name='raw_materials_dashboard'),
     path('add-raw-materials/', views.addRawmaterial, name='addRawmaterial'),
     path('download-example-csv/', views.download_example_csv, name='download_example_csv'),
     path('download-supplier-csv,', views.download_supplier_csv, name="download_supplier_csv"),
@@ -234,4 +235,16 @@ path('get-raw-material-price-list/', views.get_raw_material_price_list, name='ge
          views.get_suppliers_for_raw_material, 
          name='get_suppliers_for_raw_material'),
     path('raw-material/<int:pk>/details/', views.RawMaterialDetailView.as_view(), name='raw_material_details'),
+    
+    # Store Transfer URLs
+    path('store-transfers/', views.store_transfer_list, name='store_transfer_list'),
+    path('store-transfers/create/', views.store_transfer_create, name='store_transfer_create'),
+    path('store-transfers/<int:pk>/', views.store_transfer_detail, name='store_transfer_detail'),
+    path('store-transfers/<int:pk>/approve/', views.store_transfer_approve, name='store_transfer_approve'),
+    path('store-transfers/<int:pk>/complete/', views.store_transfer_complete, name='store_transfer_complete'),
+    path('store-transfers/<int:pk>/cancel/', views.store_transfer_cancel, name='store_transfer_cancel'),
+    
+    # Livara Main Store URLs
+    path('livara-main-store/', views.livara_main_store_list, name='livara_main_store_list'),
+    path('livara-main-store/<int:pk>/', views.livara_main_store_detail, name='livara_main_store_detail'),
 ]

@@ -11,7 +11,7 @@ import os
 from django.db import IntegrityError, models
 from django.views.decorators.http import require_http_methods
 from urllib import error
-from django.db.models import Sum, F, Q, Case, When, Count, Value, CharField, Max
+from django.db.models import Sum, F, Q, Case, When, Count, Value, CharField, Max, Avg
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import user_passes_test
@@ -1538,12 +1538,118 @@ def deduct_raw_materials(product, quantity):
 @login_required(login_url='/login/')
 def factory_inventory(request):
     """
-    View to display the manufactured product inventory.
+    View to display the manufactured product inventory with comprehensive statistics.
     """
-    inventory = ManufacturedProductInventory.objects.all().select_related('product')  # Optimize query
-
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.db.models import Sum, Count
+    
+    # Get all inventory with related data
+    inventory = ManufacturedProductInventory.objects.all().select_related('product')
+    
+    # Calculate comprehensive statistics
+    total_products = inventory.count()
+    total_quantity = sum(item.quantity for item in inventory)
+    total_value = sum(item.quantity * (getattr(item.product, 'price', 0) or 0) for item in inventory)
+    
+    # Stock level analysis
+    low_stock_items = inventory.filter(quantity__lt=10).count()
+    out_of_stock_items = inventory.filter(quantity=0).count()
+    high_stock_items = inventory.filter(quantity__gt=50).count()
+    
+    # Expiry analysis
+    today = timezone.now().date()
+    expiring_soon = inventory.filter(expiry_date__lte=today + timedelta(days=30)).count()
+    expired_items = inventory.filter(expiry_date__lt=today).count()
+    
+    # Batch analysis
+    unique_batches = inventory.values('batch_number').distinct().count()
+    recent_batches = inventory.filter(
+        last_updated__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    
+    # Get monthly production trends (last 6 months)
+    monthly_data = []
+    for i in range(6):
+        month_start = timezone.now().replace(day=1) - timedelta(days=30*i)
+        month_end = month_start.replace(day=28) + timedelta(days=4)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+        
+        # Count new inventory items for this month
+        month_production = inventory.filter(
+            last_updated__gte=month_start,
+            last_updated__lte=month_end
+        ).count()
+        
+        monthly_data.append({
+            'month': month_start.strftime('%B %Y'),
+            'production': month_production
+        })
+    
+    monthly_data.reverse()  # Show oldest to newest
+    
+    # Get top products by quantity
+    top_products = inventory.order_by('-quantity')[:5]
+    
+    # Get low stock products
+    low_stock_products = inventory.filter(quantity__lt=10).order_by('quantity')[:5]
+    
+    # Get expiring products
+    expiring_products = inventory.filter(
+        expiry_date__lte=today + timedelta(days=30)
+    ).order_by('expiry_date')[:5]
+    
+    # Get recent inventory updates
+    recent_updates = inventory.order_by('-last_updated')[:10]
+    
+    # Get batch distribution
+    batch_distribution = inventory.values('batch_number').annotate(
+        total_quantity=Sum('quantity'),
+        product_count=Count('product', distinct=True)
+    ).order_by('-total_quantity')[:5]
+    
+    # Calculate inventory status breakdown
+    inventory_status = {
+        'In Stock': inventory.filter(quantity__gt=10).count(),
+        'Low Stock': inventory.filter(quantity__range=(1, 10)).count(),
+        'Out of Stock': inventory.filter(quantity=0).count(),
+    }
+    
+    # Get production efficiency data
+    production_efficiency = {
+        'High Stock': inventory.filter(quantity__gt=50).count(),
+        'Medium Stock': inventory.filter(quantity__range=(11, 50)).count(),
+        'Low Stock': inventory.filter(quantity__range=(1, 10)).count(),
+        'No Stock': inventory.filter(quantity=0).count(),
+    }
+    
+    # Get recent transfers to main store
+    recent_transfers = StoreTransfer.objects.filter(
+        date__gte=timezone.now() - timedelta(days=30)
+    ).select_related('product').order_by('-date')[:10]
+    
     context = {
         'inventory': inventory,
+        'total_products': total_products,
+        'total_quantity': total_quantity,
+        'total_value': total_value,
+        'low_stock_items': low_stock_items,
+        'out_of_stock_items': out_of_stock_items,
+        'high_stock_items': high_stock_items,
+        'expiring_soon': expiring_soon,
+        'expired_items': expired_items,
+        'unique_batches': unique_batches,
+        'recent_batches': recent_batches,
+        'monthly_data': monthly_data,
+        'top_products': top_products,
+        'low_stock_products': low_stock_products,
+        'expiring_products': expiring_products,
+        'recent_updates': recent_updates,
+        'batch_distribution': batch_distribution,
+        'inventory_status': inventory_status,
+        'production_efficiency': production_efficiency,
+        'recent_transfers': recent_transfers,
+        'today': today,
     }
 
     return render(request, 'manufactured-product-inventory.html', context)
@@ -1689,11 +1795,78 @@ def bulk_stock_transfer(request):
 
 
 def main_stock_transfer (request):
-    store_transfers = StoreTransfer.objects.all()
+    # Get all store transfers with related data
+    store_transfers = StoreTransfer.objects.select_related('created_by').prefetch_related('items__product').order_by('-date')
+    
+    # Calculate comprehensive statistics
+    total_transfers = store_transfers.count()
+    pending_transfers = store_transfers.filter(status='Pending').count()
+    completed_transfers = store_transfers.filter(status='Completed').count()
+    approved_transfers = store_transfers.filter(status='Approved').count()
+    
+    # Calculate total quantities transferred
+    total_items_transferred = sum(
+        transfer.items.aggregate(total=Sum('quantity'))['total'] or 0 
+        for transfer in store_transfers.filter(status='Completed')
+    )
+    
+    # Get recent transfers (last 7 days)
+    from datetime import timedelta
+    recent_transfers = store_transfers.filter(
+        date__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    
+    # Get transfers by status for chart
+    status_breakdown = {
+        'Pending': pending_transfers,
+        'Approved': approved_transfers,
+        'Completed': completed_transfers,
+    }
+    
+    # Get monthly transfer trends (last 6 months)
+    monthly_data = []
+    for i in range(6):
+        month_start = timezone.now().replace(day=1) - timedelta(days=30*i)
+        month_end = month_start.replace(day=28) + timedelta(days=4)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+        
+        month_transfers = store_transfers.filter(
+            date__gte=month_start,
+            date__lte=month_end
+        ).count()
+        
+        monthly_data.append({
+            'month': month_start.strftime('%B %Y'),
+            'transfers': month_transfers
+        })
+    
+    monthly_data.reverse()  # Show oldest to newest
+    
+    # Get top transferred products
+    from django.db.models import Sum, Count
+    top_products = StoreTransferItem.objects.filter(
+        transfer__status='Completed'
+    ).values(
+        'product__product__product_name'
+    ).annotate(
+        total_quantity=Sum('quantity'),
+        transfer_count=Count('transfer', distinct=True)
+    ).order_by('-total_quantity')[:5]
+    
     user_is_production_manager = request.user.groups.filter(name='Production Manager').exists()
+    
     context = {
         'store_transfers': store_transfers,
         'user_is_production_manager': user_is_production_manager,
+        'total_transfers': total_transfers,
+        'pending_transfers': pending_transfers,
+        'completed_transfers': completed_transfers,
+        'approved_transfers': approved_transfers,
+        'total_items_transferred': total_items_transferred,
+        'recent_transfers': recent_transfers,
+        'status_breakdown': status_breakdown,
+        'monthly_data': monthly_data,
+        'top_products': top_products,
     }
     return render(request, 'main_stock_transfers.html', context)
 
@@ -1713,7 +1886,7 @@ def mark_transfer_completed (request, transfer_id):
 
         if formset.is_valid():
             with transaction.atomic():
-                transfer.status = 'completed'
+                transfer.status = 'Completed'
                 transfer.save()
 
                 for form, item in zip(formset.forms, transfer_items):
@@ -1984,10 +2157,99 @@ def delete_store(request, store_id):
 
 @login_required
 def manager_inventory_view(request):
-    manager = request.user
-    inventory = StoreInventory.objects.filter(store__manager=manager)
-    context = {'inventory': inventory}
+    # Get the store for the logged-in user
+    user_store = None
+    
+    # Check if user is a store manager and get their store
+    if request.user.groups.filter(name='Branch Manager').exists():
+        try:
+            user_store = Store.objects.get(manager=request.user)
+        except Store.DoesNotExist:
+            pass
+    
+    # If no store, show error
+    if not user_store:
+        messages.error(request, "You are not associated with any store. Please contact your administrator.")
+        return redirect('store_inventory_list')
+    
+    # Get inventory for the manager's store
+    inventory = StoreInventory.objects.filter(store=user_store).select_related('product')
+    
+    # Calculate comprehensive statistics
+    total_products = inventory.count()
+    total_quantity = sum(item.quantity for item in inventory)
+    low_stock_items = inventory.filter(quantity__lt=10).count()
+    out_of_stock_items = inventory.filter(quantity=0).count()
+    high_stock_items = inventory.filter(quantity__gt=50).count()
+    
+    # Calculate total inventory value (assuming product has a price field)
+    total_value = sum(item.quantity * (getattr(item.product, 'price', 0) or 0) for item in inventory)
+    
+    # Get recent adjustments (last 30 days)
+    from datetime import timedelta
+    recent_adjustments = InventoryAdjustment.objects.filter(
+        store_inventory__store=user_store,
+        adjustment_date__gte=timezone.now().date() - timedelta(days=30)
+    ).select_related('store_inventory__product', 'adjusted_by').order_by('-adjustment_date')[:10]
+    
+    # Get monthly inventory trends (last 6 months)
+    monthly_data = []
+    for i in range(6):
+        month_start = timezone.now().replace(day=1) - timedelta(days=30*i)
+        month_end = month_start.replace(day=28) + timedelta(days=4)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+        
+        # Count adjustments for this month
+        month_adjustments = InventoryAdjustment.objects.filter(
+            store_inventory__store=user_store,
+            adjustment_date__gte=month_start.date(),
+            adjustment_date__lte=month_end.date()
+        ).count()
+        
+        monthly_data.append({
+            'month': month_start.strftime('%B %Y'),
+            'adjustments': month_adjustments
+        })
+    
+    monthly_data.reverse()  # Show oldest to newest
+    
+    # Get top products by quantity
+    top_products = inventory.order_by('-quantity')[:5]
+    
+    # Get low stock products
+    low_stock_products = inventory.filter(quantity__lt=10).order_by('quantity')[:5]
+    
+    # Get recent inventory changes
+    recent_changes = InventoryAdjustment.objects.filter(
+        store_inventory__store=user_store
+    ).select_related('store_inventory__product', 'adjusted_by').order_by('-adjustment_date')[:10]
+    
+    # Calculate stock status breakdown
+    stock_status = {
+        'In Stock': inventory.filter(quantity__gt=10).count(),
+        'Low Stock': inventory.filter(quantity__range=(1, 10)).count(),
+        'Out of Stock': inventory.filter(quantity=0).count(),
+    }
+    
+    context = {
+        'inventory': inventory,
+        'user_store': user_store,
+        'total_products': total_products,
+        'total_quantity': total_quantity,
+        'total_value': total_value,
+        'low_stock_items': low_stock_items,
+        'out_of_stock_items': out_of_stock_items,
+        'high_stock_items': high_stock_items,
+        'recent_adjustments': recent_adjustments,
+        'monthly_data': monthly_data,
+        'top_products': top_products,
+        'low_stock_products': low_stock_products,
+        'recent_changes': recent_changes,
+        'stock_status': stock_status,
+    }
+    
     return render(request, 'manager_inventory.html', context)
+
 @login_required
 def main_store_inventory_adjustments(request):
     form = StoreSelectionForm(request.GET or None )
@@ -2026,6 +2288,20 @@ def main_store_inventory_adjustments(request):
 
 @login_required(login_url='/login/')
 def create_restock_request(request):
+    # Get the store for the logged-in user
+    user_store = None
+    
+    # Check if user is a store manager and get their store
+    if request.user.groups.filter(name='Branch Manager').exists():
+        try:
+            user_store = Store.objects.get(manager=request.user)
+        except Store.DoesNotExist:
+            pass
+    
+    # If still no store, show error
+    if not user_store:
+        messages.error(request, "You are not associated with any store. Please contact your administrator.")
+        return redirect('restockRequests')
 
     RestockRequestItemFormset = inlineformset_factory(
         RestockRequest, RestockRequestItem,
@@ -2039,6 +2315,7 @@ def create_restock_request(request):
         if form.is_valid() and formset.is_valid():
             restock = form.save(commit=False)
             restock.requested_by = request.user  # Set the user who made the request
+            restock.store = user_store  # Automatically set the store
             restock.save()
 
             for item_form in formset:
@@ -2053,26 +2330,108 @@ def create_restock_request(request):
         else:
             messages.error(request, "Please correct the errors in the form.")
     else:
-        form = RestockRequestForm(prefix="restock")
+        # Pre-populate the form with the user's store
+        form = RestockRequestForm(prefix="restock", initial={'store': user_store})
         formset = RestockRequestItemFormset(prefix="restock_item")
 
     context = {
         'form': form,
         'formset': formset,
+        'user_store': user_store,  # Pass store info to template
     }
     
     return render(request, 'create-restock-requests.html', context)
 
 @login_required(login_url='/login/')
 def restock_requests (request):
-    restock_requests = RestockRequest.objects.all().prefetch_related('items__product').order_by('-request_date')
+    # Get all restock requests with related data
+    restock_requests = RestockRequest.objects.select_related('store', 'requested_by').prefetch_related('items__product').order_by('-request_date')
 
-    user_groups = request.user.groups.all()  # This retrieves all groups the user belongs to
+    # Calculate comprehensive statistics
+    total_requests = restock_requests.count()
+    pending_requests = restock_requests.filter(status='pending').count()
+    approved_requests = restock_requests.filter(status='approved').count()
+    delivered_requests = restock_requests.filter(status='delivered').count()
+    rejected_requests = restock_requests.filter(status='rejected').count()
+
+    # Calculate total quantities requested
+    total_items_requested = sum(
+        request.items.aggregate(total=Sum('quantity'))['total'] or 0
+        for request in restock_requests
+    )
+
+    # Get recent requests (last 7 days)
+    from datetime import timedelta
+    recent_requests = restock_requests.filter(
+        request_date__gte=timezone.now() - timedelta(days=7)
+    ).count()
+
+    # Get requests by status for chart
+    status_breakdown = {
+        'Pending': pending_requests,
+        'Approved': approved_requests,
+        'Delivered': delivered_requests,
+        'Rejected': rejected_requests,
+    }
+
+    # Get monthly request trends (last 6 months)
+    monthly_data = []
+    for i in range(6):
+        month_start = timezone.now().replace(day=1) - timedelta(days=30*i)
+        month_end = month_start.replace(day=28) + timedelta(days=4)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+
+        month_requests = restock_requests.filter(
+            request_date__gte=month_start,
+            request_date__lte=month_end
+        ).count()
+
+        monthly_data.append({
+            'month': month_start.strftime('%B %Y'),
+            'requests': month_requests
+        })
+
+    monthly_data.reverse()  # Show oldest to newest
+
+    # Get top requesting stores
+    top_stores = restock_requests.values(
+        'store__name'
+    ).annotate(
+        total_requests=Count('id'),
+        total_quantity=Sum('items__quantity')
+    ).order_by('-total_requests')[:5]
+
+    # Get top requested products
+    top_products = RestockRequestItem.objects.values(
+        'product__product__product__product_name'
+    ).annotate(
+        total_quantity=Sum('quantity'),
+        request_count=Count('restock_request', distinct=True)
+    ).order_by('-total_quantity')[:5]
+
+    # Get recent activity
+    recent_activity = restock_requests.filter(
+        request_date__gte=timezone.now() - timedelta(days=7)
+    ).select_related('store', 'requested_by')[:10]
+
+    user_groups = request.user.groups.all()
     user_group = user_groups.first()
 
     context = {
         'restock_requests': restock_requests,
         'user_group': user_group,
+        'total_requests': total_requests,
+        'pending_requests': pending_requests,
+        'approved_requests': approved_requests,
+        'delivered_requests': delivered_requests,
+        'rejected_requests': rejected_requests,
+        'total_items_requested': total_items_requested,
+        'recent_requests': recent_requests,
+        'status_breakdown': status_breakdown,
+        'monthly_data': monthly_data,
+        'top_stores': top_stores,
+        'top_products': top_products,
+        'recent_activity': recent_activity,
     }
     
     return render(request, 'restock-requests.html', context)
@@ -5226,3 +5585,315 @@ def reject_incident_write_off(request, pk):
         messages.error(request, f"Error rejecting write-off: {str(e)}")
     
     return redirect('incident_write_off_list')
+
+# Store Transfer Views
+@login_required
+def store_transfer_list(request):
+    """List all store transfers with filtering and search"""
+    transfers = StoreTransfer.objects.select_related(
+        'created_by', 'approved_by'
+    ).prefetch_related('items__product__product').all().order_by('-date')
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        transfers = transfers.filter(status=status_filter)
+    
+    # Search by transfer number
+    search = request.GET.get('search')
+    if search:
+        transfers = transfers.filter(
+            Q(liv_main_transfer_number__icontains=search) |
+            Q(created_by__username__icontains=search) |
+            Q(notes__icontains=search)
+        )
+    
+    # Calculate statistics
+    total_transfers = transfers.count()
+    pending_transfers = transfers.filter(status='Pending').count()
+    approved_transfers = transfers.filter(status='Approved').count()
+    completed_transfers = transfers.filter(status='Completed').count()
+    
+    # Pagination
+    paginator = Paginator(transfers, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'transfers': page_obj,
+        'total_transfers': total_transfers,
+        'pending_transfers': pending_transfers,
+        'approved_transfers': approved_transfers,
+        'completed_transfers': completed_transfers,
+        'status_choices': StoreTransfer.STATUS_CHOICES,
+    }
+    return render(request, 'store_transfer_list.html', context)
+
+@login_required
+def store_transfer_create(request):
+    """Create a new store transfer"""
+    if request.method == 'POST':
+        form = StoreTransferForm(request.POST, request.FILES)
+        formset = StoreTransferItemFormSet(request.POST, request.FILES)
+        
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                # Save the transfer
+                transfer = form.save(commit=False)
+                transfer.created_by = request.user
+                transfer.save()
+                
+                # Save the formset
+                instances = formset.save(commit=False)
+                for instance in instances:
+                    instance.transfer = transfer
+                    instance.save()
+                
+                # Delete marked items
+                formset.save_existing_objects()
+                formset.save_new_objects()
+                
+                messages.success(request, f'Store transfer {transfer.liv_main_transfer_number} created successfully!')
+                return redirect('store_transfer_detail', pk=transfer.pk)
+    else:
+        form = StoreTransferForm()
+        formset = StoreTransferItemFormSet()
+    
+    context = {
+        'form': form,
+        'formset': formset,
+        'title': 'Create Store Transfer'
+    }
+    return render(request, 'store_transfer_form.html', context)
+
+@login_required
+def store_transfer_detail(request, pk):
+    """View store transfer details"""
+    transfer = get_object_or_404(StoreTransfer.objects.select_related(
+        'created_by', 'approved_by'
+    ).prefetch_related('items__product__product'), pk=pk)
+    
+    context = {
+        'transfer': transfer,
+    }
+    return render(request, 'store_transfer_detail.html', context)
+
+@login_required
+def store_transfer_approve(request, pk):
+    """Approve a store transfer"""
+    transfer = get_object_or_404(StoreTransfer, pk=pk)
+    
+    if not transfer.can_be_approved:
+        messages.error(request, 'This transfer cannot be approved.')
+        return redirect('store_transfer_detail', pk=transfer.pk)
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                transfer.approve(request.user)
+                messages.success(request, f'Transfer {transfer.liv_main_transfer_number} approved successfully!')
+        except Exception as e:
+            messages.error(request, f'Error approving transfer: {str(e)}')
+        
+        return redirect('store_transfer_detail', pk=transfer.pk)
+    
+    context = {
+        'transfer': transfer,
+    }
+    return render(request, 'store_transfer_approve.html', context)
+
+@login_required
+def store_transfer_complete(request, pk):
+    """Mark a store transfer as completed"""
+    transfer = get_object_or_404(StoreTransfer, pk=pk)
+    
+    if not transfer.can_be_completed:
+        messages.error(request, 'This transfer cannot be completed.')
+        return redirect('store_transfer_detail', pk=transfer.pk)
+    
+    if request.method == 'POST':
+        try:
+            transfer.complete()
+            messages.success(request, f'Transfer {transfer.liv_main_transfer_number} marked as completed!')
+        except Exception as e:
+            messages.error(request, f'Error completing transfer: {str(e)}')
+        
+        return redirect('store_transfer_detail', pk=transfer.pk)
+    
+    context = {
+        'transfer': transfer,
+    }
+    return render(request, 'store_transfer_complete.html', context)
+
+@login_required
+def store_transfer_cancel(request, pk):
+    """Cancel a store transfer"""
+    transfer = get_object_or_404(StoreTransfer, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            transfer.cancel()
+            messages.success(request, f'Transfer {transfer.liv_main_transfer_number} cancelled successfully!')
+        except Exception as e:
+            messages.error(request, f'Error cancelling transfer: {str(e)}')
+        
+        return redirect('store_transfer_list')
+    
+    context = {
+        'transfer': transfer,
+    }
+    return render(request, 'store_transfer_cancel.html', context)
+
+@login_required
+def livara_main_store_list(request):
+    """List Livara main store inventory"""
+    inventory = LivaraMainStore.objects.select_related(
+        'product__product'
+    ).prefetch_related('adjustments').all().order_by('product__product__product_name')
+    
+    # Calculate statistics
+    total_products = inventory.count()
+    total_quantity = sum(item.quantity for item in inventory)
+    low_stock_items = inventory.filter(quantity__lt=10)
+    
+    # Search functionality
+    search = request.GET.get('search')
+    if search:
+        inventory = inventory.filter(
+            Q(product__product__product_name__icontains=search) |
+            Q(batch_number__icontains=search)
+        )
+    
+    context = {
+        'inventory': inventory,
+        'total_products': total_products,
+        'total_quantity': total_quantity,
+        'low_stock_items': low_stock_items,
+    }
+    return render(request, 'livara_main_store_list.html', context)
+
+@login_required
+def livara_main_store_detail(request, pk):
+    """View Livara main store item details"""
+    item = get_object_or_404(LivaraMainStore.objects.select_related(
+        'product__product'
+    ).prefetch_related('adjustments'), pk=pk)
+    
+    # Get recent adjustments
+    recent_adjustments = item.adjustments.all()[:10]
+    
+    context = {
+        'item': item,
+        'recent_adjustments': recent_adjustments,
+    }
+    return render(request, 'livara_main_store_detail.html', context)
+
+@login_required
+def raw_materials_dashboard(request):
+    """Comprehensive raw materials dashboard for production managers"""
+    
+    # Get all raw materials with their current stock levels
+    raw_materials = RawMaterial.objects.all().prefetch_related('suppliers')
+    
+    # Calculate key metrics
+    total_raw_materials = raw_materials.count()
+    low_stock_materials = [rm for rm in raw_materials if rm.current_stock <= rm.reorder_point]
+    out_of_stock_materials = [rm for rm in raw_materials if rm.current_stock <= 0]
+    healthy_stock_materials = [rm for rm in raw_materials if rm.current_stock > rm.reorder_point]
+    
+    # Calculate total inventory value (approximate)
+    total_inventory_value = 0
+    for rm in raw_materials:
+        # Get average price from suppliers
+        avg_price = RawMaterialPrice.objects.filter(
+            raw_material=rm, 
+            is_current=True
+        ).aggregate(Avg('price'))['price__avg'] or 0
+        total_inventory_value += float(rm.current_stock) * float(avg_price)
+    
+    # Recent purchase orders
+    recent_purchase_orders = RequisitionItem.objects.select_related(
+        'requisition', 'requisition__supplier', 'raw_material'
+    ).order_by('-requisition__created_at')[:5]
+    
+    # Recent inventory adjustments
+    recent_adjustments = RawMaterialInventory.objects.select_related(
+        'raw_material'
+    ).order_by('-last_updated')[:10]
+    
+    # Price alerts (materials with significant price changes)
+    price_alerts = PriceAlert.objects.filter(
+        is_active=True
+    ).select_related('raw_material')[:5]
+    
+    # Supplier performance metrics
+    suppliers = Supplier.objects.filter(is_active=True)
+    supplier_performance = []
+    for supplier in suppliers:
+        po_count = Requisition.objects.filter(supplier=supplier).count()
+        fulfilled_pos = Requisition.objects.filter(
+            supplier=supplier, 
+            status='delivered'
+        ).count()
+        fulfillment_rate = (fulfilled_pos / po_count * 100) if po_count > 0 else 0
+        
+        supplier_performance.append({
+            'supplier': supplier,
+            'po_count': po_count,
+            'fulfillment_rate': fulfillment_rate,
+            'reliability_score': supplier.reliability_score
+        })
+    
+    # Sort suppliers by reliability
+    supplier_performance.sort(key=lambda x: x['reliability_score'], reverse=True)
+    
+    # Monthly stock trends (last 6 months)
+    
+    
+    monthly_trends = []
+    for i in range(6):
+        month_start = timezone.now().replace(day=1) - timedelta(days=30*i)
+        month_end = month_start.replace(day=28) + timedelta(days=4)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+        
+        # Get total stock for this month
+        total_stock = sum([rm.current_stock for rm in raw_materials])
+        
+        monthly_trends.append({
+            'month': month_start.strftime('%b %Y'),
+            'total_stock': total_stock
+        })
+    
+    monthly_trends.reverse()
+    
+    # Critical materials (those with very low stock)
+    critical_materials = [rm for rm in low_stock_materials if rm.current_stock < (rm.reorder_point * 0.5)]
+    
+    # Materials by unit measurement
+    materials_by_unit = {}
+    for rm in raw_materials:
+        unit = rm.unit_measurement
+        if unit not in materials_by_unit:
+            materials_by_unit[unit] = []
+        materials_by_unit[unit].append(rm)
+    
+    context = {
+        'total_raw_materials': total_raw_materials,
+        'low_stock_materials': low_stock_materials,
+        'out_of_stock_materials': out_of_stock_materials,
+        'healthy_stock_materials': healthy_stock_materials,
+        'critical_materials': critical_materials,
+        'total_inventory_value': total_inventory_value,
+        'recent_purchase_orders': recent_purchase_orders,
+        'recent_adjustments': recent_adjustments,
+        'price_alerts': price_alerts,
+        'supplier_performance': supplier_performance[:5],  # Top 5 suppliers
+        'monthly_trends': monthly_trends,
+        'materials_by_unit': materials_by_unit,
+        'low_stock_count': len(low_stock_materials),
+        'out_of_stock_count': len(out_of_stock_materials),
+        'critical_count': len(critical_materials),
+    }
+    
+    return render(request, 'rawmaterials_dashboard.html', context)

@@ -9,6 +9,7 @@ from datetime import date, timedelta, datetime
 from decimal import Decimal
 import json
 import csv
+from django.forms import ValidationError
 
 from .models import (
     ChartOfAccounts, Department, Budget, JournalEntry, JournalEntryLine,
@@ -20,7 +21,7 @@ from .forms import (
     ChartOfAccountsForm, DepartmentForm, BudgetForm, JournalEntryForm,
     JournalEntryLineForm, FinancialPeriodForm, TrialBalanceForm,
     ProfitLossStatementForm, BalanceSheetForm, DateRangeForm, BudgetReportForm,
-    ChartOfAccountsImportForm, BulkJournalEntryForm
+    ChartOfAccountsImportForm, BulkJournalEntryForm, ManufacturingReportForm
 )
 from .services import AccountingService
 
@@ -512,32 +513,42 @@ def budget_report(request):
 def manufacturing_report(request):
     """Manufacturing report showing production quantities and costs over time"""
     if request.method == 'POST':
-        form = DateRangeForm(request.POST)
+        form = ManufacturingReportForm(request.POST)
         if form.is_valid():
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
+            selected_product = form.cleaned_data.get('product')
         else:
             # Default to last 30 days
             end_date = timezone.now().date()
             start_date = end_date - timedelta(days=30)
+            selected_product = None
     else:
         # Default to last 30 days
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=30)
-        form = DateRangeForm(initial={'start_date': start_date, 'end_date': end_date})
+        selected_product = None
+        form = ManufacturingReportForm(initial={'start_date': start_date, 'end_date': end_date})
 
     # Check for CSV export
     if request.GET.get('export') == 'csv':
-        return export_manufacturing_csv(request, start_date, end_date)
+        return export_manufacturing_csv(request, start_date, end_date, selected_product)
 
     # Get manufacturing data from production app
     from production.models import ManufactureProduct, ManufacturedProductInventory
     from production.views import cost_per_unit  # Import the cost calculation function
     
-    # Production quantities by product
-    production_data = ManufactureProduct.objects.filter(
+    # Base query for production data
+    production_query = ManufactureProduct.objects.filter(
         manufactured_at__date__range=[start_date, end_date]
-    ).values('product__product_name').annotate(
+    )
+    
+    # Apply product filter if selected
+    if selected_product:
+        production_query = production_query.filter(product=selected_product)
+    
+    # Production quantities by product
+    production_data = production_query.values('product__product_name').annotate(
         total_quantity=Sum('quantity')
     ).order_by('-total_quantity')
 
@@ -564,9 +575,15 @@ def manufacturing_report(request):
         item['avg_cost_per_unit'] = total_ingredient_cost / item['total_quantity'] if item['total_quantity'] > 0 else 0
 
     # Daily production summary
-    daily_production = ManufactureProduct.objects.filter(
+    daily_production_query = ManufactureProduct.objects.filter(
         manufactured_at__date__range=[start_date, end_date]
-    ).extra(
+    )
+    
+    # Apply product filter to daily production if selected
+    if selected_product:
+        daily_production_query = daily_production_query.filter(product=selected_product)
+    
+    daily_production = daily_production_query.extra(
         select={'day': 'date(manufactured_at)'}
     ).values('day').annotate(
         total_quantity=Sum('quantity'),
@@ -587,6 +604,11 @@ def manufacturing_report(request):
                 total_cost_for_ingredient = ingredient_cost['cost_per_unit'] * total_quantity_needed
                 day_total_cost += total_cost_for_ingredient
         day['total_cost'] = day_total_cost
+
+    # Calculate efficiency metrics FIRST
+    total_products_manufactured = sum(item['total_quantity'] for item in production_data)
+    total_cost_incurred = sum(item['total_cost'] for item in production_data)
+    avg_cost_per_product = total_cost_incurred / total_products_manufactured if total_products_manufactured > 0 else 0
 
     # Cost breakdown by category
     cost_breakdown = {}
@@ -615,19 +637,21 @@ def manufacturing_report(request):
     ).order_by('-total_quantity')
 
     # Get recent manufacturing records for the period
-    recent_manufacturing_records = ManufactureProduct.objects.filter(
+    recent_manufacturing_query = ManufactureProduct.objects.filter(
         manufactured_at__date__range=[start_date, end_date]
-    ).select_related('product', 'production_order').order_by('-manufactured_at')[:10]
-
-    # Calculate efficiency metrics
-    total_products_manufactured = sum(item['total_quantity'] for item in production_data)
-    total_cost_incurred = sum(item['total_cost'] for item in production_data)
-    avg_cost_per_product = total_cost_incurred / total_products_manufactured if total_products_manufactured > 0 else 0
+    )
+    
+    # Apply product filter to recent records if selected
+    if selected_product:
+        recent_manufacturing_query = recent_manufacturing_query.filter(product=selected_product)
+    
+    recent_manufacturing_records = recent_manufacturing_query.select_related('product', 'production_order').order_by('-manufactured_at')[:10]
 
     context = {
         'form': form,
         'start_date': start_date,
         'end_date': end_date,
+        'selected_product': selected_product,
         'production_data': production_data,
         'daily_production': daily_production,
         'cost_breakdown': cost_breakdown,
@@ -641,7 +665,7 @@ def manufacturing_report(request):
     
     return render(request, 'accounts/manufacturing_report.html', context)
 
-def export_manufacturing_csv(request, start_date, end_date):
+def export_manufacturing_csv(request, start_date, end_date, selected_product):
     """Export manufacturing report data to CSV"""
     from production.models import ManufactureProduct, ManufacturedProductInventory
     from production.views import cost_per_unit
@@ -661,6 +685,10 @@ def export_manufacturing_csv(request, start_date, end_date):
     ).values('product__product_name').annotate(
         total_quantity=Sum('quantity')
     ).order_by('-total_quantity')
+    
+    # Apply product filter if selected
+    if selected_product:
+        production_data = production_data.filter(product=selected_product)
     
     # Calculate costs for each product
     for item in production_data:
@@ -714,6 +742,10 @@ def export_manufacturing_csv(request, start_date, end_date):
         total_quantity=Sum('quantity'),
         product_count=Count('product', distinct=True)
     ).order_by('day')
+    
+    # Apply product filter to daily production if selected
+    if selected_product:
+        daily_production = daily_production.filter(product=selected_product)
     
     # Calculate costs for daily production
     for day in daily_production:

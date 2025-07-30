@@ -854,7 +854,7 @@ class RestockRequest(models.Model):
         # Generate random number
         random_number = random.randint(1000, 9999)
         
-        # Construct the LPO number
+        # Construct the small store number
         liv_store_transfer_number = f"LIV-STORE-TRNS-{month}{year}-{random_number}"
         
         # Ensure the generated number is unique
