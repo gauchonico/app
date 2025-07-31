@@ -13,6 +13,7 @@ urlpatterns = [
     
     path('raw-materials/', views.rawmaterialsList, name='rawmaterialsList'),
     path('raw-materials-dashboard/', views.raw_materials_dashboard, name='raw_materials_dashboard'),
+    path('manage-raw-material-suppliers/', views.manage_raw_material_suppliers, name='manage_raw_material_suppliers'),
     path('add-raw-materials/', views.addRawmaterial, name='addRawmaterial'),
     path('download-example-csv/', views.download_example_csv, name='download_example_csv'),
     path('download-supplier-csv,', views.download_supplier_csv, name="download_supplier_csv"),

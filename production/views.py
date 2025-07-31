@@ -1795,6 +1795,8 @@ def bulk_stock_transfer(request):
 
 
 def main_stock_transfer (request):
+    from django.db.models import Sum, Count
+    
     # Get all store transfers with related data
     store_transfers = StoreTransfer.objects.select_related('created_by').prefetch_related('items__product').order_by('-date')
     
@@ -1843,7 +1845,6 @@ def main_stock_transfer (request):
     monthly_data.reverse()  # Show oldest to newest
     
     # Get top transferred products
-    from django.db.models import Sum, Count
     top_products = StoreTransferItem.objects.filter(
         transfer__status='Completed'
     ).values(
@@ -2836,8 +2837,16 @@ def approve_purchase_order(request, purchaseo_id):
     return render(request, 'approve_purchase_order.html', context)
 
 def productions_view_production_orders(request):
-    production_orders = ProductionOrder.objects.filter(status__in=['Created','Approved', 'In Progress', 'Completed']).order_by('-created_at')  # Order by creation date descending
-    context = {'production_orders': production_orders}
+    production_orders = ProductionOrder.objects.filter(status__in=['Created','Approved', 'In Progress', 'Completed','Rejected']).order_by('-created_at')  # Order by creation date descending
+    completed_orders = ProductionOrder.objects.filter(status='Completed')
+    rejected_orders = ProductionOrder.objects.filter(status='Rejected')
+    approved_orders = ProductionOrder.objects.filter(status='Approved')
+    context = {
+        'production_orders': production_orders,
+        'completed_orders': completed_orders,
+        'rejected_orders': rejected_orders,
+        'approved_orders': approved_orders,
+        }
     return render(request, 'production_production_orders.html', context)
 
 # product location report
@@ -4435,7 +4444,8 @@ def create_requisition(request):
             # They are already initialized with request.POST data, so they'll render with errors.
             print("Requisition Form Errors:", requisition_form.errors)
             print("Item Formset Errors:", item_formset.errors)
-            print("Item Formset Non-Field Errors:", item_formset.non_field_errors())
+            # Remove the problematic line that was causing the error
+            # print("Item Formset Non-Field Errors:", item_formset.non_field_errors())
 
 
     else: # GET request
@@ -4467,7 +4477,7 @@ def all_requisitions(request):
     max_cost = request.GET.get('max_cost', '')
     
     # Start with all requisitions
-    requisitions = Requisition.objects.select_related('supplier').prefetch_related('requisitionitem_set')
+    requisitions = Requisition.objects.select_related('supplier').prefetch_related('requisitionitem_set').order_by('-created_at')
     
     # Apply filters
     if search:
@@ -5897,3 +5907,93 @@ def raw_materials_dashboard(request):
     }
     
     return render(request, 'rawmaterials_dashboard.html', context)
+
+@login_required
+def manage_raw_material_suppliers(request):
+    """Manage the relationship between raw materials and suppliers"""
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add_supplier_to_material':
+            raw_material_id = request.POST.get('raw_material_id')
+            supplier_id = request.POST.get('supplier_id')
+            
+            try:
+                raw_material = RawMaterial.objects.get(id=raw_material_id)
+                supplier = Supplier.objects.get(id=supplier_id)
+                
+                # Add supplier to raw material
+                raw_material.suppliers.add(supplier)
+                messages.success(request, f'Supplier "{supplier.name}" added to "{raw_material.name}" successfully!')
+                
+            except (RawMaterial.DoesNotExist, Supplier.DoesNotExist):
+                messages.error(request, 'Invalid raw material or supplier selected.')
+                
+        elif action == 'remove_supplier_from_material':
+            raw_material_id = request.POST.get('raw_material_id')
+            supplier_id = request.POST.get('supplier_id')
+            
+            try:
+                raw_material = RawMaterial.objects.get(id=raw_material_id)
+                supplier = Supplier.objects.get(id=supplier_id)
+                
+                # Remove supplier from raw material
+                raw_material.suppliers.remove(supplier)
+                messages.success(request, f'Supplier "{supplier.name}" removed from "{raw_material.name}" successfully!')
+                
+            except (RawMaterial.DoesNotExist, Supplier.DoesNotExist):
+                messages.error(request, 'Invalid raw material or supplier selected.')
+                
+        elif action == 'add_material_to_supplier':
+            supplier_id = request.POST.get('supplier_id')
+            raw_material_id = request.POST.get('raw_material_id')
+            
+            try:
+                supplier = Supplier.objects.get(id=supplier_id)
+                raw_material = RawMaterial.objects.get(id=raw_material_id)
+                
+                # Add raw material to supplier
+                supplier.supplied_raw_materials.add(raw_material)
+                messages.success(request, f'Raw material "{raw_material.name}" added to supplier "{supplier.name}" successfully!')
+                
+            except (Supplier.DoesNotExist, RawMaterial.DoesNotExist):
+                messages.error(request, 'Invalid supplier or raw material selected.')
+                
+        elif action == 'remove_material_from_supplier':
+            supplier_id = request.POST.get('supplier_id')
+            raw_material_id = request.POST.get('raw_material_id')
+            
+            try:
+                supplier = Supplier.objects.get(id=supplier_id)
+                raw_material = RawMaterial.objects.get(id=raw_material_id)
+                
+                # Remove raw material from supplier
+                supplier.supplied_raw_materials.remove(raw_material)
+                messages.success(request, f'Raw material "{raw_material.name}" removed from supplier "{supplier.name}" successfully!')
+                
+            except (Supplier.DoesNotExist, RawMaterial.DoesNotExist):
+                messages.error(request, 'Invalid supplier or raw material selected.')
+    
+    # Get all raw materials and suppliers
+    raw_materials = RawMaterial.objects.all().prefetch_related('suppliers').order_by('name')
+    suppliers = Supplier.objects.filter(is_active=True).prefetch_related('supplied_raw_materials').order_by('name')
+    
+    # Get materials without suppliers
+    materials_without_suppliers = [rm for rm in raw_materials if rm.suppliers.count() == 0]
+    
+    # Get suppliers without materials
+    suppliers_without_materials = [s for s in suppliers if s.supplied_raw_materials.count() == 0]
+    
+    context = {
+        'raw_materials': raw_materials,
+        'suppliers': suppliers,
+        'materials_without_suppliers': materials_without_suppliers,
+        'suppliers_without_materials': suppliers_without_materials,
+        'total_materials': raw_materials.count(),
+        'total_suppliers': suppliers.count(),
+        'materials_with_suppliers': raw_materials.count() - len(materials_without_suppliers),
+        'suppliers_with_materials': suppliers.count() - len(suppliers_without_materials),
+    }
+    
+    return render(request, 'production/manage_raw_material_suppliers.html', context)

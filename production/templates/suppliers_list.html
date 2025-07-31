@@ -81,7 +81,7 @@
 						{% for supplier in suppliers %}
 						<tr>
 							<td class="align-middle">{{forloop.counter}}</td>
-							<td class="align-middle"><a href="#">{{ supplier.name }}</a></td>
+							<td class="align-middle"><a href="{% url 'supplier_details' supplier.id %}">{{ supplier.name }}</a></td>
 							<td class="align-middle">{{ supplier.company_name }}</td>
 							
 							<td class="align-middle">

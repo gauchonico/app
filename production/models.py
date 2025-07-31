@@ -74,7 +74,7 @@ class RawMaterial(models.Model):
     name = models.CharField(max_length=255)
     suppliers = models.ManyToManyField(Supplier, related_name='supplied_raw_materials')
     quantity = models.DecimalField(max_digits=15, decimal_places=5, default=0.00000)
-    reorder_point = models.PositiveIntegerField(default=0)
+    reorder_point = models.DecimalField(max_digits=10, decimal_places=3, default=0.000)
     unit_measurement = models.CharField(max_length=10, blank=True, default='units')
     
 

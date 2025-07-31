@@ -48,6 +48,45 @@
 		<div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'create_production_order' %}" class="{% if request.resolver_match.url_name == 'create_production_order' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-plus-circle fa-fw me-1 text-theme"></i> Create New Production Order</a></div>
 		
 	</div>
+    <!-- Production Overview Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-4">
+            <div class="card-body text-center">
+                <i class="fas fa-shopping-cart text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ production_orders.count }}</div>
+                <div class="text-lg">Total Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-green-500 to-green-600 rounded-3xl p-4">
+            <div class="card-body text-center">
+                <i class="fas fa-boxes text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ completed_orders.count }}</div>
+                <div class="text-lg">Completed Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-3xl p-4">
+            <div class="card-body text-center">
+                <i class="fas fa-star text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ rejected_orders.count }}</div>
+                <div class="text-lg">Rejected Orders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card border-0 shadow bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-4">
+            <div class="card-body text-center">
+                <i class="fas fa-credit-card text-3xl mb-3"></i>
+                <div class="text-4xl font-bold mb-2">{{ approved_orders.count }}</div>
+                <div class="text-lg">Approved Orders</div>
+            </div>
+        </div>
+    </div>
+</div>
 
 	<div id="datatable" class="mb-5">
 		

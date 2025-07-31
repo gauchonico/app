@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Raw Material Suppliers - POS Magic{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="fas fa-link mr-2"></i>
+            Manage Raw Material Suppliers
+        </h1>
+        <a href="{% url 'rawmaterialsList' %}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left mr-1"></i>
+            Back to Raw Materials
+        </a>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Raw Materials
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_materials }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-boxes fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Total Suppliers
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_suppliers }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-truck fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Materials with Suppliers
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ materials_with_suppliers }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-link fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Suppliers with Materials
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ suppliers_with_materials }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-handshake fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-plus-circle mr-2"></i>
+                        Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Add Supplier to Raw Material</h6>
+                            <form method="POST" class="mb-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="add_supplier_to_material">
+                                <div class="form-group">
+                                    <label for="raw_material_select">Select Raw Material:</label>
+                                    <select name="raw_material_id" id="raw_material_select" class="form-control" required>
+                                        <option value="">Choose a raw material...</option>
+                                        {% for material in raw_materials %}
+                                        <option value="{{ material.id }}">{{ material.name }} ({{ material.unit_measurement }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="supplier_select">Select Supplier:</label>
+                                    <select name="supplier_id" id="supplier_select" class="form-control" required>
+                                        <option value="">Choose a supplier...</option>
+                                        {% for supplier in suppliers %}
+                                        <option value="{{ supplier.id }}">{{ supplier.name }} - {{ supplier.company_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus mr-1"></i>
+                                    Add Relationship
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Add Raw Material to Supplier</h6>
+                            <form method="POST" class="mb-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="add_material_to_supplier">
+                                <div class="form-group">
+                                    <label for="supplier_select_2">Select Supplier:</label>
+                                    <select name="supplier_id" id="supplier_select_2" class="form-control" required>
+                                        <option value="">Choose a supplier...</option>
+                                        {% for supplier in suppliers %}
+                                        <option value="{{ supplier.id }}">{{ supplier.name }} - {{ supplier.company_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="raw_material_select_2">Select Raw Material:</label>
+                                    <select name="raw_material_id" id="raw_material_select_2" class="form-control" required>
+                                        <option value="">Choose a raw material...</option>
+                                        {% for material in raw_materials %}
+                                        <option value="{{ material.id }}">{{ material.name }} ({{ material.unit_measurement }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-plus mr-1"></i>
+                                    Add Relationship
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Raw Materials with Their Suppliers -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-boxes mr-2"></i>
+                        Raw Materials and Their Suppliers
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if raw_materials %}
+                        {% for material in raw_materials %}
+                        <div class="border-bottom pb-3 mb-3">
+                            <h6 class="font-weight-bold text-dark mb-2">
+                                <i class="fas fa-box mr-2"></i>
+                                {{ material.name }}
+                                <span class="badge badge-info ml-2">{{ material.unit_measurement }}</span>
+                                <span class="badge badge-secondary ml-1">Stock: {{ material.current_stock }}</span>
+                            </h6>
+                            
+                            {% if material.suppliers.all %}
+                                <div class="mb-2">
+                                    <strong class="text-muted">Suppliers:</strong>
+                                    {% for supplier in material.suppliers.all %}
+                                    <span class="badge badge-primary mr-1 mb-1">
+                                        {{ supplier.name }}
+                                        <form method="POST" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_supplier_from_material">
+                                            <input type="hidden" name="raw_material_id" value="{{ material.id }}">
+                                            <input type="hidden" name="supplier_id" value="{{ supplier.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger ml-1" onclick="return confirm('Remove {{ supplier.name }} from {{ material.name }}?')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                    No suppliers assigned
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
+                            <h5>No Raw Materials Found</h5>
+                            <p>Add some raw materials first to manage supplier relationships.</p>
+                            <a href="{% url 'addRawmaterial' %}" class="btn btn-primary">
+                                <i class="fas fa-plus mr-1"></i>
+                                Add Raw Material
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suppliers with Their Raw Materials -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-truck mr-2"></i>
+                        Suppliers and Their Raw Materials
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if suppliers %}
+                        {% for supplier in suppliers %}
+                        <div class="border-bottom pb-3 mb-3">
+                            <h6 class="font-weight-bold text-dark mb-2">
+                                <i class="fas fa-truck mr-2"></i>
+                                {{ supplier.name }}
+                                <span class="badge badge-info ml-2">{{ supplier.company_name }}</span>
+                                <span class="badge badge-success ml-1">{{ supplier.quality_rating|title }}</span>
+                            </h6>
+                            
+                            {% if supplier.supplied_raw_materials.all %}
+                                <div class="mb-2">
+                                    <strong class="text-muted">Supplies:</strong>
+                                    {% for material in supplier.supplied_raw_materials.all %}
+                                    <span class="badge badge-success mr-1 mb-1">
+                                        {{ material.name }}
+                                        <form method="POST" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_material_from_supplier">
+                                            <input type="hidden" name="supplier_id" value="{{ supplier.id }}">
+                                            <input type="hidden" name="raw_material_id" value="{{ material.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger ml-1" onclick="return confirm('Remove {{ material.name }} from {{ supplier.name }}?')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-muted">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                                    No raw materials assigned
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                            <h5>No Suppliers Found</h5>
+                            <p>Add some suppliers first to manage raw material relationships.</p>
+                            <a href="{% url 'addSupplier' %}" class="btn btn-primary">
+                                <i class="fas fa-plus mr-1"></i>
+                                Add Supplier
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Materials Without Suppliers -->
+    {% if materials_without_suppliers %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header py-3 bg-warning text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        Raw Materials Without Suppliers ({{ materials_without_suppliers|length }})
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for material in materials_without_suppliers %}
+                        <div class="col-md-4 mb-2">
+                            <span class="badge badge-warning p-2">{{ material.name }} ({{ material.unit_measurement }})</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Suppliers Without Materials -->
+    {% if suppliers_without_materials %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header py-3 bg-info text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        Suppliers Without Raw Materials ({{ suppliers_without_materials|length }})
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for supplier in suppliers_without_materials %}
+                        <div class="col-md-4 mb-2">
+                            <span class="badge badge-info p-2">{{ supplier.name }} - {{ supplier.company_name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Auto-refresh page after successful form submission
+    {% if messages %}
+        setTimeout(function() {
+            location.reload();
+        }, 2000);
+    {% endif %}
+});
+</script>
+{% endblock %} 
