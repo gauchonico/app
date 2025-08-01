@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Raw Material Additions Detail{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title">Additions Detail</h4>
+                            <p class="card-subtitle mb-0">
+                                {{ raw_material.name }} - 
+                                {% if from_date == to_date %}
+                                    {{ from_date|date:"F d, Y" }}
+                                {% else %}
+                                    {{ from_date|date:"F d, Y" }} to {{ to_date|date:"F d, Y" }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{% url 'raw_material_date_report' %}?from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Total Additions</h5>
+                                    <h3 class="mb-0">{{ total_additions|floatformat:5 }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Material</h5>
+                                    <h6 class="mb-0">{{ raw_material.name }}</h6>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Unit</h5>
+                                    <h6 class="mb-0">{{ raw_material.unit_measurement }}</h6>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Transactions</h5>
+                                    <h3 class="mb-0">{{ additions|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="additionsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Reference</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th>Description</th>
+                                    <th>Supplier</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for addition in additions %}
+                                    <tr>
+                                        <td>{{ addition.date|date:"M d, Y H:i" }}</td>
+                                        <td>
+                                            {% if addition.type == 'requisition' %}
+                                                <span class="badge bg-success">Requisition</span>
+                                            {% elif addition.type == 'inventory_adjustment' %}
+                                                <span class="badge bg-info">Adjustment</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ addition.type|title }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if addition.type == 'requisition' %}
+                                                <a href="{% url 'requisition_details' addition.reference %}" 
+                                                   class="text-decoration-none fw-bold">
+                                                    {{ addition.reference }}
+                                                </a>
+                                            {% else %}
+                                                <span class="fw-bold">{{ addition.reference }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center fw-bold text-success">
+                                            {{ addition.quantity|floatformat:5 }}
+                                        </td>
+                                        <td>{{ addition.description }}</td>
+                                        <td>
+                                            {% if addition.supplier %}
+                                                <span class="badge bg-outline-success">{{ addition.supplier }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="fas fa-info-circle me-2"></i>No additions found for this material in the selected date range
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#additionsTable').DataTable({
+        order: [[0, 'desc']], // Sort by date descending
+        pageLength: 25,
+        responsive: true,
+        dom: 'Bfrtip',
+        buttons: [
+            'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
+    });
+});
+</script>
+{% endblock content %} 

@@ -65,7 +65,16 @@
                                 {% csrf_token %}
                                 <div class="mb-3">
                                     <label class="form-label">Production Order <span class="text-danger">*</span></label>
-                                    {{ form.production_order }}
+                                    <select name="production_order" id="id_production_order" class="form-control" onchange="updateQuantity(this.value)">
+                                        <option value="">---------</option>
+                                        {% for choice in form.production_order.field.choices %}
+                                            {% if choice.0 %}
+                                                <option value="{{ choice.0 }}" {% if choice.0 == form.production_order.value %}selected{% endif %}>
+                                                    {{ choice.1 }}
+                                                </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Quantity <span class="text-danger">*</span></label>
@@ -85,6 +94,39 @@
                                 
                                 <button class="btn btn-danger" type="submit">Manufacture</button>
                             </form>
+                            
+                            <script>
+                                function updateQuantity(productionOrderId) {
+                                    const quantityField = document.getElementById('id_quantity');
+                                    
+                                    if (productionOrderId) {
+                                        // Fetch the approved quantity for the selected production order
+                                        fetch(`/production/get-production-order-quantity/${productionOrderId}/`)
+                                            .then(response => response.json())
+                                            .then(data => {
+                                                if (data.success) {
+                                                    quantityField.value = data.approved_quantity;
+                                                    quantityField.readOnly = true; // Make readonly when production order is selected
+                                                }
+                                            })
+                                            .catch(error => {
+                                                console.error('Error fetching production order quantity:', error);
+                                            });
+                                    } else {
+                                        // Clear quantity and make editable if no production order is selected
+                                        quantityField.value = '';
+                                        quantityField.readOnly = false;
+                                    }
+                                }
+                                
+                                // Auto-populate quantity on page load if production order is pre-selected
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const productionOrderSelect = document.getElementById('id_production_order');
+                                    if (productionOrderSelect && productionOrderSelect.value) {
+                                        updateQuantity(productionOrderSelect.value);
+                                    }
+                                });
+                            </script>
                                 
                             <!-- END #datatable -->
                         </div>

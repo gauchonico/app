@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Raw Material Deductions Detail{% endblock %}
+
+{% block css %}
+	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="card-title">Deductions Detail</h4>
+                            <p class="card-subtitle mb-0">
+                                {{ raw_material.name }} - 
+                                {% if from_date == to_date %}
+                                    {{ from_date|date:"F d, Y" }}
+                                {% else %}
+                                    {{ from_date|date:"F d, Y" }} to {{ to_date|date:"F d, Y" }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{% url 'raw_material_date_report' %}?from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Total Deductions</h5>
+                                    <h3 class="mb-0">{{ total_deductions|floatformat:5 }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Material</h5>
+                                    <h6 class="mb-0">{{ raw_material.name }}</h6>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Unit</h5>
+                                    <h6 class="mb-0">{{ raw_material.unit_measurement }}</h6>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-primary text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Transactions</h5>
+                                    <h3 class="mb-0">{{ deductions|length }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="deductionsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Reference</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th>Description</th>
+                                    <th>Product/Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for deduction in deductions %}
+                                    <tr>
+                                        <td>{{ deduction.date|date:"M d, Y H:i" }}</td>
+                                        <td>
+                                            {% if deduction.type == 'manufacturing' %}
+                                                <span class="badge bg-primary">Manufacturing</span>
+                                            {% elif deduction.type == 'incident_write_off' %}
+                                                <span class="badge bg-warning">Write-Off</span>
+                                            {% elif deduction.type == 'inventory_adjustment' %}
+                                                <span class="badge bg-info">Adjustment</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ deduction.type|title }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if deduction.type == 'manufacturing' %}
+                                                <a href="{% url 'manufacturedProductDetails' deduction.reference %}" 
+                                                   class="text-decoration-none fw-bold">
+                                                    {{ deduction.reference_display|default:deduction.reference }}
+                                                </a>
+                                            {% elif deduction.type == 'incident_write_off' %}
+                                                <a href="{% url 'incident_write_off_detail' deduction.reference %}" 
+                                                   class="text-decoration-none fw-bold">
+                                                    {{ deduction.reference_display|default:deduction.reference }}
+                                                </a>
+                                            {% else %}
+                                                <span class="fw-bold">{{ deduction.reference_display|default:deduction.reference }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center fw-bold text-danger">
+                                            {{ deduction.quantity|floatformat:5 }}
+                                        </td>
+                                        <td>{{ deduction.description }}</td>
+                                        <td>
+                                            {% if deduction.product %}
+                                                <span class="badge bg-outline-primary">{{ deduction.product }}</span>
+                                            {% elif deduction.written_off_by %}
+                                                <span class="badge bg-outline-warning">By: {{ deduction.written_off_by }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">
+                                            <i class="fas fa-info-circle me-2"></i>No deductions found for this material in the selected date range
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#deductionsTable').DataTable({
+        order: [[0, 'desc']], // Sort by date descending
+        pageLength: 25,
+        responsive: true,
+        dom: 'Bfrtip',
+        buttons: [
+            'copy', 'csv', 'excel', 'pdf', 'print'
+        ]
+    });
+});
+</script>
+{% endblock content %} 

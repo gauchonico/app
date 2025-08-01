@@ -196,10 +196,10 @@ if (ctx5) {
     <div class="col-12 mb-6">
         <div class="row mt-5">
             <div class="col-md-3 mb-4">
-                <div class="card border-0 shadow bg-gradient-to-br from-green-500 to-green-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                <div class="card border-0 shadow bg-gradient-to-br from-green-500 to-green-600 rounded-3xl p-6 shadow-2xl text-center">
                     <div class="card-body">
                         <div class="">
-                            <i class="fas fa-boxes text-3xl text-white mb-4"></i>
+                            <i class="fas fa-boxes text-3xl text-theme mb-4"></i>
                         
                             <div class="text-6xl font-bold mb-3">{{ total_products_manufactured|floatformat:0|intcomma }}</div>
                             <div class="font-medium text-lg">Total Products Manufactured</div>
@@ -209,9 +209,9 @@ if (ctx5) {
             </div>
             <div class="col-md-3 mb-4">
 
-                <div class="card border-0 shadow bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                <div class="card border-0 shadow bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-6 shadow-2xl text-center">
                     <div class="card-body">
-                        <i class="fas fa-dollar-sign text-3xl text-white mb-4"></i>
+                        <i class="fas fa-dollar-sign text-3xl text-theme mb-4"></i>
                         <div class="text-6xl font-bold mb-3">{{ total_cost_incurred|floatformat:0|intcomma }}</div>
                     <div class="font-medium text-lg">Total Production Cost</div>
                     </div>
@@ -219,18 +219,18 @@ if (ctx5) {
                 </div>
             </div>
             <div class="col-md-3 mb-4">
-                <div class="card border-0 shadow bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                <div class="card border-0 shadow bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-6 shadow-2xl text-center">
                     <div class="card-body">
-                        <i class="fas fa-calculator text-3xl text-white mb-4"></i>
+                        <i class="fas fa-calculator text-3xl text-theme mb-4"></i>
                         <div class="text-6xl font-bold mb-3">{{ avg_cost_per_product|floatformat:0|intcomma }}</div>
                         <div class="font-medium text-lg">Avg Cost per Product</div>
                     </div>
                 </div>
             </div>
             <div class="col-md-3 mb-4">
-                <div class="card border-0 shadow bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-6 shadow-2xl text-center text-white">
+                <div class="card border-0 shadow bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-6 shadow-2xl text-center">
                     <div class="card-body">
-                        <i class="fas fa-chart-line text-3xl text-white mb-4"></i>
+                        <i class="fas fa-chart-line text-3xl text-theme mb-4"></i>
                         <div class="text-6xl font-bold mb-3">{{ production_data|length }}</div>
                         <div class="font-medium text-lg">Products Manufactured</div>
                     </div>

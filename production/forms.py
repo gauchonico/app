@@ -244,8 +244,23 @@ class ManufactureProductForm(forms.Form):
         product = kwargs.pop('product', None)
         super().__init__(*args, **kwargs)
         if product:
-            self.fields['production_order'].queryset = ProductionOrder.objects.filter(product=product, status='In Progress')
+            # Show only in-progress production orders for this product
+            self.fields['production_order'].queryset = ProductionOrder.objects.filter(
+                product=product, 
+                status='In Progress'
+            ).order_by('-created_at')
             
+    def clean(self):
+        cleaned_data = super().clean()
+        production_order = cleaned_data.get('production_order')
+        quantity = cleaned_data.get('quantity')
+        
+        # If production order is selected, ensure quantity matches approved quantity
+        if production_order and quantity:
+            if quantity != production_order.approved_quantity:
+                raise forms.ValidationError(f"Quantity must match the approved quantity ({production_order.approved_quantity}) for this production order.")
+        
+        return cleaned_data
 
 class WriteOffForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, label="Quantity to Write Off", widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'e.g. 3'}))

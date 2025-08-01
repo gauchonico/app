@@ -77,7 +77,6 @@
     }
     
     .table thead th {
-        color: white;
         border: none;
         font-weight: 600;
     }
@@ -136,7 +135,7 @@
     }
     
     .chart-container h5 {
-        color: white;
+
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     
@@ -151,13 +150,11 @@
         border: none;
         border-radius: 10px;
         margin-right: 0.5rem;
-        color: #6c757d;
         font-weight: 500;
     }
     
     .nav-tabs .nav-link.active {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
     }
     
     .expiry-indicator {
@@ -366,13 +363,19 @@ if (typeof $.fn.DataTable === 'undefined') {
                             <td><span class="badge bg-secondary">{{ product.batch_number }}</span></td>
                             <td>
                                 {% if product.quantity > 50 %}
-                                    <span class="status-badge status-instock">High Stock</span>
+                                    <span class="status-badge status-instock">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
                                 {% elif product.quantity > 10 %}
                                     <span class="status-badge status-instock">In Stock</span>
                                 {% elif product.quantity > 0 %}
-                                    <span class="status-badge status-lowstock">Low Stock</span>
+                                    <span class="status-badge status-lowstock">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </span>
                                 {% else %}
-                                    <span class="status-badge status-outofstock">Out of Stock</span>
+                                    <span class="status-badge status-outofstock">
+                                        <i class="fas fa-times-circle"></i>
+                                    </span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -550,19 +553,19 @@ if (typeof $.fn.DataTable === 'undefined') {
                             {% elif item.quantity > 0 %}
                                 <span class="status-badge status-lowstock">Low Stock</span>
                             {% else %}
-                                <span class="status-badge status-outofstock">Out of Stock</span>
+                                <span class="status-badge status-outofstock">Out/Stock</span>
                             {% endif %}
                         </td>
                         <td>{{ item.last_updated|date:"M d, Y H:i" }}</td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{% url 'productInventoryDetails' item.id %}" class="btn btn-sm btn-info btn-action">
+                            <div class="btn-group">
+                                <button href="{% url 'productInventoryDetails' item.id %}" class="btn btn-sm btn-info">
                                     <i class="fas fa-eye me-1"></i>View
-                                </a>
+                                </button>
                                 {% if item.quantity > 0 %}
-                                <a href="{% url 'write_off_inventory' item.id %}" class="btn btn-sm btn-danger btn-action">
+                                <button href="{% url 'write_off_inventory' item.id %}" type="button" class="btn btn-sm btn-danger">
                                     <i class="fas fa-times me-1"></i>Write Off
-                                </a>
+                                </button>
                                 {% endif %}
                             </div>
                         </td>

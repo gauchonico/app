@@ -32,6 +32,7 @@
                         <tr>
                             <th>Raw Material</th>
                             <th>Quantity per Unit Product Volume (milliliters)</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -40,9 +41,22 @@
                             <tr>
                                 <td>{{ form.raw_material }}</td>
                                 <td>{{ form.quantity_per_unit_product_volume }}</td>
+                                <td>
+                                    {% if form.instance.pk %}
+                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                onclick="deleteIngredient({{ form.instance.pk }}, '{{ form.raw_material.value|default:"" }}')">
+                                            Delete
+                                        </button>
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-warning" 
+                                                onclick="removeForm(this)">
+                                            Remove
+                                        </button>
+                                    {% endif %}
+                                </td>
                             </tr>
                             <tr>
-                                <td colspan="2">{{ form.errors }}</td>
+                                <td colspan="3">{{ form.errors }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -51,6 +65,43 @@
                     <button class="btn btn-outline-theme" type="submit">Save Recipe</button>
                 </div>
             </form>
+            
+            <script>
+                function deleteIngredient(ingredientId, ingredientName) {
+                    if (confirm('Are you sure you want to delete the ingredient "' + ingredientName + '"? This action cannot be undone.')) {
+                        // Send AJAX request to delete the ingredient
+                        fetch(`/production/delete-ingredient/${ingredientId}/`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                            },
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Reload the page to reflect the changes
+                                location.reload();
+                            } else {
+                                alert('Error deleting ingredient: ' + data.error);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Error deleting ingredient. Please try again.');
+                        });
+                    }
+                }
+                
+                function removeForm(button) {
+                    // Remove the entire row containing the form
+                    const row = button.closest('tr');
+                    const nextRow = row.nextElementSibling; // Error row
+                    row.remove();
+                    if (nextRow && nextRow.querySelector('td[colspan]')) {
+                        nextRow.remove(); // Remove error row if it exists
+                    }
+                }
+            </script>
 			<!-- END coming-soon-content -->
 		</div>
 	</div>

@@ -36,16 +36,26 @@
             <div class="card">
                 <div class="card-header">
                     <h4 class="card-title">Raw Material Date Report</h4>
-                    <p class="card-subtitle">Stock movements for {{ selected_date|date:"F d, Y" }}</p>
+                    <p class="card-subtitle">
+                        {% if from_date == to_date %}
+                            Stock movements for {{ from_date|date:"F d, Y" }}
+                        {% else %}
+                            Stock movements from {{ from_date|date:"F d, Y" }} to {{ to_date|date:"F d, Y" }}
+                        {% endif %}
+                    </p>
                 </div>
                 <div class="card-body">
                     <form method="get" action="{% url 'raw_material_date_report' %}" class="mb-4">
                         <div class="row align-items-end">
-                            <div class="col-md-4">
-                                <label for="date" class="form-label fw-bold">Select Date:</label>
-                                <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control">
+                            <div class="col-md-3">
+                                <label for="from_date" class="form-label fw-bold">From Date:</label>
+                                <input type="date" id="from_date" name="from_date" value="{{ from_date|date:'Y-m-d' }}" class="form-control">
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <label for="to_date" class="form-label fw-bold">To Date:</label>
+                                <input type="date" id="to_date" name="to_date" value="{{ to_date|date:'Y-m-d' }}" class="form-control">
+                            </div>
+                            <div class="col-md-3">
                                 <button class="btn btn-theme" type="submit">
                                     <i class="fas fa-search me-2"></i>Generate Report
                                 </button>
@@ -71,50 +81,24 @@
                                         <td class="text-center">{{ material.previous_stock|floatformat:2 }}</td>
                                         <td class="text-center">
                                             {% if material.additions > 0 %}
-                                                <span class="text-success fw-bold">{{ material.additions|floatformat:5 }}</span>
-                                                {% with transactions=raw_material_transactions|get_item:material.id %}
-                                                    {% if transactions.additions %}
-                                                        <div class="mt-1">
-                                                            <small class="text-muted">From:</small>
-                                                            {% for transaction in transactions.additions %}
-                                                                <a href="{% url 'requisition_details' transaction.id %}" 
-                                                                   class="badge bg-success text-decoration-none me-1" 
-                                                                   title="Requisition {{ transaction.number }} - {{ transaction.supplier }}">
-                                                                    <i class="fas fa-plus-circle me-1"></i>{{ transaction.number }}
-                                                                </a>
-                                                            {% endfor %}
-                                                        </div>
-                                                    {% endif %}
-                                                {% endwith %}
+                                                <a href="{% url 'raw_material_additions_detail' %}?material_id={{ material.id }}&from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" 
+                                                   class="text-success fw-bold text-decoration-none" 
+                                                   title="Click to view detailed additions">
+                                                    {{ material.additions|floatformat:5 }}
+                                                    <i class="fas fa-external-link-alt ms-1"></i>
+                                                </a>
                                             {% else %}
                                                 <span class="text-muted">0</span>
                                             {% endif %}
                                         </td>
                                         <td class="text-center">
                                             {% if material.deductions < 0 %}
-                                                <span class="text-danger fw-bold">{{ material.deductions|floatformat:5 }}</span>
-                                                {% with transactions=raw_material_transactions|get_item:material.id %}
-                                                    {% if transactions.deductions %}
-                                                        <div class="mt-1">
-                                                            <small class="text-muted">Used in:</small>
-                                                            {% for transaction in transactions.deductions %}
-                                                                {% if transaction.type == 'manufacturing' %}
-                                                                    <a href="{% url 'manufacturedProductDetails' transaction.id %}" 
-                                                                       class="badge bg-danger text-decoration-none me-1" 
-                                                                       title="Manufacturing {{ transaction.batch_number }} - {{ transaction.product }}">
-                                                                        <i class="fas fa-minus-circle me-1"></i>{{ transaction.batch_number }}
-                                                                    </a>
-                                                                {% elif transaction.type == 'incident_write_off' %}
-                                                                    <a href="{% url 'incident_write_off_detail' transaction.id %}" 
-                                                                       class="badge bg-warning text-decoration-none me-1" 
-                                                                       title="Incident Write-Off - {{ transaction.reason|truncatechars:30 }}">
-                                                                        <i class="fas fa-exclamation-triangle me-1"></i>Write-Off #{{ transaction.id }}
-                                                                    </a>
-                                                                {% endif %}
-                                                            {% endfor %}
-                                                        </div>
-                                                    {% endif %}
-                                                {% endwith %}
+                                                <a href="{% url 'raw_material_deductions_detail' %}?material_id={{ material.id }}&from_date={{ from_date|date:'Y-m-d' }}&to_date={{ to_date|date:'Y-m-d' }}" 
+                                                   class="text-danger fw-bold text-decoration-none" 
+                                                   title="Click to view detailed deductions">
+                                                    {{ material.deductions|floatformat:5 }}
+                                                    <i class="fas fa-external-link-alt ms-1"></i>
+                                                </a>
                                             {% else %}
                                                 <span class="text-muted">0</span>
                                             {% endif %}
@@ -130,7 +114,7 @@
                                 {% empty %}
                                     <tr>
                                         <td colspan="5" class="text-center text-muted py-4">
-                                            <i class="fas fa-info-circle me-2"></i>No raw materials found for the selected date
+                                            <i class="fas fa-info-circle me-2"></i>No raw materials found for the selected date range
                                         </td>
                                     </tr>
                                 {% endfor %}

@@ -1079,6 +1079,28 @@ def edit_product(request, product_id):
     # Render the edit-product.html template with the forms
     return render(request, 'product-edit.html', {'product': product, 'product_form': product_form, 'formset': formset})
 
+@require_POST
+@login_required(login_url='/login/')
+def delete_ingredient(request, ingredient_id):
+    """Delete a specific ingredient from a product"""
+    try:
+        ingredient = ProductionIngredient.objects.get(id=ingredient_id)
+        ingredient_name = ingredient.raw_material.name
+        ingredient.delete()
+        return JsonResponse({
+            'success': True,
+            'message': f'Ingredient "{ingredient_name}" deleted successfully'
+        })
+    except ProductionIngredient.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Ingredient not found'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
 
 @login_required(login_url='/login/')
 def manufacture_product(request, product_id):
@@ -1176,6 +1198,16 @@ def manufacture_product(request, product_id):
                 messages.error(request, "Please correct the errors in the form.")
     else:
         form = ManufactureProductForm(product=product)  # Create an empty form instance for GET requests
+        
+        # Auto-populate quantity if production order is selected via GET parameter
+        production_order_id = request.GET.get('production_order')
+        if production_order_id:
+            try:
+                production_order = ProductionOrder.objects.get(id=production_order_id, product=product, status='In-progre')
+                form.initial['production_order'] = production_order
+                form.initial['quantity'] = production_order.approved_quantity
+            except ProductionOrder.DoesNotExist:
+                pass
 
     return render(request, 'manufacture-product.html', {'product': product, 'form': form})
 
@@ -1338,47 +1370,61 @@ def raw_material_utilization_reports(request):
 
 
 def raw_material_date_report(request):
-    # Retrieve selected date from the form, default to today if not provided
-    selected_date_str = request.GET.get('date')
-    selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date() if selected_date_str else timezone.now().date()
+    # Retrieve selected date range from the form, default to today if not provided
+    from_date_str = request.GET.get('from_date')
+    to_date_str = request.GET.get('to_date')
+    
+    if from_date_str and to_date_str:
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+    else:
+        # Default to today if no dates provided
+        from_date = to_date = timezone.now().date()
 
     # Query for raw materials with separate additions and deductions, and closing stock calculations
     raw_materials = RawMaterial.objects.annotate(
-        # Calculate stock up to the selected date, renamed to 'calculated_stock' to avoid conflict
+        # Calculate stock up to the from_date, renamed to 'previous_stock' to avoid conflict
         previous_stock=Sum(
             'rawmaterialinventory__adjustment',
-            filter=Q(rawmaterialinventory__last_updated__lt=selected_date), 
+            filter=Q(rawmaterialinventory__last_updated__lt=from_date), 
             default=0
         ),
-        # Calculate additions on the selected date
+        # Calculate additions during the date range
         additions=Coalesce(Sum(
             'rawmaterialinventory__adjustment',
-            filter=Q(rawmaterialinventory__adjustment__gt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
+            filter=Q(rawmaterialinventory__adjustment__gt=0) & 
+                   Q(rawmaterialinventory__last_updated__date__gte=from_date) &
+                   Q(rawmaterialinventory__last_updated__date__lte=to_date)
         ),Decimal(0)),
-        # Calculate deductions on the selected date (including incident write-offs)
+        # Calculate deductions during the date range (including incident write-offs)
         deductions=Coalesce(Sum(
             'rawmaterialinventory__adjustment',
-            filter=Q(rawmaterialinventory__adjustment__lt=0) & Q(rawmaterialinventory__last_updated__date=selected_date)
+            filter=Q(rawmaterialinventory__adjustment__lt=0) & 
+                   Q(rawmaterialinventory__last_updated__date__gte=from_date) &
+                   Q(rawmaterialinventory__last_updated__date__lte=to_date)
         ),Decimal(0) )
     ).annotate(
-        # Calculate closing stock based on calculated_stock, additions, and deductions
+        # Calculate closing stock based on previous_stock, additions, and deductions
         closing_stock=F('previous_stock') + (F('additions')) + (F('deductions'))
     )
     
-    # Get requisitions delivered on the selected date (for additions)
+    # Get requisitions delivered during the date range (for additions)
     requisitions_delivered = Requisition.objects.filter(
         status='delivered',
-        updated_at__date=selected_date
+        updated_at__date__gte=from_date,
+        updated_at__date__lte=to_date
     ).prefetch_related('requisitionitem_set__raw_material')
     
-    # Get manufacturing records on the selected date (for deductions)
+    # Get manufacturing records during the date range (for deductions)
     manufacturing_records = ManufactureProduct.objects.filter(
-        manufactured_at__date=selected_date
+        manufactured_at__date__gte=from_date,
+        manufactured_at__date__lte=to_date
     ).prefetch_related('used_ingredients__raw_material')
     
-    # Get incident write-offs on the selected date (for deductions)
+    # Get incident write-offs during the date range (for deductions)
     incident_write_offs = IncidentWriteOff.objects.filter(
-        date=selected_date,
+        date__gte=from_date,
+        date__lte=to_date,
         status='approved'
     ).select_related('raw_material', 'written_off_by')
     
@@ -1452,7 +1498,7 @@ def raw_material_date_report(request):
     # Now we need to manually adjust the deductions and closing stock to include incident write-offs
     # since they are not included in the RawMaterialInventory calculations
     for material in raw_materials:
-        # Calculate total incident write-off deductions for this material on the selected date
+        # Calculate total incident write-off deductions for this material during the date range
         incident_deductions = sum(
             write_off.quantity 
             for write_off in incident_write_offs 
@@ -1467,11 +1513,209 @@ def raw_material_date_report(request):
     
     context = {
         'raw_materials': raw_materials,
-        'selected_date': selected_date,
+        'from_date': from_date,
+        'to_date': to_date,
         'raw_material_transactions': raw_material_transactions,
     }
     return render(request, 'raw_material_date_report.html', context)
 
+def raw_material_additions_detail(request):
+    """Detailed view of all additions for a specific raw material during a date range"""
+    raw_material_id = request.GET.get('material_id')
+    from_date_str = request.GET.get('from_date')
+    to_date_str = request.GET.get('to_date')
+    
+    if not raw_material_id:
+        messages.error(request, 'Raw material ID is required')
+        return redirect('raw_material_date_report')
+    
+    try:
+        raw_material = RawMaterial.objects.get(id=raw_material_id)
+    except RawMaterial.DoesNotExist:
+        messages.error(request, 'Raw material not found')
+        return redirect('raw_material_date_report')
+    
+    if from_date_str and to_date_str:
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+    else:
+        from_date = to_date = timezone.now().date()
+    
+    # Get all additions for this material during the date range
+    additions = []
+    
+    # Get requisitions that added this material
+    requisitions_delivered = Requisition.objects.filter(
+        status='delivered',
+        updated_at__date__gte=from_date,
+        updated_at__date__lte=to_date,
+        requisitionitem__raw_material=raw_material
+    ).prefetch_related('requisitionitem_set')
+    
+    # Group by requisition to avoid duplicates
+    requisition_totals = {}
+    for requisition in requisitions_delivered:
+        total_quantity = 0
+        for item in requisition.requisitionitem_set.all():
+            if item.raw_material == raw_material:
+                total_quantity += item.delivered_quantity
+        
+        if total_quantity > 0:  # Only add if there was actual delivery
+            requisition_totals[requisition.id] = {
+                'requisition': requisition,
+                'total_quantity': total_quantity
+            }
+    
+    # Add unique requisitions to additions list
+    for req_id, req_data in requisition_totals.items():
+        requisition = req_data['requisition']
+        additions.append({
+            'type': 'requisition',
+            'date': requisition.updated_at,
+            'reference': requisition.id,  # Use integer id for URL
+            'reference_display': requisition.requisition_no,  # Use string for display
+            'quantity': req_data['total_quantity'],
+            'supplier': requisition.supplier.name,
+            'description': f'Delivered from {requisition.supplier.name}'
+        })
+    
+    # # Get inventory adjustments that added this material
+    # inventory_additions = RawMaterialInventory.objects.filter(
+    #     raw_material=raw_material,
+    #     adjustment__gt=0,
+    #     last_updated__date__gte=from_date,
+    #     last_updated__date__lte=to_date
+    # ).order_by('last_updated')
+    
+    # for adjustment in inventory_additions:
+    #     additions.append({
+    #         'type': 'inventory_adjustment',
+    #         'date': adjustment.last_updated,
+    #         'reference': f'Adjustment #{adjustment.id}',
+    #         'quantity': adjustment.adjustment,
+    #         'description': 'Manual inventory adjustment'
+    #     })
+    
+    # Sort all additions by date
+    additions.sort(key=lambda x: x['date'], reverse=True)
+    
+    context = {
+        'raw_material': raw_material,
+        'additions': additions,
+        'from_date': from_date,
+        'to_date': to_date,
+        'total_additions': sum(item['quantity'] for item in additions)
+    }
+    return render(request, 'raw_material_additions_detail.html', context)
+
+def raw_material_deductions_detail(request):
+    """Detailed view of all deductions for a specific raw material during a date range"""
+    
+    raw_material_id = request.GET.get('material_id')
+    if not raw_material_id:
+        messages.error(request, 'Raw material ID is required')
+        return redirect('raw_material_date_report')
+    
+    try:
+        raw_material = RawMaterial.objects.get(id=raw_material_id)
+    except RawMaterial.DoesNotExist:
+        messages.error(request, 'Raw material not found')
+        return redirect('raw_material_date_report')
+    
+    # Get date parameters from request
+    from_date_str = request.GET.get('from_date')
+    to_date_str = request.GET.get('to_date')
+    
+    if from_date_str and to_date_str:
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d').date()
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').date()
+    else:
+        from_date = to_date = timezone.now().date()
+    
+    # Get all deductions for this material during the date range
+    deductions = []
+    
+    # Get manufacturing records that consumed this material
+    manufacturing_records = ManufactureProduct.objects.filter(
+        manufactured_at__date__gte=from_date,
+        manufactured_at__date__lte=to_date,
+        used_ingredients__raw_material=raw_material
+    ).distinct().prefetch_related('used_ingredients')
+    
+    for manufacturing in manufacturing_records:
+        # Get the exact quantity of this raw material used in this manufacturing process
+        # from the ManufacturedProductIngredient records
+        ingredient_record = manufacturing.used_ingredients.filter(raw_material=raw_material).first()
+        
+        if ingredient_record:
+            # The quantity_used is stored in base unit (grams, milliliters, etc.)
+            # Convert to display unit if needed (Kilograms, Litres)
+            quantity_used = ingredient_record.quantity_used
+            
+            # Convert to display unit based on raw material's unit of measurement
+            unit_of_measurement = raw_material.unit_measurement
+            if unit_of_measurement in ['Kilograms', 'Litres', 'Liters']:
+                # Convert from base unit (grams/ml) to display unit (kg/l)
+                quantity_used = quantity_used / 1000
+            
+            deductions.append({
+                'type': 'manufacturing',
+                'date': manufacturing.manufactured_at,
+                'reference': manufacturing.id,
+                'reference_display': manufacturing.batch_number,
+                'quantity': quantity_used,  # Now in display units
+                'description': f'Used in manufacturing {manufacturing.product.product_name}',
+                'product': manufacturing.product.product_name
+            })
+    
+    # Get incident write-offs for this material
+    incident_write_offs = IncidentWriteOff.objects.filter(
+        raw_material=raw_material,
+        date__gte=from_date,
+        date__lte=to_date,
+        status='approved'
+    ).select_related('written_off_by')
+    
+    for write_off in incident_write_offs:
+        deductions.append({
+            'type': 'incident_write_off',
+            'date': timezone.make_aware(datetime.combine(write_off.date, datetime.min.time())),
+            'reference': write_off.id,  # Use integer id for URL
+            'reference_display': f'Write-off #{write_off.id}',  # Use formatted string for display
+            'quantity': write_off.quantity,
+            'description': write_off.reason,
+            'written_off_by': write_off.written_off_by.get_full_name() if write_off.written_off_by else 'Unknown'
+        })
+    
+    # Get inventory adjustments that deducted this material
+    # inventory_deductions = RawMaterialInventory.objects.filter(
+    #     raw_material=raw_material,
+    #     adjustment__lt=0,
+    #     last_updated__date__gte=from_date,
+    #     last_updated__date__lte=to_date
+    # ).order_by('last_updated')
+    
+    # for adjustment in inventory_deductions:
+    #     deductions.append({
+    #         'type': 'inventory_adjustment',
+    #         'date': adjustment.last_updated,
+    #         'reference': adjustment.id,  # Use integer id for consistency
+    #         'reference_display': f'Adjustment #{adjustment.id}',  # Use formatted string for display
+    #         'quantity': abs(adjustment.adjustment),  # Make positive for display
+    #         'description': 'Manual inventory adjustment'
+    #     })
+    
+    # Sort all deductions by date
+    deductions.sort(key=lambda x: x['date'], reverse=True)
+    
+    context = {
+        'raw_material': raw_material,
+        'deductions': deductions,
+        'from_date': from_date,
+        'to_date': to_date,
+        'total_deductions': sum(item['quantity'] for item in deductions)
+    }
+    return render(request, 'raw_material_deductions_detail.html', context)
 
 def write_off_product(request, inventory_id):
     manufactured_product_inventory = get_object_or_404(ManufacturedProductInventory, pk=inventory_id)
@@ -4701,7 +4945,7 @@ def delete_requisition(request, requisition_id):
     # Optionally render a confirmation page if needed
     return render(request, 'confirm_delete.html', {'requisition': requisition})
         
-
+@allowed_users(allowed_roles=['Finance'])
 def approve_requisition(request, requisition_id):
     requisition = Requisition.objects.get(pk=requisition_id)
     requisition.status = 'approved'
@@ -4722,6 +4966,7 @@ def lpo_list(request):
     context = {'lpos': lpos}
     return render(request, 'lpo_list.html', context)
 
+@allowed_users(allowed_roles=['Finance'])
 def lpo_verify(request, pk):
     lpo = get_object_or_404(LPO, pk=pk)
 
@@ -5997,3 +6242,52 @@ def manage_raw_material_suppliers(request):
     }
     
     return render(request, 'production/manage_raw_material_suppliers.html', context)
+
+@require_GET
+def get_production_order_quantity(request, production_order_id):
+    """API endpoint to get the approved quantity for a production order"""
+    try:
+        production_order = ProductionOrder.objects.get(id=production_order_id, status='In Progress')
+        return JsonResponse({
+            'success': True,
+            'approved_quantity': production_order.approved_quantity
+        })
+    except ProductionOrder.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Production order not found or not in progress'
+        })
+
+def manufactured_products_report(request):
+    period = request.GET.get('period', 'month')  # 'month', 'week', 'day'
+    
+    if period == 'month':
+        truncate_func = TruncMonth
+        date_range = timezone.now() - timezone.timedelta(days=365)
+    elif period == 'week':
+        truncate_func = TruncWeek
+        date_range = timezone.now() - timezone.timedelta(weeks=52)  # Last year in weeks
+    elif period == 'day':
+        truncate_func = TruncDay
+        date_range = timezone.now() - timezone.timedelta(days=30)
+    elif period == 'year':
+        truncate_func = TruncYear
+        date_range = timezone.now() - timezone.timedelta(days=365 * 5)
+    else:
+        truncate_func = TruncMonth
+    
+    # Query the ManufactureProduct model and group by period and product
+    manufactured_products = (
+        ManufactureProduct.objects.filter(manufactured_at__gte=date_range)
+        .annotate(period=truncate_func('manufactured_at'))
+        .values('period', 'product__product_name')
+        .annotate(total_quantity=Sum('quantity'))
+        .order_by('period', 'product__product_name')
+    )
+    
+    context = {
+        'manufactured_products': manufactured_products,
+        'period': period
+    }
+    
+    return render(request, 'manufactured_products_report.html', context)
