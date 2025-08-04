@@ -1,7 +1,6 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from decimal import Decimal
-import decimal
+from decimal import Decimal, InvalidOperation
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 from io import StringIO, TextIOWrapper
@@ -42,7 +41,7 @@ from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
 from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
@@ -1101,6 +1100,138 @@ def delete_ingredient(request, ingredient_id):
             'success': False,
             'error': str(e)
         })
+
+@login_required(login_url='/login/')
+def bulk_upload_raw_material_prices(request):
+    """Bulk upload raw material prices from CSV file"""
+    if request.method == 'POST':
+        form = BulkUploadRawMaterialPriceForm(request.POST, request.FILES)
+        if form.is_valid():
+            csv_file = request.FILES['csv_file']
+            
+            try:
+                # Decode the file content
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                
+                success_count = 0
+                error_count = 0
+                errors = []
+                
+                for row_num, row in enumerate(reader, start=2):  # Start from 2 to account for header
+                    try:
+                        # Get raw material by name
+                        raw_material_name = row.get('raw_material_name', '').strip()
+                        if not raw_material_name:
+                            errors.append(f"Row {row_num}: Raw material name is required")
+                            error_count += 1
+                            continue
+                            
+                        try:
+                            raw_material = RawMaterial.objects.get(name__iexact=raw_material_name)
+                        except RawMaterial.DoesNotExist:
+                            errors.append(f"Row {row_num}: Raw material '{raw_material_name}' not found")
+                            error_count += 1
+                            continue
+                        
+                        # Get supplier by name
+                        supplier_name = row.get('supplier_name', '').strip()
+                        if not supplier_name:
+                            errors.append(f"Row {row_num}: Supplier name is required")
+                            error_count += 1
+                            continue
+                            
+                        try:
+                            supplier = Supplier.objects.get(name__iexact=supplier_name)
+                        except Supplier.DoesNotExist:
+                            errors.append(f"Row {row_num}: Supplier '{supplier_name}' not found")
+                            error_count += 1
+                            continue
+                        
+                        # Parse price
+                        price_str = row.get('price', '').strip()
+                        if not price_str:
+                            errors.append(f"Row {row_num}: Price is required")
+                            error_count += 1
+                            continue
+                            
+                        try:
+                            price = Decimal(price_str)
+                            if price <= 0:
+                                raise ValueError("Price must be positive")
+                        except (ValueError, InvalidOperation):
+                            errors.append(f"Row {row_num}: Invalid price '{price_str}'")
+                            error_count += 1
+                            continue
+                        
+                        # Parse effective date (optional, default to now)
+                        effective_date_str = row.get('effective_date', '').strip()
+                        if effective_date_str:
+                            try:
+                                effective_date = datetime.strptime(effective_date_str, '%Y-%m-%d')
+                                effective_date = timezone.make_aware(effective_date)
+                            except ValueError:
+                                errors.append(f"Row {row_num}: Invalid date format '{effective_date_str}'. Use YYYY-MM-DD")
+                                error_count += 1
+                                continue
+                        else:
+                            effective_date = timezone.now()
+                        
+                        # Check if is_current should be set
+                        is_current_str = row.get('is_current', 'true').strip().lower()
+                        is_current = is_current_str in ['true', '1', 'yes', 'y']
+                        
+                        # Create the price record
+                        price_record = RawMaterialPrice.objects.create(
+                            raw_material=raw_material,
+                            supplier=supplier,
+                            price=price,
+                            effective_date=effective_date,
+                            is_current=is_current
+                        )
+                        
+                        success_count += 1
+                        
+                    except Exception as e:
+                        errors.append(f"Row {row_num}: {str(e)}")
+                        error_count += 1
+                
+                # Prepare response message
+                if success_count > 0:
+                    messages.success(request, f"Successfully uploaded {success_count} price records.")
+                
+                if error_count > 0:
+                    error_message = f"Failed to upload {error_count} records. "
+                    if len(errors) <= 5:
+                        error_message += "Errors: " + "; ".join(errors)
+                    else:
+                        error_message += f"First 5 errors: {'; '.join(errors[:5])}... (and {len(errors) - 5} more)"
+                    messages.error(request, error_message)
+                
+                return redirect('bulk_upload_raw_material_prices')
+                
+            except Exception as e:
+                messages.error(request, f"Error processing CSV file: {str(e)}")
+    else:
+        form = BulkUploadRawMaterialPriceForm()
+    
+    return render(request, 'bulk_upload_raw_material_prices.html', {'form': form})
+
+@login_required(login_url='/login/')
+def download_raw_material_price_template(request):
+    """Download CSV template for raw material price bulk upload"""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="raw_material_price_template.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['raw_material_name', 'supplier_name', 'price', 'effective_date', 'is_current'])
+    
+    # Add some example rows
+    writer.writerow(['Sugar', 'ABC Suppliers', '150.00', '2024-01-15', 'true'])
+    writer.writerow(['Flour', 'XYZ Company', '200.50', '2024-01-15', 'true'])
+    writer.writerow(['Salt', 'ABC Suppliers', '25.00', '2024-01-15', 'false'])
+    
+    return response
 
 @login_required(login_url='/login/')
 def manufacture_product(request, product_id):
@@ -4721,7 +4852,7 @@ def all_requisitions(request):
     max_cost = request.GET.get('max_cost', '')
     
     # Start with all requisitions
-    requisitions = Requisition.objects.select_related('supplier').prefetch_related('requisitionitem_set').order_by('-created_at')
+    requisitions = Requisition.objects.select_related('supplier').prefetch_related('requisitionitem_set').order_by('-created_at', '-id')
     
     # Apply filters
     if search:

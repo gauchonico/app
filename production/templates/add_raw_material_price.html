@@ -15,6 +15,20 @@
 {% endblock %}
 
 {% block content %}
+<div class="d-flex align-items-center mb-3">
+	<div>
+		<ul class="breadcrumb">
+			<li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+			<li class="breadcrumb-item active">RAW MATERIAL PRICES</li>
+		</ul>
+		<h1 class="page-header mb-0">ADD NEW RAW MATERIAL PRICE</h1>
+	</div>
+	
+	<div class="ms-auto">
+		<a href="{% url 'bulk_upload_raw_material_prices' %}" class="btn btn-outline-theme me-2">BULK UPLOAD</a>
+		
+	</div>
+</div>
 
 <div class="container mt-4">
     <div class="card">

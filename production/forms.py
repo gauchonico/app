@@ -4,6 +4,7 @@ from POSMagicApp.models import Customer, Staff
 from .models import *
 from django.forms import BaseModelFormSet, ModelForm, ValidationError, inlineformset_factory, modelformset_factory
 import os
+import csv
 
 
 class AddSupplierForm(forms.ModelForm):
@@ -1000,8 +1001,57 @@ class IncidentWriteOffForm(forms.ModelForm):
 
 class RawMaterialUploadForm(forms.Form):
     csv_file = forms.FileField()
+
+class BulkUploadRawMaterialPriceForm(forms.Form):
+    csv_file = forms.FileField(
+        label="Upload CSV File",
+        help_text="Upload a CSV file with raw material price data. Download the template for the correct format.",
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.csv'
+        })
+    )
     
-    
+    def clean_csv_file(self):
+        csv_file = self.cleaned_data.get('csv_file')
+        if csv_file:
+            # Check file size (max 5MB)
+            if csv_file.size > 5 * 1024 * 1024:
+                raise forms.ValidationError("File size must be under 5MB.")
+            
+            # Check file extension
+            if not csv_file.name.endswith('.csv'):
+                raise forms.ValidationError("Please upload a CSV file.")
+            
+            # Check file content
+            try:
+                decoded_file = csv_file.read().decode('utf-8')
+                csv_file.seek(0)  # Reset file pointer
+                
+                # Check if file has content
+                if not decoded_file.strip():
+                    raise forms.ValidationError("The CSV file is empty.")
+                
+                # Check if file has headers
+                lines = decoded_file.splitlines()
+                if len(lines) < 2:
+                    raise forms.ValidationError("The CSV file must have at least a header row and one data row.")
+                
+                # Check required headers
+                reader = csv.DictReader(lines)
+                required_headers = ['raw_material_name', 'supplier_name', 'price']
+                missing_headers = [header for header in required_headers if header not in reader.fieldnames]
+                
+                if missing_headers:
+                    raise forms.ValidationError(f"Missing required headers: {', '.join(missing_headers)}")
+                    
+            except UnicodeDecodeError:
+                raise forms.ValidationError("The file must be encoded in UTF-8.")
+            except Exception as e:
+                raise forms.ValidationError(f"Error reading CSV file: {str(e)}")
+        
+        return csv_file
+
 class PaymentForm(forms.Form):
     PAYMENT_METHOD_CHOICES = [
         ('cash', 'Cash'),

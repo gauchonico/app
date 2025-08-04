@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Bulk Upload Raw Material Prices{% endblock %}
+
+{% block css %}
+    <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+    <!-- BEGIN container -->
+    <div class="container">
+        <!-- BEGIN row -->
+        <div class="row justify-content-center">
+            <!-- BEGIN col-10 -->
+            <div class="col-xl-12">
+                <!-- BEGIN row -->
+                <div class="row">
+                    <!-- BEGIN col-9 -->
+                    <div class="col-xl-8">
+                        <ul class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+                            <li class="breadcrumb-item active">RAW MATERIAL PRICES</li>
+                        </ul>
+                        
+                        <h1 class="page-header">
+                            Bulk Upload Raw Material Prices <small>Upload multiple raw material prices at once</small>
+                        </h1>
+                        
+                        <hr class="mb-4">
+                        
+                        {% if messages %}
+                            <div class="mb-4">
+                                {% for message in messages %}
+                                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <!-- BEGIN card -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Upload CSV File</h4>
+                            </div>
+                            <div class="card-body">
+                                <form method="post" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    
+                                    <div class="mb-3">
+                                        <label for="{{ form.csv_file.id_for_label }}" class="form-label">
+                                            {{ form.csv_file.label }}
+                                        </label>
+                                        {{ form.csv_file }}
+                                        {% if form.csv_file.help_text %}
+                                            <div class="form-text">{{ form.csv_file.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.csv_file.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.csv_file.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-upload me-2"></i>Upload Prices
+                                        </button>
+                                        <a href="{% url 'download_raw_material_price_template' %}" class="btn btn-outline-secondary ms-2">
+                                            <i class="fas fa-download me-2"></i>Download Template
+                                        </a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <!-- END card -->
+                        
+                        <!-- BEGIN card -->
+                        <div class="card mt-4">
+                            <div class="card-header">
+                                <h4 class="card-title">CSV Format Instructions</h4>
+                            </div>
+                            <div class="card-body">
+                                <h5>Required Columns:</h5>
+                                <ul>
+                                    <li><strong>raw_material_name</strong> - Exact name of the raw material (case-insensitive)</li>
+                                    <li><strong>supplier_name</strong> - Exact name of the supplier (case-insensitive)</li>
+                                    <li><strong>price</strong> - Price as a decimal number (e.g., 150.00)</li>
+                                </ul>
+                                
+                                <h5>Optional Columns:</h5>
+                                <ul>
+                                    <li><strong>effective_date</strong> - Date in YYYY-MM-DD format (defaults to current date)</li>
+                                    <li><strong>is_current</strong> - Set to 'true' or 'false' (defaults to 'true')</li>
+                                </ul>
+                                
+                                <h5>Example CSV:</h5>
+                                <pre class="bg-light p-3 rounded">
+raw_material_name,supplier_name,price,effective_date,is_current
+Sugar,ABC Suppliers,150.00,2024-01-15,true
+Flour,XYZ Company,200.50,2024-01-15,true
+Salt,ABC Suppliers,25.00,2024-01-15,false</pre>
+                                
+                                <div class="alert alert-info">
+                                    <strong>Note:</strong> When you set <code>is_current</code> to 'true' for a material-supplier combination, 
+                                    all other existing prices for that combination will automatically be set to 'false'.
+                                </div>
+                            </div>
+                        </div>
+                        <!-- END card -->
+                        
+                    </div>
+                    <!-- END col-9 -->
+                    
+                    <!-- BEGIN col-3 -->
+                    <div class="col-xl-3">
+                        <!-- BEGIN #sidebar-bootstrap -->
+                        <nav id="sidebar-bootstrap" class="navbar navbar-sticky d-none d-xl-block">
+                            <nav class="nav">
+                                <a class="nav-link" href="{% url 'rawmaterialsList' %}">Raw Materials List</a>
+                                <a class="nav-link" href="{% url 'raw_materials_dashboard' %}">Raw Materials Dashboard</a>
+                                <a class="nav-link" href="{% url 'manage_raw_material_suppliers' %}">Manage Suppliers</a>
+                            </nav>
+                        </nav>
+                        <!-- END #sidebar-bootstrap -->
+                    </div>
+                    <!-- END col-3 -->
+                </div>
+                <!-- END row -->
+            </div>
+            <!-- END col-10 -->
+        </div>
+        <!-- END row -->
+    </div>
+    <!-- END container -->
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+{% endblock %} 
