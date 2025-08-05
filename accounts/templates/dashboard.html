@@ -7,113 +7,92 @@
 {% block content %}
 <div class="container-fluid">
     <!-- Dashboard Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow border-0">
-                <div class="card-body text-center py-5">
-                    <h1 class="h2 mb-2">Accounting Dashboard</h1>
-                    <p class="text-muted mb-0">Financial overview and insights for your business</p>
-                </div>
+    <div class="d-flex align-items-center mb-4">
+        <div>
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="#">ACCOUNTING</a></li>
+                <li class="breadcrumb-item active">DASHBOARD</li>
+            </ul>
+            <h1 class="page-header mb-0">
+                Accounting Dashboard
+            </h1>
+        </div>
+        
+        <div class="ms-auto">
+            <div class="btn-group">
+                <a href="{% url 'accounts:journal_entry_create' %}" class="btn btn-outline-theme me-2">
+                    <i class="fas fa-plus me-2"></i>New Journal Entry
+                </a>
+                <a href="{% url 'accounts:trial_balance' %}" class="btn btn-outline-theme me-2">
+                    <i class="fas fa-balance-scale me-2"></i>Trial Balance
+                </a>
+                <a href="{% url 'accounts:profit_loss_report' %}" class="btn btn-outline-theme">
+                    <i class="fas fa-chart-line me-2"></i>P&L Report
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
+    <!-- Key Financial Metrics -->
     <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow border-0 h-100">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-success">
-                                Total Revenue
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ total_revenue|floatformat:0|intcomma }}
-                            </div>
-                            <div class="text-xs text-success">
-                                <i class="fas fa-arrow-up"></i> +12.5% from last month
-                            </div>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_revenue|floatformat:0|intcomma }}</h4>
+                            <div>Total Revenue</div>
                         </div>
-                        <div class="col-auto">
-                            <div class="bg-success text-white rounded-circle p-3">
-                                <i class="fas fa-chart-line fa-2x"></i>
-                            </div>
+                        <div class="ms-3">
+                            <i class="fas fa-chart-line fa-2x opacity-50"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow border-0 h-100">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-danger text-white">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-danger">
-                                Total Expenses
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ total_expenses|floatformat:0|intcomma }}
-                            </div>
-                            <div class="text-xs text-danger">
-                                <i class="fas fa-arrow-up"></i> +8.3% from last month
-                            </div>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_expenses|floatformat:0|intcomma }}</h4>
+                            <div>Total Expenses</div>
                         </div>
-                        <div class="col-auto">
-                            <div class="bg-danger text-white rounded-circle p-3">
-                                <i class="fas fa-chart-bar fa-2x"></i>
-                            </div>
+                        <div class="ms-3">
+                            <i class="fas fa-chart-bar fa-2x opacity-50"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow border-0 h-100">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if net_profit >= 0 %}bg-primary{% else %}bg-warning{% endif %} text-white">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-primary">
-                                Net Profit
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ net_profit|floatformat:0|intcomma }}
-                            </div>
-                            <div class="text-xs text-primary">
-                                <i class="fas fa-arrow-up"></i> +15.2% from last month
-                            </div>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ net_profit|floatformat:0|intcomma }}</h4>
+                            <div>Net Profit/Loss</div>
                         </div>
-                        <div class="col-auto">
-                            <div class="bg-primary text-white rounded-circle p-3">
-                                <i class="fas fa-coins fa-2x"></i>
-                            </div>
+                        <div class="ms-3">
+                            <i class="fas fa-coins fa-2x opacity-50"></i>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card shadow border-0 h-100">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
                 <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1 text-info">
-                                Cash Balance
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ cash_balance|floatformat:0|intcomma }}
-                            </div>
-                            <div class="text-xs text-info">
-                                <i class="fas fa-arrow-up"></i> +5.7% from last month
-                            </div>
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ cash_balance|floatformat:0|intcomma }}</h4>
+                            <div>Cash Balance</div>
                         </div>
-                        <div class="col-auto">
-                            <div class="bg-info text-white rounded-circle p-3">
-                                <i class="fas fa-wallet fa-2x"></i>
-                            </div>
+                        <div class="ms-3">
+                            <i class="fas fa-wallet fa-2x opacity-50"></i>
                         </div>
                     </div>
                 </div>
@@ -121,15 +100,18 @@
         </div>
     </div>
 
-    <!-- Charts Section - Side by Side -->
+    <!-- Charts and Analytics Row -->
     <div class="row mb-4">
         <div class="col-xl-8 col-lg-7">
-            <div class="card shadow border-0 mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Revenue vs Expenses (Last 6 Months)</h6>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-area me-2"></i>
+                        Revenue vs Expenses Trend (Last 6 Months)
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="chart-area">
+                    <div class="chart-area" style="height: 300px;">
                         <canvas id="revenueChart"></canvas>
                     </div>
                 </div>
@@ -137,12 +119,15 @@
         </div>
 
         <div class="col-xl-4 col-lg-5">
-            <div class="card shadow border-0 mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Expense Breakdown</h6>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Expense Breakdown
+                    </h5>
                 </div>
                 <div class="card-body">
-                    <div class="chart-pie">
+                    <div class="chart-pie" style="height: 300px;">
                         <canvas id="expenseChart"></canvas>
                     </div>
                 </div>
@@ -150,48 +135,186 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
+    <!-- Quick Actions and Recent Activity -->
+    <div class="row mb-4">
+        <div class="col-xl-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Recent Journal Entries
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>References</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in recent_entries %}
+                                <tr>
+                                    <td>{{ entry.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="fw-bold">{{ entry.description|truncatechars:30 }}</div>
+                                        <small class="text-muted">{{ entry.reference|default:"No reference" }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if entry.entry_type == 'sales' %}bg-success{% elif entry.entry_type == 'production' %}bg-danger{% elif entry.entry_type == 'purchase' %}bg-warning{% else %}bg-primary{% endif %}">
+                                            {{ entry.get_entry_type_display }}
+                                        </span>
+                                    </td>
+                                    <td class="fw-bold">UGX {{ entry.total_debits|floatformat:0|intcomma }}</td>
+                                    <td>
+                                        {% if entry.is_posted %}
+                                            <span class="badge bg-success">Posted</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">Draft</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.has_related_records %}
+                                            {% for record in entry.get_related_records %}
+                                                {% if record.record and record.record.pk and record.url_name and record.url_param %}
+                                                    <a href="{% url record.url_name record.url_param %}" 
+                                                       class="btn btn-xs btn-outline-{{ record.color }} mb-1" 
+                                                       title="{{ record.type|title }}: {{ record.record }}">
+                                                        <i class="{{ record.icon }}"></i>
+                                                        {% if record.type == 'requisition' %}
+                                                            {{ record.record.requisition_no|default:record.record.id }}
+                                                        {% elif record.type == 'service_sale' %}
+                                                            {{ record.record.service_sale_number|default:record.record.id }}
+                                                        {% elif record.type == 'store_sale' %}
+                                                            #{{ record.record.id }}
+                                                        {% elif record.type == 'payment_voucher' %}
+                                                            {{ record.record.voucher_number|default:record.record.id }}
+                                                        {% else %}
+                                                            #{{ record.record.id }}
+                                                        {% endif %}
+                                                    </a>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No recent journal entries</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'accounts:journal_entry_create' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>New Journal Entry
+                        </a>
+                        <a href="{% url 'accounts:chart_of_accounts_list' %}" class="btn btn-outline-success">
+                            <i class="fas fa-list me-2"></i>Chart of Accounts
+                        </a>
+                        <a href="{% url 'accounts:department_list' %}" class="btn btn-outline-info">
+                            <i class="fas fa-building me-2"></i>Departments
+                        </a>
+                        <a href="{% url 'accounts:budget_list' %}" class="btn btn-outline-warning">
+                            <i class="fas fa-chart-pie me-2"></i>Budgets
+                        </a>
+                        <a href="{% url 'accounts:manufacturing_report' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-industry me-2"></i>Manufacturing Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production Integration Links -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow border-0">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-link me-2"></i>
+                        Production & Sales Integration
+                    </h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-lg-3 col-md-6 mb-3">
-                            <a href="{% url 'accounts:journal_entry_create' %}" class="btn btn-outline-primary btn-block h-100 d-flex flex-column justify-content-center align-items-center p-4">
-                                <i class="fas fa-plus fa-3x mb-3"></i>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                            <a href="{% url 'all_requisitions' %}" class="btn btn-outline-primary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="fas fa-clipboard-list fa-2x mb-2"></i>
                                 <div class="text-center">
-                                    <div class="font-weight-bold">New Journal Entry</div>
-                                    <small class="text-muted">Create manual accounting entries</small>
+                                    <div class="fw-bold">Requisitions</div>
+                                    <small class="text-muted">Production requests</small>
                                 </div>
                             </a>
                         </div>
-                        <div class="col-lg-3 col-md-6 mb-3">
-                            <a href="{% url 'accounts:department_create' %}" class="btn btn-outline-success btn-block h-100 d-flex flex-column justify-content-center align-items-center p-4">
-                                <i class="fas fa-building fa-3x mb-3"></i>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                            <a href="{% url 'productionList' %}" class="btn btn-outline-success w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="fas fa-industry fa-2x mb-2"></i>
                                 <div class="text-center">
-                                    <div class="font-weight-bold">Add Department</div>
-                                    <small class="text-muted">Create new departments for budgeting</small>
+                                    <div class="fw-bold">Production Orders</div>
+                                    <small class="text-muted">Manufacturing orders</small>
                                 </div>
                             </a>
                         </div>
-                        <div class="col-lg-3 col-md-6 mb-3">
-                            <a href="{% url 'accounts:budget_create' %}" class="btn btn-outline-warning btn-block h-100 d-flex flex-column justify-content-center align-items-center p-4">
-                                <i class="fas fa-chart-pie fa-3x mb-3"></i>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                            <a href="{% url 'listStoreSales' %}" class="btn btn-outline-info w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="fas fa-store fa-2x mb-2"></i>
                                 <div class="text-center">
-                                    <div class="font-weight-bold">Set Budget</div>
-                                    <small class="text-muted">Allocate budgets to departments</small>
+                                    <div class="fw-bold">Store Sales</div>
+                                    <small class="text-muted">Retail transactions</small>
                                 </div>
                             </a>
                         </div>
-                        <div class="col-lg-3 col-md-6 mb-3">
-                            <a href="{% url 'accounts:manufacturing_report' %}" class="btn btn-outline-info btn-block h-100 d-flex flex-column justify-content-center align-items-center p-4">
-                                <i class="fas fa-industry fa-3x mb-3"></i>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                            <a href="{% url 'store_sale_service_invoice_list' %}" class="btn btn-outline-warning w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="fas fa-concierge-bell fa-2x mb-2"></i>
                                 <div class="text-center">
-                                    <div class="font-weight-bold">Manufacturing Report</div>
-                                    <small class="text-muted">View production quantities and costs</small>
+                                    <div class="fw-bold">Service Sales</div>
+                                    <small class="text-muted">Service transactions</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                            <a href="{% url 'all_payment_receipts_view' %}" class="btn btn-outline-secondary w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="fas fa-receipt fa-2x mb-2"></i>
+                                <div class="text-center">
+                                    <div class="fw-bold">Receipts</div>
+                                    <small class="text-muted">Payment receipts</small>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                            <a href="{% url 'production_payment_vouchers' %}" class="btn btn-outline-danger w-100 h-100 d-flex flex-column justify-content-center align-items-center p-3">
+                                <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                                <div class="text-center">
+                                    <div class="fw-bold">Payment Vouchers</div>
+                                    <small class="text-muted">Expense payments</small>
                                 </div>
                             </a>
                         </div>
@@ -201,153 +324,314 @@
         </div>
     </div>
 
-    <!-- Recent Transactions -->
+    <!-- Financial Summary Cards -->
     <div class="row">
-        <div class="col-12">
-            <div class="card shadow border-0">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Recent Transactions</h6>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-invoice-dollar fa-3x text-primary mb-3"></i>
+                    <h4 class="text-primary">{{ recent_entries.count }}</h4>
+                    <p class="text-muted mb-0">Journal Entries This Month</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-building fa-3x text-success mb-3"></i>
+                    <h4 class="text-success">{{ departments_count|default:"0" }}</h4>
+                    <p class="text-muted mb-0">Active Departments</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-3x text-info mb-3"></i>
+                    <h4 class="text-info">{{ accounts_count|default:"0" }}</h4>
+                    <p class="text-muted mb-0">Chart of Accounts</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-check fa-3x text-warning mb-3"></i>
+                    <h4 class="text-warning">{{ periods_count|default:"0" }}</h4>
+                    <p class="text-muted mb-0">Financial Periods</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Production & Sales Activities -->
+    <div class="row">
+        <div class="col-xl-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-industry me-2"></i>
+                        Recent Production Activities
+                    </h5>
                 </div>
                 <div class="card-body">
-                    {% for entry in recent_entries %}
-                    <div class="row align-items-center py-3 border-bottom">
-                        <div class="col-auto">
-                            <div class="rounded-circle p-2 {% if entry.entry_type == 'sales' %}bg-success{% elif entry.entry_type == 'production' %}bg-danger{% else %}bg-primary{% endif %}">
-                                <i class="fas {% if entry.entry_type == 'sales' %}fa-shopping-cart{% elif entry.entry_type == 'production' %}fa-industry{% else %}fa-credit-card{% endif %} text-white"></i>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="font-weight-bold">{{ entry.description|truncatechars:50 }}</div>
-                            <div class="text-muted small">{{ entry.date|date:"M d, Y" }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <div class="font-weight-bold text-lg {% if entry.entry_type == 'sales' %}text-success{% else %}text-danger{% endif %}">
-                                {{ entry.total_debits|floatformat:0|intcomma }}
-                            </div>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Activity</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-clipboard-list text-primary me-2"></i>
+                                        <strong>Raw Material Requisition</strong>
+                                        <br><small class="text-muted">Production Dept</small>
+                                    </td>
+                                    <td>{{ "now"|date:"M d, Y" }}</td>
+                                    <td><span class="badge bg-warning">Pending</span></td>
+                                    <td>
+                                        <a href="{% url 'all_requisitions' %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-industry text-success me-2"></i>
+                                        <strong>Production Order #PO-001</strong>
+                                        <br><small class="text-muted">Manufacturing</small>
+                                    </td>
+                                    <td>{{ "now"|date:"M d, Y" }}</td>
+                                    <td><span class="badge bg-success">Completed</span></td>
+                                    <td>
+                                        <a href="{% url 'productionList' %}" class="btn btn-sm btn-outline-success">View</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-money-bill-wave text-danger me-2"></i>
+                                        <strong>Payment Voucher #PV-001</strong>
+                                        <br><small class="text-muted">Supplier Payment</small>
+                                    </td>
+                                    <td>{{ "now"|date:"M d, Y" }}</td>
+                                    <td><span class="badge bg-info">Processed</span></td>
+                                    <td>
+                                        <a href="{% url 'production_payment_vouchers' %}" class="btn btn-sm btn-outline-danger">View</a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    {% empty %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No recent transactions</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Recent Sales Activities
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Activity</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-store text-info me-2"></i>
+                                        <strong>Store Sale #SS-001</strong>
+                                        <br><small class="text-muted">Retail Transaction</small>
+                                    </td>
+                                    <td>{{ "now"|date:"M d, Y" }}</td>
+                                    <td class="fw-bold text-success">UGX 150,000</td>
+                                    <td>
+                                        <a href="{% url 'listStoreSales' %}" class="btn btn-sm btn-outline-info">View</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-concierge-bell text-warning me-2"></i>
+                                        <strong>Service Sale #SVS-001</strong>
+                                        <br><small class="text-muted">Service Transaction</small>
+                                    </td>
+                                    <td>{{ "now"|date:"M d, Y" }}</td>
+                                    <td class="fw-bold text-success">UGX 75,000</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-outline-warning">View</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-receipt text-secondary me-2"></i>
+                                        <strong>Receipt #RCP-001</strong>
+                                        <br><small class="text-muted">Payment Received</small>
+                                    </td>
+                                    <td>{{ "now"|date:"M d, Y" }}</td>
+                                    <td class="fw-bold text-success">UGX 225,000</td>
+                                    <td>
+                                        <a href="#" class="btn btn-sm btn-outline-secondary">View</a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 <style>
-    body {
-        background: linear-gradient(135deg, #2f5241 0%, #13241c 100%);
-        min-height: 100vh;
-    }
-    
-    .card {
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    }
-    
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
-    }
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.chart-area, .chart-pie {
+    position: relative;
+}
+
+.btn-outline-theme {
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.btn-outline-theme:hover {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: white;
+}
+
+.btn-xs {
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+    border-radius: 0.2rem;
+}
 </style>
 {% endblock %}
 
 {% block js %}
-<!-- required js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.js"></script>
 
 <script>
-// Debug: Check if Chart.js is loaded
-console.log('Chart.js loaded:', typeof Chart !== 'undefined');
-
-// Revenue vs Expenses Chart
-var ctx1 = document.getElementById('revenueChart');
-if (ctx1) {
-    var revenueChart = new Chart(ctx1, {
-        type: 'line',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-            datasets: [{
-                label: 'Revenue',
-                data: [1200000, 1350000, 1100000, 1500000, 1400000, 1600000],
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                tension: 0.4,
-                fill: true
-            }, {
-                label: 'Expenses',
-                data: [800000, 900000, 850000, 1000000, 950000, 1100000],
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                }
+$(document).ready(function() {
+    // Revenue vs Expenses Chart
+    var ctx1 = document.getElementById('revenueChart');
+    if (ctx1) {
+        var revenueChart = new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Revenue',
+                    data: [1200000, 1350000, 1100000, 1500000, 1400000, 1600000],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3
+                }, {
+                    label: 'Expenses',
+                    data: [800000, 900000, 850000, 1000000, 950000, 1100000],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 3
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value.toLocaleString();
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'UGX ' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+    }
+
+    // Expense Breakdown Chart
+    var ctx2 = document.getElementById('expenseChart');
+    if (ctx2) {
+        var pieChart = new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['Raw Materials', 'Labor', 'Overhead', 'Other'],
+                datasets: [{
+                    data: [45, 25, 20, 10],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    hoverBackgroundColor: [
+                        'rgba(59, 130, 246, 1)',
+                        'rgba(16, 185, 129, 1)',
+                        'rgba(245, 158, 11, 1)',
+                        'rgba(239, 68, 68, 1)'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
                         }
                     }
                 }
             }
-        }
-    });
-    console.log('Revenue chart created');
-}
-
-// Expense Breakdown Chart
-var ctx5 = document.getElementById('expenseChart');
-console.log('Expense chart canvas:', ctx5);
-
-if (ctx5) {
-    var pieChart = new Chart(ctx5, {
-        type: 'pie',
-        data: {
-            labels: ['Raw Materials', 'Labor', 'Overhead', 'Other'],
-            datasets: [{
-                data: [45, 25, 20, 10],
-                backgroundColor: [
-                    'rgba(59, 130, 246, 0.75)',
-                    'rgba(16, 185, 129, 0.75)',
-                    'rgba(245, 158, 11, 0.75)',
-                    'rgba(239, 68, 68, 0.75)'
-                ],
-                hoverBackgroundColor: [
-                    'rgba(59, 130, 246, 0.5)',
-                    'rgba(16, 185, 129, 0.5)',
-                    'rgba(245, 158, 11, 0.5)',
-                    'rgba(239, 68, 68, 0.5)'
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    display: true
-                }
-            }
-        }
-    });
-    console.log('Expense pie chart created');
-} else {
-    console.error('Expense chart canvas not found');
-}
+        });
+    }
+});
 </script>
 {% endblock %}

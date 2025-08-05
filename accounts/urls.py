@@ -37,9 +37,11 @@ urlpatterns = [
     
     # Reports
     path('trial-balance/', views.trial_balance, name='trial_balance'),
+    path('ledger-entries/', views.ledger_entries, name='ledger_entries'),
     path('profit-loss/', views.profit_loss_report, name='profit_loss_report'),
     path('budget-report/', views.budget_report, name='budget_report'),
     path('manufacturing-report/', views.manufacturing_report, name='manufacturing_report'),
+    path('process-pending-sales/', views.process_pending_sales, name='process_pending_sales'),
     
     # API endpoints
     path('api/account-balance/<int:account_id>/', views.get_account_balance, name='get_account_balance'),

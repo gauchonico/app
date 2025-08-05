@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Ledger Entries - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 fw-bold">
+                        <i class="fas fa-book me-2"></i>
+                        Ledger Entries
+                    </h1>
+                    <p class="mb-0">Individual account transaction history and balances</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Filter Options
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="account" class="form-label fw-bold">Account</label>
+                            <select name="account" id="account" class="form-select">
+                                <option value="">All Accounts</option>
+                                {% for account in accounts %}
+                                    <option value="{{ account.id }}" {% if selected_account == account.id %}selected{% endif %}>
+                                        {{ account.account_code }} - {{ account.account_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="start_date" class="form-label fw-bold">Start Date</label>
+                            <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date|default:'' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="end_date" class="form-label fw-bold">End Date</label>
+                            <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date|default:'' }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="entry_type" class="form-label fw-bold">Entry Type</label>
+                            <select name="entry_type" id="entry_type" class="form-select">
+                                <option value="">All Types</option>
+                                <option value="debit" {% if entry_type == 'debit' %}selected{% endif %}>Debit</option>
+                                <option value="credit" {% if entry_type == 'credit' %}selected{% endif %}>Credit</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-2"></i>Filter
+                            </button>
+                            <a href="{% url 'accounts:ledger_entries' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if selected_account_obj %}
+    <!-- Account Summary -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ selected_account_obj.account_code }}</h4>
+                            <div>Account Code</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-hashtag fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ selected_account_obj.account_name }}</h4>
+                            <div>Account Name</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-tag fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ opening_balance|floatformat:0|intcomma }}</h4>
+                            <div>Opening Balance</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-wallet fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if current_balance >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ current_balance|floatformat:0|intcomma }}</h4>
+                            <div>Current Balance</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if ledger_entries %}
+    <!-- Ledger Entries Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Ledger Entries
+                        {% if selected_account_obj %}
+                        <small class="text-muted">- {{ selected_account_obj.account_name }}</small>
+                        {% endif %}
+                        {% if start_date and end_date %}
+                        <small class="text-muted">({{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }})</small>
+                        {% endif %}
+                    </h5>
+                    <div>
+                        <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-print me-2"></i>Print
+                        </button>
+                        <button onclick="exportToCSV()" class="btn btn-outline-success btn-sm ms-2">
+                            <i class="fas fa-download me-2"></i>Export CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="ledgerTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Journal Entry</th>
+                                    <th>Reference</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Debit</th>
+                                    <th class="text-end">Credit</th>
+                                    <th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in ledger_entries %}
+                                <tr>
+                                    <td>{{ entry.journal_entry.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <a href="{% url 'accounts:journal_entry_detail' entry.journal_entry.pk %}" class="text-decoration-none">
+                                            {{ entry.journal_entry.entry_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ entry.journal_entry.reference|default:"-" }}</td>
+                                    <td>
+                                        <div>{{ entry.journal_entry.description|truncatechars:50 }}</div>
+                                        {% if entry.description %}
+                                            <small class="text-muted">{{ entry.description }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold">
+                                        {% if entry.entry_type == 'debit' %}
+                                            UGX {{ entry.amount|floatformat:0|intcomma }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold">
+                                        {% if entry.entry_type == 'credit' %}
+                                            UGX {{ entry.amount|floatformat:0|intcomma }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold {% if entry.running_balance < 0 %}text-danger{% elif entry.running_balance > 0 %}text-success{% endif %}">
+                                        UGX {{ entry.running_balance|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-info">
+                                <tr class="fw-bold">
+                                    <td colspan="4" class="text-end">TOTALS:</td>
+                                    <td class="text-end">UGX {{ total_debits|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">UGX {{ total_credits|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">UGX {{ current_balance|floatformat:0|intcomma }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if ledger_entries.has_other_pages %}
+                    <nav aria-label="Ledger entries pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if ledger_entries.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if selected_account %}account={{ selected_account }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if entry_type %}&entry_type={{ entry_type }}{% endif %}&page={{ ledger_entries.previous_page_number }}">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in ledger_entries.paginator.page_range %}
+                                {% if ledger_entries.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > ledger_entries.number|add:'-3' and num < ledger_entries.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if selected_account %}account={{ selected_account }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if entry_type %}&entry_type={{ entry_type }}{% endif %}&page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if ledger_entries.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if selected_account %}account={{ selected_account }}{% endif %}{% if start_date %}&start_date={{ start_date }}{% endif %}{% if end_date %}&end_date={{ end_date }}{% endif %}{% if entry_type %}&entry_type={{ entry_type }}{% endif %}&page={{ ledger_entries.next_page_number }}">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Data Message -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0 text-center py-5" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body">
+                    <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted mb-2">No Ledger Entries Found</h4>
+                    <p class="text-muted mb-3">Try adjusting your filter criteria or select a different account.</p>
+                    <p class="text-muted small">Ledger entries show the transaction history for individual accounts.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+@media print {
+    .btn, .card-header .btn {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+}
+</style>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('ledgerTable');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cols = row.querySelectorAll('td, th');
+        let csvRow = [];
+        
+        for (let j = 0; j < cols.length; j++) {
+            let text = cols[j].innerText.replace(/,/g, ';');
+            csvRow.push('"' + text + '"');
+        }
+        
+        csv.push(csvRow.join(','));
+    }
+    
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'ledger_entries_{{ selected_account_obj.account_code|default:"all" }}_{{ start_date|date:"Y-m-d" }}_to_{{ end_date|date:"Y-m-d" }}.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+</script>
+{% endblock %} 

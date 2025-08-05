@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Process Pending Sales - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 fw-bold">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        Process Pending Sales
+                    </h1>
+                    <p class="mb-0">Create journal entries for paid service sales and store sales</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ pending_service_sales }}</h4>
+                            <div>Pending Service Sales</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-cut fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ pending_store_sales }}</h4>
+                            <div>Pending Store Sales</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-store fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ total_pending }}</h4>
+                            <div>Total Pending Sales</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-clock fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Process Form -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Process Pending Sales
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if total_pending > 0 %}
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Ready to Process
+                            </h6>
+                            <p class="mb-0">
+                                You have <strong>{{ total_pending }}</strong> paid sales that need journal entries created. 
+                                This will ensure your profit & loss reports show complete revenue data.
+                            </p>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="fw-bold">What will be processed:</h6>
+                                <ul class="list-unstyled">
+                                    {% if pending_service_sales > 0 %}
+                                        <li class="mb-2">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            <strong>{{ pending_service_sales }}</strong> service sales from salons
+                                        </li>
+                                    {% endif %}
+                                    {% if pending_store_sales > 0 %}
+                                        <li class="mb-2">
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                            <strong>{{ pending_store_sales }}</strong> store sales (wholesale)
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="fw-bold">Journal entries will be created for:</h6>
+                                <ul class="list-unstyled">
+                                    <li class="mb-2">
+                                        <i class="fas fa-arrow-up text-success me-2"></i>
+                                        <strong>Revenue Accounts:</strong> Service Sales (4120) and Store Sales (4110)
+                                    </li>
+                                    <li class="mb-2">
+                                        <i class="fas fa-arrow-down text-primary me-2"></i>
+                                        <strong>Cash Account:</strong> Cash (1000)
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <form method="post" onsubmit="return confirm('Are you sure you want to process {{ total_pending }} pending sales? This will create journal entries and cannot be undone.');">
+                            {% csrf_token %}
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-play me-2"></i>
+                                    Process {{ total_pending }} Pending Sales
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <h4 class="text-success mb-2">All Sales Processed!</h4>
+                            <p class="text-muted mb-3">There are no pending sales to process. All paid sales have journal entries.</p>
+                            <p class="text-muted small">New sales will appear here once they are marked as paid.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Information Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title fw-bold">
+                        <i class="fas fa-question-circle me-2"></i>
+                        Why Process Pending Sales?
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Benefits:</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-chart-line text-success me-2"></i>
+                                    <strong>Accurate Reports:</strong> Profit & loss shows complete revenue
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-balance-scale text-primary me-2"></i>
+                                    <strong>Proper Accounting:</strong> Double-entry bookkeeping maintained
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-file-invoice text-info me-2"></i>
+                                    <strong>Audit Trail:</strong> Complete transaction history
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">What Happens:</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-plus text-success me-2"></i>
+                                    <strong>Journal Entries:</strong> Created automatically for each sale
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-link text-primary me-2"></i>
+                                    <strong>Sales Revenue:</strong> Linked to accounting records
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-info me-2"></i>
+                                    <strong>Posted Status:</strong> Entries marked as posted immediately
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
+{% endblock %} 

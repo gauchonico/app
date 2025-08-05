@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}Budgets - Accounting{% endblock %}
 
@@ -56,7 +57,7 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ total_allocated|floatformat:0 }}</h5>
+                            <h5 class="text-white fw-bold mb-1">{{ total_allocated|floatformat:0|intcomma }}</h5>
                             <p class="text-white-50 mb-0">Total Allocated</p>
                         </div>
                     </div>
@@ -74,7 +75,7 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ total_spent|floatformat:0 }}</h5>
+                            <h5 class="text-white fw-bold mb-1">{{ total_spent|floatformat:0|intcomma }}</h5>
                             <p class="text-white-50 mb-0">Total Spent</p>
                         </div>
                     </div>
@@ -153,14 +154,14 @@
                                 </div>
                             </td>
                             <td class="text-white text-end">
-                                <div class="fw-bold">{{ budget.amount|floatformat:0 }}</div>
+                                <div class="fw-bold">{{ budget.amount|floatformat:0|intcomma }}</div>
                             </td>
                             <td class="text-white text-end">
-                                <div class="fw-bold">{{ budget.spent_amount|floatformat:0 }}</div>
+                                <div class="fw-bold">{{ budget.spent_amount|floatformat:0|intcomma }}</div>
                             </td>
                             <td class="text-white text-end">
                                 <div class="fw-bold {% if budget.remaining_amount < 0 %}text-danger{% else %}text-success{% endif %}">
-                                    {{ budget.remaining_amount|floatformat:0 }}
+                                    {{ budget.remaining_amount|floatformat:0|intcomma }}
                                 </div>
                             </td>
                             <td class="text-center">
@@ -183,7 +184,7 @@
                             </td>
                             <td class="text-center">
                                 <div class="dropdown">
-                                    <button class="btn btn-link text-white p-0" type="button" data-bs-toggle="dropdown">
+                                    <button class="btn btn-link p-0" type="button" data-bs-toggle="dropdown">
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <ul class="dropdown-menu">
@@ -221,7 +222,7 @@
 
 <style>
 body {
-    background: linear-gradient(135deg, #2f5241 0%, #13241c 100%);
+    {% comment %} background: linear-gradient(135deg, #2f5241 0%, #13241c 100%); {% endcomment %}
     min-height: 100vh;
 }
 
@@ -235,7 +236,7 @@ body {
 }
 
 .table {
-    color: white;
+    {% comment %} color: white; {% endcomment %}
 }
 
 .table tbody tr:hover {

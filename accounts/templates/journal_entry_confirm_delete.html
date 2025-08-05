@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Delete Journal Entry - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 fw-bold">
+                        <i class="fas fa-trash me-2"></i>
+                        Delete Journal Entry
+                    </h1>
+                    <p class="mb-0">Confirm deletion of journal entry</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:journal_entry_list' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Journal Entries
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xl-8 mx-auto">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                        Confirm Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Warning: This action cannot be undone!
+                        </h6>
+                        <p class="mb-0">
+                            You are about to delete the journal entry <strong>{{ object.entry_number }}</strong>. 
+                            This will permanently remove the entry and all its associated lines from the system.
+                        </p>
+                    </div>
+
+                    <!-- Journal Entry Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Entry Details</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Entry Number:</td>
+                                    <td>{{ object.entry_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Date:</td>
+                                    <td>{{ object.date|date:"M d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Description:</td>
+                                    <td>{{ object.description|truncatechars:50 }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Reference:</td>
+                                    <td>{{ object.reference|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Entry Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Entry Type:</td>
+                                    <td>
+                                        <span class="badge {% if object.entry_type == 'manual' %}bg-primary{% elif object.entry_type == 'system' %}bg-success{% else %}bg-info{% endif %}">
+                                            {{ object.get_entry_type_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Department:</td>
+                                    <td>{{ object.department.name|default:"No Department" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Status:</td>
+                                    <td>
+                                        <span class="badge {% if object.is_posted %}bg-success{% else %}bg-warning{% endif %}">
+                                            {% if object.is_posted %}Posted{% else %}Draft{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Created By:</td>
+                                    <td>{{ object.created_by.get_full_name|default:object.created_by.username }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Entry Lines Summary -->
+                    {% if object.entries.exists %}
+                    <div class="mb-4">
+                            <h6 class="fw-bold mb-3">Entry Lines ({{ object.entries.count }})</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-dark">
+                                <thead>
+                                    <tr>
+                                        <th>Account</th>
+                                        <th>Type</th>
+                                        <th class="text-end">Amount</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for line in object.entries.all %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold">{{ line.account.account_name }}</div>
+                                            <small class="text-muted">{{ line.account.account_code }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if line.entry_type == 'debit' %}bg-danger{% else %}bg-success{% endif %}">
+                                                {{ line.entry_type|title }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end fw-bold">UGX {{ line.amount|floatformat:0|intcomma }}</td>
+                                        <td>{{ line.description|default:"-" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-info">
+                                        <td colspan="2" class="text-end fw-bold">Total Debits:</td>
+                                        <td class="text-end fw-bold">UGX {{ object.total_debits|floatformat:0|intcomma }}</td>
+                                        <td></td>
+                                    </tr>
+                                    <tr class="table-info">
+                                        <td colspan="2" class="text-end fw-bold">Total Credits:</td>
+                                        <td class="text-end fw-bold">UGX {{ object.total_credits|floatformat:0|intcomma }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Warning about posted entries -->
+                    {% if object.is_posted %}
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Posted Entry Warning
+                        </h6>
+                        <p class="mb-0">
+                            This journal entry has been posted and may have affected account balances. 
+                            Deleting it could impact your financial reports and trial balance.
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="{% url 'accounts:journal_entry_detail' object.pk %}" class="btn btn-outline-light">
+                                <i class="fas fa-eye me-2"></i>View Entry
+                            </a>
+                            <a href="{% url 'accounts:journal_entry_list' %}" class="btn btn-outline-secondary ms-2">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                        </div>
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-trash me-2"></i>Delete Journal Entry
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.table-dark {
+    background-color: rgba(33, 37, 41, 0.8);
+    color: white;
+}
+
+.table-dark th,
+.table-dark td {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+}
+</style>
+{% endblock %} 

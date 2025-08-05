@@ -5847,6 +5847,107 @@ def add_raw_material_price(request):
     })
 
 
+@login_required
+def all_supplier_prices(request):
+    """
+    Display all supplier prices for raw materials with filtering and search capabilities
+    """
+    from django.db.models import Q, Min, Max
+    
+    # Get filter parameters
+    search = request.GET.get('search', '')
+    supplier = request.GET.get('supplier', '')
+    raw_material = request.GET.get('raw_material', '')
+    min_price = request.GET.get('min_price', '')
+    max_price = request.GET.get('max_price', '')
+    price_status = request.GET.get('price_status', '')  # current, historical, all
+    
+    # Start with all current prices
+    prices = RawMaterialPrice.objects.select_related('raw_material', 'supplier').order_by('raw_material__name', 'supplier__name')
+    
+    # Apply price status filter
+    if price_status == 'current':
+        prices = prices.filter(is_current=True)
+    elif price_status == 'historical':
+        prices = prices.filter(is_current=False)
+    # If 'all' or empty, show all prices
+    
+    # Apply search filter
+    if search:
+        prices = prices.filter(
+            Q(raw_material__name__icontains=search) |
+            Q(supplier__name__icontains=search) |
+            Q(supplier__company_name__icontains=search)
+        )
+    
+    # Apply supplier filter
+    if supplier:
+        prices = prices.filter(supplier_id=supplier)
+    
+    # Apply raw material filter
+    if raw_material:
+        prices = prices.filter(raw_material_id=raw_material)
+    
+    # Apply price range filters
+    if min_price:
+        try:
+            min_price = float(min_price)
+            prices = prices.filter(price__gte=min_price)
+        except ValueError:
+            pass
+    
+    if max_price:
+        try:
+            max_price = float(max_price)
+            prices = prices.filter(price__lte=max_price)
+        except ValueError:
+            pass
+    
+    # Get statistics
+    total_prices = prices.count()
+    current_prices = prices.filter(is_current=True).count()
+    historical_prices = prices.filter(is_current=False).count()
+    
+    # Get unique suppliers and raw materials for filter dropdowns
+    suppliers = Supplier.objects.filter(rawmaterialprice__in=prices).distinct().order_by('name')
+    raw_materials = RawMaterial.objects.filter(rawmaterialprice__in=prices).distinct().order_by('name')
+    
+    # Get price statistics
+    if prices.exists():
+        price_stats = prices.aggregate(
+            min_price=Min('price'),
+            max_price=Max('price'),
+            avg_price=Avg('price')
+        )
+    else:
+        price_stats = {'min_price': 0, 'max_price': 0, 'avg_price': 0}
+    
+    # Group prices by raw material for better organization
+    grouped_prices = {}
+    for price in prices:
+        material_name = price.raw_material.name
+        if material_name not in grouped_prices:
+            grouped_prices[material_name] = []
+        grouped_prices[material_name].append(price)
+    
+    context = {
+        'grouped_prices': grouped_prices,
+        'prices': prices,
+        'suppliers': suppliers,
+        'raw_materials': raw_materials,
+        'total_prices': total_prices,
+        'current_prices': current_prices,
+        'historical_prices': historical_prices,
+        'price_stats': price_stats,
+        'search': search,
+        'selected_supplier': supplier,
+        'selected_raw_material': raw_material,
+        'selected_min_price': min_price,
+        'selected_max_price': max_price,
+        'selected_price_status': price_status,
+    }
+    
+    return render(request, 'all_supplier_prices.html', context)
 
 @require_GET
 def get_suppliers_for_raw_material(request, raw_material_id):
@@ -6254,7 +6355,7 @@ def raw_materials_dashboard(request):
     monthly_trends.reverse()
     
     # Critical materials (those with very low stock)
-    critical_materials = [rm for rm in low_stock_materials if rm.current_stock < (rm.reorder_point * 0.5)]
+    critical_materials = [rm for rm in low_stock_materials if rm.current_stock < (rm.reorder_point * Decimal('0.5'))]
     
     # Materials by unit measurement
     materials_by_unit = {}

@@ -231,6 +231,97 @@ class JournalEntry(models.Model):
         self.posted_at = timezone.now()
         self.save()
 
+    def get_related_records(self):
+        """Get all related production/sales records for this journal entry"""
+        related_records = []
+        
+        # Check for production expenses (requisitions)
+        for expense in self.production_expenses.all():
+            if expense.requisition and expense.requisition.pk:
+                related_records.append({
+                    'type': 'requisition',
+                    'record': expense.requisition,
+                    'amount': expense.amount,
+                    'url_name': 'requisition_details',
+                    'url_param': expense.requisition.pk,
+                    'icon': 'fas fa-clipboard-list',
+                    'color': 'primary'
+                })
+        
+        # Check for sales revenues
+        for revenue in self.sales_revenues.all():
+            if revenue.service_sale and revenue.service_sale.pk:
+                related_records.append({
+                    'type': 'service_sale',
+                    'record': revenue.service_sale,
+                    'amount': revenue.amount,
+                    'url_name': 'service_sale_details',
+                    'url_param': revenue.service_sale.pk,
+                    'icon': 'fas fa-concierge-bell',
+                    'color': 'warning'
+                })
+            elif revenue.store_sale and revenue.store_sale.pk:
+                related_records.append({
+                    'type': 'store_sale',
+                    'record': revenue.store_sale,
+                    'amount': revenue.amount,
+                    'url_name': 'store_sale_order_details',
+                    'url_param': revenue.store_sale.pk,
+                    'icon': 'fas fa-store',
+                    'color': 'info'
+                })
+        
+        # Check for store transfers
+        for transfer in self.store_transfers.all():
+            if transfer.transfer and transfer.transfer.pk:
+                related_records.append({
+                    'type': 'store_transfer',
+                    'record': transfer.transfer,
+                    'amount': transfer.amount,
+                    'url_name': 'store_transfer_detail',
+                    'url_param': transfer.transfer.pk,
+                    'icon': 'fas fa-exchange-alt',
+                    'color': 'secondary'
+                })
+        
+        # Check for manufacturing records
+        for manufacturing in self.manufacturing_records.all():
+            if manufacturing.manufacture_product and manufacturing.manufacture_product.pk:
+                related_records.append({
+                    'type': 'manufacturing',
+                    'record': manufacturing.manufacture_product,
+                    'amount': manufacturing.amount,
+                    'url_name': 'manufacturedProductDetails',
+                    'url_param': manufacturing.manufacture_product.pk,
+                    'icon': 'fas fa-industry',
+                    'color': 'success'
+                })
+        
+        # Check for payment records
+        for payment in self.payment_records.all():
+            if payment.payment_voucher and payment.payment_voucher.pk and payment.payment_voucher.voucher_number:
+                related_records.append({
+                    'type': 'payment_voucher',
+                    'record': payment.payment_voucher,
+                    'amount': payment.amount,
+                    'url_name': 'production_payment_voucher_details',
+                    'url_param': payment.payment_voucher.voucher_number,
+                    'icon': 'fas fa-money-bill-wave',
+                    'color': 'danger'
+                })
+        
+        return related_records
+
+    def has_related_records(self):
+        """Check if this journal entry has any related production/sales records"""
+        return (
+            self.production_expenses.exists() or
+            self.sales_revenues.exists() or
+            self.store_transfers.exists() or
+            self.manufacturing_records.exists() or
+            self.payment_records.exists()
+        )
+
 class JournalEntryLine(models.Model):
     """Individual lines in a journal entry"""
     ENTRY_TYPES = [

@@ -353,6 +353,223 @@ class AccountingService:
             return None
     
     @staticmethod
+    def create_service_sale_journal_entry(service_sale, user):
+        """Create journal entry for service sale when paid"""
+        try:
+            with transaction.atomic():
+                # Check if journal entry already exists
+                existing_entry = JournalEntry.objects.filter(
+                    reference=f"ServiceSale-{service_sale.id}"
+                ).first()
+                
+                if existing_entry:
+                    print(f"Journal entry already exists for service sale {service_sale.id}")
+                    return existing_entry
+                
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=service_sale.sale_date.date(),
+                    reference=f"ServiceSale-{service_sale.id}",
+                    description=f"Service sale {service_sale.service_sale_number} from {service_sale.customer.first_name}",
+                    entry_type='sales',
+                    department=Department.objects.filter(code='SALON').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now()
+                )
+                
+                # Get revenue account (Service Sales Revenue)
+                revenue_account = ChartOfAccounts.objects.filter(
+                    account_code='4120'  # Service Sales Revenue
+                ).first()
+                
+                if not revenue_account:
+                    # Create service sales revenue account if it doesn't exist
+                    revenue_account = ChartOfAccounts.objects.create(
+                        account_code='4120',
+                        account_name='Service Sales Revenue',
+                        account_type='revenue',
+                        account_category='service_revenue',
+                        is_active=True
+                    )
+                
+                # Get cash account
+                cash_account = ChartOfAccounts.objects.filter(
+                    account_code='1000'  # Cash
+                ).first()
+                
+                if revenue_account and cash_account:
+                    # Credit Revenue
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=revenue_account,
+                        entry_type='credit',
+                        amount=service_sale.total_amount,
+                        description=f"Service revenue from {service_sale.service_sale_number}"
+                    )
+                    
+                    # Debit Cash
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=cash_account,
+                        entry_type='debit',
+                        amount=service_sale.total_amount,
+                        description=f"Cash received for service sale {service_sale.service_sale_number}"
+                    )
+                    
+                    # Create sales revenue record
+                    SalesRevenue.objects.create(
+                        service_sale=service_sale,
+                        journal_entry=journal_entry,
+                        amount=service_sale.total_amount
+                    )
+                    
+                    print(f"Created journal entry for service sale {service_sale.id}: {journal_entry.entry_number}")
+                    return journal_entry
+                    
+        except Exception as e:
+            print(f"Error creating service sale journal entry: {e}")
+            return None
+    
+    @staticmethod
+    def create_store_sale_journal_entry(store_sale, user):
+        """Create journal entry for store sale when paid"""
+        try:
+            with transaction.atomic():
+                # Check if journal entry already exists
+                existing_entry = JournalEntry.objects.filter(
+                    reference=f"StoreSale-{store_sale.id}"
+                ).first()
+                
+                if existing_entry:
+                    print(f"Journal entry already exists for store sale {store_sale.id}")
+                    return existing_entry
+                
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=store_sale.sale_date.date(),
+                    reference=f"StoreSale-{store_sale.id}",
+                    description=f"Store sale for {store_sale.customer.first_name}",
+                    entry_type='sales',
+                    department=Department.objects.filter(code='STORE').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now()
+                )
+                
+                # Get revenue account (Store Sales Revenue)
+                revenue_account = ChartOfAccounts.objects.filter(
+                    account_code='4110'  # Store Sales Revenue
+                ).first()
+                
+                if not revenue_account:
+                    # Create store sales revenue account if it doesn't exist
+                    revenue_account = ChartOfAccounts.objects.create(
+                        account_code='4110',
+                        account_name='Store Sales Revenue',
+                        account_type='revenue',
+                        account_category='store_revenue',
+                        is_active=True
+                    )
+                
+                # Get cash account
+                cash_account = ChartOfAccounts.objects.filter(
+                    account_code='1000'  # Cash
+                ).first()
+                
+                if revenue_account and cash_account:
+                    # Credit Revenue
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=revenue_account,
+                        entry_type='credit',
+                        amount=store_sale.total_amount,
+                        description=f"Store revenue from sale {store_sale.id}"
+                    )
+                    
+                    # Debit Cash
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=cash_account,
+                        entry_type='debit',
+                        amount=store_sale.total_amount,
+                        description=f"Cash received for store sale {store_sale.id}"
+                    )
+                    
+                    # Create sales revenue record
+                    SalesRevenue.objects.create(
+                        store_sale=store_sale,
+                        journal_entry=journal_entry,
+                        amount=store_sale.total_amount
+                    )
+                    
+                    print(f"Created journal entry for store sale {store_sale.id}: {journal_entry.entry_number}")
+                    return journal_entry
+                    
+        except Exception as e:
+            print(f"Error creating store sale journal entry: {e}")
+            return None
+
+    @staticmethod
+    def process_pending_sales():
+        """Process all pending sales and create journal entries"""
+        try:
+            from production.models import ServiceSale, StoreSale
+            
+            # Process service sales
+            pending_service_sales = ServiceSale.objects.filter(
+                paid_status='paid'
+            ).exclude(
+                accounting_entries__isnull=False
+            )
+            
+            service_sales_processed = 0
+            for service_sale in pending_service_sales:
+                # Use store manager or system user
+                user = getattr(service_sale.store, 'manager', None)
+                if not user:
+                    # Create a system user if no manager
+                    from django.contrib.auth.models import User
+                    user, created = User.objects.get_or_create(
+                        username='system',
+                        defaults={'first_name': 'System', 'last_name': 'User'}
+                    )
+                
+                if AccountingService.create_service_sale_journal_entry(service_sale, user):
+                    service_sales_processed += 1
+            
+            # Process store sales
+            pending_store_sales = StoreSale.objects.filter(
+                payment_status='paid'
+            ).exclude(
+                accounting_entries__isnull=False
+            )
+            
+            store_sales_processed = 0
+            for store_sale in pending_store_sales:
+                # Use customer user or system user
+                user = getattr(store_sale.customer, 'user', None)
+                if not user:
+                    # Create a system user if no customer user
+                    from django.contrib.auth.models import User
+                    user, created = User.objects.get_or_create(
+                        username='system',
+                        defaults={'first_name': 'System', 'last_name': 'User'}
+                    )
+                
+                if AccountingService.create_store_sale_journal_entry(store_sale, user):
+                    store_sales_processed += 1
+            
+            return {
+                'service_sales_processed': service_sales_processed,
+                'store_sales_processed': store_sales_processed
+            }
+            
+        except Exception as e:
+            print(f"Error processing pending sales: {e}")
+            return None
+
+    @staticmethod
     def create_store_budget(store, account_code, amount, period, start_date, end_date, user, description=""):
         """Create budget for a specific store"""
         try:

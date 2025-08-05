@@ -11,7 +11,7 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-0 text-white fw-bold">
+                    <h1 class="h3 mb-0 fw-bold">
                         <i class="fas fa-list-ol me-2"></i>
                         Chart of Accounts
                     </h1>
@@ -39,8 +39,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ accounts.count }}</h5>
-                            <p class="text-white-50 mb-0">Total Accounts</p>
+                            <h5 class="fw-bold mb-1">{{ accounts.count }}</h5>
+                            <p class="mb-0">Total Accounts</p>
                         </div>
                     </div>
                 </div>
@@ -57,8 +57,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ active_accounts }}</h5>
-                            <p class="text-white-50 mb-0">Active Accounts</p>
+                            <h5 class="fw-bold mb-1">{{ active_accounts }}</h5>
+                            <p class="mb-0">Active Accounts</p>
                         </div>
                     </div>
                 </div>
@@ -75,8 +75,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ account_types }}</h5>
-                            <p class="text-white-50 mb-0">Account Types</p>
+                            <h5 class="fw-bold mb-1">{{ account_types }}</h5>
+                            <p class="mb-0">Account Types</p>
                         </div>
                     </div>
                 </div>
@@ -93,8 +93,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ parent_accounts }}</h5>
-                            <p class="text-white-50 mb-0">Parent Accounts</p>
+                                <h5 class="fw-bold mb-1">{{ parent_accounts }}</h5>
+                            <p class="mb-0">Parent Accounts</p>
                         </div>
                     </div>
                 </div>
@@ -106,7 +106,7 @@
     {% for account_type, accounts_list in account_groups.items %}
     <div class="card shadow border-0 mb-4" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
         <div class="card-header bg-transparent border-0">
-            <h5 class="text-white fw-bold mb-0">
+            <h5 class="fw-bold mb-0">
                 <i class="fas fa-folder me-2"></i>
                 {{ account_type|title }} Accounts
                 <span class="badge bg-primary bg-opacity-25 ms-2">{{ accounts_list|length }}</span>
@@ -117,18 +117,18 @@
                 <table class="table table-hover mb-0">
                     <thead style="background: rgba(255, 255, 255, 0.1);">
                         <tr>
-                            <th class="text-white border-0">Account Code</th>
-                            <th class="text-white border-0">Account Name</th>
-                            <th class="text-white border-0">Category</th>
-                            <th class="text-white border-0 text-end">Balance</th>
-                            <th class="text-white border-0 text-center">Status</th>
-                            <th class="text-white border-0 text-center">Actions</th>
+                            <th class="border-0">Account Code</th>
+                            <th class="border-0">Account Name</th>
+                            <th class="border-0">Category</th>
+                            <th class="border-0 text-end">Balance</th>
+                            <th class="border-0 text-center">Status</th>
+                            <th class="border-0 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for account in accounts_list %}
                         <tr style="border-color: rgba(255, 255, 255, 0.1);">
-                            <td class="text-white">
+                            <td>
                                 <div class="d-flex align-items-center">
                                     <div class="bg-primary bg-opacity-25 rounded-circle p-2 me-3">
                                         <i class="fas fa-hashtag text-primary"></i>
@@ -136,7 +136,7 @@
                                     <div class="fw-bold">{{ account.account_code }}</div>
                                 </div>
                             </td>
-                            <td class="text-white">
+                            <td>
                                 <div>
                                     <div class="fw-bold">{{ account.account_name }}</div>
                                     {% if account.description %}
@@ -144,12 +144,12 @@
                                     {% endif %}
                                 </div>
                             </td>
-                            <td class="text-white">
+                            <td>
                                 <span class="badge bg-info bg-opacity-25 text-white">
                                     {{ account.get_account_category_display }}
                                 </span>
                             </td>
-                            <td class="text-white text-end">
+                            <td class="text-end">
                                 <div class="fw-bold {% if account.balance < 0 %}text-danger{% elif account.balance > 0 %}text-success{% endif %}">
                                     {{ account.balance|floatformat:2|intcomma }}
                                 </div>
@@ -170,7 +170,7 @@
                             </td>
                             <td class="text-center">
                                 <div class="dropdown">
-                                    <button class="btn btn-link text-white p-0" type="button" data-bs-toggle="dropdown">
+                                    <button class="btn btn-link p-0" type="button" data-bs-toggle="dropdown">
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <ul class="dropdown-menu">
@@ -193,7 +193,7 @@
                         {% empty %}
                         <tr>
                             <td colspan="6" class="text-center py-4">
-                                <div class="text-light">
+                                <div>
                                     <i class="fas fa-folder-open fa-2x mb-3"></i>
                                     <p>No {{ account_type|title }} accounts found</p>
                                 </div>
@@ -211,8 +211,8 @@
             <div class="mb-3">
                 <i class="fas fa-list-ol fa-3x text-light"></i>
             </div>
-            <h5 class="text-white mb-2">No Chart of Accounts Found</h5>
-            <p class="text-light mb-3">Get started by creating your first account</p>
+            <h5 class="mb-2">No Chart of Accounts Found</h5>
+            <p class="mb-3">Get started by creating your first account</p>
             <a href="{% url 'accounts:chart_of_accounts_create' %}" class="btn btn-primary">
                 <i class="fas fa-plus me-2"></i>Create Account
             </a>
@@ -223,7 +223,7 @@
 
 <style>
 body {
-    background: linear-gradient(135deg, #2f5241 0%, #13241c 100%);
+    {% comment %} background: linear-gradient(135deg, #2f5241 0%, #13241c 100%); {% endcomment %}
     min-height: 100vh;
 }
 
@@ -237,7 +237,7 @@ body {
 }
 
 .table {
-    color: white;
+    {% comment %} color: white; {% endcomment %}
 }
 
 .table tbody tr:hover {

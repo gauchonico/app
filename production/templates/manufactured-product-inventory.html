@@ -233,9 +233,9 @@ if (typeof $.fn.DataTable === 'undefined') {
             <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Production Overview</h5>
         </div>
         <div class="ms-auto">
-            <a href="{% url 'create_production_order' %}" class="btn btn-primary btn-action me-2">
+            {% comment %} <a href="{% url 'create_production_order' %}" class="btn btn-primary btn-action me-2">
                 <i class="fas fa-plus me-1"></i>New Production
-            </a>
+            </a> {% endcomment %}
             <a href="{% url 'manufacturedProductList' %}" class="btn btn-info btn-action me-2">
                 <i class="fas fa-list me-1"></i>Production History
             </a>
@@ -263,7 +263,7 @@ if (typeof $.fn.DataTable === 'undefined') {
         <div class="stats-card success">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="stats-number">{{ total_quantity|floatformat:0 }}</div>
+                    <div class="stats-number">{{ total_quantity|floatformat:0|intcomma }}</div>
                     <div class="stats-label">Total Units</div>
                 </div>
                 <i class="fas fa-layer-group fa-2x opacity-75"></i>
@@ -274,10 +274,10 @@ if (typeof $.fn.DataTable === 'undefined') {
         <div class="stats-card info">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="stats-number">{{ total_value|floatformat:0 }}</div>
+                    <div class="stats-number">{{ total_value|floatformat:0|intcomma }}</div>
                     <div class="stats-label">Total Value (UGX)</div>
                 </div>
-                <i class="fas fa-money-bill-wave fa-2x opacity-75"></i>
+                <i class="fas fa-money-bill-wave fa-1x opacity-75"></i>
             </div>
         </div>
     </div>
@@ -359,7 +359,7 @@ if (typeof $.fn.DataTable === 'undefined') {
                         {% for product in top_products %}
                         <tr>
                             <td>{{ product.product.product_name }}</td>
-                            <td><span class="badge bg-primary">{{ product.quantity }}</span></td>
+                            <td><span class="badge bg-primary">{{ product.quantity|intcomma }}</span></td>
                             <td><span class="badge bg-secondary">{{ product.batch_number }}</span></td>
                             <td>
                                 {% if product.quantity > 50 %}
@@ -406,7 +406,7 @@ if (typeof $.fn.DataTable === 'undefined') {
                         {% for product in expiring_products %}
                         <tr>
                             <td>{{ product.product.product_name }}</td>
-                            <td><span class="badge bg-warning">{{ product.quantity }}</span></td>
+                            <td><span class="badge bg-warning">{{ product.quantity|intcomma }}</span></td>
                             <td>{{ product.expiry_date|date:"M d, Y" }}</td>
                             <td>
                                 {% with days_left=product.expiry_date|timeuntil %}
@@ -450,7 +450,7 @@ if (typeof $.fn.DataTable === 'undefined') {
                         {% for batch in batch_distribution %}
                         <tr>
                             <td>{{ batch.batch_number }}</td>
-                            <td><span class="badge bg-primary">{{ batch.total_quantity }}</span></td>
+                            <td><span class="badge bg-primary">{{ batch.total_quantity|intcomma }}</span></td>
                             <td><span class="badge bg-info">{{ batch.product_count }}</span></td>
                         </tr>
                         {% empty %}
@@ -479,7 +479,7 @@ if (typeof $.fn.DataTable === 'undefined') {
                         {% for update in recent_updates %}
                         <tr>
                             <td>{{ update.product.product_name }}</td>
-                            <td><span class="badge bg-primary">{{ update.quantity }}</span></td>
+                            <td><span class="badge bg-primary">{{ update.quantity|intcomma }}</span></td>
                             <td>{{ update.last_updated|date:"M d, Y H:i" }}</td>
                         </tr>
                         {% empty %}
@@ -529,7 +529,7 @@ if (typeof $.fn.DataTable === 'undefined') {
                         </td>
                         <td>
                             <span class="badge {% if item.quantity > 50 %}bg-success{% elif item.quantity > 10 %}bg-primary{% elif item.quantity > 0 %}bg-warning{% else %}bg-danger{% endif %}">
-                                {{ item.quantity }} units
+                                {{ item.quantity|intcomma }} units
                             </span>
                         </td>
                         <td>

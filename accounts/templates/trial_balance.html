@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Trial Balance - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 fw-bold">
+                        <i class="fas fa-balance-scale me-2"></i>
+                        Trial Balance
+                    </h1>
+                    <p class="mb-0">Financial position as of selected period</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-calendar me-2"></i>
+                        Select Date Range
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="row g-3">
+                        {% csrf_token %}
+                        <div class="col-md-4">
+                            <label for="{{ form.start_date.id_for_label }}" class="form-label fw-bold">Start Date</label>
+                            {{ form.start_date }}
+                            {% if form.start_date.errors %}
+                                <div class="text-danger small">{{ form.start_date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.end_date.id_for_label }}" class="form-label fw-bold">End Date</label>
+                            {{ form.end_date }}
+                            {% if form.end_date.errors %}
+                                <div class="text-danger small">{{ form.end_date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if trial_balance_data %}
+    <!-- Trial Balance Summary -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ trial_balance_data|length }}</h4>
+                            <div>Active Accounts</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-list fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_debits|floatformat:0|intcomma }}</h4>
+                            <div>Total Debits</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-arrow-left fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_credits|floatformat:0|intcomma }}</h4>
+                            <div>Total Credits</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-arrow-right fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if balance_difference == 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ balance_difference|floatformat:0|intcomma }}</h4>
+                            <div>Balance Difference</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-balance-scale fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trial Balance Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Trial Balance Report
+                        {% if start_date and end_date %}
+                        <small class="text-muted">({{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }})</small>
+                        {% endif %}
+                    </h5>
+                    <div>
+                        <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-print me-2"></i>Print
+                        </button>
+                        <button onclick="exportToCSV()" class="btn btn-outline-success btn-sm ms-2">
+                            <i class="fas fa-download me-2"></i>Export CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="trialBalanceTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Account Code</th>
+                                    <th>Account Name</th>
+                                    <th>Account Type</th>
+                                    <th class="text-end">Debits</th>
+                                    <th class="text-end">Credits</th>
+                                    <th class="text-end">Balance</th>
+                                    <th class="text-center">Normal Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in trial_balance_data %}
+                                <tr>
+                                    <td>
+                                        <span class="fw-bold">{{ item.account.account_code }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">{{ item.account.account_name }}</div>
+                                        <small class="text-muted">{{ item.account.get_account_category_display }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if item.account.account_type == 'asset' %}bg-primary{% elif item.account.account_type == 'liability' %}bg-warning{% elif item.account.account_type == 'equity' %}bg-info{% elif item.account.account_type == 'revenue' %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ item.account.get_account_type_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end fw-bold">
+                                        {% if item.debits > 0 %}
+                                            UGX {{ item.debits|floatformat:0|intcomma }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold">
+                                        {% if item.credits > 0 %}
+                                            UGX {{ item.credits|floatformat:0|intcomma }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold {% if item.balance < 0 %}text-danger{% elif item.balance > 0 %}text-success{% endif %}">
+                                        {% if item.balance != 0 %}
+                                            UGX {{ item.balance|floatformat:0|intcomma }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if item.account.is_debit_balance %}bg-danger{% else %}bg-success{% endif %}">
+                                            {% if item.account.is_debit_balance %}Debit{% else %}Credit{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-info">
+                                <tr class="fw-bold">
+                                    <td colspan="3" class="text-end">TOTALS:</td>
+                                    <td class="text-end">UGX {{ total_debits|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">UGX {{ total_credits|floatformat:0|intcomma }}</td>
+                                    <td class="text-end {% if balance_difference != 0 %}text-danger{% endif %}">
+                                        UGX {{ balance_difference|floatformat:0|intcomma }}
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Balance Check -->
+                    {% if balance_difference == 0 %}
+                    <div class="alert alert-success mt-3">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Trial Balance is Balanced!
+                        </h6>
+                        <p class="mb-0">Total debits equal total credits. Your books are in balance.</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger mt-3">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Trial Balance is Out of Balance!
+                        </h6>
+                        <p class="mb-0">Total debits do not equal total credits. There is a difference of UGX {{ balance_difference|floatformat:0|intcomma }}. Please review your journal entries.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Data Message -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0 text-center py-5" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body">
+                    <i class="fas fa-balance-scale fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted mb-2">No Trial Balance Data</h4>
+                    <p class="text-muted mb-3">Select a date range and generate a trial balance report to see account balances.</p>
+                    <p class="text-muted small">The trial balance shows the balance of each account as of the selected period.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+@media print {
+    .btn, .card-header .btn {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+}
+</style>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('trialBalanceTable');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cols = row.querySelectorAll('td, th');
+        let csvRow = [];
+        
+        for (let j = 0; j < cols.length; j++) {
+            let text = cols[j].innerText.replace(/,/g, ';');
+            csvRow.push('"' + text + '"');
+        }
+        
+        csv.push(csvRow.join(','));
+    }
+    
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'trial_balance_{{ start_date|date:"Y-m-d" }}_to_{{ end_date|date:"Y-m-d" }}.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+</script>
+{% endblock %} 

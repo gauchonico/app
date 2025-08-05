@@ -11,7 +11,7 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-0 text-white fw-bold">
+                    <h1 class="h3 mb-0 fw-bold">
                         <i class="fas fa-building me-2"></i>
                         Departments Management
                     </h1>
@@ -39,8 +39,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ departments.count }}</h5>
-                            <p class="text-white-50 mb-0">Total Departments</p>
+                            <h5 class="fw-bold mb-1">{{ departments.count }}</h5>
+                            <p class="mb-0">Total Departments</p>
                         </div>
                     </div>
                 </div>
@@ -57,8 +57,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ total_budget|floatformat:0 }}</h5>
-                            <p class="text-white-50 mb-0">Total Budget</p>
+                            <h5 class="fw-bold mb-1">{{ total_budget|floatformat:0 }}</h5>
+                            <p class="mb-0">Total Budget</p>
                         </div>
                     </div>
                 </div>
@@ -75,8 +75,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ total_spent|floatformat:0 }}</h5>
-                            <p class="text-white-50 mb-0">Total Spent</p>
+                            <h5 class="fw-bold mb-1">{{ total_spent|floatformat:0 }}</h5>
+                            <p class="mb-0">Total Spent</p>
                         </div>
                     </div>
                 </div>
@@ -93,8 +93,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ remaining_budget|floatformat:0 }}</h5>
-                            <p class="text-white-50 mb-0">Remaining Budget</p>
+                            <h5 class="fw-bold mb-1">{{ remaining_budget|floatformat:0 }}</h5>
+                            <p class="mb-0">Remaining Budget</p>
                         </div>
                     </div>
                 </div>
@@ -110,7 +110,7 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
-                            <h5 class="card-title text-white fw-bold mb-1">
+                            <h5 class="card-title fw-bold mb-1">
                                 <i class="fas fa-building me-2"></i>
                                 {{ department.name }}
                             </h5>
@@ -143,16 +143,16 @@
                     <div class="bg-dark bg-opacity-25 rounded p-3 mb-3">
                         <div class="row text-center">
                             <div class="col-4">
-                                <h6 class="text-white fw-bold mb-1">{{ department.total_budget|floatformat:0 }}</h6>
-                                <small class="text-light">Budget</small>
+                                <h6 class="fw-bold mb-1">{{ department.total_budget|floatformat:0 }}</h6>
+                                <small class="">Budget</small>
                             </div>
                             <div class="col-4">
-                                <h6 class="text-white fw-bold mb-1">{{ department.total_spent|floatformat:0 }}</h6>
-                                <small class="text-light">Spent</small>
+                                <h6 class="fw-bold mb-1">{{ department.total_spent|floatformat:0 }}</h6>
+                                <small class="">Spent</small>
                             </div>
                             <div class="col-4">
-                                <h6 class="text-white fw-bold mb-1">{{ department.remaining_budget|floatformat:0 }}</h6>
-                                <small class="text-light">Remaining</small>
+                                <h6 class="fw-bold mb-1">{{ department.remaining_budget|floatformat:0 }}</h6>
+                                <small class="">Remaining</small>
                             </div>
                         </div>
                     </div>
@@ -222,7 +222,7 @@
 
 <style>
 body {
-    background: linear-gradient(135deg, #2f5241 0%, #13241c 100%);
+    
     min-height: 100vh;
 }
 

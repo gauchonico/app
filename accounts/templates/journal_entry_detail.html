@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Journal Entry Detail - POS Magic{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-4">
+        <div>
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'accounts:journal_entry_list' %}">ACCOUNTING</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'accounts:journal_entry_list' %}">JOURNAL ENTRIES</a></li>
+                <li class="breadcrumb-item active">DETAIL</li>
+            </ul>
+            <h1 class="page-header mb-0">
+                Journal Entry: {{ entry.entry_number|default:"N/A" }}
+            </h1>
+        </div>
+        
+        <div class="ms-auto">
+            <div class="btn-group">
+                {% if not entry.is_posted %}
+                <a href="{% url 'accounts:journal_entry_update' entry.pk %}" class="btn btn-outline-warning me-2">
+                    <i class="fas fa-edit me-2"></i>Edit Entry
+                </a>
+                <form method="post" action="{% url 'accounts:journal_entry_post' entry.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-success me-2">
+                        <i class="fas fa-check me-2"></i>Post Entry
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{% url 'accounts:journal_entry_list' %}" class="btn btn-outline-theme">
+                    <i class="fas fa-arrow-left me-2"></i>Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journal Entry Details -->
+    <div class="row mb-4">
+        <div class="col-xl-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-invoice me-2"></i>
+                        Journal Entry Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Entry Number:</td>
+                                    <td>{{ entry.entry_number|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Date:</td>
+                                    <td>{{ entry.date|date:"F d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Entry Type:</td>
+                                    <td>
+                                        <span class="badge {% if entry.entry_type == 'sales' %}bg-success{% elif entry.entry_type == 'production' %}bg-danger{% elif entry.entry_type == 'purchase' %}bg-warning{% elif entry.entry_type == 'system' %}bg-info{% else %}bg-primary{% endif %}">
+                                            {{ entry.get_entry_type_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Department:</td>
+                                    <td>{{ entry.department.name|default:"Not assigned" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Status:</td>
+                                    <td>
+                                        {% if entry.is_posted %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Posted
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-edit me-1"></i>Draft
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Reference:</td>
+                                    <td>{{ entry.reference|default:"No reference" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Created By:</td>
+                                    <td>{{ entry.created_by.get_full_name|default:entry.created_by.username }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Created At:</td>
+                                    <td>{{ entry.created_at|date:"F d, Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="fw-bold">Description:</h6>
+                            <p class="text-muted">{{ entry.description }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calculator me-2"></i>
+                        Entry Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="border-end">
+                                <h4 class="text-primary mb-1">UGX {{ entry.total_debits|floatformat:0|intcomma }}</h4>
+                                <small class="text-muted">Total Debits</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-success mb-1">UGX {{ entry.total_credits|floatformat:0|intcomma }}</h4>
+                            <small class="text-muted">Total Credits</small>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        {% if entry.is_balanced %}
+                        <span class="badge bg-success fs-6">
+                            <i class="fas fa-check-circle me-1"></i>Balanced
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger fs-6">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Not Balanced
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Records Section -->
+    {% if entry.has_related_records %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-link me-2"></i>
+                        Related Production & Sales Records
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for record in entry.get_related_records %}
+                        <div class="col-lg-4 col-md-6 mb-3">
+                            <div class="card border-{{ record.color }}">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="flex-shrink-0">
+                                            <i class="{{ record.icon }} fa-2x text-{{ record.color }}"></i>
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">{{ record.type|title }}</h6>
+                                            <p class="text-muted mb-0">
+                                                {% if record.type == 'requisition' %}
+                                                    {{ record.record.requisition_no|default:record.record.id }}
+                                                {% elif record.type == 'service_sale' %}
+                                                    {{ record.record.service_sale_number|default:record.record.id }}
+                                                {% elif record.type == 'store_sale' %}
+                                                    Store Sale #{{ record.record.id }}
+                                                {% elif record.type == 'payment_voucher' %}
+                                                    {{ record.record.voucher_number|default:record.record.id }}
+                                                {% elif record.type == 'store_transfer' %}
+                                                    Transfer #{{ record.record.id }}
+                                                {% elif record.type == 'manufacturing' %}
+                                                    Batch #{{ record.record.batch_number|default:record.record.id }}
+                                                {% else %}
+                                                    #{{ record.record.id }}
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="fw-bold text-{{ record.color }}">
+                                            UGX {{ record.amount|floatformat:0|intcomma }}
+                                        </span>
+                                        {% if record.record and record.record.pk %}
+                                            <a href="{% url record.url_name record.url_param %}" 
+                                               class="btn btn-sm btn-outline-{{ record.color }}">
+                                                <i class="fas fa-external-link-alt me-1"></i>View Record
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted small">Record not available</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Journal Entry Lines -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Journal Entry Lines
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in entry.entries.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ line.account.account_code }}</strong><br>
+                                        <small class="text-muted">{{ line.account.account_name }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if line.entry_type == 'debit' %}bg-primary{% else %}bg-success{% endif %}">
+                                            {{ line.get_entry_type_display }}
+                                        </span>
+                                    </td>
+                                    <td class="fw-bold">UGX {{ line.amount|floatformat:0|intcomma }}</td>
+                                    <td>{{ line.description|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+</style>
+{% endblock %} 

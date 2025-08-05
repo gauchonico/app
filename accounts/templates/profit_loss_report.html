@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Profit & Loss Report - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 fw-bold">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Profit & Loss Report
+                    </h1>
+                    <p class="mb-0">Revenue, expenses and net profit/loss for selected period</p>
+                </div>
+                <div>
+                    <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-calendar me-2"></i>
+                        Select Date Range
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="row g-3">
+                        {% csrf_token %}
+                        <div class="col-md-4">
+                            <label for="{{ form.start_date.id_for_label }}" class="form-label fw-bold">Start Date</label>
+                            {{ form.start_date }}
+                            {% if form.start_date.errors %}
+                                <div class="text-danger small">{{ form.start_date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.end_date.id_for_label }}" class="form-label fw-bold">End Date</label>
+                            {{ form.end_date }}
+                            {% if form.end_date.errors %}
+                                <div class="text-danger small">{{ form.end_date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if revenue or expenses %}
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ revenue|floatformat:0|intcomma }}</h4>
+                            <div>Total Revenue</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-arrow-up fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ expenses|floatformat:0|intcomma }}</h4>
+                            <div>Total Expenses</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-arrow-down fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if net_income >= 0 %}bg-primary{% else %}bg-warning{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ net_income|floatformat:0|intcomma }}</h4>
+                            <div>{% if net_income >= 0 %}Net Profit{% else %}Net Loss{% endif %}</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-coins fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ profit_margin|floatformat:1 }}%</h4>
+                            <div>Profit Margin</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-percentage fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profit & Loss Statement -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>
+                        Profit & Loss Statement
+                        {% if start_date and end_date %}
+                        <small class="text-muted">({{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }})</small>
+                        {% endif %}
+                    </h5>
+                    <div>
+                        <button onclick="window.print()" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-print me-2"></i>Print
+                        </button>
+                        <button onclick="exportToCSV()" class="btn btn-outline-success btn-sm ms-2">
+                            <i class="fas fa-download me-2"></i>Export CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-borderless" id="profitLossTable">
+                            <tbody>
+                                <!-- Revenue Section -->
+                                <tr class="table-success">
+                                    <td colspan="2" class="fw-bold fs-5">
+                                        <i class="fas fa-arrow-up me-2"></i>REVENUE
+                                    </td>
+                                    <td class="text-end fw-bold fs-5">UGX {{ revenue|floatformat:0|intcomma }}</td>
+                                </tr>
+                                
+                                {% if revenue_breakdown %}
+                                    {% for item in revenue_breakdown %}
+                                    <tr>
+                                        <td class="ps-4">{{ item.account_name }}</td>
+                                        <td class="text-muted">{{ item.account_code }}</td>
+                                        <td class="text-end">UGX {{ item.amount|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td class="ps-4">Service Revenue</td>
+                                        <td class="text-muted">4000</td>
+                                        <td class="text-end">UGX {{ revenue|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                {% endif %}
+                                
+                                <tr class="table-success">
+                                    <td colspan="2" class="fw-bold">Total Revenue</td>
+                                    <td class="text-end fw-bold">UGX {{ revenue|floatformat:0|intcomma }}</td>
+                                </tr>
+
+                                <!-- Cost of Goods Sold Section -->
+                                {% if cost_of_goods_sold > 0 %}
+                                <tr class="table-warning">
+                                    <td colspan="2" class="fw-bold fs-5">
+                                        <i class="fas fa-industry me-2"></i>COST OF GOODS SOLD
+                                    </td>
+                                    <td class="text-end fw-bold fs-5">UGX {{ cost_of_goods_sold|floatformat:0|intcomma }}</td>
+                                </tr>
+                                
+                                {% if cogs_breakdown %}
+                                    {% for item in cogs_breakdown %}
+                                    <tr>
+                                        <td class="ps-4">{{ item.account_name }}</td>
+                                        <td class="text-muted">{{ item.account_code }}</td>
+                                        <td class="text-end">UGX {{ item.amount|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
+                                
+                                <tr class="table-warning">
+                                    <td colspan="2" class="fw-bold">Total Cost of Goods Sold</td>
+                                    <td class="text-end fw-bold">UGX {{ cost_of_goods_sold|floatformat:0|intcomma }}</td>
+                                </tr>
+
+                                <!-- Gross Profit -->
+                                <tr class="table-primary">
+                                    <td colspan="2" class="fw-bold fs-5">
+                                        <i class="fas fa-chart-line me-2"></i>GROSS PROFIT
+                                    </td>
+                                    <td class="text-end fw-bold fs-5">UGX {{ gross_profit|floatformat:0|intcomma }}</td>
+                                </tr>
+                                {% endif %}
+
+                                <!-- Operating Expenses Section -->
+                                <tr class="table-danger">
+                                    <td colspan="2" class="fw-bold fs-5">
+                                        <i class="fas fa-arrow-down me-2"></i>OPERATING EXPENSES
+                                    </td>
+                                    <td class="text-end fw-bold fs-5">UGX {{ operating_expenses|floatformat:0|intcomma }}</td>
+                                </tr>
+                                
+                                {% if expenses_breakdown %}
+                                    {% for category, items in expenses_breakdown.items %}
+                                    <tr class="table-light">
+                                        <td class="ps-4 fw-bold">{{ category|title }}</td>
+                                        <td></td>
+                                        <td class="text-end fw-bold">UGX {{ items.total|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                        {% for item in items.accounts %}
+                                        <tr>
+                                            <td class="ps-5">{{ item.account_name }}</td>
+                                            <td class="text-muted">{{ item.account_code }}</td>
+                                            <td class="text-end">UGX {{ item.amount|floatformat:0|intcomma }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td class="ps-4">Salaries and Wages</td>
+                                        <td class="text-muted">6000</td>
+                                        <td class="text-end">UGX {{ expenses|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                {% endif %}
+                                
+                                <tr class="table-danger">
+                                    <td colspan="2" class="fw-bold">Total Operating Expenses</td>
+                                    <td class="text-end fw-bold">UGX {{ operating_expenses|floatformat:0|intcomma }}</td>
+                                </tr>
+
+                                <!-- Net Income -->
+                                <tr class="{% if net_income >= 0 %}table-success{% else %}table-warning{% endif %}">
+                                    <td colspan="2" class="fw-bold fs-4">
+                                        <i class="fas fa-coins me-2"></i>
+                                        {% if net_income >= 0 %}NET PROFIT{% else %}NET LOSS{% endif %}
+                                    </td>
+                                    <td class="text-end fw-bold fs-4">UGX {{ net_income|floatformat:0|intcomma }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Performance Metrics -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title fw-bold">Performance Metrics</h6>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                <div class="h4 {% if profit_margin >= 20 %}text-success{% elif profit_margin >= 10 %}text-warning{% else %}text-danger{% endif %}">
+                                                    {{ profit_margin|floatformat:1 }}%
+                                                </div>
+                                                <small class="text-muted">Profit Margin</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-center">
+                                                <div class="h4 {% if expense_ratio <= 70 %}text-success{% elif expense_ratio <= 85 %}text-warning{% else %}text-danger{% endif %}">
+                                                    {{ expense_ratio|floatformat:1 }}%
+                                                </div>
+                                                <small class="text-muted">Expense Ratio</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title fw-bold">Key Insights</h6>
+                                    <ul class="list-unstyled mb-0">
+                                        {% if net_income >= 0 %}
+                                            <li class="text-success">
+                                                <i class="fas fa-check-circle me-2"></i>Profitable period
+                                            </li>
+                                        {% else %}
+                                            <li class="text-danger">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>Loss-making period
+                                            </li>
+                                        {% endif %}
+                                        {% if profit_margin >= 20 %}
+                                            <li class="text-success">
+                                                <i class="fas fa-star me-2"></i>Excellent profit margin
+                                            </li>
+                                        {% elif profit_margin >= 10 %}
+                                            <li class="text-warning">
+                                                <i class="fas fa-info-circle me-2"></i>Good profit margin
+                                            </li>
+                                        {% else %}
+                                            <li class="text-danger">
+                                                <i class="fas fa-exclamation-circle me-2"></i>Low profit margin
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- No Data Message -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0 text-center py-5" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                <div class="card-body">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted mb-2">No Profit & Loss Data</h4>
+                    <p class="text-muted mb-3">Select a date range and generate a profit & loss report to see financial performance.</p>
+                    <p class="text-muted small">The profit & loss statement shows revenue, expenses, and net profit/loss for the selected period.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+@media print {
+    .btn, .card-header .btn {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+    }
+}
+</style>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('profitLossTable');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cols = row.querySelectorAll('td');
+        let csvRow = [];
+        
+        for (let j = 0; j < cols.length; j++) {
+            let text = cols[j].innerText.replace(/,/g, ';');
+            csvRow.push('"' + text + '"');
+        }
+        
+        csv.push(csvRow.join(','));
+    }
+    
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'profit_loss_{{ start_date|date:"Y-m-d" }}_to_{{ end_date|date:"Y-m-d" }}.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+</script>
+{% endblock %} 

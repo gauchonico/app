@@ -233,7 +233,7 @@ urlpatterns = [
     path('price-alerts/toggle/<int:alert_id>/', views.toggle_alert, name='toggle_alert'),
     path('price-alerts/delete/<int:alert_id>/', views.delete_alert, name='delete_alert'),
     path('raw-material-prices/add/', views.add_raw_material_price, name='add_raw_material_price'),
-    # In urls.py
+    
 path('get-raw-material-price-list/', views.get_raw_material_price_list, name='get_raw_material_price_list'),
     path('update-price/<int:raw_material_id>/<int:supplier_id>/', 
          views.update_raw_material_price, 
@@ -254,4 +254,5 @@ path('get-raw-material-price-list/', views.get_raw_material_price_list, name='ge
     # Livara Main Store URLs
     path('livara-main-store/', views.livara_main_store_list, name='livara_main_store_list'),
     path('livara-main-store/<int:pk>/', views.livara_main_store_detail, name='livara_main_store_detail'),
+    path('all-supplier-prices/', views.all_supplier_prices, name='all_supplier_prices'),
 ]

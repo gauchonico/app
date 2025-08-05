@@ -5,251 +5,354 @@
 {% block title %}{{ department.name }} - Department Details{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-800 p-6">
+<div class="container-fluid">
     <!-- Page Header -->
-    <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 mb-8 shadow-2xl">
-        <div class="flex justify-between items-center flex-wrap gap-6">
-            <div class="flex items-center">
-                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mr-6">
-                    <i class="fas fa-building text-3xl text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                        {{ department.name }}
-                    </h1>
-                    <p class="text-xl text-gray-600">{{ department.code }}</p>
-                </div>
-            </div>
-            <div class="flex gap-3">
-                <a href="{% url 'accounts:department_update' department.pk %}" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 shadow-lg no-underline">
-                    <i class="fas fa-edit mr-2"></i>Edit
+    <div class="d-flex align-items-center mb-4">
+        <div>
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'accounts:department_list' %}">DEPARTMENTS</a></li>
+                <li class="breadcrumb-item active">{{ department.name|upper }}</li>
+            </ul>
+            <h1 class="page-header mb-0">
+                {{ department.name }}
+            </h1>
+            <p class="text-muted mb-0">{{ department.code }}</p>
+        </div>
+        
+        <div class="ms-auto">
+            <div class="btn-group">
+                <a href="{% url 'accounts:department_update' department.pk %}" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-edit me-2"></i>Edit Department
                 </a>
-                <a href="{% url 'accounts:budget_create' %}" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 shadow-lg no-underline">
-                    <i class="fas fa-plus mr-2"></i>Allocate Budget
+                <a href="{% url 'accounts:budget_create' %}" class="btn btn-outline-success">
+                    <i class="fas fa-plus me-2"></i>Allocate Budget
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- Department Information -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+    <!-- Department Information Cards -->
+    <div class="row mb-4">
         <!-- Department Details -->
-        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
-            <h2 class="text-2xl font-bold mb-6 text-blue-800">
-                <i class="fas fa-info-circle mr-2"></i>Department Information
-            </h2>
-            <div class="space-y-4">
-                <div>
-                    <div class="text-sm font-semibold text-gray-600">Department Name</div>
-                    <div class="text-lg font-bold">{{ department.name }}</div>
-                </div>
-                <div>
-                    <div class="text-sm font-semibold text-gray-600">Department Code</div>
-                    <div class="text-lg font-bold">{{ department.code }}</div>
-                </div>
-                <div>
-                    <div class="text-sm font-semibold text-gray-600">Manager</div>
-                    <div class="text-lg">{{ department.manager.get_full_name|default:"No manager assigned" }}</div>
-                </div>
-                <div>
-                    <div class="text-sm font-semibold text-gray-600">Status</div>
-                    <div class="text-lg">
-                        <span class="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                            {% if department.is_active %}Active{% else %}Inactive{% endif %}
-                        </span>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ department.name }}</h4>
+                            <div>Department Name</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-building fa-2x opacity-50"></i>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <div class="text-sm font-semibold text-gray-600">Created</div>
-                    <div class="text-lg">{{ department.created_at|date:"M d, Y" }}</div>
-                </div>
-                <div>
-                    <div class="text-sm font-semibold text-gray-600">Description</div>
-                    <div class="text-lg">{{ department.description|default:"No description provided" }}</div>
                 </div>
             </div>
         </div>
 
-        <!-- Budget Summary -->
-        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
-            <h2 class="text-2xl font-bold mb-6 text-green-800">
-                <i class="fas fa-chart-pie mr-2"></i>Budget Summary
-            </h2>
-            <div class="space-y-6">
-                <div class="text-center">
-                    <div class="text-4xl font-bold text-blue-600 mb-2">{{ total_budget|floatformat:0|intcomma }}</div>
-                    <div class="text-sm text-gray-600">Total Budget</div>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_budget|floatformat:0|intcomma }}</h4>
+                            <div>Total Budget</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-chart-pie fa-2x opacity-50"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold text-orange-600 mb-2">{{ total_spent|floatformat:0|intcomma }}</div>
-                    <div class="text-sm text-gray-600">Total Spent</div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_spent|floatformat:0|intcomma }}</h4>
+                            <div>Total Spent</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-chart-bar fa-2x opacity-50"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold text-green-600 mb-2">{{ remaining_budget|floatformat:0|intcomma }}</div>
-                    <div class="text-sm text-gray-600">Remaining</div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if remaining_budget < 0 %}bg-danger{% else %}bg-info{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ remaining_budget|floatformat:0|intcomma }}</h4>
+                            <div>Remaining Budget</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-wallet fa-2x opacity-50"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold text-purple-600 mb-2">{{ utilization_percentage|floatformat:1 }}%</div>
-                    <div class="text-sm text-gray-600">Utilization</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Details and Quick Actions -->
+    <div class="row mb-4">
+        <!-- Department Information -->
+        <div class="col-xl-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Department Information
+                    </h5>
                 </div>
-                <!-- Progress Bar -->
-                <div class="w-full bg-gray-200 rounded-full h-3">
-                    <div class="h-3 rounded-full {% if utilization_percentage > 90 %}bg-red-500{% elif utilization_percentage > 75 %}bg-orange-500{% else %}bg-green-500{% endif %}" 
-                         style="width: {{ utilization_percentage|floatformat:0 }}%"></div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold text-muted">Department Name:</td>
+                                    <td>{{ department.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-muted">Department Code:</td>
+                                    <td>{{ department.code }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-muted">Manager:</td>
+                                    <td>{{ department.manager.get_full_name|default:"No manager assigned" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold text-muted">Status:</td>
+                                    <td>
+                                        <span class="badge {% if department.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                            {% if department.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-muted">Created:</td>
+                                    <td>{{ department.created_at|date:"M d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-muted">Description:</td>
+                                    <td>{{ department.description|default:"No description provided" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Budget Utilization Progress -->
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Budget Utilization</span>
+                            <span class="badge {% if utilization_percentage > 90 %}bg-danger{% elif utilization_percentage > 75 %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ utilization_percentage|floatformat:1 }}%
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar {% if utilization_percentage > 90 %}bg-danger{% elif utilization_percentage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                 style="width: {{ utilization_percentage|floatformat:0 }}%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Quick Actions -->
-        <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
-            <h2 class="text-2xl font-bold mb-6 text-purple-800">
-                <i class="fas fa-bolt mr-2"></i>Quick Actions
-            </h2>
-            <div class="space-y-4">
-                <a href="{% url 'accounts:budget_create' %}" class="block w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 shadow-lg no-underline text-center">
-                    <i class="fas fa-plus mr-2"></i>Allocate Budget
-                </a>
-                <a href="{% url 'accounts:journal_entry_create' %}" class="block w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 shadow-lg no-underline text-center">
-                    <i class="fas fa-book mr-2"></i>Create Journal Entry
-                </a>
-                <a href="{% url 'accounts:budget_report' %}" class="block w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 shadow-lg no-underline text-center">
-                    <i class="fas fa-chart-bar mr-2"></i>Budget Report
-                </a>
-                <a href="{% url 'accounts:department_list' %}" class="block w-full bg-gradient-to-r from-gray-500 to-gray-600 text-white p-4 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 shadow-lg no-underline text-center">
-                    <i class="fas fa-arrow-left mr-2"></i>Back to Departments
-                </a>
+        <div class="col-xl-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'accounts:budget_create' %}" class="btn btn-outline-success">
+                            <i class="fas fa-plus me-2"></i>Allocate Budget
+                        </a>
+                        <a href="{% url 'accounts:journal_entry_create' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-book me-2"></i>Create Journal Entry
+                        </a>
+                        <a href="{% url 'accounts:budget_report' %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-bar me-2"></i>Budget Report
+                        </a>
+                        <a href="{% url 'accounts:department_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Departments
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Budgets Table -->
     {% if budgets %}
-    <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl mb-8">
-        <h2 class="text-2xl font-bold mb-6 text-blue-800">
-            <i class="fas fa-list mr-2"></i>Budget Allocations
-        </h2>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b-2 border-gray-200">
-                        <th class="text-left py-4 px-4 font-semibold">Account</th>
-                        <th class="text-left py-4 px-4 font-semibold">Period</th>
-                        <th class="text-right py-4 px-4 font-semibold">Budget Amount</th>
-                        <th class="text-right py-4 px-4 font-semibold">Spent</th>
-                        <th class="text-right py-4 px-4 font-semibold">Remaining</th>
-                        <th class="text-center py-4 px-4 font-semibold">Utilization</th>
-                        <th class="text-center py-4 px-4 font-semibold">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for budget in budgets %}
-                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td class="py-4 px-4">
-                            <div>
-                                <div class="font-semibold">{{ budget.account.account_name }}</div>
-                                <div class="text-sm text-gray-600">{{ budget.account.account_code }}</div>
-                            </div>
-                        </td>
-                        <td class="py-4 px-4">
-                            <div class="text-center">
-                                <span class="bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                                    {{ budget.get_period_display }}
-                                </span>
-                                <div class="text-sm text-gray-600 mt-1">
-                                    {{ budget.start_date|date:"M d" }} - {{ budget.end_date|date:"M d, Y" }}
-                                </div>
-                            </div>
-                        </td>
-                        <td class="py-4 px-4 text-right">
-                            <div class="font-semibold text-lg">{{ budget.amount|floatformat:0|intcomma }}</div>
-                        </td>
-                        <td class="py-4 px-4 text-right">
-                            <div class="font-semibold text-lg text-orange-600">{{ budget.spent_amount|floatformat:0|intcomma }}</div>
-                        </td>
-                        <td class="py-4 px-4 text-right">
-                            <div class="font-semibold text-lg {% if budget.remaining_amount < 0 %}text-red-600{% else %}text-green-600{% endif %}">
-                                {{ budget.remaining_amount|floatformat:0|intcomma }}
-                            </div>
-                        </td>
-                        <td class="py-4 px-4 text-center">
-                            <div class="flex items-center justify-center">
-                                <div class="w-full bg-gray-200 rounded-full h-3 mr-3">
-                                    <div class="h-3 rounded-full {% if budget.utilization_percentage > 90 %}bg-red-500{% elif budget.utilization_percentage > 75 %}bg-orange-500{% else %}bg-green-500{% endif %}" 
-                                         style="width: {{ budget.utilization_percentage|floatformat:0 }}%"></div>
-                                </div>
-                                <span class="text-sm font-semibold {% if budget.utilization_percentage > 90 %}text-red-600{% elif budget.utilization_percentage > 75 %}text-orange-600{% else %}text-green-600{% endif %}">
-                                    {{ budget.utilization_percentage|floatformat:1 }}%
-                                </span>
-                            </div>
-                        </td>
-                        <td class="py-4 px-4 text-center">
-                            <div class="flex gap-2 justify-center">
-                                <a href="{% url 'accounts:budget_update' budget.pk %}" 
-                                   class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-2 rounded-lg hover:transform hover:-translate-y-1 transition-all duration-300">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="{% url 'accounts:budget_delete' budget.pk %}" 
-                                   class="bg-gradient-to-r from-red-500 to-red-600 text-white p-2 rounded-lg hover:transform hover:-translate-y-1 transition-all duration-300"
-                                   onclick="return confirm('Are you sure you want to delete this budget?')">
-                                    <i class="fas fa-trash"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Budget Allocations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Account</th>
+                                    <th>Period</th>
+                                    <th class="text-end">Budget Amount</th>
+                                    <th class="text-end">Spent</th>
+                                    <th class="text-end">Remaining</th>
+                                    <th class="text-center">Utilization</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for budget in budgets %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">{{ budget.account.account_name }}</div>
+                                        <small class="text-muted">{{ budget.account.account_code }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">{{ budget.get_period_display }}</span>
+                                        <div class="text-muted small">{{ budget.start_date|date:"M d" }} - {{ budget.end_date|date:"M d, Y" }}</div>
+                                    </td>
+                                    <td class="text-end fw-bold">UGX {{ budget.amount|floatformat:0|intcomma }}</td>
+                                    <td class="text-end fw-bold text-warning">UGX {{ budget.spent_amount|floatformat:0|intcomma }}</td>
+                                    <td class="text-end fw-bold {% if budget.remaining_amount < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        UGX {{ budget.remaining_amount|floatformat:0|intcomma }}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div class="progress me-2" style="width: 60px; height: 6px;">
+                                                <div class="progress-bar {% if budget.utilization_percentage > 90 %}bg-danger{% elif budget.utilization_percentage > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     style="width: {{ budget.utilization_percentage|floatformat:0 }}%"></div>
+                                            </div>
+                                            <small class="fw-bold {% if budget.utilization_percentage > 90 %}text-danger{% elif budget.utilization_percentage > 75 %}text-warning{% else %}text-success{% endif %}">
+                                                {{ budget.utilization_percentage|floatformat:1 }}%
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'accounts:budget_update' budget.pk %}" 
+                                               class="btn btn-outline-primary" title="Edit Budget">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'accounts:budget_delete' budget.pk %}" 
+                                               class="btn btn-outline-danger" 
+                                               onclick="return confirm('Are you sure you want to delete this budget?')"
+                                               title="Delete Budget">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     {% else %}
-    <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl mb-8 text-center">
-        <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-chart-pie text-2xl text-white"></i>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-chart-pie fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted mb-2">No Budgets Allocated</h4>
+                    <p class="text-muted mb-3">This department doesn't have any budget allocations yet.</p>
+                    <a href="{% url 'accounts:budget_create' %}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Allocate First Budget
+                    </a>
+                </div>
+            </div>
         </div>
-        <h3 class="text-xl font-bold mb-2">No Budgets Allocated</h3>
-        <p class="text-gray-600 mb-4">This department doesn't have any budget allocations yet.</p>
-        <a href="{% url 'accounts:budget_create' %}" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:transform hover:-translate-y-1 transition-all duration-300 shadow-lg no-underline inline-flex items-center gap-2">
-            <i class="fas fa-plus"></i>
-            Allocate First Budget
-        </a>
     </div>
     {% endif %}
 
     <!-- Recent Journal Entries -->
     {% if recent_entries %}
-    <div class="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl">
-        <h2 class="text-2xl font-bold mb-6 text-purple-800">
-            <i class="fas fa-history mr-2"></i>Recent Journal Entries
-        </h2>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead>
-                    <tr class="border-b-2 border-gray-200">
-                        <th class="text-left py-4 px-4 font-semibold">Date</th>
-                        <th class="text-left py-4 px-4 font-semibold">Reference</th>
-                        <th class="text-left py-4 px-4 font-semibold">Description</th>
-                        <th class="text-right py-4 px-4 font-semibold">Amount</th>
-                        <th class="text-center py-4 px-4 font-semibold">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in recent_entries %}
-                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td class="py-4 px-4">{{ entry.date|date:"M d, Y" }}</td>
-                        <td class="py-4 px-4">{{ entry.reference|default:"-" }}</td>
-                        <td class="py-4 px-4">{{ entry.description|truncatechars:50 }}</td>
-                        <td class="py-4 px-4 text-right font-semibold">{{ entry.total_debits|floatformat:0|intcomma }}</td>
-                        <td class="py-4 px-4 text-center">
-                            <span class="bg-gradient-to-r {% if entry.is_posted %}from-green-500 to-green-600{% else %}from-yellow-500 to-yellow-600{% endif %} text-white px-3 py-1 rounded-full text-sm font-semibold">
-                                {% if entry.is_posted %}Posted{% else %}Draft{% endif %}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Journal Entries
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reference</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in recent_entries %}
+                                <tr>
+                                    <td>{{ entry.date|date:"M d, Y" }}</td>
+                                    <td>{{ entry.reference|default:"-" }}</td>
+                                    <td>{{ entry.description|truncatechars:50 }}</td>
+                                    <td class="text-end fw-bold">UGX {{ entry.total_debits|floatformat:0|intcomma }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if entry.is_posted %}bg-success{% else %}bg-warning{% endif %}">
+                                            {% if entry.is_posted %}Posted{% else %}Draft{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     {% endif %}
 </div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+</style>
 {% endblock %} 

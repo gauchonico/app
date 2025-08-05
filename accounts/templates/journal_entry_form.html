@@ -1,0 +1,403 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}
+    {% if object %}Edit Journal Entry{% else %}New Journal Entry{% endif %} - POS Magic
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-4">
+        <div>
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'accounts:journal_entry_list' %}">ACCOUNTING</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'accounts:journal_entry_list' %}">JOURNAL ENTRIES</a></li>
+                <li class="breadcrumb-item active">{% if object %}EDIT{% else %}NEW{% endif %}</li>
+            </ul>
+            <h1 class="page-header mb-0">
+                {% if object %}Edit Journal Entry{% else %}New Journal Entry{% endif %}
+            </h1>
+        </div>
+        
+        <div class="ms-auto">
+            <a href="{% url 'accounts:journal_entry_list' %}" class="btn btn-outline-theme">
+                <i class="fas fa-arrow-left me-2"></i>Back to List
+            </a>
+        </div>
+    </div>
+
+    <form method="post" id="journalEntryForm">
+        {% csrf_token %}
+        
+        <!-- Journal Entry Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-file-invoice me-2"></i>
+                            Journal Entry Details
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="{{ form.date.id_for_label }}" class="form-label">Date *</label>
+                                {{ form.date }}
+                                {% if form.date.errors %}
+                                    <div class="text-danger small">{{ form.date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="{{ form.entry_type.id_for_label }}" class="form-label">Entry Type *</label>
+                                {{ form.entry_type }}
+                                {% if form.entry_type.errors %}
+                                    <div class="text-danger small">{{ form.entry_type.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="{{ form.department.id_for_label }}" class="form-label">Department</label>
+                                {{ form.department }}
+                                {% if form.department.errors %}
+                                    <div class="text-danger small">{{ form.department.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="{{ form.reference.id_for_label }}" class="form-label">Reference</label>
+                                {{ form.reference }}
+                                {% if form.reference.errors %}
+                                    <div class="text-danger small">{{ form.reference.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <label for="{{ form.description.id_for_label }}" class="form-label">Description *</label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Journal Entry Lines -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Journal Entry Lines
+                        </h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="addLineBtn">
+                            <i class="fas fa-plus me-1"></i>Add Line
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="entryLinesTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 30%;">Account *</th>
+                                        <th style="width: 15%;">Type *</th>
+                                        <th style="width: 20%;">Amount *</th>
+                                        <th style="width: 25%;">Description</th>
+                                        <th style="width: 10%;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="entryLinesBody">
+                                    <!-- Entry lines will be added here dynamically -->
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-info">
+                                        <td colspan="2" class="text-end fw-bold">Total Debits:</td>
+                                        <td class="fw-bold" id="totalDebits">UGX 0.00</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                    <tr class="table-info">
+                                        <td colspan="2" class="text-end fw-bold">Total Credits:</td>
+                                        <td class="fw-bold" id="totalCredits">UGX 0.00</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                    <tr class="table-warning" id="balanceRow" style="display: none;">
+                                        <td colspan="2" class="text-end fw-bold">Balance:</td>
+                                        <td class="fw-bold text-danger" id="balanceAmount">UGX 0.00</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <button type="submit" class="btn btn-primary me-2" id="saveBtn">
+                            <i class="fas fa-save me-2"></i>Save Journal Entry
+                        </button>
+                        <a href="{% url 'accounts:journal_entry_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Production Integration Help -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Production Integration Guide
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Create Journal Entries from Production:</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-clipboard-list text-primary me-2"></i>
+                                    <strong>Requisitions:</strong> Create expense entries for raw material requests
+                                    <a href="{% url 'all_requisitions' %}" class="btn btn-sm btn-outline-primary ms-2">View</a>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-industry text-success me-2"></i>
+                                    <strong>Production Orders:</strong> Create cost entries for manufacturing
+                                    <a href="{% url 'productionList' %}" class="btn btn-sm btn-outline-success ms-2">View</a>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-money-bill-wave text-danger me-2"></i>
+                                    <strong>Payment Vouchers:</strong> Create expense entries for payments
+                                    <a href="{% url 'production_payment_vouchers' %}" class="btn btn-sm btn-outline-danger ms-2">View</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-primary">Create Journal Entries from Sales:</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-store text-info me-2"></i>
+                                    <strong>Store Sales:</strong> Create revenue entries for retail sales
+                                    <a href="{% url 'listStoreSales' %}" class="btn btn-sm btn-outline-info ms-2">View</a>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-concierge-bell text-warning me-2"></i>
+                                    <strong>Service Sales:</strong> Create revenue entries for services
+                                    <a href="{% url 'store_sale_service_invoice_list' %}" class="btn btn-sm btn-outline-warning ms-2">View</a>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-receipt text-secondary me-2"></i>
+                                    <strong>Receipts:</strong> Create cash entries for payments received
+                                    <a href="{% url 'all_payment_receipts_view' %}" class="btn btn-sm btn-outline-secondary ms-2">View</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Tip:</strong> Use the production and sales documents as references when creating journal entries. 
+                        This ensures proper tracking and integration between your operational and financial data.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden template for new entry lines -->
+<template id="entryLineTemplate">
+    <tr class="entry-line">
+        <td>
+            <select class="form-select account-select" name="lines[INDEX][account]" required>
+                <option value="">Select Account</option>
+                {% for account in accounts %}
+                    <option value="{{ account.id }}" data-type="{{ account.account_type }}">
+                        {{ account.account_code }} - {{ account.account_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <select class="form-select entry-type-select" name="lines[INDEX][entry_type]" required>
+                <option value="">Select Type</option>
+                <option value="debit">Debit</option>
+                <option value="credit">Credit</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" class="form-control amount-input" name="lines[INDEX][amount]" 
+                   step="0.01" min="0.01" placeholder="0.00" required>
+        </td>
+        <td>
+            <input type="text" class="form-control description-input" name="lines[INDEX][description]" 
+                   placeholder="Line description">
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<style>
+.entry-line:hover {
+    
+}
+
+.form-control, .form-select {
+    border-radius: 0.375rem;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    let lineIndex = 0;
+    
+    // Initialize with at least two lines (one debit, one credit)
+    addEntryLine();
+    addEntryLine();
+    
+    // Add new entry line
+    $('#addLineBtn').click(function() {
+        addEntryLine();
+    });
+    
+    // Remove entry line
+    $(document).on('click', '.remove-line-btn', function() {
+        if ($('.entry-line').length > 2) {
+            $(this).closest('.entry-line').remove();
+            updateLineIndexes();
+            calculateTotals();
+        } else {
+            alert('At least two lines are required for a journal entry.');
+        }
+    });
+    
+    // Calculate totals when amounts change
+    $(document).on('input', '.amount-input', function() {
+        calculateTotals();
+    });
+    
+    function addEntryLine() {
+        const template = document.getElementById('entryLineTemplate');
+        const clone = template.content.cloneNode(true);
+        
+        // Update index placeholders
+        $(clone).find('select, input').each(function() {
+            const name = $(this).attr('name');
+            if (name) {
+                $(this).attr('name', name.replace('INDEX', lineIndex));
+            }
+        });
+        
+        $('#entryLinesBody').append(clone);
+        lineIndex++;
+        updateLineIndexes();
+    }
+    
+    function updateLineIndexes() {
+        $('.entry-line').each(function(index) {
+            $(this).find('select, input').each(function() {
+                const name = $(this).attr('name');
+                if (name) {
+                    $(this).attr('name', name.replace(/\[\d+\]/, `[${index}]`));
+                }
+            });
+        });
+    }
+    
+    function calculateTotals() {
+        let totalDebits = 0;
+        let totalCredits = 0;
+        
+        $('.entry-line').each(function() {
+            const amount = parseFloat($(this).find('.amount-input').val()) || 0;
+            const entryType = $(this).find('.entry-type-select').val();
+            
+            if (entryType === 'debit') {
+                totalDebits += amount;
+            } else if (entryType === 'credit') {
+                totalCredits += amount;
+            }
+        });
+        
+        $('#totalDebits').text('UGX ' + totalDebits.toLocaleString('en-US', {minimumFractionDigits: 2}));
+        $('#totalCredits').text('UGX ' + totalCredits.toLocaleString('en-US', {minimumFractionDigits: 2}));
+        
+        const balance = totalDebits - totalCredits;
+        if (Math.abs(balance) > 0.01) {
+            $('#balanceRow').show();
+            $('#balanceAmount').text('UGX ' + balance.toLocaleString('en-US', {minimumFractionDigits: 2}));
+            $('#saveBtn').prop('disabled', true).addClass('btn-secondary').removeClass('btn-primary');
+        } else {
+            $('#balanceRow').hide();
+            $('#saveBtn').prop('disabled', false).addClass('btn-primary').removeClass('btn-secondary');
+        }
+    }
+    
+    // Form validation
+    $('#journalEntryForm').submit(function(e) {
+        const totalDebits = parseFloat($('#totalDebits').text().replace('UGX ', '').replace(',', '')) || 0;
+        const totalCredits = parseFloat($('#totalCredits').text().replace('UGX ', '').replace(',', '')) || 0;
+        
+        if (Math.abs(totalDebits - totalCredits) > 0.01) {
+            e.preventDefault();
+            alert('Journal entry must be balanced. Total debits must equal total credits.');
+            return false;
+        }
+        
+        if ($('.entry-line').length < 2) {
+            e.preventDefault();
+            alert('At least two lines are required for a journal entry.');
+            return false;
+        }
+        
+        // Validate that all required fields are filled
+        let isValid = true;
+        $('.entry-line').each(function() {
+            const account = $(this).find('.account-select').val();
+            const entryType = $(this).find('.entry-type-select').val();
+            const amount = $(this).find('.amount-input').val();
+            
+            if (!account || !entryType || !amount) {
+                isValid = false;
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Please fill in all required fields for each line.');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Journal Entries - POS Magic{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-4">
+        <div>
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="#">ACCOUNTING</a></li>
+                <li class="breadcrumb-item active">JOURNAL ENTRIES</li>
+            </ul>
+            <h1 class="page-header mb-0">
+                Journal Entries
+            </h1>
+        </div>
+        
+        <div class="ms-auto">
+            <a href="{% url 'accounts:journal_entry_create' %}" class="btn btn-outline-theme">
+                <i class="fas fa-plus me-2"></i>New Journal Entry
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ total_entries|default:"0" }}</h4>
+                            <div>Total Entries</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-file-invoice fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ posted_entries|default:"0" }}</h4>
+                            <div>Posted Entries</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ draft_entries|default:"0" }}</h4>
+                            <div>Draft Entries</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-edit fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_amount|floatformat:0|intcomma|default:"0" }}</h4>
+                            <div>Total Amount</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-coins fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Filter Journal Entries
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Date From</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Date To</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Entry Type</label>
+                            <select name="entry_type" class="form-select">
+                                <option value="">All Types</option>
+                                <option value="manual" {% if request.GET.entry_type == "manual" %}selected{% endif %}>Manual Entry</option>
+                                <option value="system" {% if request.GET.entry_type == "system" %}selected{% endif %}>System Generated</option>
+                                <option value="production" {% if request.GET.entry_type == "production" %}selected{% endif %}>Production Related</option>
+                                <option value="sales" {% if request.GET.entry_type == "sales" %}selected{% endif %}>Sales Related</option>
+                                <option value="purchase" {% if request.GET.entry_type == "purchase" %}selected{% endif %}>Purchase Related</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="posted" {% if request.GET.status == "posted" %}selected{% endif %}>Posted</option>
+                                <option value="draft" {% if request.GET.status == "draft" %}selected{% endif %}>Draft</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Department</label>
+                            <select name="department" class="form-select">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Search</label>
+                            <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request.GET.search }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-2"></i>Filter
+                            </button>
+                            <a href="{% url 'accounts:journal_entry_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production Integration Quick Links -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-link me-2"></i>
+                        Quick Access to Production & Sales
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-2">
+                            <a href="{% url 'all_requisitions' %}" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="fas fa-clipboard-list me-1"></i>Requisitions
+                            </a>
+                        </div>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-2">
+                            <a href="{% url 'productionList' %}" class="btn btn-sm btn-outline-success w-100">
+                                <i class="fas fa-industry me-1"></i>Production Orders
+                            </a>
+                        </div>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-2">
+                            <a href="{% url 'listStoreSales' %}" class="btn btn-sm btn-outline-info w-100">
+                                <i class="fas fa-store me-1"></i>Store Sales
+                            </a>
+                        </div>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-2">
+                            <a href="{% url 'store_sale_service_invoice_list' %}" class="btn btn-sm btn-outline-warning w-100">
+                                <i class="fas fa-concierge-bell me-1"></i>Service Sales
+                            </a>
+                        </div>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-2">
+                            <a href="{% url 'all_payment_receipts_view' %}" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="fas fa-receipt me-1"></i>Receipts
+                            </a>
+                        </div>
+                        <div class="col-lg-2 col-md-4 col-sm-6 mb-2">
+                            <a href="{% url 'production_payment_vouchers' %}" class="btn btn-sm btn-outline-danger w-100">
+                                <i class="fas fa-money-bill-wave me-1"></i>Payment Vouchers
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journal Entries Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Journal Entries
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="journalEntriesTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Entry #</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th>Department</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>References</th>
+                                    <th>Created By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in entries %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ entry.entry_number|default:"N/A" }}</strong>
+                                    </td>
+                                    <td>{{ entry.date|date:"M d, Y" }}</td>
+                                    <td>
+                                        <div class="fw-bold">{{ entry.description|truncatechars:40 }}</div>
+                                        {% if entry.reference %}
+                                        <small class="text-muted">{{ entry.reference }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if entry.entry_type == 'sales' %}bg-success{% elif entry.entry_type == 'production' %}bg-danger{% elif entry.entry_type == 'purchase' %}bg-warning{% elif entry.entry_type == 'system' %}bg-info{% else %}bg-primary{% endif %}">
+                                            {{ entry.get_entry_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if entry.department %}
+                                        <span class="badge bg-secondary">{{ entry.department.name }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">UGX {{ entry.total_debits|floatformat:0|intcomma }}</td>
+                                    <td>
+                                        {% if entry.is_posted %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Posted
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-warning">
+                                            <i class="fas fa-edit me-1"></i>Draft
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.has_related_records %}
+                                            {% for record in entry.get_related_records %}
+                                                {% if record.record and record.record.pk %}
+                                                    <a href="{% url record.url_name record.url_param %}" 
+                                                       class="btn btn-sm btn-outline-{{ record.color }} mb-1" 
+                                                       title="{{ record.type|title }}: {{ record.record }}">
+                                                        <i class="{{ record.icon }}"></i>
+                                                        {% if record.type == 'requisition' %}
+                                                            {{ record.record.requisition_no|default:record.record.id }}
+                                                        {% elif record.type == 'service_sale' %}
+                                                            {{ record.record.service_sale_number|default:record.record.id }}
+                                                        {% elif record.type == 'store_sale' %}
+                                                            #{{ record.record.id }}
+                                                        {% elif record.type == 'payment_voucher' %}
+                                                            {{ record.record.voucher_number|default:record.record.id }}
+                                                        {% else %}
+                                                            #{{ record.record.id }}
+                                                        {% endif %}
+                                                    </a>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ entry.created_by.get_full_name|default:entry.created_by.username }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'accounts:journal_entry_detail' entry.pk %}" class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if not entry.is_posted %}
+                                            <a href="{% url 'accounts:journal_entry_update' entry.pk %}" class="btn btn-outline-warning" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a href="{% url 'accounts:journal_entry_delete' entry.pk %}" class="btn btn-outline-danger" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center py-5">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No journal entries found matching your criteria.</p>
+                                        <a href="{% url 'accounts:journal_entry_create' %}" class="btn btn-primary">
+                                            <i class="fas fa-plus me-2"></i>Create First Entry
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Journal entries pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block js %}
+<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+
+<script>
+$(document).ready(function() {
+    $('#journalEntriesTable').DataTable({
+        responsive: true,
+        pageLength: 25,
+        order: [[1, 'desc']], // Sort by date descending
+        language: {
+            search: "Search entries:",
+            lengthMenu: "Show _MENU_ entries per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries"
+        }
+    });
+});
+</script>
+{% endblock %} 

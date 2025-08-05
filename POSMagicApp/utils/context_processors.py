@@ -73,6 +73,22 @@ def sidebar_menu(request):
     get_outstanding_po_payables = get_outstanding_payables_count()
     production_payment_vouchers = get_production_payment_voucher_count()
     store_sales_order_count = get_store_sales_order_count()
+    # Calculate total notifications for dropdowns
+    production_logistics_total = (
+        requisitions_count + 
+        lpo_count + 
+        get_outstanding_po_payables + 
+        production_payment_vouchers
+    )
+    
+    inventory_total = (
+        created_livara_store_orders + 
+        new_accessory_requests + 
+        internal_requisition_count
+    )
+    
+    sales_total = store_sales_order_count
+    
     sidebar_menu = [{
             'text': 'Navigation',
             'is_header': 1
@@ -497,7 +513,9 @@ def sidebar_menu(request):
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','view_pricing_groups','factoryInventory','pageCustomer']]  # Replace with your store manager menu names
             sidebar_menu.append({
                 'icon': 'bi bi-box-fill',
-                'text': 'Inventory',
+                'text': mark_safe(f'Inventory<span class="badge rounded-circle bg-danger">{inventory_total}</span>'
+                                if inventory_total > 0 else 'Inventory'
+                                ),
                 'children': [
                     {
                     'url': '/production/production-production-orders/',
@@ -662,7 +680,9 @@ def sidebar_menu(request):
             })
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
-                'text': 'Production Logistics',
+                'text': mark_safe(f'Production Logistics<span class="badge rounded-circle bg-danger">{production_logistics_total}</span>'
+                                if production_logistics_total > 0 else 'Production Logistics'
+                                ),
                 'children': [{
                     'url': '/production/all_requisitions',
                     'icon': 'bi bi-inboxes-fill',
@@ -718,7 +738,9 @@ def sidebar_menu(request):
             })
             sidebar_menu.append({
                 'icon': 'bi bi-box-seam',
-                'text': 'Sales',
+                'text': mark_safe(f'Sales<span class="badge rounded-circle bg-danger">{sales_total}</span>'
+                                if sales_total > 0 else 'Sales'
+                                ),
                 'children': [{
                     'url': '/production/finance_list_store_sales/',
                     'icon': 'bi bi-bounding-box-circles',
@@ -745,11 +767,18 @@ def sidebar_menu(request):
                         'icon':'bi bi-credit-card',
                         'text':'Receipt Payments',
                         'name':'payment_list'
+                    },{
+                        'url':'/accounts/process-pending-sales/',
+                        'icon':'bi bi-receipt',
+                        'text':'Process Pending Sales',
+                        'name':'process_pending_sales'
                     }]
             })
             sidebar_menu.append({
                 'icon': 'bi bi-box-seam',
-                'text': 'Inventory',
+                'text': mark_safe(f'Inventory<span class="badge rounded-circle bg-danger">{inventory_total}</span>'
+                                if inventory_total > 0 else 'Inventory'
+                                ),
                 'children': [{
                     'url': '/production/livara_main_store_inventory',
                     'icon': 'bi bi-box-fill',
@@ -872,7 +901,7 @@ def sidebar_menu(request):
                     'url': '/accounts/ledger-entries/',
                     'icon': 'bi bi-receipt',
                     'text': 'Ledger Entries',
-                    'name': 'ledger_entry_list',
+                    'name': 'ledger_entries',
                 }]
             })
         elif 'Production Manager' in group_names:
@@ -881,7 +910,9 @@ def sidebar_menu(request):
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests']]
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
-                'text': 'Production Logistics',
+                'text': mark_safe(f'Production Logistics<span class="badge rounded-circle bg-danger">{production_logistics_total}</span>'
+                                if production_logistics_total > 0 else 'Production Logistics'
+                                ),
                 'children': [{
                     'url': '/production/all_requisitions',
                     'icon': 'bi bi-inboxes-fill',

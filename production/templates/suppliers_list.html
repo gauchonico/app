@@ -70,7 +70,7 @@
 							<th class="border-top-0 pt-0 pb-2">#</th>
 							<th class="border-top-0 pt-0 pb-2">Full Names</th>
 							<th class="border-top-0 pt-0 pb-2">Company Name</th>
-							<th class="border-top-0 pt-0 pb-2">Supplies</th>
+							{% comment %} <th class="border-top-0 pt-0 pb-2">Supplies</th> {% endcomment %}
 							
 							<th class="border-top-0 pt-0 pb-2">Telephone No.</th>
 							
@@ -84,16 +84,16 @@
 							<td class="align-middle"><a href="{% url 'supplier_details' supplier.id %}">{{ supplier.name }}</a></td>
 							<td class="align-middle">{{ supplier.company_name }}</td>
 							
-							<td class="align-middle">
+							{% comment %} <td class="align-middle">
 								
 								<ul class="list-group">
 									{% for rawmaterial in supplier.supplied_raw_materials.all %}
-									  <li class="list-group-item">{{ rawmaterial.name }}</li>
+									  <li class="list-group-item">{{  }}</li>
 									{% empty %}
 									  <p class="text-danger">No raw materials supplied.</p>
 									{% endfor %}
 								  </ul>
-							</td>
+							</td> {% endcomment %}
 							<td class="align-middle">{{ supplier.contact_number }}</td>
 		
                             

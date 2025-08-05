@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Supplier Prices Per Rawmaterial{% endblock %}
+{% block css %}
+	
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+            <li class="breadcrumb-item active">ALL SUPPLIER PRICES</li>
+        </ul>
+        <h1 class="page-header mb-0">
+            All Supplier Prices
+        </h1>
+    </div>
+    
+    <div class="ms-auto mt-4">
+        <a href="{% url 'add_raw_material_price' %}" class="btn btn-outline-theme me-2">
+            <i class="fas fa-plus me-2"></i>Add New Raw Material Price
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards Row -->
+<div class="row mb-4">
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="card bg-success">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h4 class="mb-1">{{ current_prices|intcomma }}</h4>
+                        <div>Current Prices</div>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="card bg-warning">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h4 class="mb-1">{{ historical_prices|intcomma }}</h4>
+                        <div>Historical Prices</div>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-history fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="card bg-info">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">
+                            Min: UGX {{ price_stats.min_price|floatformat:0|intcomma }}<br>
+                            Max: UGX {{ price_stats.max_price|floatformat:0|intcomma }}<br>
+                            Avg: UGX {{ price_stats.avg_price|floatformat:0|intcomma }}
+                        </h6>
+                        <div>Price Stats</div>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fas fa-chart-bar fa-2x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Form Row -->
+<div class="row mb-4">
+    <div class="col-12">
+        <form method="get" class="row g-2">
+            <div class="col-md-3">
+                <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ search }}">
+            </div>
+            <div class="col-md-2">
+                <select name="supplier" class="form-select">
+                    <option value="">All Suppliers</option>
+                    {% for s in suppliers %}
+                    <option value="{{ s.id }}" {% if s.id|stringformat:"s" == selected_supplier|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="raw_material" class="form-select">
+                    <option value="">All Raw Materials</option>
+                    {% for rm in raw_materials %}
+                    <option value="{{ rm.id }}" {% if rm.id|stringformat:"s" == selected_raw_material|stringformat:"s" %}selected{% endif %}>{{ rm.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
+                <input type="number" step="0.01" name="min_price" class="form-control" placeholder="Min Price" value="{{ selected_min_price }}">
+            </div>
+            <div class="col-md-1">
+                <input type="number" step="0.01" name="max_price" class="form-control" placeholder="Max Price" value="{{ selected_max_price }}">
+            </div>
+            <div class="col-md-2">
+                <select name="price_status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="current" {% if selected_price_status == "current" %}selected{% endif %}>Current</option>
+                    <option value="historical" {% if selected_price_status == "historical" %}selected{% endif %}>Historical</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Table Row -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="supplierPricesTable" class="table table-striped table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>#</th>
+                                <th>Raw Material</th>
+                                <th>Supplier</th>
+                                <th>Price (UGX)</th>
+                                <th>Effective Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for material, price_list in grouped_prices.items %}
+                                {% for price in price_list %}
+                                    <tr>
+                                        <td>{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                                        <td>{{ price.raw_material.name }}</td>
+                                        <td>
+                                            {{ price.supplier.name }}<br>
+                                            <small class="text-muted">{{ price.supplier.company_name }}</small>
+                                        </td>
+                                        <td>UGX {{ price.price|floatformat:0|intcomma }}</td>
+                                        <td>{{ price.effective_date|date:"Y-m-d H:i" }}</td>
+                                        <td>
+                                            {% if price.is_current %}
+                                                <span class="badge bg-success">Current</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Historical</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'update_raw_material_price' price.raw_material.id price.supplier.id %}" class="btn btn-sm btn-outline-primary">Update</a>
+                                            <a href="{% url 'price_history' price.raw_material.id %}" class="btn btn-sm btn-outline-secondary">History</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <p class="text-muted">No supplier prices found matching your criteria.</p>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block outter_js %}
+<script>
+$(document).ready(function() {
+    $('#supplierPricesTable').DataTable({
+        responsive: true,
+        pageLength: 25,
+        order: [[4, 'desc']],
+        language: {
+            search: "Search prices:",
+            lengthMenu: "Show _MENU_ prices per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ prices"
+        }
+    });
+});
+</script>
+{% endblock %}

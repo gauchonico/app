@@ -57,12 +57,29 @@ def accounting_dashboard(request):
     # Get recent journal entries
     recent_entries = JournalEntry.objects.select_related('department').order_by('-created_at')[:10]
     
+    # Get additional statistics
+    departments_count = Department.objects.filter(is_active=True).count()
+    accounts_count = ChartOfAccounts.objects.filter(is_active=True).count()
+    periods_count = FinancialPeriod.objects.count()
+    
+    # Get current month entries count
+    current_month = timezone.now().month
+    current_year = timezone.now().year
+    monthly_entries_count = JournalEntry.objects.filter(
+        created_at__month=current_month,
+        created_at__year=current_year
+    ).count()
+    
     context = {
         'total_revenue': total_revenue,
         'total_expenses': total_expenses,
         'net_profit': net_profit,
         'cash_balance': cash_balance,
         'recent_entries': recent_entries,
+        'departments_count': departments_count,
+        'accounts_count': accounts_count,
+        'periods_count': periods_count,
+        'monthly_entries_count': monthly_entries_count,
     }
     
     return render(request, 'dashboard.html', context)
@@ -221,7 +238,7 @@ def department_detail(request, pk):
         'utilization_percentage': utilization_percentage,
         'recent_entries': recent_entries,
     }
-    return render(request, 'accounts/department_detail.html', context)
+    return render(request, 'department_detail.html', context)
 
 @login_required
 def budget_list(request):
@@ -292,8 +309,53 @@ def budget_delete(request, pk):
 
 @login_required
 def journal_entry_list(request):
-    """List journal entries with beautiful design"""
-    entries = JournalEntry.objects.select_related('department', 'created_by').all().order_by('-date', '-created_at')
+    """List journal entries with filtering and beautiful design"""
+    # Get filter parameters
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    entry_type = request.GET.get('entry_type')
+    status = request.GET.get('status')
+    department = request.GET.get('department')
+    search = request.GET.get('search')
+    
+    # Start with base queryset
+    entries = JournalEntry.objects.select_related('department', 'created_by').all()
+    
+    # Apply filters
+    if date_from:
+        entries = entries.filter(date__gte=date_from)
+    if date_to:
+        entries = entries.filter(date__lte=date_to)
+    if entry_type:
+        entries = entries.filter(entry_type=entry_type)
+    if status == 'posted':
+        entries = entries.filter(is_posted=True)
+    elif status == 'draft':
+        entries = entries.filter(is_posted=False)
+    if department:
+        entries = entries.filter(department_id=department)
+    if search:
+        entries = entries.filter(
+            Q(description__icontains=search) |
+            Q(reference__icontains=search) |
+            Q(entry_number__icontains=search)
+        )
+    
+    # Order by date and creation time
+    entries = entries.order_by('-date', '-created_at')
+    
+    # Calculate statistics
+    total_entries = JournalEntry.objects.count()
+    posted_entries = JournalEntry.objects.filter(is_posted=True).count()
+    draft_entries = JournalEntry.objects.filter(is_posted=False).count()
+    
+    # Calculate total amount from all entries
+    total_amount = JournalEntryLine.objects.aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0.00')
+    
+    # Get departments for filter dropdown
+    departments = Department.objects.filter(is_active=True).order_by('name')
     
     # Pagination
     paginator = Paginator(entries, 20)
@@ -303,24 +365,101 @@ def journal_entry_list(request):
     context = {
         'page_obj': page_obj,
         'entries': page_obj,
+        'total_entries': total_entries,
+        'posted_entries': posted_entries,
+        'draft_entries': draft_entries,
+        'total_amount': total_amount,
+        'departments': departments,
     }
     return render(request, 'journal_entry_list.html', context)
 
 @login_required
 def journal_entry_create(request):
-    """Create new journal entry"""
+    """Create new journal entry with dynamic lines"""
     if request.method == 'POST':
+        # Debug: Print POST data to understand what's being sent
+        print("POST data received:")
+        for key, value in request.POST.items():
+            print(f"  {key}: {value}")
+        
         form = JournalEntryForm(request.POST)
         if form.is_valid():
+            print("Form is valid, creating journal entry...")
             journal_entry = form.save(commit=False)
             journal_entry.created_by = request.user
             journal_entry.save()
-            messages.success(request, 'Journal entry created successfully!')
-            return redirect('accounts:journal_entry_detail', pk=journal_entry.pk)
+            print(f"Journal entry created with ID: {journal_entry.id}")
+            
+            # Process the dynamic entry lines
+            # The form sends data like lines[0][account], lines[0][entry_type], etc.
+            lines_created = False
+            index = 0
+            
+            while True:
+                account_key = f'lines[{index}][account]'
+                entry_type_key = f'lines[{index}][entry_type]'
+                amount_key = f'lines[{index}][amount]'
+                description_key = f'lines[{index}][description]'
+                
+                # Check if this line exists in the POST data
+                if account_key not in request.POST:
+                    print(f"Line {index} not found in POST data, stopping...")
+                    break
+                
+                account_id = request.POST.get(account_key)
+                entry_type = request.POST.get(entry_type_key)
+                amount = request.POST.get(amount_key)
+                description = request.POST.get(description_key, '')
+                
+                print(f"Processing line {index}: account={account_id}, type={entry_type}, amount={amount}")
+                
+                if account_id and entry_type and amount:
+                    try:
+                        account = ChartOfAccounts.objects.get(id=account_id)
+                        line = JournalEntryLine.objects.create(
+                            journal_entry=journal_entry,
+                            account=account,
+                            entry_type=entry_type,
+                            amount=amount,
+                            description=description
+                        )
+                        print(f"Created journal entry line: {line}")
+                        lines_created = True
+                    except (ChartOfAccounts.DoesNotExist, ValueError) as e:
+                        # Log the error but continue processing other lines
+                        print(f"Error creating journal entry line: {e}")
+                        continue
+                else:
+                    print(f"Line {index} missing required data: account_id={account_id}, entry_type={entry_type}, amount={amount}")
+                
+                index += 1
+            
+            if lines_created:
+                print("Journal entry created successfully with lines")
+                messages.success(request, 'Journal entry created successfully!')
+                return redirect('accounts:journal_entry_detail', pk=journal_entry.pk)
+            else:
+                # If no lines were created, delete the journal entry and show error
+                print("No lines were created, deleting journal entry")
+                journal_entry.delete()
+                messages.error(request, 'No valid entry lines were provided. Please add at least one debit and one credit line.')
+                return redirect('accounts:journal_entry_create')
+        else:
+            # Form is invalid, show errors
+            print("Form is invalid:")
+            for field, errors in form.errors.items():
+                print(f"  {field}: {errors}")
+            messages.error(request, 'Please correct the errors below.')
     else:
         form = JournalEntryForm()
     
-    context = {'form': form}
+    # Get all active accounts for the dropdown
+    accounts = ChartOfAccounts.objects.filter(is_active=True).order_by('account_code')
+    
+    context = {
+        'form': form,
+        'accounts': accounts,
+    }
     return render(request, 'journal_entry_form.html', context)
 
 @login_required
@@ -387,6 +526,8 @@ def trial_balance(request):
             # Generate trial balance
             accounts = ChartOfAccounts.objects.all()
             trial_balance_data = []
+            total_debits = Decimal('0.00')
+            total_credits = Decimal('0.00')
             
             for account in accounts:
                 debits = JournalEntryLine.objects.filter(
@@ -402,18 +543,26 @@ def trial_balance(request):
                 ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
                 
                 if debits > 0 or credits > 0:
+                    balance = debits - credits
                     trial_balance_data.append({
                         'account': account,
                         'debits': debits,
                         'credits': credits,
-                        'balance': debits - credits
+                        'balance': balance
                     })
+                    total_debits += debits
+                    total_credits += credits
+            
+            balance_difference = total_debits - total_credits
             
             context = {
                 'form': form,
                 'trial_balance_data': trial_balance_data,
                 'start_date': start_date,
                 'end_date': end_date,
+                'total_debits': total_debits,
+                'total_credits': total_credits,
+                'balance_difference': balance_difference,
             }
             return render(request, 'trial_balance.html', context)
     else:
@@ -431,29 +580,151 @@ def profit_loss_report(request):
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
             
-            # Calculate revenue
-            revenue = JournalEntryLine.objects.filter(
+            # Calculate revenue from journal entries
+            revenue_entries = JournalEntryLine.objects.filter(
                 account__account_type='revenue',
                 entry_type='credit',
                 journal_entry__date__range=[start_date, end_date]
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            ).select_related('account')
             
-            # Calculate expenses
-            expenses = JournalEntryLine.objects.filter(
-                account__account_type='expense',
+            revenue_from_journal = revenue_entries.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # Calculate revenue from paid service sales (not yet in journal entries)
+            try:
+                from production.models import ServiceSale
+                service_sales_revenue = ServiceSale.objects.filter(
+                    paid_status='paid',
+                    sale_date__date__range=[start_date, end_date]
+                ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+            except:
+                service_sales_revenue = Decimal('0.00')
+            
+            # Calculate revenue from paid store sales (not yet in journal entries)
+            try:
+                from production.models import StoreSale
+                store_sales_revenue = StoreSale.objects.filter(
+                    payment_status='paid',
+                    sale_date__date__range=[start_date, end_date]
+                ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+            except:
+                store_sales_revenue = Decimal('0.00')
+            
+            # Total revenue from all sources
+            revenue = revenue_from_journal + service_sales_revenue + store_sales_revenue
+            
+            # Calculate cost of goods sold
+            cogs_entries = JournalEntryLine.objects.filter(
+                account__account_category='cost_of_goods_sold',
                 entry_type='debit',
                 journal_entry__date__range=[start_date, end_date]
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            ).select_related('account')
             
+            cost_of_goods_sold = cogs_entries.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # Calculate operating expenses
+            operating_expense_entries = JournalEntryLine.objects.filter(
+                account__account_type='expense',
+                account__account_category__in=['operating_expense', 'administrative_expense', 'financial_expense'],
+                entry_type='debit',
+                journal_entry__date__range=[start_date, end_date]
+            ).select_related('account')
+            
+            operating_expenses = operating_expense_entries.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            
+            # Total expenses
+            expenses = cost_of_goods_sold + operating_expenses
+            
+            # Calculate net income
+            gross_profit = revenue - cost_of_goods_sold
             net_income = revenue - expenses
+            
+            # Calculate performance metrics
+            profit_margin = (net_income / revenue * 100) if revenue > 0 else 0
+            expense_ratio = (expenses / revenue * 100) if revenue > 0 else 0
+            
+            # Revenue breakdown
+            revenue_breakdown = []
+            
+            # Add journal entry revenue
+            revenue_by_account = revenue_entries.values('account__account_name', 'account__account_code').annotate(
+                amount=Sum('amount')
+            ).order_by('-amount')
+            
+            for item in revenue_by_account:
+                revenue_breakdown.append({
+                    'account_name': item['account__account_name'],
+                    'account_code': item['account__account_code'],
+                    'amount': item['amount']
+                })
+            
+            # Add service sales revenue
+            if service_sales_revenue > 0:
+                revenue_breakdown.append({
+                    'account_name': 'Service Sales Revenue',
+                    'account_code': 'SERV',
+                    'amount': service_sales_revenue
+                })
+            
+            # Add store sales revenue
+            if store_sales_revenue > 0:
+                revenue_breakdown.append({
+                    'account_name': 'Store Sales Revenue',
+                    'account_code': 'STORE',
+                    'amount': store_sales_revenue
+                })
+            
+            # COGS breakdown
+            cogs_breakdown = []
+            cogs_by_account = cogs_entries.values('account__account_name', 'account__account_code').annotate(
+                amount=Sum('amount')
+            ).order_by('-amount')
+            
+            for item in cogs_by_account:
+                cogs_breakdown.append({
+                    'account_name': item['account__account_name'],
+                    'account_code': item['account__account_code'],
+                    'amount': item['amount']
+                })
+            
+            # Expenses breakdown by category
+            expenses_breakdown = {}
+            expense_by_category = operating_expense_entries.values(
+                'account__account_category', 'account__account_name', 'account__account_code'
+            ).annotate(amount=Sum('amount')).order_by('account__account_category', '-amount')
+            
+            for item in expense_by_category:
+                category = item['account__account_category']
+                if category not in expenses_breakdown:
+                    expenses_breakdown[category] = {
+                        'total': Decimal('0.00'),
+                        'accounts': []
+                    }
+                
+                expenses_breakdown[category]['total'] += item['amount']
+                expenses_breakdown[category]['accounts'].append({
+                    'account_name': item['account__account_name'],
+                    'account_code': item['account__account_code'],
+                    'amount': item['amount']
+                })
             
             context = {
                 'form': form,
-                'revenue': revenue,
-                'expenses': expenses,
-                'net_income': net_income,
                 'start_date': start_date,
                 'end_date': end_date,
+                'revenue': revenue,
+                'revenue_from_journal': revenue_from_journal,
+                'service_sales_revenue': service_sales_revenue,
+                'store_sales_revenue': store_sales_revenue,
+                'expenses': expenses,
+                'cost_of_goods_sold': cost_of_goods_sold,
+                'operating_expenses': operating_expenses,
+                'gross_profit': gross_profit,
+                'net_income': net_income,
+                'profit_margin': profit_margin,
+                'expense_ratio': expense_ratio,
+                'revenue_breakdown': revenue_breakdown,
+                'cogs_breakdown': cogs_breakdown,
+                'expenses_breakdown': expenses_breakdown,
             }
             return render(request, 'profit_loss_report.html', context)
     else:
@@ -784,6 +1055,145 @@ def export_manufacturing_csv(request, start_date, end_date, selected_product):
         writer.writerow([item['product__product_name'], item['total_quantity']])
     
     return response
+
+@login_required
+def process_pending_sales(request):
+    """Process pending sales and create journal entries"""
+    if request.method == 'POST':
+        try:
+            from accounts.services import AccountingService
+            
+            # Process pending sales
+            result = AccountingService.process_pending_sales()
+            
+            if result:
+                messages.success(
+                    request, 
+                    f"Successfully processed {result['service_sales_processed']} service sales and "
+                    f"{result['store_sales_processed']} store sales. Journal entries have been created."
+                )
+            else:
+                messages.error(request, 'Error processing pending sales. Please check the logs.')
+                
+        except Exception as e:
+            messages.error(request, f'Error: {e}')
+    
+    # Get counts of pending sales
+    try:
+        from production.models import ServiceSale, StoreSale
+        
+        pending_service_sales = ServiceSale.objects.filter(
+            paid_status='paid'
+        ).exclude(
+            accounting_entries__isnull=False
+        ).count()
+        
+        pending_store_sales = StoreSale.objects.filter(
+            payment_status='paid'
+        ).exclude(
+            accounting_entries__isnull=False
+        ).count()
+        
+        total_pending = pending_service_sales + pending_store_sales
+        
+    except Exception as e:
+        pending_service_sales = 0
+        pending_store_sales = 0
+        total_pending = 0
+    
+    context = {
+        'pending_service_sales': pending_service_sales,
+        'pending_store_sales': pending_store_sales,
+        'total_pending': total_pending,
+    }
+    
+    return render(request, 'process_pending_sales.html', context)
+
+@login_required
+def ledger_entries(request):
+    """View ledger entries for individual accounts with filtering and running balances"""
+    # Get filter parameters
+    selected_account = request.GET.get('account')
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    entry_type = request.GET.get('entry_type')
+    
+    # Get all accounts for the dropdown
+    accounts = ChartOfAccounts.objects.filter(is_active=True).order_by('account_code')
+    
+    # Start with base queryset
+    ledger_entries = JournalEntryLine.objects.select_related(
+        'journal_entry', 'account'
+    ).order_by('journal_entry__date', 'journal_entry__created_at')
+    
+    # Apply filters
+    if selected_account:
+        ledger_entries = ledger_entries.filter(account_id=selected_account)
+    if start_date:
+        ledger_entries = ledger_entries.filter(journal_entry__date__gte=start_date)
+    if end_date:
+        ledger_entries = ledger_entries.filter(journal_entry__date__lte=end_date)
+    if entry_type:
+        ledger_entries = ledger_entries.filter(entry_type=entry_type)
+    
+    # Get selected account object for summary
+    selected_account_obj = None
+    if selected_account:
+        selected_account_obj = ChartOfAccounts.objects.filter(id=selected_account).first()
+    
+    # Calculate opening balance (balance before start date if specified)
+    opening_balance = Decimal('0.00')
+    if selected_account_obj and start_date:
+        opening_entries = JournalEntryLine.objects.filter(
+            account=selected_account_obj,
+            journal_entry__date__lt=start_date
+        )
+        opening_debits = opening_entries.filter(entry_type='debit').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        opening_credits = opening_entries.filter(entry_type='credit').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        opening_balance = opening_debits - opening_credits
+    
+    # Calculate running balances
+    running_balance = opening_balance
+    entries_with_balance = []
+    
+    for entry in ledger_entries:
+        if entry.entry_type == 'debit':
+            running_balance += entry.amount
+        else:
+            running_balance -= entry.amount
+        
+        entry.running_balance = running_balance
+        entries_with_balance.append(entry)
+    
+    # Calculate totals
+    total_debits = sum(entry.amount for entry in entries_with_balance if entry.entry_type == 'debit')
+    total_credits = sum(entry.amount for entry in entries_with_balance if entry.entry_type == 'credit')
+    current_balance = opening_balance + total_debits - total_credits
+    
+    # Pagination
+    paginator = Paginator(entries_with_balance, 50)  # 50 entries per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'ledger_entries': page_obj,
+        'accounts': accounts,
+        'selected_account': selected_account,
+        'selected_account_obj': selected_account_obj,
+        'start_date': start_date,
+        'end_date': end_date,
+        'entry_type': entry_type,
+        'opening_balance': opening_balance,
+        'current_balance': current_balance,
+        'total_debits': total_debits,
+        'total_credits': total_credits,
+    }
+    
+    return render(request, 'ledger_entries.html', context)
 
 # API endpoints for AJAX
 @login_required
