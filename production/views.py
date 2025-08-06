@@ -70,7 +70,12 @@ def productionPage(request):
         'total_stock_value': total_stock_value,
     }
     
-    return render(request, "production_index.html", context)
+    # Add cache-busting headers
+    response = render(request, "production_index.html", context)
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 
@@ -4076,7 +4081,7 @@ def new_create_service_sale(request):
                         try:
                             price = Decimal(str(item['price']))
                             total_price = Decimal(str(item['total_price']))
-                        except (decimal.InvalidOperation, decimal.ConversionSyntax) as e:
+                        except (Decimal.InvalidOperation, Decimal.ConversionSyntax) as e:
                             print(f"Price conversion error: {e}")  # Debug log
                             print(f"Price value: {item['price']}")  # Debug log
                             print(f"Total price value: {item['total_price']}")  # Debug log
@@ -4281,10 +4286,13 @@ def record_payment_view(request, sale_id):
                     previous_status = sale.paid_status
                     sale.calculate_total()  # This will also create commissions if newly paid
                     
+                    # Explicitly save the sale to trigger the signal for accounting
+                    sale.save()
+                    
                     if previous_status != 'paid' and sale.paid_status == 'paid':
                         sale.create_service_commissions()
                         sale.create_product_commissions()
-                        messages.success(request, "Payment recorded and commissions calculated successfully.")
+                        messages.success(request, "Payment recorded, commissions calculated, and accounting entry created successfully.")
                     else:
                         messages.success(request, "Payment recorded successfully.")
 
@@ -5574,16 +5582,27 @@ def process_replacements(request, replace_note_id):
     return render(request, 'process_replacement.html', context)
 
 def outstanding_payables(request):
-    # Filter LPOs where the outstanding balance is greater than 0
-    unpaid_pos = [lpo for lpo in LPO.objects.all() if lpo.outstanding_balance > 0]
+    # Filter LPOs that are not paid (is_paid=False)
+    unpaid_pos = LPO.objects.filter(is_paid=False)
 
-
-    return render(request, 'outstanding_payables.html', {'unpaid_pos': unpaid_pos})
+    # Add cache-busting headers
+    response = render(request, 'outstanding_payables.html', {'unpaid_pos': unpaid_pos})
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 def production_payment_vouchers(request):
-    # Filter ProDe records where the outstanding balance is greater than 0
-    prod_vouchers = PaymentVoucher.objects.all()
+    # Filter out PaymentVoucher records with empty voucher_number and order by payment date
+    prod_vouchers = PaymentVoucher.objects.exclude(voucher_number='').exclude(voucher_number__isnull=True).order_by('-payment_date')
+    
+    # Fix any PaymentVoucher records that might have empty voucher_number
+    vouchers_without_number = PaymentVoucher.objects.filter(voucher_number='').exclude(voucher_number__isnull=True)
+    for voucher in vouchers_without_number:
+        voucher.voucher_number = voucher.generate_voucher_number()
+        voucher.save()
+    
     context ={
         'prod_vouchers': prod_vouchers,
     }

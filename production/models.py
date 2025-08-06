@@ -1835,12 +1835,7 @@ class PaymentVoucher(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.voucher_number:
-            super().save(*args, **kwargs)
-            
             self.voucher_number = self.generate_voucher_number()
-            
-            # Save again with the generated voucher number
-            super().save(update_fields=['voucher_number'])
             
         if self.payment_type == 'full' and self.amount_paid < self.lpo.requisition.total_cost:
             raise ValueError("Cannot mark as 'Full Payment' if the amount is less than LPO total.")
@@ -1848,8 +1843,19 @@ class PaymentVoucher(models.Model):
 
     def generate_voucher_number(self):
         current_date = timezone.now()
-        return f"PROD-PV-{current_date.strftime('%Y%m%d')}-{self.id}"
-    
+        # Use a combination of date, time, and random number to ensure uniqueness
+        date_part = current_date.strftime('%Y%m%d')
+        time_part = current_date.strftime('%H%M%S')
+        random_part = random.randint(1000, 9999)
+        
+        voucher_number = f"PROD-PV-{date_part}-{time_part}-{random_part}"
+        
+        # Ensure the generated number is unique
+        while PaymentVoucher.objects.filter(voucher_number=voucher_number).exists():
+            random_part = random.randint(1000, 9999)
+            voucher_number = f"PROD-PV-{date_part}-{time_part}-{random_part}"
+        
+        return voucher_number
 
 # Signal to update LPO on PaymentVoucher save
 @receiver(post_save, sender=PaymentVoucher)
@@ -1857,7 +1863,7 @@ def update_lpo_payment(sender, instance, **kwargs):
     # Update the LPO payment status when a payment voucher is created
     lpo = instance.lpo
     lpo.amount_paid = lpo.paymentvoucher_set.aggregate(total=models.Sum('amount_paid'))['total'] or 0
-    lpo.is_paid = lpo.amount_paid >= lpo.total_cost
+    lpo.is_paid = lpo.amount_paid >= lpo.requisition.total_cost  # Fixed: access through requisition
     if lpo.is_paid:
         lpo.payment_date = timezone.now()
     lpo.save()

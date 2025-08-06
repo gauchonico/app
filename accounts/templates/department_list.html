@@ -57,7 +57,7 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="fw-bold mb-1">{{ total_budget|floatformat:0 }}</h5>
+                            <h5 class="fw-bold mb-1">{{ total_budget|floatformat:0|intcomma }}</h5>
                             <p class="mb-0">Total Budget</p>
                         </div>
                     </div>
@@ -75,7 +75,7 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="fw-bold mb-1">{{ total_spent|floatformat:0 }}</h5>
+                            <h5 class="fw-bold mb-1">{{ total_spent|floatformat:0|intcomma }}</h5>
                             <p class="mb-0">Total Spent</p>
                         </div>
                     </div>
@@ -93,7 +93,7 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="fw-bold mb-1">{{ remaining_budget|floatformat:0 }}</h5>
+                            <h5 class="fw-bold mb-1">{{ remaining_budget|floatformat:0|intcomma }}</h5>
                             <p class="mb-0">Remaining Budget</p>
                         </div>
                     </div>

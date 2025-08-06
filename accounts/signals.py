@@ -7,7 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from accounts.services import AccountingService
 from accounts.models import JournalEntry, ProductionExpense, SalesRevenue, StoreTransfer as StoreTransferLink, ManufacturingRecord, PaymentRecord
-from production.models import StoreSale, Requisition, StoreTransfer, ManufactureProduct, PaymentVoucher
+from production.models import StoreSale, Requisition, StoreTransfer, ManufactureProduct, PaymentVoucher, ServiceSale
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -33,6 +33,8 @@ def check_existing_entry(instance, entry_type):
             return StoreTransferLink.objects.filter(transfer=instance).exists()
         elif isinstance(instance, PaymentVoucher):
             return PaymentRecord.objects.filter(payment_voucher=instance).exists()
+        elif isinstance(instance, ServiceSale):
+            return SalesRevenue.objects.filter(service_sale=instance).exists()
         return False
     except Exception as e:
         logger.error(f"Error checking existing entry: {str(e)}")
@@ -132,9 +134,50 @@ def create_payment_journal_entry_auto(sender, instance, created, **kwargs):
             admin_user = get_admin_user()
             if admin_user:
                 with transaction.atomic():
-                    AccountingService.create_payment_journal_entry(instance, admin_user)
-                    logger.info(f"Payment journal entry created for voucher ID: {instance.id}")
+                    # Add a small delay to avoid race conditions with entry number generation
+                    import time
+                    time.sleep(0.1)
+                    
+                    journal_entry = AccountingService.create_payment_journal_entry(instance, admin_user)
+                    if journal_entry:
+                        logger.info(f"Payment journal entry created for voucher ID: {instance.id} - Entry: {journal_entry.entry_number}")
+                    else:
+                        logger.error(f"Failed to create payment journal entry for voucher ID: {instance.id}")
             else:
                 logger.error(f"No admin user found for voucher ID: {instance.id}")
     except Exception as e:
-        logger.error(f"Error creating payment journal entry for voucher ID {instance.id}: {str(e)}") 
+        logger.error(f"Error creating payment journal entry for voucher ID {instance.id}: {str(e)}")
+        # Log the full traceback for debugging
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+
+@receiver(post_save, sender=ServiceSale)
+def create_service_sale_journal_entry_auto(sender, instance, **kwargs):
+    """Automatically create journal entry when a service sale becomes paid"""
+    try:
+        # Only create journal entry when the sale becomes paid
+        if instance.paid_status == 'paid' and instance.total_amount and instance.total_amount > 0:
+            # Check for existing entry to prevent duplicates
+            if check_existing_entry(instance, 'service_sale'):
+                logger.info(f"Service sale journal entry already exists for sale ID: {instance.id}")
+                return
+            
+            admin_user = get_admin_user()
+            if admin_user:
+                with transaction.atomic():
+                    # Add a small delay to avoid race conditions with entry number generation
+                    import time
+                    time.sleep(0.1)
+                    
+                    journal_entry = AccountingService.create_service_sale_journal_entry(instance, admin_user)
+                    if journal_entry:
+                        logger.info(f"Service sale journal entry created for sale ID: {instance.id} - Entry: {journal_entry.entry_number}")
+                    else:
+                        logger.error(f"Failed to create service sale journal entry for sale ID: {instance.id}")
+            else:
+                logger.error(f"No admin user found for service sale ID: {instance.id}")
+    except Exception as e:
+        logger.error(f"Error creating service sale journal entry for sale ID {instance.id}: {str(e)}")
+        # Log the full traceback for debugging
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}") 

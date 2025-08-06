@@ -9,6 +9,7 @@ from .models import (
 )
 from .models import ChartOfAccounts, Department
 from django.db.models import Sum
+from django.db import models
 
 class AccountingService:
     """Service for automatic accounting entries from production data"""
@@ -261,8 +262,24 @@ class AccountingService:
         """Create journal entry for payment vouchers"""
         try:
             with transaction.atomic():
-                # Create journal entry
+                # Generate entry number manually to avoid race conditions
+                year = timezone.now().year
+                max_count = JournalEntry.objects.filter(
+                    entry_number__startswith=f"JE-{year}"
+                ).aggregate(max_num=models.Max('entry_number'))['max_num']
+                
+                if max_count:
+                    # Extract the number from the max entry number
+                    max_num = int(max_count.split('-')[-1])
+                    new_count = max_num + 1
+                else:
+                    new_count = 1
+                
+                entry_number = f"JE-{year}-{new_count:04d}"
+                
+                # Create journal entry with explicit entry number
                 journal_entry = JournalEntry.objects.create(
+                    entry_number=entry_number,
                     date=payment_voucher.payment_date.date(),
                     reference=f"PV-{payment_voucher.voucher_number}",
                     description=f"Payment for LPO {payment_voucher.lpo.lpo_number}",
@@ -302,6 +319,11 @@ class AccountingService:
                     )
                     
                     return journal_entry
+                else:
+                    # If accounts not found, delete the journal entry and return None
+                    journal_entry.delete()
+                    print(f"Required accounts not found for payment voucher {payment_voucher.voucher_number}")
+                    return None
                     
         except Exception as e:
             print(f"Error creating payment journal entry: {e}")
@@ -366,8 +388,24 @@ class AccountingService:
                     print(f"Journal entry already exists for service sale {service_sale.id}")
                     return existing_entry
                 
-                # Create journal entry
+                # Generate entry number manually to avoid race conditions
+                year = timezone.now().year
+                max_count = JournalEntry.objects.filter(
+                    entry_number__startswith=f"JE-{year}"
+                ).aggregate(max_num=models.Max('entry_number'))['max_num']
+                
+                if max_count:
+                    # Extract the number from the max entry number
+                    max_num = int(max_count.split('-')[-1])
+                    new_count = max_num + 1
+                else:
+                    new_count = 1
+                
+                entry_number = f"JE-{year}-{new_count:04d}"
+                
+                # Create journal entry with explicit entry number
                 journal_entry = JournalEntry.objects.create(
+                    entry_number=entry_number,
                     date=service_sale.sale_date.date(),
                     reference=f"ServiceSale-{service_sale.id}",
                     description=f"Service sale {service_sale.service_sale_number} from {service_sale.customer.first_name}",
@@ -426,6 +464,11 @@ class AccountingService:
                     
                     print(f"Created journal entry for service sale {service_sale.id}: {journal_entry.entry_number}")
                     return journal_entry
+                else:
+                    # If accounts not found, delete the journal entry and return None
+                    journal_entry.delete()
+                    print(f"Required accounts not found for service sale {service_sale.id}")
+                    return None
                     
         except Exception as e:
             print(f"Error creating service sale journal entry: {e}")

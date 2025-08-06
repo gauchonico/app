@@ -84,7 +84,13 @@
                     {% for prod_voucher in prod_vouchers %}
                     <tr>
                         <td>{{ forloop.counter }}</td>
-                        <td><a href="{% url 'production_payment_voucher_details' prod_voucher.voucher_number %}">{{ prod_voucher.voucher_number }}</a></td>
+                        <td>
+                            {% if prod_voucher.voucher_number %}
+                                <a href="{% url 'production_payment_voucher_details' prod_voucher.voucher_number %}">{{ prod_voucher.voucher_number }}</a>
+                            {% else %}
+                                <span class="text-muted">No voucher number</span>
+                            {% endif %}
+                        </td>
                         <td>{{ prod_voucher.lpo.lpo_number }}</td>
                         <td>{{ prod_voucher.amount_paid }}</td>
                         <td>{{ prod_voucher.payment_date|date:"Y-m-d H:i" }}</td>
@@ -100,14 +106,18 @@
                        
                      
                         <td>
-                           <a href="{% url 'production_payment_voucher_details' prod_voucher.voucher_number %}"> <i class="bi bi-eye"></i> </a>
+                            {% if prod_voucher.voucher_number %}
+                                <a href="{% url 'production_payment_voucher_details' prod_voucher.voucher_number %}"> <i class="bi bi-eye"></i> </a>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
                             {% comment %} <a href="{% url 'requisition_edit' requisition.id %}">Edit</a> | {% endcomment %}
                             {% comment %} <a class="text-danger" href="{% url 'delete_requisition' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a> {% endcomment %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6">No Payments Made Yet.</td>
+                        <td colspan="7">No Payments Made Yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -54,8 +54,9 @@
 							<th class="border-top-0 pt-0 pb-2">Created At</th>
                             <th class="border-top-0 pt-0 pb-2">M.O.P</th>
 							<th class="border-top-0 pt-0 pb-2">Status</th>
-							
+							<th class="border-top-0 pt-0 pb-2">Outstanding Balance</th>
 							<th class="border-top-0 pt-0 pb-2">Payment Duration</th>
+
                             
 							<th class="border-top-0 pt-0 pb-2">Edit</th>
 						</tr>
@@ -88,6 +89,15 @@
 									data-bs-title="{% if lpo.status == 'pending' %}Waiting Document Verification{% elif lpo.status == 'verified' %}Verified and ready for Delivery{% elif lpo.status == 'rejected' %}Failed Verication Process{% else %}This order has an unknown status{% endif %}">
 									<i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ lpo.status}}
 								</span>
+							</td>
+							<td>
+								{% if lpo.outstanding_balance > 0 %}
+								<p>Outstanding Balance: <span class="text-danger">{{ lpo.outstanding_balance }}</span></p><a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">Pay Now</a>
+								{% else %}
+								<p>PO PAID:</p>
+									
+								{% endif %}
+				
 							</td>
 							
 							<td class="align-middle">
