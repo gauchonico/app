@@ -1,28 +1,412 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Pay LPO {{ lpo.lpo_number }}{% endblock %}
+
+{% block css %}
+<style>
+.payment-card {
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+}
+
+.payment-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.payment-form {
+    background-color: #f8f9fc;
+    border-left: 4px solid #4e73df;
+}
+
+.amount-input {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: right;
+}
+
+.tax-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.payment-history-item {
+    border-left: 3px solid #1cc88a;
+    background-color: #f8f9fc;
+    margin-bottom: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.payment-progress {
+    height: 1rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<h2>Pay for Purchase Order: {{ lpo.lpo_number }}</h2>
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lpos_list' %}">LPOs</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'lpo_detail' lpo.id %}">{{ lpo.lpo_number }}</a></li>
+            <li class="breadcrumb-item active">Payment</li>
+        </ul>
+        <h1 class="page-header mb-0">Make Payment</h1>
+    </div>
+</div>
 
-<form method="post">
-    {% csrf_token %}
-    <div class="form-group">
-        <label for="amount_paid">Amount to Pay:</label>
-        <input type="number" step="0.01" name="amount_paid" id="amount_paid" class="form-control" required>
-    </div>
-    <div class="form-group">
-        <label for="pay_by">Payment Method</label>
-            <select name="pay_by" required>
-                <option value="cash">Cash</option>
-                <option value="bank">Bank Transfer</option>
-                <option value="mobile">Mobile Money</option>
-            </select><br>
-    </div>
-    <div class="form-group">
-        <label for="voucher_notes">Payment Note (optional)</label>
-        <textarea name="voucher_notes" id="voucher_notes" class="form-control"></textarea>
-    </div>
-    <button type="submit" class="btn btn-primary mt-3">Submit Payment</button>
-</form>
+<div class="row">
+    <!-- LPO Summary -->
+    <div class="col-md-8">
+        <div class="card payment-card mb-4">
+            <div class="card-header payment-summary">
+                <h5 class="mb-0">
+                    <i class="fa fa-file-invoice me-2"></i>LPO {{ lpo.lpo_number }} - {{ supplier.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Payment Progress -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">Payment Progress</span>
+                        <span class="badge bg-{% if payment_percentage >= 100 %}success{% elif payment_percentage >= 50 %}warning{% else %}danger{% endif %}">
+                            {{ payment_percentage|floatformat:1 }}% Paid
+                        </span>
+                    </div>
+                    <div class="progress payment-progress">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ payment_percentage }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">UGX {{ amount_paid|floatformat:0|intcomma }} paid</small>
+                        <small class="text-muted">UGX {{ grand_total|floatformat:0|intcomma }} total</small>
+                    </div>
+                </div>
 
-<p class='mt-3'>Outstanding Balance: UGX {{ lpo.outstanding_balance|floatformat }}</p>
+                <!-- Tax Settings Info -->
+                {% if amounts_are_tax_inclusive %}
+                <div class="alert alert-info">
+                    <i class="fa fa-info-circle me-2"></i>
+                    <strong>Tax Inclusive:</strong> All amounts shown include applicable taxes.
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa fa-exclamation-triangle me-2"></i>
+                    <strong>Tax Exclusive:</strong> Tax amounts are calculated separately and added to base prices.
+                </div>
+                {% endif %}
+
+                <!-- Items Breakdown -->
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Item</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-center">Tax</th>
+                                <th class="text-end">Subtotal</th>
+                                <th class="text-end">Tax Amount</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item_data in items_with_totals %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item_data.item.raw_material.name }}</strong>
+                                    <br><small class="text-muted">{{ item_data.pricing_source }}</small>
+                                </td>
+                                <td class="text-center">{{ item_data.item.quantity|floatformat:2 }}</td>
+                                <td class="text-end">{{ item_data.item.price_per_unit|floatformat:0|intcomma }}</td>
+                                <td class="text-center">
+                                    <span class="badge tax-badge bg-secondary">{{ item_data.tax_code_display }}</span>
+                                </td>
+                                <td class="text-end">{{ item_data.subtotal_before_tax|floatformat:0|intcomma }}</td>
+                                <td class="text-end text-success">{{ item_data.tax_amount|floatformat:0|intcomma }}</td>
+                                <td class="text-end fw-bold">{{ item_data.total_with_tax|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <th colspan="4">Items Summary:</th>
+                                <th class="text-end">{{ items_subtotal_before_tax|floatformat:0|intcomma }}</th>
+                                <th class="text-end text-success">{{ total_tax_amount|floatformat:0|intcomma }}</th>
+                                <th class="text-end">{{ items_total_with_tax|floatformat:0|intcomma }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Expenses -->
+                {% if expense_items %}
+                <h6 class="mt-4 mb-3">Additional Expenses</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Expense Account</th>
+                                <th>Description</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in expense_items %}
+                            <tr>
+                                <td>{{ expense.expense_account.account_name }}</td>
+                                <td>{{ expense.description|default:"No description" }}</td>
+                                <td class="text-end">UGX {{ expense.amount|floatformat:0|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <th colspan="2">Total Expenses:</th>
+                                <th class="text-end">UGX {{ expenses_total|floatformat:0|intcomma }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Final Summary -->
+                <div class="card bg-light mt-4">
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="text-primary">
+                                    <i class="fa fa-shopping-cart fa-2x"></i>
+                                    <h6 class="mt-2">Items Total</h6>
+                                    <h5 class="text-primary">UGX {{ items_total_with_tax|floatformat:0|intcomma }}</h5>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-warning">
+                                    <i class="fa fa-plus-circle fa-2x"></i>
+                                    <h6 class="mt-2">Expenses</h6>
+                                    <h5 class="text-warning">UGX {{ expenses_total|floatformat:0|intcomma }}</h5>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-success">
+                                    <i class="fa fa-check-circle fa-2x"></i>
+                                    <h6 class="mt-2">Amount Paid</h6>
+                                    <h5 class="text-success">UGX {{ amount_paid|floatformat:0|intcomma }}</h5>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-danger">
+                                    <i class="fa fa-exclamation-circle fa-2x"></i>
+                                    <h6 class="mt-2">Outstanding</h6>
+                                    <h5 class="text-danger">UGX {{ outstanding_balance|floatformat:0|intcomma }}</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Form -->
+    <div class="col-md-4">
+        <div class="card payment-card">
+            <div class="card-header payment-form text-dark">
+                <h5 class="mb-0">
+                    <i class="fa fa-credit-card me-2"></i>Payment Details
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if outstanding_balance > 0 %}
+                <form method="post" id="payment-form">
+                    {% csrf_token %}
+                    
+                    <!-- Outstanding Balance Alert -->
+                    <div class="alert alert-warning">
+                        <h6 class="mb-1">Outstanding Balance</h6>
+                        <h4 class="mb-0 text-danger">UGX {{ outstanding_balance|floatformat:0|intcomma }}</h4>
+                    </div>
+
+                    <!-- Amount Input -->
+                    <div class="mb-3">
+                        <label for="amount_paid" class="form-label fw-bold">Payment Amount *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">UGX</span>
+                            <input type="number" 
+                                   step="0.01" 
+                                   name="amount_paid" 
+                                   id="amount_paid" 
+                                   class="form-control amount-input" 
+                                   required
+                                   max="{{ outstanding_balance }}"
+                                   placeholder="0.00">
+                        </div>
+                        <div class="form-text">Maximum: UGX {{ outstanding_balance|floatformat:0|intcomma }}</div>
+                    </div>
+
+                    <!-- Quick Amount Buttons -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Quick Select</label>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="setAmount({{ outstanding_balance }})">
+                                Full Payment (UGX {{ outstanding_balance|floatformat:0|intcomma }})
+                            </button>
+                            {% if outstanding_balance >= 2 %}
+                            {% with half_amount=outstanding_balance|floatformat:0|add:""|floatformat:0|floatformat:0 %}
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setAmount({{ outstanding_balance }} / 2)">
+                                50% (UGX {{ outstanding_balance|floatformat:0|intcomma }})
+                            </button>
+                            {% endwith %}
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Payment Account -->
+                    <div class="mb-3">
+                        <label for="payment_account" class="form-label fw-bold">Payment Account *</label>
+                        <select name="payment_account" id="payment_account" class="form-select" required>
+                            <option value="">Select payment account</option>
+                            {% for account in payment_accounts %}
+                            <option value="{{ account.id }}" data-type="{{ account.account_type }}" data-category="{{ account.account_category }}">
+                                {{ account.account_code }} - {{ account.account_name }}
+                                <span class="text-muted">({{ account.get_account_type_display }})</span>
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            <i class="fa fa-info-circle me-1"></i>
+                            Select the account to debit for this payment (Cash, Bank, Accounts Payable, etc.)
+                        </div>
+                    </div>
+
+                    <!-- Payment Notes -->
+                    <div class="mb-3">
+                        <label for="voucher_notes" class="form-label fw-bold">Payment Notes</label>
+                        <textarea name="voucher_notes" 
+                                  id="voucher_notes" 
+                                  class="form-control" 
+                                  rows="3"
+                                  placeholder="Add reference number, transaction ID, or other notes..."></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="fa fa-check me-2"></i>Process Payment
+                        </button>
+                        <a href="{% url 'lpo_detail' lpo.id %}" class="btn btn-secondary">
+                            <i class="fa fa-arrow-left me-2"></i>Back to LPO
+                        </a>
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-success text-center">
+                    <i class="fa fa-check-circle fa-3x mb-3"></i>
+                    <h5>LPO Fully Paid</h5>
+                    <p class="mb-0">This LPO has been fully paid.</p>
+                    <a href="{% url 'lpo_detail' lpo.id %}" class="btn btn-primary mt-3">
+                        <i class="fa fa-arrow-left me-2"></i>Back to LPO
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Payment History -->
+        {% if payment_vouchers %}
+        <div class="card payment-card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fa fa-history me-2"></i>Payment History
+                </h6>
+            </div>
+            <div class="card-body">
+                {% for voucher in payment_vouchers %}
+                <div class="payment-history-item">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>UGX {{ voucher.amount_paid|floatformat:0|intcomma }}</strong>
+                            {% if voucher.payment_account %}
+                            <br><small class="text-muted">{{ voucher.payment_account.account_code }} - {{ voucher.payment_account.account_name }}</small>
+                            {% else %}
+                            <br><small class="text-muted">{{ voucher.get_pay_by_display }}</small>
+                            {% endif %}
+                            {% if voucher.voucher_notes %}
+                            <br><small class="text-info">{{ voucher.voucher_notes }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-{% if voucher.payment_type == 'full' %}success{% else %}warning{% endif %}">
+                                {{ voucher.get_payment_type_display }}
+                            </span>
+                            <br><small class="text-muted">{{ voucher.payment_date|date:"M d, Y H:i" }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+function setAmount(amount) {
+    document.getElementById('amount_paid').value = amount.toFixed(2);
+}
+
+// Form validation
+document.getElementById('payment-form').addEventListener('submit', function(e) {
+    const amount = parseFloat(document.getElementById('amount_paid').value);
+    const maxAmount = {{ outstanding_balance }};
+    const paymentAccount = document.getElementById('payment_account').value;
+    const selectedOption = document.querySelector('#payment_account option:checked');
+    
+    if (!amount || amount <= 0) {
+        e.preventDefault();
+        alert('Please enter a valid payment amount.');
+        return;
+    }
+    
+    if (amount > maxAmount) {
+        e.preventDefault();
+        alert(`Payment amount cannot exceed outstanding balance of UGX ${maxAmount.toLocaleString()}`);
+        return;
+    }
+    
+    if (!paymentAccount) {
+        e.preventDefault();
+        alert('Please select a payment account.');
+        return;
+    }
+    
+    // Get selected account details for confirmation
+    const accountText = selectedOption ? selectedOption.textContent.trim() : 'selected account';
+    
+    // Confirm payment
+    if (!confirm(`Confirm payment of UGX ${amount.toLocaleString()} from ${accountText}?`)) {
+        e.preventDefault();
+    }
+});
+
+// Auto-format amount input
+document.getElementById('amount_paid').addEventListener('input', function(e) {
+    let value = parseFloat(e.target.value);
+    if (!isNaN(value)) {
+        const remaining = {{ outstanding_balance }} - value;
+        if (remaining <= 0) {
+            document.querySelector('.btn-success').innerHTML = '<i class="fa fa-check me-2"></i>Complete Payment';
+        } else {
+            document.querySelector('.btn-success').innerHTML = '<i class="fa fa-credit-card me-2"></i>Process Payment';
+        }
+    }
+});
+</script>
 {% endblock %}

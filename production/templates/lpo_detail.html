@@ -2,144 +2,328 @@
 {% load humanize %}
 {% load static %}
 
-{% load custom_filters %}
-
-{% block title %}LPO Details{% endblock %}
+{% block title %}LPO {{ lpo.lpo_number }}{% endblock %}
 
 {% block content %}
-<div class="mb-md-4 mb-3 d-md-flex">
-    <div class="mt-md-0 mt-2"><button class="btn btn-secondary btn-sm" onclick="printSpecificSection()"><i class="fa fa-download fa-fw me-1 text-theme"></i> Print Requisition</button></div>
-    
-</div>
-<div class="container" id="print-section">
-    <h5>Purchase Order Details: {{ lpo.requisition.requisition_no }}</h5>
-    <table class="table table-bordered">
-        <tr>
-            <th>Requisition Number</th>
-            <td>{{ lpo.requisition.requisition_no }}</td>
-        </tr>
-        <tr>
-            <th>Created At</th>
-            <td>{{ lpo.created_at }}</td>
-        </tr>
-        <tr>
-            <th>Status</th>
-            <td>
-                <span class="badge 
-                    {% if lpo.status == 'pending' %}
-                        border border-warning text-warning 
-                    {% elif lpo.status == 'verified' %} 
-                        border border-success text-success
-                    {% elif lpo.status == 'rejected' %} 
-                        border border-primary text-primary
-                    {% else %}
-                        bg-white text-dark
-                    {% endif %} 
-                    px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center">
-                    <i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ lpo.status }}
-                </span>
-            </td>
-        </tr>
-        <tr>
-            <th>Payment Option</th>
-            <td>{{ lpo.payment_option }}</td>
-        </tr>
-        <tr>
-            <th>Payment Duration</th>
-            <td>{{ lpo.payment_duration }} Days</td>
-        </tr>
-        <tr>
-            <th>PO is Paid ?</th>
-            <td>
-                {% if lpo.outstanding_balance > 0 %}
-                <p>Outstanding Balance: <span class="text-danger">{{ lpo.outstanding_balance }}</span></p><a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">Pay Now</a>
-                {% else %}
-                <p>PO PAID:</p>
-                    
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lpos_list' %}">LPOs</a></li>
+            <li class="breadcrumb-item active">{{ lpo.lpo_number }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" onclick="printSpecificSection()">
+            <i class="fa fa-print me-1"></i> Print
+        </button>
+        
+        <!-- Audit Button for High-Level Users -->
+        {% if user.groups.exists %}
+            {% for group in user.groups.all %}
+                {% if group.name in "Admin,Finance,Management" %}
+                    <a href="{% url 'model_audit_logs' 'lpo' lpo.id %}" class="btn btn-outline-info" title="View Audit History">
+                        <i class="fa fa-eye me-1"></i> Audit
+                    </a>
+                    {% break %}
                 {% endif %}
+            {% endfor %}
+        {% endif %}
+        
+        {% if lpo.outstanding_balance > 0 %}
+            <a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-success">
+                <i class="fa fa-credit-card me-1"></i> Pay Now
+            </a>
+        {% endif %}
+    </div>
+</div>
 
-            </td>
-        </tr>
-        <tr>
-            <th>Requisition Items</th>
-            <td><table class="table table-bordered">
-                <thead>
+<!-- Receipt-like container -->
+<div class="card shadow-sm" id="print-section">
+    <div class="card-body">
+        <!-- Header -->
+        <div class="text-center border-bottom pb-3 mb-4">
+            <h2 class="mb-0">Purchase Invoice</h2>
+            <h4 class="text-primary">{{ lpo.lpo_number }}</h4>
+            <p class="text-muted mb-0">{{ lpo.created_at|date:"F d, Y" }}</p>
+        </div>
+
+        <!-- Status and Payment Info -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <h6 class="card-title mb-1">Status</h6>
+                        <span class="badge 
+                            {% if lpo.status == 'pending' %}bg-warning
+                            {% elif lpo.status == 'verified' %}bg-success
+                            {% elif lpo.status == 'rejected' %}bg-danger
+                            {% endif %}">
+                            {{ lpo.status|title }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-light">
+                    <div class="card-body py-2">
+                        <h6 class="card-title mb-1">Payment Status</h6>
+                        {% if outstanding_balance > 0 %}
+                            <span class="badge bg-danger">Outstanding: UGX {{ outstanding_balance|floatformat:0|intcomma }}</span>
+                        {% else %}
+                            <span class="badge bg-success">Fully Paid</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supplier Info -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h6>Supplier Information</h6>
+                <div class="border rounded p-3">
+                    <strong>{{ supplier.name }}</strong><br>
+                    <small class="text-muted">{{ supplier.company_name }}</small><br>
+                    {% if supplier.contact_number %}<small>{{ supplier.contact_number }}</small><br>{% endif %}
+                    {% if supplier.email %}<small>{{ supplier.email }}</small>{% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6>Payment Terms</h6>
+                <div class="border rounded p-3">
+                    <strong>Payment Duration:</strong> {{ lpo.payment_duration }} days<br>
+                    <strong>Payment Method:</strong> {{ lpo.get_payment_option_display }}<br>
+                    <strong>Requisition:</strong> {{ requisition.requisition_no }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw Materials Section -->
+        <h6 class="mb-3">Raw Materials</h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-sm">
+                <thead class="table-light">
                     <tr>
-                        <th>Raw Material</th>
-                        <th>Quantity Requested</th>
-                        <th>Price per Unit</th>
-                        <th>Total Cost</th>
+                        <th>Item</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-end">Unit Price</th>
+                        <th class="text-center">Pricing</th>
+                        <th class="text-end">Subtotal</th>
+                        <th class="text-center">Tax Code</th>
+                        <th class="text-center">Project</th>
+                        <th class="text-end">Tax Amount</th>
+                        <th class="text-end">Total with Tax</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in lpo.requisition.requisitionitem_set.all %}
+                    {% for item_data in requisition_items_with_totals %}
                     <tr>
-                        <td>{{ item.raw_material.name }}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>{{ item.price_per_unit|floatformat:2 }}</td>
-                        <td>{{ item.quantity|multiply:item.price_per_unit|floatformat|intcomma}} </td>
+                        <td>
+                            <strong>{{ item_data.item.raw_material.name }}</strong>
+                            <br><small class="text-muted">{{ item_data.item.raw_material.unit_measurement }}</small>
+                        </td>
+                        <td class="text-center">{{ item_data.item.quantity|floatformat:2 }}</td>
+                        <td class="text-end">UGX {{ item_data.item.price_per_unit|floatformat:0|intcomma }}</td>
+                        <td class="text-center">
+                            <span class="badge {% if item_data.item.pricing_source == 'manual' %}bg-warning{% else %}bg-info{% endif %} text-dark">
+                                {{ item_data.pricing_badge }}
+                            </span>
+                            {% if item_data.price_variance %}
+                                <br><small class="text-muted">{{ item_data.price_variance|floatformat:1 }}%</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">UGX {{ item_data.subtotal_before_tax|floatformat:0|intcomma }}</td>
+                        <td class="text-center">
+                            <small>{{ item_data.tax_code_display }}</small>
+                        </td>
+                        <td class="text-center">
+                            <small>{{ item_data.project }}</small>
+                        </td>
+                        <td class="text-end">UGX {{ item_data.tax_amount|floatformat:0|intcomma }}</td>
+                        <td class="text-end"><strong>UGX {{ item_data.total_with_tax|floatformat:0|intcomma }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">No raw materials</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-            </table></td>
-        </tr>
-        <tr>
-            <th>Quotation</th>
-            <td>
-                {% if lpo.quotation_document %}
-                    <a href="{{ lpo.quotation_document.url }}" target="_blank">View Attachment</a>
-                    <br><br>
-                    <!-- PDF Preview -->
-                    {% if lpo.quotation_document.url|is_pdf %}
-                        <embed src="{{ lpo.quotation_document.url }}" type="application/pdf" width="50%" height="50px" />
-                    {% elif lpo.quotation_document.url|is_image %}
-                        <img src="{{ lpo.quotation_document.url }}" alt="Attachment Image" style="max-width: 50%; height: auto;" />
-                    {% endif %}
-                    
-                {% else %}
-                    No attachment uploaded.
-                {% endif %}
-            </td>
-        </tr>
-        <tr>
-            <th>Invoice</th>
-            <td>
-                {% if lpo.invoice_document %}
-                    <a href="{{ lpo.invoice_document.url }}" target="_blank">View Attachment</a>
-                    <br><br>
-                    <!-- PDF Preview -->
-                    {% if lpo.invoice_document.url|is_pdf %}
-                        <embed src="{{ lpo.invoice_document.url }}" type="application/pdf" width="100%" height="600px" />
-                    {% elif lpo.invoice_document.url|is_image %}
-                        <img src="{{ lpo.invoice_document.url }}" alt="Attachment Image" style="max-width: 100%; height: auto;" />
-                    {% endif %}
-                    
-                {% else %}
-                    No attachment uploaded.
-                {% endif %}
-            </td>
-        </tr>
-    </table>
-    <a href="{% url 'lpos_list' %}" class="btn btn-primary">Back to LPO List</a>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="4" class="text-end">Items Subtotal:</th>
+                        <th class="text-end">UGX {{ items_subtotal_before_tax|floatformat:0|intcomma }}</th>
+                        <th colspan="2"></th>
+                        <th class="text-end">UGX {{ total_tax_amount|floatformat:0|intcomma }}</th>
+                        <th class="text-end">UGX {{ items_total_with_tax|floatformat:0|intcomma }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Expenses Section -->
+        {% if expense_items %}
+        <h6 class="mb-3">Additional Expenses</h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Expense Account</th>
+                        <th>Description</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expense_items %}
+                    <tr>
+                        <td>
+                            <strong>{{ expense.expense_account.account_code }}</strong>
+                            <br><small class="text-muted">{{ expense.expense_account.account_name }}</small>
+                        </td>
+                        <td>{{ expense.description }}</td>
+                        <td class="text-end"><strong>UGX {{ expense.amount|floatformat:0|intcomma }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="2" class="text-end">Expenses Total:</th>
+                        <th class="text-end">UGX {{ expenses_total|floatformat:0|intcomma }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Total Summary -->
+        <div class="border-top pt-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <!-- Documents Links -->
+                    <h6>Documents</h6>
+                    <div class="list-group list-group-flush">
+                        {% if lpo.quotation_document %}
+                        <a href="{{ lpo.quotation_document.url }}" target="_blank" class="list-group-item list-group-item-action">
+                            <i class="fa fa-file-pdf text-danger me-2"></i>
+                            Quotation Document
+                        </a>
+                        {% endif %}
+                        {% if lpo.invoice_document %}
+                        <a href="{{ lpo.invoice_document.url }}" target="_blank" class="list-group-item list-group-item-action">
+                            <i class="fa fa-file-invoice text-primary me-2"></i>
+                            Invoice Document
+                        </a>
+                        {% endif %}
+                        {% if requisition.price_list_document %}
+                        <a href="{{ requisition.price_list_document.url }}" target="_blank" class="list-group-item list-group-item-action">
+                            <i class="fa fa-list-alt text-info me-2"></i>
+                            Price List Document
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <!-- Payment Summary -->
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">Payment Summary</h6>
+                            <div class="d-flex justify-content-between">
+                                <span>Items Subtotal:</span>
+                                <span>UGX {{ items_subtotal_before_tax|floatformat:0|intcomma }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Total Tax:</span>
+                                <span>UGX {{ total_tax_amount|floatformat:0|intcomma }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Items Total with Tax:</span>
+                                <span>UGX {{ items_total_with_tax|floatformat:0|intcomma }}</span>
+                            </div>
+                            {% if expenses_total > 0 %}
+                            <div class="d-flex justify-content-between">
+                                <span>Expenses:</span>
+                                <span>UGX {{ expenses_total|floatformat:0|intcomma }}</span>
+                            </div>
+                            {% endif %}
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between fw-bold fs-5">
+                                <span>Grand Total:</span>
+                                <span>UGX {{ grand_total|floatformat:0|intcomma }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between text-light">
+                                <span>Amount Paid:</span>
+                                <span>UGX {{ amount_paid|floatformat:0|intcomma }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between fw-bold {% if outstanding_balance > 0 %}text-warning{% else %}text-success{% endif %}">
+                                <span>Outstanding:</span>
+                                <span>UGX {{ outstanding_balance|floatformat:0|intcomma }}</span>
+                            </div>
+                            
+                            <!-- Tax Information -->
+                            {% if is_tax_inclusive %}
+                            <div class="mt-2 p-2 bg-light text-dark rounded">
+                                <small><i class="fa fa-info-circle"></i> Amounts are tax inclusive</small>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Payment Progress Bar -->
+                            <div class="mt-3">
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" style="width: {{ payment_percentage }}%"></div>
+                                </div>
+                                <small>{{ payment_percentage|floatformat:1 }}% Paid</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-4 pt-3 border-top">
+            <small class="text-muted">
+                Generated on {{ lpo.created_at|date:"F d, Y \a\t g:i A" }} • 
+                Updated {{ lpo.updated_at|date:"F d, Y \a\t g:i A" }}
+            </small>
+        </div>
+    </div>
 </div>
+
+<!-- Action Buttons -->
+<div class="d-flex justify-content-between mt-3">
+    <a href="{% url 'lpos_list' %}" class="btn btn-outline-secondary">
+        <i class="fa fa-arrow-left me-1"></i> Back to LPO List
+    </a>
+    <div class="d-flex gap-2">
+        {% if lpo.status == 'pending' %}
+            <a href="#" class="btn btn-success">Verify LPO</a>
+        {% endif %}
+        {% if outstanding_balance > 0 %}
+            <a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-primary">Make Payment</a>
+        {% endif %}
+    </div>
+</div>
+
 {% endblock %}
+
 {% block outter_content %}
-<script>
-    function printSpecificSection() {
-        // Get the content to print
-        var printContents = document.getElementById('print-section').innerHTML;
-
-        // Open a new window for the print
-        var originalContents = document.body.innerHTML;
-
-        // Set the body to only contain the print content
-        document.body.innerHTML = printContents;
-
-        // Trigger the print dialog
-        window.print();
-
-        // Restore the original content after printing
-        document.body.innerHTML = originalContents;
+<style>
+@media print {
+    .btn, .breadcrumb, nav, .d-flex.justify-content-between {
+        display: none !important;
     }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .table {
+        font-size: 12px;
+    }
+}
+</style>
+
+<script>
+function printSpecificSection() {
+    window.print();
+}
 </script>
 {% endblock outter_content %}

@@ -1,51 +1,63 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}Production Payment Vouchers{% endblock %}
+{% block title %}Payment Vouchers - Production{% endblock %}
+
 {% block css %}
-	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-slider/dist/css/bootstrap-slider.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+<style>
+.voucher-card {
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+}
+
+.stats-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 1rem;
+}
+
+.payment-badge {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+}
+
+.amount-highlight {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.voucher-row:hover {
+    background-color: #f8f9fc;
+    cursor: pointer;
+}
+
+.print-button {
+    transition: all 0.3s ease;
+}
+
+.print-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
 {% endblock %}
 
 {% block js %}
-	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
-	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-slider/dist/bootstrap-slider.min.js' %}"></script>
-	<script src="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.js' %}"></script>
-	<script src="{% static 'plugins/jquery.maskedinput/src/jquery.maskedinput.js' %}"></script>
-	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/vendor/jquery.ui.widget.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-tmpl/js/tmpl.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-load-image/js/load-image.all.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-canvas-to-blob/js/canvas-to-blob.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-gallery/js/jquery.blueimp-gallery.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.iframe-transport.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-process.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-image.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-audio.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-video.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-validate.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-ui.js' %}"></script>
-	<script src="{% static 'plugins/summernote/dist/summernote-lite.min.js' %}"></script>
-	<script src="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.js' %}"></script>
-	<script src="{% static 'plugins/select-picker/dist/picker.min.js' %}"></script>
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'js/demo/form-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -53,95 +65,278 @@
     <div>
         <ul class="breadcrumb">
             <li class="breadcrumb-item"><a href="#">FINANCE</a></li>
-            <li class="breadcrumb-item active">PRODUCTION PURCHASE ORDER PAYMENT VOUCHERS</li>
+            <li class="breadcrumb-item"><a href="{% url 'lpos_list' %}">LPOs</a></li>
+            <li class="breadcrumb-item active">PAYMENT VOUCHERS</li>
         </ul>
-        <h5 class="mb-0">
-            All Requisition Payment Vouchers
-        </h5>
-    <div>
+        <h1 class="page-header mb-0">Payment Vouchers</h1>
+        <p class="text-muted">All production purchase order payment records</p>
+    </div>
+    <div class="ms-auto">
+        <button class="btn btn-outline-secondary print-button" onclick="window.print()">
+            <i class="fa fa-print me-2"></i>Print Report
+        </button>
+    </div>
 </div>
 
-<div id="datatable" class="mb-5 mt-4">
-		
-    <p>Showing our accounts payables against requisitions.</p>
-    
-    <div class="card">
-        <div class="card-body text-center">
-            <table id="datatableDefault" class="table text-nowrap w-100">
-                <thead>
+<!-- Summary Statistics -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card stats-card text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-white-50 text-uppercase">Total Vouchers</div>
+                        <div class="h5">{{ prod_vouchers.count }}</div>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fa fa-receipt fa-2x text-white-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card voucher-card mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-primary text-uppercase">Total Payments</div>
+                        <div class="h5 text-success">UGX {{ total_amount|floatformat:0|intcomma|default:"0" }}</div>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fa fa-money-bill fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card voucher-card mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-warning text-uppercase">Full Payments</div>
+                        <div class="h5 text-primary">{{ full_payments|default:"0" }}</div>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fa fa-check-circle fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card voucher-card mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="small fw-bold text-info text-uppercase">Partial Payments</div>
+                        <div class="h5 text-warning">{{ partial_payments|default:"0" }}</div>
+                    </div>
+                    <div class="ms-3">
+                        <i class="fa fa-clock fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Vouchers Table -->
+<div class="card voucher-card">
+    <div class="card-header d-flex align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="fa fa-list me-2"></i>Payment Vouchers Registry
+        </h5>
+        <div class="ms-auto">
+            <small class="text-muted">{{ prod_vouchers.count }} vouchers total</small>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="datatableDefault" class="table table-hover table-striped align-middle">
+                <thead class="table-dark">
                     <tr>
-                        <th class="border-top-0 pt-0 pb-2">#</th>
-                        <th class="border-top-0 pt-0 pb-2">Payment Voucher Number</th>
-                        <th class="border-top-0 pt-0 pb-2">Purchase Order</th>
-                        <th class="border-top-0 pt-0 pb-2">Amount Paid(UGX)</th>
-                        <th class="border-top-0 pt-0 pb-2">Date</th>
-                        <th class="border-top-0 pt-0 pb-2">Payment Type</th>
-                        <th class="border-top-0 pt-0 pb-2">View</th>
-                        
+                        <th width="5%" class="text-center">#</th>
+                        <th width="15%">Voucher Number</th>
+                        <th width="12%">LPO Number</th>
+                        <th width="15%">Supplier</th>
+                        <th width="12%">Payment Account</th>
+                        <th width="10%" class="text-end">Amount</th>
+                        <th width="10%">Payment Type</th>
+                        <th width="10%">Date</th>
+                        <th width="8%" class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for prod_voucher in prod_vouchers %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
+                    {% for voucher in prod_vouchers %}
+                    <tr class="voucher-row">
+                        <td class="text-center fw-bold">{{ forloop.counter }}</td>
                         <td>
-                            {% if prod_voucher.voucher_number %}
-                                <a href="{% url 'production_payment_voucher_details' prod_voucher.voucher_number %}">{{ prod_voucher.voucher_number }}</a>
+                            {% if voucher.voucher_number %}
+                                <a href="{% url 'production_payment_voucher_details' voucher.voucher_number %}" 
+                                   class="text-decoration-none fw-bold">
+                                    {{ voucher.voucher_number }}
+                                </a>
                             {% else %}
                                 <span class="text-muted">No voucher number</span>
                             {% endif %}
                         </td>
-                        <td>{{ prod_voucher.lpo.lpo_number }}</td>
-                        <td>{{ prod_voucher.amount_paid }}</td>
-                        <td>{{ prod_voucher.payment_date|date:"Y-m-d H:i" }}</td>
                         <td>
-                            {% if prod_voucher.payment_type == 'full' %}
-                                <span class="badge bg-theme">Fully Paid<span>
-                            {% elif prod_voucher.payment_type == 'partial' %}
-                                <span class="badge bg-warning">Half Payment<span>
-                            {% else %}
-                                <span class="badge badge-status-default">None</span>
-                            {% endif %}
+                            <a href="{% url 'lpo_detail' voucher.lpo.id %}" class="text-decoration-none">
+                                {{ voucher.lpo.lpo_number }}
+                            </a>
                         </td>
-                       
-                     
                         <td>
-                            {% if prod_voucher.voucher_number %}
-                                <a href="{% url 'production_payment_voucher_details' prod_voucher.voucher_number %}"> <i class="bi bi-eye"></i> </a>
+                            <div>
+                                <strong>{{ voucher.lpo.requisition.supplier.name }}</strong>
+                                {% if voucher.voucher_notes %}
+                                <br><small class="text-muted">{{ voucher.voucher_notes|truncatechars:30 }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if voucher.payment_account %}
+                                <div>
+                                    <strong>{{ voucher.payment_account.account_code }}</strong>
+                                    <br><small class="text-muted">{{ voucher.payment_account.account_name }}</small>
+                                </div>
+                            {% elif voucher.pay_by %}
+                                <span class="badge bg-secondary">{{ voucher.get_pay_by_display }}</span>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
-                            {% comment %} <a href="{% url 'requisition_edit' requisition.id %}">Edit</a> | {% endcomment %}
-                            {% comment %} <a class="text-danger" href="{% url 'delete_requisition' requisition.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt text-danger"></i></a> {% endcomment %}
+                        </td>
+                        <td class="text-end">
+                            <span class="amount-highlight text-success">
+                                UGX {{ voucher.amount_paid|floatformat:0|intcomma }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if voucher.payment_type == 'full' %}
+                                <span class="badge payment-badge bg-success">
+                                    <i class="fa fa-check-circle me-1"></i>Full Payment
+                                </span>
+                            {% elif voucher.payment_type == 'partial' %}
+                                <span class="badge payment-badge bg-warning">
+                                    <i class="fa fa-clock me-1"></i>Partial Payment
+                                </span>
+                            {% else %}
+                                <span class="badge payment-badge bg-secondary">Unknown</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ voucher.payment_date|date:"M d, Y" }}</strong>
+                                <br><small class="text-muted">{{ voucher.payment_date|date:"H:i A" }}</small>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group">
+                                {% if voucher.voucher_number %}
+                                    <a href="{% url 'production_payment_voucher_details' voucher.voucher_number %}" 
+                                       class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fa fa-eye"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-secondary" 
+                                            onclick="printVoucher('{{ voucher.voucher_number }}')" 
+                                            title="Print Voucher">
+                                        <i class="fa fa-print"></i>
+                                    </button>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7">No Payments Made Yet.</td>
+                        <td colspan="9" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fa fa-inbox fa-2x mb-2"></i>
+                                <br>No payment vouchers found
+                                <br><small>Payment vouchers will appear here once LPO payments are made</small>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-        <div class="card-arrow">
-            <div class="card-arrow-top-left"></div>
-            <div class="card-arrow-top-right"></div>
-            <div class="card-arrow-bottom-left"></div>
-            <div class="card-arrow-bottom-right"></div>
-        </div>
-        
+    </div>
+    <div class="card-arrow">
+        <div class="card-arrow-top-left"></div>
+        <div class="card-arrow-top-right"></div>
+        <div class="card-arrow-bottom-left"></div>
+        <div class="card-arrow-bottom-right"></div>
     </div>
 </div>
 
 {% endblock %}
+
 {% block outter_content %}
+<script>
+$(document).ready(function() {
+    $('#datatableDefault').DataTable({
+        responsive: true,
+        ordering: true,
+        order: [[7, 'desc']], // Sort by date column descending
+        pageLength: 25,
+        columnDefs: [
+            { targets: [0, 8], orderable: false }, // Disable sorting for # and actions columns
+        ],
+        language: {
+            search: "Search vouchers:",
+            lengthMenu: "Show _MENU_ vouchers per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ payment vouchers",
+            paginate: {
+                previous: "Previous",
+                next: "Next"
+            }
+        },
+        buttons: [
+            {
+                extend: 'excel',
+                text: '<i class="fa fa-file-excel me-1"></i> Export Excel',
+                className: 'btn btn-success btn-sm'
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="fa fa-file-pdf me-1"></i> Export PDF',
+                className: 'btn btn-danger btn-sm'
+            },
+            {
+                extend: 'print',
+                text: '<i class="fa fa-print me-1"></i> Print',
+                className: 'btn btn-info btn-sm'
+            }
+        ]
+    });
+});
+
+function printVoucher(voucherNumber) {
+    const url = `/production/production_payment_voucher_detail/${voucherNumber}/`;
+    window.open(url, '_blank', 'width=800,height=600');
+}
+
+// Add click handler for voucher rows
+$('.voucher-row').click(function(e) {
+    if (!$(e.target).closest('a, button').length) {
+        const link = $(this).find('a[href*="production_payment_voucher_details"]').attr('href');
+        if (link) {
+            window.location.href = link;
+        }
+    }
+});
+</script>
+
 {% if messages %}
     <div class="toasts-container">
         {% for message in messages %}
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto"> Info</strong>
+                    <strong class="me-auto">Payment Vouchers</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">
@@ -151,6 +346,4 @@
         {% endfor %}
     </div>
 {% endif %}
-
-
-{% endblock outter_content %}
+{% endblock %}

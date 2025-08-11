@@ -95,7 +95,7 @@ def send_lpo_verification_email(sender, instance, **kwargs):
         def send_email_veification():
             subject = f"LPO {instance.lpo_number} Verified"
             message = f"The LPO with ID {instance.lpo_number} has been verified and is ready for delivery."
-            recipient_list = ['florence.mwesigye@mylivara.com','vivian.nambozo@mylivara.com','victoria.zemei@mylivara.com']  # Replace with actual recipient(s)
+            recipient_list = ['victoria.zemei@mylivara.com']  # Replace with actual recipient(s)
 
             try:
                 send_mail(subject, message, 'lukyamuzinicholas10@gmail.com', recipient_list)

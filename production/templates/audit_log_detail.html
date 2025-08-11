@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Audit Log Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fa fa-eye me-2"></i>Audit Log Details</h2>
+            <p class="text-muted mb-0">Detailed view of audit log entry</p>
+        </div>
+        <div>
+            <a href="{% url 'audit_logs' %}" class="btn btn-outline-secondary">
+                <i class="fa fa-arrow-left me-1"></i>Back to Audit Logs
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Log Entry Details -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-info-circle me-2"></i>Entry Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Action</h6>
+                            {% if log_entry.action == 0 %}
+                                <span class="badge bg-success fs-6">
+                                    <i class="fa fa-plus me-1"></i>Create
+                                </span>
+                            {% elif log_entry.action == 1 %}
+                                <span class="badge bg-warning fs-6">
+                                    <i class="fa fa-edit me-1"></i>Update
+                                </span>
+                            {% elif log_entry.action == 2 %}
+                                <span class="badge bg-danger fs-6">
+                                    <i class="fa fa-trash me-1"></i>Delete
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary fs-6">Unknown</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Timestamp</h6>
+                            <p class="mb-0">
+                                {{ log_entry.timestamp|date:"F d, Y" }} at {{ log_entry.timestamp|time:"H:i:s" }}
+                                <br><small class="text-muted">{{ log_entry.timestamp|timesince }} ago</small>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">User</h6>
+                            {% if log_entry.actor %}
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" 
+                                         style="width: 32px; height: 32px; font-size: 12px;">
+                                        {{ log_entry.actor.username|slice:":2"|upper }}
+                                    </div>
+                                    <div>
+                                        <strong>{{ log_entry.actor.username }}</strong>
+                                        {% if log_entry.actor.first_name or log_entry.actor.last_name %}
+                                            <br><small class="text-muted">{{ log_entry.actor.first_name }} {{ log_entry.actor.last_name }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">System</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Model</h6>
+                            <p class="mb-0">
+                                <span class="badge bg-info fs-6">{{ log_entry.content_type.model|title }}</span>
+                                <br><small class="text-muted">{{ log_entry.content_type.app_label }}.{{ log_entry.content_type.model }}</small>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Object ID</h6>
+                            <p class="mb-0">{{ log_entry.object_id }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Object Representation</h6>
+                            <p class="mb-0">
+                                {% if log_entry.object_repr %}
+                                    {{ log_entry.object_repr }}
+                                {% else %}
+                                    <span class="text-muted">Not available</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Changes Details -->
+            {% if changes %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-list-alt me-2"></i>Field Changes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Field</th>
+                                    <th>Old Value</th>
+                                    <th>New Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field, values in changes.items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ field }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if values.0 %}
+                                            <code class="text-danger">{{ values.0|truncatechars:100 }}</code>
+                                        {% else %}
+                                            <span class="text-muted">Empty</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if values.1 %}
+                                            <code class="text-success">{{ values.1|truncatechars:100 }}</code>
+                                        {% else %}
+                                            <span class="text-muted">Empty</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% elif log_entry.action == 0 %}
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fa fa-plus-circle text-success fa-3x mb-3"></i>
+                    <h5>Object Created</h5>
+                    <p class="text-muted">This entry records the creation of a new {{ log_entry.content_type.model|title }} object.</p>
+                </div>
+            </div>
+            {% elif log_entry.action == 2 %}
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fa fa-trash-o text-danger fa-3x mb-3"></i>
+                    <h5>Object Deleted</h5>
+                    <p class="text-muted">This entry records the deletion of a {{ log_entry.content_type.model|title }} object.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fa fa-bolt me-2"></i>Quick Actions
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if log_entry.content_type and log_entry.object_id %}
+                    <a href="{% url 'model_audit_logs' log_entry.content_type.model log_entry.object_id %}" 
+                       class="btn btn-outline-info btn-sm w-100 mb-2">
+                        <i class="fa fa-history me-1"></i>View Object History
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'audit_logs' %}?model={{ log_entry.content_type.model }}" 
+                       class="btn btn-outline-primary btn-sm w-100 mb-2">
+                        <i class="fa fa-filter me-1"></i>Filter by Model
+                    </a>
+                    
+                    {% if log_entry.actor %}
+                    <a href="{% url 'audit_logs' %}?user={{ log_entry.actor.username }}" 
+                       class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="fa fa-user me-1"></i>Filter by User
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Additional Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fa fa-info me-2"></i>Additional Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Log Entry ID</small>
+                        <div>{{ log_entry.id }}</div>
+                    </div>
+                    
+                    {% if log_entry.remote_addr %}
+                    <div class="mb-3">
+                        <small class="text-muted">IP Address</small>
+                        <div>{{ log_entry.remote_addr }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">Content Type ID</small>
+                        <div>{{ log_entry.content_type.id }}</div>
+                    </div>
+                    
+                    {% if log_entry.object_pk %}
+                    <div class="mb-3">
+                        <small class="text-muted">Object Primary Key</small>
+                        <div>{{ log_entry.object_pk }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

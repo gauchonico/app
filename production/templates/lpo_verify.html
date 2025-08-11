@@ -1,13 +1,224 @@
 {% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Verify LPO {{ lpo.lpo_number }}{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2>Verify Purchase Order: {{ lpo.requisition.requisition_no }}</h2>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit" class="btn btn-success">Verify</button>
-        <a href="{% url 'lpos_list' %}" class="btn btn-secondary">Cancel</a>
-    </form>
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lpos_list' %}">LPOs</a></li>
+            <li class="breadcrumb-item active">Verify {{ lpo.lpo_number }}</li>
+        </ul>
+        <h1 class="page-header mb-0">Verify Purchase Order</h1>
+    </div>
 </div>
+
+<div class="row">
+    <!-- LPO Information Card -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fa fa-file-invoice me-2"></i>LPO Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">LPO Number</label>
+                    <div class="text-primary fw-bold">{{ lpo.lpo_number }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Requisition</label>
+                    <div>{{ lpo.requisition.requisition_no }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Supplier</label>
+                    <div>{{ lpo.requisition.supplier.name }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Total Amount</label>
+                    <div class="text-success fw-bold">
+                        UGX {{ grand_total|floatformat:0|intcomma }}
+                        {% if requisition.total_cost and requisition.total_cost != grand_total %}
+                            <small class="text-muted d-block">(Stored: UGX {{ requisition.total_cost|floatformat:0|intcomma }})</small>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">
+                        Items: UGX {{ items_total|floatformat:0|intcomma }}
+                        {% if expenses_total > 0 %}
+                            + Expenses: UGX {{ expenses_total|floatformat:0|intcomma }}
+                        {% endif %}
+                    </small>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Requisition Summary</label>
+                    <div>
+                        <span class="badge bg-info">{{ items_count }} Items</span>
+                        {% if expenses_count > 0 %}
+                            <span class="badge bg-warning">{{ expenses_count }} Expenses</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Status</label>
+                    <div>
+                        <span class="badge bg-warning">{{ lpo.status|title }}</span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Created Date</label>
+                    <div>{{ lpo.created_at|date:"M d, Y H:i" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Verification Form -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fa fa-check-circle me-2"></i>Document Verification & Payment Setup
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <!-- Document Upload Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6 class="text-success mb-3">
+                                <i class="fa fa-upload me-2"></i>Document Upload
+                            </h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.invoice_document.id_for_label }}" class="form-label fw-bold">
+                                    <i class="fa fa-file-invoice text-danger me-2"></i>Proforma Invoice *
+                                </label>
+                                {{ form.invoice_document }}
+                                {% if form.invoice_document.errors %}
+                                    <div class="text-danger small">{{ form.invoice_document.errors }}</div>
+                                {% endif %}
+                                <small class="text-muted">Upload the supplier's proforma invoice (PDF/Image)</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.quotation_document.id_for_label }}" class="form-label fw-bold">
+                                    <i class="fa fa-list-alt text-info me-2"></i>Price List/Quotation
+                                </label>
+                                {{ form.quotation_document }}
+                                {% if form.quotation_document.errors %}
+                                    <div class="text-danger small">{{ form.quotation_document.errors }}</div>
+                                {% endif %}
+                                <small class="text-muted">Upload supplier's price list or quotation (Optional)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Payment Terms Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <h6 class="text-primary mb-3">
+                                <i class="fa fa-credit-card me-2"></i>Payment Terms & Accounting Setup
+                            </h6>
+                            <div class="alert alert-info">
+                                <i class="fa fa-info-circle me-2"></i>
+                                <strong>Important for Accounts:</strong> These payment terms will be used for financial tracking and supplier payment processing.
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.payment_option.id_for_label }}" class="form-label fw-bold">
+                                    <i class="fa fa-money-check-alt text-success me-2"></i>Payment Method *
+                                </label>
+                                {{ form.payment_option }}
+                                {% if form.payment_option.errors %}
+                                    <div class="text-danger small">{{ form.payment_option.errors }}</div>
+                                {% endif %}
+                                <small class="text-muted">How will this supplier be paid? This affects accounting entries.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.payment_duration.id_for_label }}" class="form-label fw-bold">
+                                    <i class="fa fa-calendar-alt text-warning me-2"></i>Payment Terms (Days) *
+                                </label>
+                                {{ form.payment_duration }}
+                                {% if form.payment_duration.errors %}
+                                    <div class="text-danger small">{{ form.payment_duration.errors }}</div>
+                                {% endif %}
+                                <small class="text-muted">Payment due within how many days? (e.g., Net 30)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="border-top pt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button type="submit" class="btn btn-success btn-lg w-100">
+                                    <i class="fa fa-check-circle me-2"></i>Verify & Approve LPO
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{% url 'lpos_list' %}" class="btn btn-secondary btn-lg w-100">
+                                    <i class="fa fa-times me-2"></i>Cancel
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                <i class="fa fa-shield-alt me-1"></i>
+                                By verifying this LPO, you confirm that all documents are authentic and payment terms are correct.
+                            </small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card-arrow">
+                <div class="card-arrow-top-left"></div>
+                <div class="card-arrow-top-right"></div>
+                <div class="card-arrow-bottom-left"></div>
+                <div class="card-arrow-bottom-right"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block outter_content %}
+{% if messages %}
+<div class="toasts-container">
+    {% for message in messages %}
+    <div class="toast fade show">
+        <div class="toast-header">
+            <i class="far fa-bell text-muted me-2"></i>
+            <strong class="me-auto">Notification</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            <p>{{ message }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

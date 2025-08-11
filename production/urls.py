@@ -39,6 +39,12 @@ urlpatterns = [
     path('approve-requisition/<int:requisition_id>/', views.approve_requisition, name='approve_requisition'),
     path('reject-requisition/<int:requisition_id>/', views.reject_requisition, name='reject_requisition'),
     path('get_raw_materials_by_supplier/', views.get_raw_materials_by_supplier, name='get_raw_materials_by_supplier'),
+    path('get_raw_material_price/', views.get_raw_material_price, name='get_raw_material_price'),
+    
+    # Audit Log URLs
+    path('audit-logs/', views.audit_logs, name='audit_logs'),
+    path('audit-logs/<int:log_id>/', views.audit_log_detail, name='audit_log_detail'),
+    path('audit-logs/<str:model_name>/<int:object_id>/', views.model_audit_logs, name='model_audit_logs'),
     
     path('lpos_list/', views.lpo_list, name='lpos_list'),
     path('lpo<int:pk>/', views.lpo_verify, name='lpo_verify'),

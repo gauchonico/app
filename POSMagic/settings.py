@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'salon.apps.SalonConfig',
     'accounts.apps.AccountsConfig',
     'crispy_forms',
+    'auditlog',  # Django audit logging
 ]
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
@@ -67,6 +68,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'auditlog.middleware.AuditlogMiddleware',  # Audit logging middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

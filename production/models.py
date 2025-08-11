@@ -21,6 +21,8 @@ from django.core.exceptions import ValidationError
 
 
 
+
+
 # Create your models here.
 User = get_user_model()
 
@@ -1355,12 +1357,31 @@ class StoreSale(models.Model):
     )
     status = models.CharField(max_length=255, choices=STATUS_CHOICES, default="ordered")
     withhold_tax = models.BooleanField(default=False)  # Option to withhold tax
-    vat = models.BooleanField(default=False)  # Option to apply VAT
+    
+    # Enhanced fields
+    tax_code = models.ForeignKey('TaxCode', on_delete=models.SET_NULL, null=True, blank=True,
+                                help_text="Tax code for this sale")
+    description = models.TextField(blank=True, null=True, help_text="Sale description or notes")
+    billing_address = models.TextField(blank=True, null=True, help_text="Customer billing address")
+    
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Total sale amount
 
     def __str__(self):
         return f"Store Sale for {self.customer.first_name} on {self.sale_date.strftime('%Y-%m-%d')}"
     
+    def save(self, *args, **kwargs):
+        # Auto-populate billing address from customer if not provided
+        if not self.billing_address and self.customer:
+            self.billing_address = f"{self.customer.address}\nPhone: {self.customer.phone}\nEmail: {self.customer.email}"
+        
+        if not self.pk:
+            #save sale to generate id before calculating total
+            super().save(*args, **kwargs)
+        # Calculate total before saving
+        self.total_amount = self.calculate_total()
+        if not self.due_date and self.sale_date:  # Check if sale_date is not None
+            self.due_date = self.sale_date + self.PAYMENT_DURATION
+        super().save(*args, **kwargs)  # Call parent save method
     
     def calculate_total(self):
         try:
@@ -1375,10 +1396,13 @@ class StoreSale(models.Model):
             subtotal = Decimal(subtotal)
 
             total = subtotal
-            if self.vat:
-                vat_amount = subtotal * self.VAT_RATE
-                print(f"VAT Amount: {vat_amount}")  # Debugging output
-                total += vat_amount
+            
+            # Apply tax code if specified
+            if self.tax_code:
+                tax_amount = self.tax_code.calculate_tax_amount(subtotal)
+                total += tax_amount
+                print(f"Tax Amount ({self.tax_code.code}): {tax_amount}")
+            
             if self.withhold_tax:
                 withholding_tax_amount = total * self.WITHHOLDING_TAX_RATE
                 print(f"Withholding Tax Amount: {withholding_tax_amount}")  # Debugging output
@@ -1390,21 +1414,26 @@ class StoreSale(models.Model):
             print(f"Error in calculate_total: {e}")  # Debugging output
             return Decimal('0.00')
 
-    def save(self, *args, **kwargs):
-        if not self.pk:
-            #save sale to generate id before calculating total
-            super().save(*args, **kwargs)
-        # Calculate total before saving
-        self.total_amount = self.calculate_total()
-        if not self.due_date and self.sale_date:  # Check if sale_date is not None
-            self.due_date = self.sale_date + self.PAYMENT_DURATION
-        super().save(*args, **kwargs)  # Call parent save method
-        
     def get_remaining_days(self):
         today = date.today()
         due_date = self.due_date if self.due_date else self.sale_date + self.PAYMENT_DURATION
         return (due_date - today).days  # Allow negative values for overdue days
-        
+    
+    @property
+    def tax_amount(self):
+        """Calculate tax amount for this sale"""
+        if self.tax_code:
+            sale_items = self.saleitem_set.all()
+            subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
+            return self.tax_code.calculate_tax_amount(Decimal(subtotal))
+        return Decimal('0.00')
+    
+    @property
+    def subtotal_before_tax(self):
+        """Calculate subtotal before tax"""
+        sale_items = self.saleitem_set.all()
+        return sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
+
 class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
     product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)  # Link to product
@@ -1484,6 +1513,41 @@ class PriceAlert(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
+# Add this after the RawMaterialPrice model and before the PriceAlert model
+
+class TaxCode(models.Model):
+    """Tax codes for different tax rates and types"""
+    code = models.CharField(max_length=10, unique=True, help_text="Tax code (e.g., VAT18, VAT0)")
+    name = models.CharField(max_length=100, help_text="Tax name (e.g., VAT 18%, Zero Rated)")
+    rate = models.DecimalField(max_digits=5, decimal_places=2, help_text="Tax rate percentage (e.g., 18.00 for 18%)")
+    is_active = models.BooleanField(default=True, help_text="Whether this tax code is active")
+    description = models.TextField(blank=True, help_text="Additional description")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.code} - {self.name} ({self.rate}%)"
+
+    @property
+    def rate_decimal(self):
+        """Return rate as decimal (e.g., 0.18 for 18%)"""
+        return self.rate / 100
+
+    def calculate_tax_amount(self, base_amount):
+        """Calculate tax amount for a given base amount"""
+        return (base_amount * self.rate_decimal).quantize(Decimal('0.01'))
+
+    def calculate_total_with_tax(self, base_amount):
+        """Calculate total amount including tax"""
+        return (base_amount * (1 + self.rate_decimal)).quantize(Decimal('0.01'))
+
+    def calculate_base_amount_from_total(self, total_amount):
+        """Calculate base amount from tax-inclusive total"""
+        return (total_amount / (1 + self.rate_decimal)).quantize(Decimal('0.01'))
+
 ################### Requsition models
 class Requisition(models.Model):
     STATUS_CHOICES = [
@@ -1501,163 +1565,265 @@ class Requisition(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    total_cost = models.DecimalField(max_digits=10, decimal_places =0,null=True, blank=True)
+    total_cost = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
+    
+    # Tax settings
+    amounts_are_tax_inclusive = models.BooleanField(default=False, help_text="If checked, amounts include tax")
+    default_tax_code = models.ForeignKey(TaxCode, on_delete=models.SET_NULL, null=True, blank=True, 
+                                       help_text="Default tax code for items in this requisition")
     
     def __str__(self):
-        return f'Requisition {self.requisition_no}'
+        return f"Requisition {self.requisition_no} - {self.supplier.name}"
 
     def save(self, *args, **kwargs):
         if not self.requisition_no:
-            self.requisition_no = self.generate_requisition_no()
-            
-        # First save the requisition instance to get the primary key
-        if not self.pk:
-            super().save(*args, **kwargs)  # Save the instance first to get the primary key
-        
-        # Calculate total cost after saving the requisition and once it has a primary key
-        self.total_cost = self.calculate_total_cost()
-            
-        # Handle status change for LPO creation
-        if self.pk:  # Check if it's an existing record
-            previous_status = Requisition.objects.get(pk=self.pk).status
-            if previous_status == 'created' and self.status == 'approved':
-                # Create LPO if status changes from 'created' to 'approved'
-                LPO.objects.create(requisition=self)
-
+            self.generate_requisition_no()
         super().save(*args, **kwargs)
-            
-    def generate_requisition_no(self):
-        current_date = timezone.now()
-        month = current_date.strftime('%m')  # Month as two digits (08)
-        year = current_date.strftime('%y')   # Year as last two digits (24)
-        #generate random number
-        random_number = random.randint(0000,9999)
-        
-        # Construct the requisition number
-        requisition_no = f"prod-req-{month}{year}-{random_number}"
-        
-        # Ensure the generated number is unique
-        while Requisition.objects.filter(requisition_no=requisition_no).exists():
-            random_number = random.randint(1000, 9999)
-            requisition_no = f"prod-req-{month}{year}-{random_number}"
-        
-        return requisition_no
-    
-    def calculate_total_cost(self):
-        # Sum the total cost of all requisition items
-        return sum(item.total_cost for item in self.requisitionitem_set.all())
-            
-class RequisitionItem(models.Model):
-    requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
-    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
-    quantity = models.DecimalField(max_digits=12, decimal_places=5, default=0.00000)
-    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2,default=0)
-    delivered_quantity = models.DecimalField(max_digits=12, decimal_places=5, default=0.00000)
 
-    class Meta:
-        ordering = ['raw_material__name']
+    def generate_requisition_no(self):
+        # Get the current date
+        current_date = timezone.now().date()
+        date_str = current_date.strftime('%Y%m%d')
+        
+        # Get the count of requisitions for today
+        today_requisitions = Requisition.objects.filter(
+            created_at__date=current_date
+        ).count()
+        
+        # Generate the requisition number
+        self.requisition_no = f"REQ{date_str}{today_requisitions + 1:03d}"
+
+    def calculate_total_cost(self):
+        # Sum the total cost of all requisition items plus expense items
+        items_total = sum(item.total_cost for item in self.requisitionitem_set.all())
+        expenses_total = sum(expense.amount for expense in self.expense_items.all())
+        return items_total + expenses_total
+
+    def calculate_total_tax(self):
+        """Calculate total tax amount for all items"""
+        return sum(item.tax_amount for item in self.requisitionitem_set.all())
+
+    def calculate_subtotal_before_tax(self):
+        """Calculate subtotal before tax"""
+        return sum(item.subtotal_before_tax for item in self.requisitionitem_set.all())
+
+    def calculate_grand_total_with_tax(self):
+        """Calculate grand total including tax"""
+        return self.calculate_subtotal_before_tax() + self.calculate_total_tax()
+
+    def debug_total_calculation(self):
+        """Debug method to understand total calculation"""
+        items = list(self.requisitionitem_set.all())
+        expenses = list(self.expense_items.all())
+        
+        print(f"Requisition {self.requisition_no} calculation:")
+        print(f"Items count: {len(items)}")
+        for item in items:
+            print(f"  - {item.raw_material.name}: {item.quantity} × {item.price_per_unit} = {item.total_cost}")
+        
+        print(f"Expenses count: {len(expenses)}")
+        for expense in expenses:
+            print(f"  - {expense.expense_account.account_name}: {expense.amount}")
+        
+        items_total = sum(item.total_cost for item in items)
+        expenses_total = sum(expense.amount for expense in expenses)
+        total = items_total + expenses_total
+        
+        print(f"Items total: {items_total}")
+        print(f"Expenses total: {expenses_total}")
+        print(f"Grand total: {total}")
+        print(f"Stored total_cost: {self.total_cost}")
+        
+        return {
+            'items_total': items_total,
+            'expenses_total': expenses_total,
+            'calculated_total': total,
+            'stored_total': self.total_cost
+        }
+
+    @property
+    def items_subtotal(self):
+        return sum(item.total_cost for item in self.requisitionitem_set.all())
+
+    @property
+    def expenses_total(self):
+        return sum(expense.amount for expense in self.expense_items.all())
+
+    @property
+    def items_subtotal(self):
+        return sum(item.total_cost for item in self.requisitionitem_set.all())
+
+    @property
+    def extra_expenses_total(self):
+        return sum(expense.amount for expense in self.expense_items.all())
+
+    def recalculate_and_save_total(self):
+        """Recalculate total cost and save it to the database"""
+        old_total = self.total_cost
+        self.total_cost = self.calculate_total_cost()
+        self.save(update_fields=['total_cost'])
+        
+        print(f"Requisition {self.requisition_no}: Updated total from {old_total} to {self.total_cost}")
+        return self.total_cost
+
+# Choices for pricing source
+PRICING_SOURCE_CHOICES = [
+    ('system', 'System Price'),
+    ('manual', 'Manual Price'),
+]
+
+# Choices for payment duration
+PAYMENT_DURATION_CHOICES = [
+    (10, '10 Days'),
+    (15, '15 Days'),
+    (30, '30 Days'),
+    (45, '45 Days'),
+    (60, '60 Days'),
+]
+
+# Choices for payment options
+PAYMENT_OPTIONS_CHOICES = [
+    ('cash', 'Cash'),
+    ('bank', 'Bank Transfer'),
+    ('mobile', 'Mobile Money'),
+]
+
+class RequisitionItem(models.Model):
+    requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE, related_name='requisitionitem_set')
+    raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
+    delivered_quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    pricing_source = models.CharField(max_length=10, choices=PRICING_SOURCE_CHOICES, default='system')
+    manual_price_reason = models.TextField(blank=True, null=True)
+    system_price_at_creation = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    tax_code = models.ForeignKey(TaxCode, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
     def __str__(self):
-        return f'{self.raw_material.name} - {self.quantity} {self.raw_material.unit_measurement}'
-
-    def clean(self):
-        if not self.price_per_unit:
-            raise ValidationError({
-                'price_per_unit': 'Price per unit is required'
-            })
-
+        return f'{self.raw_material.name} - {self.quantity} units for {self.requisition.requisition_no}'
+    
     def save(self, *args, **kwargs):
-        # Only set price on initial save if not provided
-        if not self.pk and not self.price_per_unit and hasattr(self, 'requisition'):
+        # Set default tax code from requisition if not specified
+        if not self.tax_code and self.requisition.default_tax_code:
+            self.tax_code = self.requisition.default_tax_code
+        
+        # Set system price at creation for manual pricing
+        if self.pricing_source == 'manual' and not self.system_price_at_creation:
+            # Get the current system price for this raw material and supplier
             current_price = RawMaterialPrice.get_current_price(
-                self.raw_material, 
-                self.requisition.supplier
+                raw_material=self.raw_material,
+                supplier=self.requisition.supplier
             )
-            if current_price is not None:
-                self.price_per_unit = current_price
+            if current_price:
+                self.system_price_at_creation = current_price
         
         super().save(*args, **kwargs)
+    
+    def update_supplier_price_on_delivery(self):
+        """Update the supplier's price for this raw material when requisition is delivered"""
+        if self.pricing_source == 'manual' and self.price_per_unit:
+            # Update the supplier's price for this raw material
+            RawMaterialPrice.objects.update_or_create(
+                raw_material=self.raw_material,
+                supplier=self.requisition.supplier,
+                defaults={'price': self.price_per_unit}
+            )
     
     @property
     def current_price(self):
-        """Get the current price from RawMaterialPrice for this item's material and supplier"""
-        if not hasattr(self, 'requisition') or not self.requisition.supplier:
-            return self.price_per_unit
-            
-        current_price = RawMaterialPrice.get_current_price(
-            self.raw_material,
-            self.requisition.supplier
+        """Get the current system price for this raw material and supplier"""
+        return RawMaterialPrice.get_current_price(
+            raw_material=self.raw_material,
+            supplier=self.requisition.supplier
         )
-        return current_price if current_price is not None else self.price_per_unit
-
+    
+    @property
+    def subtotal_before_tax(self):
+        """Calculate subtotal before tax"""
+        return self.quantity * self.price_per_unit
+    
+    @property
+    def tax_amount(self):
+        """Calculate tax amount based on tax code"""
+        if not self.tax_code:
+            return 0
+        
+        subtotal = self.subtotal_before_tax
+        if self.requisition.amounts_are_tax_inclusive:
+            # If tax inclusive, calculate tax from total
+            return subtotal - self.tax_code.calculate_base_amount_from_total(subtotal)
+        else:
+            # If tax exclusive, add tax to subtotal
+            return self.tax_code.calculate_tax_amount(subtotal)
+    
     @property
     def total_cost(self):
-        """Calculate the total cost based on delivered quantity and price per unit"""
-        if self.delivered_quantity is None or self.price_per_unit is None:
-            return Decimal('0.00')
-        return (Decimal(str(self.delivered_quantity)) * 
-                Decimal(str(self.price_per_unit))).quantize(Decimal('0.01'))
-
+        """Calculate total cost including tax"""
+        subtotal = self.subtotal_before_tax
+        if not self.tax_code:
+            return subtotal
+        
+        if self.requisition.amounts_are_tax_inclusive:
+            # If tax inclusive, the subtotal already includes tax
+            return subtotal
+        else:
+            # If tax exclusive, add tax to subtotal
+            return self.tax_code.calculate_total_with_tax(subtotal)
+    
     @property
-    def expected_total_cost(self):
-        """Calculate the expected total cost based on requested quantity"""
-        if self.quantity is None or self.price_per_unit is None:
-            return Decimal('0.00')
-        return (Decimal(str(self.quantity)) * 
-                Decimal(str(self.price_per_unit))).quantize(Decimal('0.01'))
-
-    # def __str__(self):
-    #     return f'{self.raw_material.name} - {self.quantity}'
-
-    # def save(self, *args, **kwargs):
-    #     # If this is a new item and no price is set, get the current price
-    #     if not self.pk and not self.price_per_unit:
-    #         current_price = RawMaterialPrice.get_current_price(
-    #             self.raw_material, 
-    #             self.requisition.supplier
-    #         )
-    #         if current_price is not None:
-    #             self.price_per_unit = current_price
-    #     super().save(*args, **kwargs)
+    def price_difference(self):
+        """Calculate difference between manual and system price"""
+        if self.pricing_source == 'manual' and self.system_price_at_creation:
+            return self.price_per_unit - self.system_price_at_creation
+        return 0
     
-    # @property
-    # def total_cost(self):
-    #     # Calculate the total cost for this specific item
-    #     return self.price_per_unit * self.delivered_quantity
+    @property
+    def price_variance_percentage(self):
+        """Calculate price variance as percentage"""
+        if self.pricing_source == 'manual' and self.system_price_at_creation and self.system_price_at_creation > 0:
+            return (self.price_difference / self.system_price_at_creation) * 100
+        return 0
     
+
+class RequisitionExpenseItem(models.Model):
+    """Model for storing individual expense line items for requisitions"""
+    requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE, related_name='expense_items')
+    expense_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.CASCADE, 
+                                       limit_choices_to={'account_type': 'expense'})
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(blank=True, help_text="Description of the expense")
+    created_at = models.DateTimeField(auto_now_add=True,blank=True,null=True)
+    updated_at = models.DateTimeField(auto_now=True,blank=True,null=True)
+
+    def __str__(self):
+        return f"{self.expense_account} - {self.amount} for {self.requisition.requisition_no}"
+
+    class Meta:
+        ordering = ['created_at']
+    
+
 class LPO(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('verified', 'Verified'),
         ('rejected', 'Rejected'),
     ]
-    PAYMENT_DURATION_CHOICES = [
-        (0, 'Immediate Payment'),
-        (10, '10 days'),
-        (20, '20 days'),
-        (30, '30 days'),
-        (45, '45 days')
-    ]
-
-    PAYMENT_OPTIONS_CHOICES = [
-        ('bank', 'Bank Transfer'),
-        ('mobile_money', 'Mobile Money'),
-        ('cash', 'Cash'),
-    ]
+    
     lpo_number = models.CharField(max_length=50, unique=True, blank=True)
     requisition = models.ForeignKey(Requisition, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    invoice_document = models.FileField(upload_to='uploads/products/')
+    invoice_document = models.FileField(upload_to='uploads/products/', null=True, blank=True)
     quotation_document = models.FileField(upload_to='uploads/products/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     payment_duration = models.IntegerField(choices=PAYMENT_DURATION_CHOICES, default=10)
     payment_option = models.CharField(max_length=20, choices=PAYMENT_OPTIONS_CHOICES, default='cash')
     
-    
     # Payment tracking fields
     is_paid = models.BooleanField(default=False, null=True, blank=True)
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=0, default=0.00,null=True, blank=True)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=0, default=0.00, null=True, blank=True)
     payment_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
@@ -1667,12 +1833,17 @@ class LPO(models.Model):
         if not self.lpo_number:
             self.lpo_number = self.generate_lpo_number()
             
-        # Update payment status based on amount paid
-        if self.amount_paid >= self.requisition.total_cost:
+        # Ensure amount_paid and total_cost are not None before comparison
+        req_total_cost = self.requisition.total_cost if self.requisition.total_cost is not None else 0
+        current_amount_paid = self.amount_paid if self.amount_paid is not None else 0
+
+        if current_amount_paid >= req_total_cost and req_total_cost > 0:
             self.is_paid = True
-            self.payment_date = timezone.now()  # Record payment date
+            if not self.payment_date: # Only set if not already set
+                self.payment_date = timezone.now()
         else:
             self.is_paid = False
+            # Do not clear payment_date if it was previously set and LPO is partially paid
         
         super().save(*args, **kwargs)
     
@@ -1690,7 +1861,7 @@ class LPO(models.Model):
         # Ensure the generated number is unique
         while LPO.objects.filter(lpo_number=lpo_number).exists():
             random_number = random.randint(1000, 9999)
-            lpo_number = f"pod-po{month}{year}-{random_number}"
+            lpo_number = f"prod-po-{month}{year}-{random_number}"
         
         return lpo_number
 
@@ -1715,8 +1886,32 @@ class LPO(models.Model):
     @property
     def outstanding_balance(self):
         """Calculate the outstanding balance by subtracting amount paid from total cost."""
-        return max(0, self.requisition.total_cost - self.amount_paid)
-            
+        total_cost = self.requisition.total_cost or 0
+        amount_paid = self.amount_paid or 0
+        return max(0, total_cost - amount_paid)
+    
+    def debug_outstanding_balance(self):
+        """Debug method to understand outstanding balance calculation"""
+        req_total = self.requisition.total_cost
+        req_debug = self.requisition.debug_total_calculation()
+        
+        print(f"\nLPO {self.lpo_number} outstanding balance calculation:")
+        print(f"Requisition total_cost (stored): {req_total}")
+        print(f"Amount paid: {self.amount_paid}")
+        print(f"Outstanding balance: {self.outstanding_balance}")
+        print(f"Requisition calculation details:")
+        for key, value in req_debug.items():
+            print(f"  {key}: {value}")
+        
+        return {
+            'requisition_total': req_total,
+            'amount_paid': self.amount_paid,
+            'outstanding_balance': self.outstanding_balance,
+            'requisition_debug': req_debug
+        }
+
+# Choices for pricing source
+
 class GoodsReceivedNote(models.Model):
     REASON_CHOICES = [
         ('Successful', 'Successful'),
@@ -1825,7 +2020,14 @@ class PaymentVoucher(models.Model):
     voucher_number = models.CharField(max_length=50, unique=True, blank=True)
     lpo = models.ForeignKey(LPO, on_delete=models.CASCADE)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # Chart of Accounts integration for proper accounting
+    payment_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.CASCADE, 
+                                      help_text="Account used for payment (e.g., Cash, Bank, Accounts Payable)",blank=True, null=True)
+    
+    # Legacy field for backward compatibility (will be deprecated)
     pay_by = models.CharField(max_length=20, choices=[('cash', 'Cash'),('bank', 'Bank Transfer'),('mobile', 'Mobile Money')],blank=True, null=True)
+    
     voucher_notes = models.TextField(blank=True, null=True)
     payment_date = models.DateTimeField(auto_now_add=True)
     payment_type = models.CharField(max_length=20, choices=[('full', 'Full Payment'), ('partial', 'Partial Payment')], default='partial')
@@ -1836,6 +2038,18 @@ class PaymentVoucher(models.Model):
     def save(self, *args, **kwargs):
         if not self.voucher_number:
             self.voucher_number = self.generate_voucher_number()
+            
+        # Set legacy pay_by field based on payment_account for backward compatibility
+        if self.payment_account:
+            account_name_lower = self.payment_account.account_name.lower()
+            if 'cash' in account_name_lower:
+                self.pay_by = 'cash'
+            elif 'bank' in account_name_lower:
+                self.pay_by = 'bank'
+            elif 'mobile' in account_name_lower or 'money' in account_name_lower:
+                self.pay_by = 'mobile'
+            else:
+                self.pay_by = 'bank'  # Default fallback
             
         if self.payment_type == 'full' and self.amount_paid < self.lpo.requisition.total_cost:
             raise ValueError("Cannot mark as 'Full Payment' if the amount is less than LPO total.")
@@ -1856,6 +2070,13 @@ class PaymentVoucher(models.Model):
             voucher_number = f"PROD-PV-{date_part}-{time_part}-{random_part}"
         
         return voucher_number
+
+    @property
+    def payment_method_display(self):
+        """Return a user-friendly display of the payment method"""
+        if self.payment_account:
+            return f"{self.payment_account.account_code} - {self.payment_account.account_name}"
+        return self.get_pay_by_display() if self.pay_by else "Unknown"
 
 # Signal to update LPO on PaymentVoucher save
 @receiver(post_save, sender=PaymentVoucher)
@@ -1886,3 +2107,37 @@ class StaffProductCommission(models.Model):
     
     def __str__(self):
         return f"Commission for {self.staff.first_name} - {self.product_sale_item}"
+
+# Signal to update supplier prices when requisition is delivered
+@receiver(post_save, sender=Requisition)
+def update_supplier_prices_on_delivery(sender, instance, **kwargs):
+    """Update supplier prices when requisition status changes to 'delivered'"""
+    if instance.status == 'delivered':
+        # Update supplier prices for all items with manual pricing
+        updated_count = 0
+        for item in instance.requisitionitem_set.all():
+            if item.update_supplier_price_on_delivery():
+                updated_count += 1
+        
+        if updated_count > 0:
+            print(f"Updated {updated_count} supplier prices for requisition {instance.requisition_no}")
+
+
+# Choices for pricing source
+
+# Register models with auditlog for audit tracking
+from auditlog.registry import auditlog
+
+# Register key models for audit tracking
+auditlog.register(Supplier)
+auditlog.register(RawMaterial) 
+auditlog.register(Requisition)
+auditlog.register(RequisitionItem)
+auditlog.register(RequisitionExpenseItem)
+auditlog.register(LPO)
+auditlog.register(PaymentVoucher)
+auditlog.register(RawMaterialPrice)
+auditlog.register(TaxCode)
+auditlog.register(GoodsReceivedNote)
+auditlog.register(Production)
+auditlog.register(ManufactureProduct)

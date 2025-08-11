@@ -1,75 +1,233 @@
-
-{% extends 'base.html' %}
-
-{% load static %}
-
-{% block title %}All Requisitions{% endblock %}
-{% block css %}
-	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-slider/dist/css/bootstrap-slider.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
-{% endblock %}
-
-{% block js %}
-	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
-	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-slider/dist/bootstrap-slider.min.js' %}"></script>
-	<script src="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.js' %}"></script>
-	<script src="{% static 'plugins/jquery.maskedinput/src/jquery.maskedinput.js' %}"></script>
-	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/vendor/jquery.ui.widget.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-tmpl/js/tmpl.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-load-image/js/load-image.all.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-canvas-to-blob/js/canvas-to-blob.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-gallery/js/jquery.blueimp-gallery.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.iframe-transport.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-process.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-image.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-audio.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-video.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-validate.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-ui.js' %}"></script>
-	<script src="{% static 'plugins/summernote/dist/summernote-lite.min.js' %}"></script>
-	<script src="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.js' %}"></script>
-	<script src="{% static 'plugins/select-picker/dist/picker.min.js' %}"></script>
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'js/demo/form-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
-{% endblock %}
-
-{% block content %}
-<div class="d-flex align-items-center mb-3">
-    <div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#">FINANCE</a></li>
-            <li class="breadcrumb-item active">PRODUCTION PURCHASE ORDER PAYMENT VOUCHER DETAIL</li>
-        </ul>
-        <h5 class="mb-0">
-            Payment Voucher Details
-        </h5>
-    <div>
-</div>
-
-    <p>Voucher Number: {{ voucher.voucher_number }}</p>
-    <p>LPO Number: {{ voucher.lpo.lpo_number }}</p>
-    <p>Amount Paid: {{ voucher.amount_paid }}</p>
-    <p>Payment Date: {{ voucher.payment_date }}</p>
-    <p>Payment Type: {{ voucher.payment_type }}</p>
-	<p>Payment Method: {{ voucher.pay_by }}</p>
-	<p>Notes: {{ voucher.voucher_notes }}</p>
-
-    <button onclick="window.print()">Print Voucher</button>
-
-	{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Voucher - {{ voucher.voucher_number }}</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: black;
+        }
+        
+        .receipt {
+            max-width: 400px;
+            margin: 0 auto;
+            border: 1px solid #000;
+            padding: 15px;
+            background: white;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 10px;
+        }
+        
+        .company-name {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .company-address {
+            font-size: 11px;
+            margin-bottom: 10px;
+        }
+        
+        .voucher-title {
+            font-weight: bold;
+            font-size: 13px;
+            text-decoration: underline;
+        }
+        
+        .voucher-info {
+            margin: 15px 0;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+        }
+        
+        .details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .details-table th,
+        .details-table td {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+        }
+        
+        .details-table th {
+            font-weight: bold;
+            background: #f5f5f5;
+        }
+        
+        .amount {
+            text-align: right;
+        }
+        
+        .total-section {
+            border-top: 2px solid #000;
+            margin-top: 15px;
+            padding-top: 10px;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .total-label {
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+        }
+        
+        .print-button {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 20px auto;
+            display: block;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <div class="header">
+            <div class="company-name">THE VENTURES INC</div>
+            <div class="company-address">Plot 131 Martyrs Way, Ntinda.<br>Kampala, Uganda</div>
+            <div class="voucher-title">PAYMENT VOUCHER</div>
+        </div>
+        
+        <div class="voucher-info">
+            <div class="info-row">
+                <span class="info-label">Payee:</span>
+                <span>{{ voucher.lpo.requisition.supplier.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Address:</span>
+                <span>{{ voucher.lpo.requisition.supplier.address|default:"Kampala" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Date:</span>
+                <span>{{ voucher.payment_date|date:"d/m/Y" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Voucher No:</span>
+                <span>{{ voucher.voucher_number }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">LPO No:</span>
+                <span>{{ voucher.lpo.lpo_number }}</span>
+            </div>
+        </div>
+        
+        <table class="details-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="amount">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Payment for LPO {{ voucher.lpo.lpo_number }}</td>
+                    <td class="amount">{{ voucher.amount_paid|floatformat:2 }}</td>
+                </tr>
+                {% if voucher.voucher_notes %}
+                <tr>
+                    <td>Notes: {{ voucher.voucher_notes }}</td>
+                    <td class="amount">-</td>
+                </tr>
+                {% endif %}
+                <tr>
+                    <td>Payment Method: 
+                        {% if voucher.payment_account %}
+                            {{ voucher.payment_account.account_name }}
+                        {% else %}
+                            {{ voucher.get_pay_by_display }}
+                        {% endif %}
+                    </td>
+                    <td class="amount">-</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="total-section">
+            <div class="total-row">
+                <span class="total-label">Gross Amount:</span>
+                <span>UGX {{ voucher.amount_paid|floatformat:2 }}</span>
+            </div>
+            <div class="total-row">
+                <span class="total-label">Net Amount:</span>
+                <span>UGX {{ voucher.amount_paid|floatformat:2 }}</span>
+            </div>
+            <div class="total-row">
+                <span class="total-label">Payment Type:</span>
+                <span>{{ voucher.get_payment_type_display }}</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Generated on {{ voucher.payment_date|date:"d/m/Y H:i" }}</p>
+            <p>This is a computer generated document.</p>
+            {% if voucher.payment_account %}
+            <p>Account: {{ voucher.payment_account.account_code }} - {{ voucher.payment_account.account_name }}</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button class="print-button" onclick="window.history.back()" style="background: #666; margin-right: 10px;">
+            ← Back
+        </button>
+        <button class="print-button" onclick="window.print()">
+            Print Voucher
+        </button>
+    </div>
+    
+    <script>
+        // Auto-focus for printing
+        window.onload = function() {
+            window.focus();
+        }
+        
+        // Optional: Auto-print when opened in new window
+        if (window.location.search.includes('print=true')) {
+            window.print();
+        }
+    </script>
+</body>
+</html>

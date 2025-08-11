@@ -188,7 +188,7 @@ def sidebar_menu(request):
             'children': [{
                 'url': '/production/all_requisitions',
                 'icon': 'bi bi-inboxes-fill',
-                'text': 'Requisitions',
+                'text': 'Purchase Orders',
                 'name':'all_requisitions'
             },{
                 'url': '/production/lpos_list/',
@@ -687,14 +687,14 @@ def sidebar_menu(request):
                     'url': '/production/all_requisitions',
                     'icon': 'bi bi-inboxes-fill',
                     'text': mark_safe(
-                        f'Requisitions <span class="badge rounded-circle bg-danger">{requisitions_count}</span>' 
-                        if requisitions_count > 0 else 'Requisitions'),
+                        f'Purchase Orders <span class="badge rounded-circle bg-danger">{requisitions_count}</span>' 
+                        if requisitions_count > 0 else 'Purchase Orders'),
                     'name': 'all_requisitions'
                 },{
                     'url': '/production/lpos_list/',
                     'icon': 'bi bi-egg-fried',
-                    'text': mark_safe(f'Purchase Orders <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
-                            if lpo_count > 0 else 'Purchase Orders'
+                    'text': mark_safe(f'Purchase Invoices <span class="badge rounded-circle bg-danger">{lpo_count}</span>'
+                            if lpo_count > 0 else 'Purchase Invoices'
                             ),
                     'name': 'lpos_list'
                 },{
@@ -744,7 +744,7 @@ def sidebar_menu(request):
                 'children': [{
                     'url': '/production/finance_list_store_sales/',
                     'icon': 'bi bi-bounding-box-circles',
-                    'text': 'Direct Store Sales',
+                    'text': 'Main Store Sales',
                     'name': 'financeListStoreSales',
                 },{
                     'url': '/production/store_sale_list_receipts',
@@ -917,8 +917,8 @@ def sidebar_menu(request):
                     'url': '/production/all_requisitions',
                     'icon': 'bi bi-inboxes-fill',
                     'text': mark_safe(
-                        f'Requisitions <span class="badge rounded-circle bg-danger">{verified_requsitions}</span>' 
-                        if verified_requsitions > 0 else 'Requisitions'),
+                        f'Purchase Orders <span class="badge rounded-circle bg-danger">{verified_requsitions}</span>' 
+                        if verified_requsitions > 0 else 'Purchase Orders'),
                     'name': 'all_requisitions'
                 },{
                     'url': '/production/goods-received-notes/',

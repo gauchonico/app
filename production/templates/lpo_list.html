@@ -1,160 +1,332 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}Local Production Orders{% endblock %}
+{% block title %}Local Purchase Orders (LPO){% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
 {% endblock %}
 
 {% block js %}
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
 	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
-	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
 
 {% block content %}
-    <!-- BEGIN page-header -->
-	<div class="d-flex align-items-center mb-3">
-		<div>
-			<ul class="breadcrumb">
-				<li class="breadcrumb-item"><a href="#">PAGES</a></li>
-				<li class="breadcrumb-item active">PURCHASE ORDERS</li>
-			</ul>
-			<h1 class="page-header mb-0">Purchase Orders</h1>
-		</div>
-		
+<div class="d-flex align-items-center mb-3">
+	<div>
+		<ul class="breadcrumb">
+			<li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+			<li class="breadcrumb-item active">PURCHASE ORDERS</li>
+		</ul>
+		<h1 class="page-header mb-0">Local Purchase Orders (LPO)</h1>
 	</div>
-	
-		
-		<p>A list of all Purchase Orders Created after approving Requisitions from various departments. Make sure to Verify them with sufficient documentation.</p>
-		<div class="card">
-			<div class="card-body text-center">
-				<table id="datatableDefault" class="table text-nowrap w-100">
-					<thead class="align-middle">
-						<tr>
-							<th class="border-top-0 pt-0 pb-2">#</th>
-							<th class="border-top-0 pt-0 pb-2">Req. No.</th>
-							<th class="border-top-0 pt-0 pb-2">Created At</th>
-                            <th class="border-top-0 pt-0 pb-2">M.O.P</th>
-							<th class="border-top-0 pt-0 pb-2">Status</th>
-							<th class="border-top-0 pt-0 pb-2">Outstanding Balance</th>
-							<th class="border-top-0 pt-0 pb-2">Payment Duration</th>
+</div>
 
-                            
-							<th class="border-top-0 pt-0 pb-2">Edit</th>
-						</tr>
-					</thead>
-					<tbody class="align-middle">
-						{% for lpo in lpos %}
-						<tr>
-							<td class="align-middle">{{forloop.counter}}</td>
-							<td class="align-middle"><a href="#">{{ lpo.requisition }}</a></td>
-							<td class="align-middle">{{ lpo.created_at }}</td>
-									
-                            <td class=""data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Click to preview">
-                                    {{ lpo.payment_option }}
-									
-    
-                            </td>
-							<td class="align-middle">
-								<span class="badge 
-									{% if lpo.status == 'pending' %}
-										border border-warning text-warning 
-									{% elif lpo.status == 'verified' %} 
-										border border-success text-success
-									{% elif lpo.status == 'rejected' %} 
-										border border-primary text-primary
-									{% else %}
-										bg-white text-dark
-									{% endif %} 
-									px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"
-									data-bs-toggle="tooltip" data-bs-placement="top"
-									data-bs-title="{% if lpo.status == 'pending' %}Waiting Document Verification{% elif lpo.status == 'verified' %}Verified and ready for Delivery{% elif lpo.status == 'rejected' %}Failed Verication Process{% else %}This order has an unknown status{% endif %}">
-									<i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ lpo.status}}
-								</span>
-							</td>
-							<td>
-								{% if lpo.outstanding_balance > 0 %}
-								<p>Outstanding Balance: <span class="text-danger">{{ lpo.outstanding_balance }}</span></p><a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">Pay Now</a>
-								{% else %}
-								<p>PO PAID:</p>
-									
-								{% endif %}
-				
-							</td>
-							
-							<td class="align-middle">
-								{% if lpo.status == 'pending' %}
-									<a href="{% url 'lpo_verify' lpo.id %}" class="btn btn-success btn-sm">Verify</a>
-								{% elif lpo.status == 'verified' %}
-									<span class="text-success">Ready for Delivery</span>
-								{% elif lpo.status == 'rejected' %}
-									<span class="badge bg-danger">Rejected</span>
-								{% endif %}
-							</td>
-							
-                            
-							<td class="align-middle">
-								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
-									<a href="{% url 'lpo_detail' lpo.id %}"><i class="far fa-lg fa-fw me-2 fa-eye"></i></a>
-						
+<!-- Summary Cards -->
+<div class="row mb-4">
+	<div class="col-xl-3 col-md-6">
+		<div class="card border-0 text-truncate">
+			<div class="card-body">
+				<div class="row">
+					<div class="col-7">
+						<div class="d-flex fw-bold small mb-3">
+							<span class="flex-grow-1">TOTAL LPOs</span>
+						</div>
+						<div class="row align-items-center mb-2">
+							<div class="col-7">
+								<h3 class="mb-0">{{ total_lpos }}</h3>
+							</div>
+							<div class="col-5">
+								<div class="mt-n3 mb-n2">
+									<div id="visitors-donut-chart"></div>
 								</div>
-							</td>
-						</tr>
-						{% endfor %}
-					</tbody>
-				</table>
+							</div>
+						</div>
+					</div>
+					<div class="col-5 position-relative">
+						<div class="divider divider-start divider-vertical h-100"></div>
+						<small class="text-muted">Total Value<br><strong class="text-success">UGX {{ total_value|floatformat:0|intcomma }}</strong></small>
+					</div>
+				</div>
 			</div>
-			<div class="card-arrow">
-				<div class="card-arrow-top-left"></div>
-				<div class="card-arrow-top-right"></div>
-				<div class="card-arrow-bottom-left"></div>
-				<div class="card-arrow-bottom-right"></div>
-			</div>
-			
 		</div>
 	</div>
-	
-	<!-- BEGIN container -->
-	
-	<!-- END container -->
+	<div class="col-xl-3 col-md-6">
+		<div class="card border-0 text-truncate">
+			<div class="card-body">
+				<div class="row">
+					<div class="col-7">
+						<div class="d-flex fw-bold small mb-3">
+							<span class="flex-grow-1">PENDING</span>
+						</div>
+						<div class="row align-items-center mb-2">
+							<div class="col-7">
+								<h3 class="mb-0 text-warning">{{ pending_lpos }}</h3>
+							</div>
+						</div>
+					</div>
+					<div class="col-5 position-relative">
+						<div class="divider divider-start divider-vertical h-100"></div>
+						<small class="text-muted">Verified<br><strong class="text-success">{{ verified_lpos }}</strong></small>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-xl-3 col-md-6">
+		<div class="card border-0 text-truncate">
+			<div class="card-body">
+				<div class="row">
+					<div class="col-7">
+						<div class="d-flex fw-bold small mb-3">
+							<span class="flex-grow-1">PAID LPOs</span>
+						</div>
+						<div class="row align-items-center mb-2">
+							<div class="col-7">
+								<h3 class="mb-0 text-success">{{ paid_lpos }}</h3>
+							</div>
+						</div>
+					</div>
+					<div class="col-5 position-relative">
+						<div class="divider divider-start divider-vertical h-100"></div>
+						<small class="text-muted">Unpaid<br><strong class="text-danger">{{ unpaid_lpos }}</strong></small>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="col-xl-3 col-md-6">
+		<div class="card border-0 text-truncate">
+			<div class="card-body">
+				<div class="row">
+					<div class="col-7">
+						<div class="d-flex fw-bold small mb-3">
+							<span class="flex-grow-1">OUTSTANDING</span>
+						</div>
+						<div class="row align-items-center mb-2">
+							<div class="col-7">
+								<h3 class="mb-0 text-danger">{{ total_outstanding|floatformat:0|intcomma }}</h3>
+							</div>
+						</div>
+					</div>
+					<div class="col-5 position-relative">
+						<div class="divider divider-start divider-vertical h-100"></div>
+						<small class="text-muted">Paid<br><strong class="text-success">UGX {{ total_paid|floatformat:0|intcomma }}</strong></small>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- Main Table -->
+<div class="card">
+	<div class="card-header d-flex align-items-center">
+		<h5 class="card-title mb-0">Purchase Orders Management</h5>
+		<div class="ms-auto">
+			<small class="text-muted">All purchase orders created from approved requisitions</small>
+		</div>
+	</div>
+	<div class="card-body">
+		<div class="table-responsive">
+			<table id="datatableDefault" class="table table-hover table-striped align-middle">
+				<thead class="table-dark">
+					<tr>
+						<th class="text-center" width="5%">#</th>
+						<th width="15%">LPO Number</th>
+						<th width="15%">Requisition</th>
+						<th width="12%">Supplier</th>
+						<th width="10%">Amount</th>
+						<th width="8%" class="text-center">Status</th>
+						<th width="8%" class="text-center">Payment</th>
+						<th width="12%">Outstanding</th>
+						<th width="10%">Created</th>
+						<th width="5%" class="text-center">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for lpo in lpos %}
+					<tr>
+						<td class="text-center fw-bold">{{ forloop.counter }}</td>
+						<td>
+							<a href="{% url 'lpo_detail' lpo.id %}" class="text-decoration-none">
+								<strong>{{ lpo.lpo_number }}</strong>
+							</a>
+						</td>
+						<td>
+							<div>
+								<strong>{{ lpo.requisition.requisition_no }}</strong>
+								<br><small class="text-muted">{{ lpo.requisition.status|title }}</small>
+							</div>
+						</td>
+						<td>
+							<div>
+								<strong>{{ lpo.requisition.supplier.name }}</strong>
+								<br><small class="text-muted">{{ lpo.payment_option|title }}</small>
+							</div>
+						</td>
+						<td>
+							<strong class="text-primary">UGX {{ lpo.requisition.total_cost|floatformat:0|intcomma }}</strong>
+						</td>
+						<td class="text-center">
+							<span class="badge 
+								{% if lpo.status == 'pending' %}bg-warning
+								{% elif lpo.status == 'verified' %}bg-success
+								{% elif lpo.status == 'rejected' %}bg-danger
+								{% else %}bg-secondary
+								{% endif %}">
+								{{ lpo.status|title }}
+							</span>
+						</td>
+						<td class="text-center">
+							{% if lpo.is_paid %}
+								<span class="badge bg-success">
+									<i class="fa fa-check-circle me-1"></i>Paid
+								</span>
+							{% else %}
+								<span class="badge bg-danger">
+									<i class="fa fa-exclamation-circle me-1"></i>Unpaid
+								</span>
+							{% endif %}
+						</td>
+						<td>
+							{% if lpo.status == 'pending' %}
+								<span class="badge bg-warning">
+									<i class="fa fa-clock me-1"></i>Pending Verification
+								</span>
+							{% elif lpo.status == 'rejected' %}
+								<span class="badge bg-danger">
+									<i class="fa fa-times me-1"></i>Rejected
+								</span>
+							{% elif lpo.status == 'verified' %}
+								{% if lpo.is_paid %}
+									<span class="badge bg-success">
+										<i class="fa fa-check-circle me-1"></i>Fully Paid
+									</span>
+								{% elif lpo.amount_paid and lpo.amount_paid > 0 %}
+									<div>
+										<strong class="text-warning">UGX {{ lpo.outstanding_balance|floatformat:0|intcomma }}</strong>
+										<br><small class="text-muted">Partially Paid</small>
+										<br><a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">
+											<i class="fa fa-credit-card me-1"></i>Pay Balance
+										</a>
+									</div>
+								{% else %}
+									<div>
+										<strong class="text-danger">UGX {{ lpo.requisition.total_cost|default:0|floatformat:0|intcomma }}</strong>
+										<br><small class="text-muted">Unpaid</small>
+										<br><a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">
+											<i class="fa fa-credit-card me-1"></i>Pay Now
+										</a>
+									</div>
+								{% endif %}
+							{% else %}
+								<span class="badge bg-secondary">Unknown Status</span>
+							{% endif %}
+						</td>
+						<td>
+							<div>
+								<strong>{{ lpo.created_at|date:"M d, Y" }}</strong>
+								<br><small class="text-muted">{{ lpo.created_at|date:"H:i" }}</small>
+							</div>
+						</td>
+						<td class="text-center">
+							<div class="dropdown">
+								<button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+									<i class="fa fa-cog"></i>
+								</button>
+								<ul class="dropdown-menu">
+									<li><a class="dropdown-item" href="{% url 'lpo_detail' lpo.id %}">
+										<i class="fa fa-eye me-2"></i>View Details
+									</a></li>
+									{% if lpo.status == 'pending' %}
+									<li><a class="dropdown-item text-success" href="{% url 'lpo_verify' lpo.id %}">
+										<i class="fa fa-check me-2"></i>Verify
+									</a></li>
+									{% endif %}
+									{% if lpo.outstanding_balance > 0 %}
+									<li><a class="dropdown-item text-primary" href="{% url 'pay_lpo' lpo.id %}">
+										<i class="fa fa-credit-card me-2"></i>Make Payment
+									</a></li>
+									{% endif %}
+								</ul>
+							</div>
+						</td>
+					</tr>
+					{% empty %}
+					<tr>
+						<td colspan="10" class="text-center py-4">
+							<div class="text-muted">
+								<i class="fa fa-inbox fa-2x mb-2"></i>
+								<br>No purchase orders found
+							</div>
+						</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+	<div class="card-arrow">
+		<div class="card-arrow-top-left"></div>
+		<div class="card-arrow-top-right"></div>
+		<div class="card-arrow-bottom-left"></div>
+		<div class="card-arrow-bottom-right"></div>
+	</div>
+</div>
+
 {% endblock %}
+
 {% block outter_content %}
+<script>
+$(document).ready(function() {
+	$('#datatableDefault').DataTable({
+		responsive: true,
+		ordering: true,
+		order: [], // Don't apply any initial client-side ordering, respect server order
+		pageLength: 25,
+		columnDefs: [
+			{ targets: [5, 6, 9], orderable: false }, // Disable sorting for status, payment, and actions
+			{ targets: [0], orderable: false }, // Disable sorting for the # column (auto-generated counter)
+		],
+		language: {
+			search: "Search LPOs:",
+			lengthMenu: "Show _MENU_ LPOs per page",
+			info: "Showing _START_ to _END_ of _TOTAL_ LPOs",
+			paginate: {
+				previous: "Previous",
+				next: "Next"
+			}
+		}
+	});
+});
+</script>
 
 {% if messages %}
-    <div class="toasts-container">
-        {% for message in messages %}
-            <div class="toast fade show">
-                <div class="toast-header">
-                    <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Actions</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                </div>
-                <div class="toast-body">
-                    <p>{{ message }}</p>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
+<div class="toasts-container">
+	{% for message in messages %}
+	<div class="toast fade show">
+		<div class="toast-header">
+			<i class="far fa-bell text-muted me-2"></i>
+			<strong class="me-auto">Notification</strong>
+			<button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+		</div>
+		<div class="toast-body">
+			<p>{{ message }}</p>
+		</div>
+	</div>
+	{% endfor %}
+</div>
 {% endif %}
-
-{% if form.errors %}  {% endif %}
-
-{% endblock outter_content %}
+{% endblock %}

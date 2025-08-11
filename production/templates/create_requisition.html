@@ -1,306 +1,790 @@
 {% extends 'base.html' %}
-
 {% load static %}
 
-{% block title %}Generate Requisition{% endblock %}
-{% block css %}
-	<link href="{% static 'plugins/tag-it/css/jquery.tagit.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-timepicker/css/bootstrap-timepicker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-slider/dist/css/bootstrap-slider.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/blueimp-file-upload/css/jquery.fileupload.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/summernote/dist/summernote-lite.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/select-picker/dist/picker.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.css' %}" rel="stylesheet" />
-    <link href="/assets/plugins/select-picker/dist/picker.min.css" rel="stylesheet">
-    
-{% endblock %}
-
-{% block js %}
-	<script src="{% static 'plugins/jquery-migrate/dist/jquery-migrate.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
-	<script src="{% static 'plugins/moment/min/moment.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-daterangepicker/daterangepicker.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-timepicker/js/bootstrap-timepicker.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-slider/dist/bootstrap-slider.min.js' %}"></script>
-	<script src="{% static 'plugins/jquery-typeahead/dist/jquery.typeahead.min.js' %}"></script>
-	<script src="{% static 'plugins/jquery.maskedinput/src/jquery.maskedinput.js' %}"></script>
-	<script src="{% static 'plugins/tag-it/js/tag-it.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/vendor/jquery.ui.widget.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-tmpl/js/tmpl.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-load-image/js/load-image.all.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-canvas-to-blob/js/canvas-to-blob.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-gallery/js/jquery.blueimp-gallery.min.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.iframe-transport.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-process.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-image.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-audio.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-video.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-validate.js' %}"></script>
-	<script src="{% static 'plugins/blueimp-file-upload/js/jquery.fileupload-ui.js' %}"></script>
-	<script src="{% static 'plugins/summernote/dist/summernote-lite.min.js' %}"></script>
-	<script src="{% static 'plugins/spectrum-colorpicker2/dist/spectrum.min.js' %}"></script>
-	<script src="{% static 'plugins/select-picker/dist/picker.min.js' %}"></script>
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'js/demo/form-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
-    <script src="/assets/plugins/select-picker/dist/picker.min.js"></script>
-{% endblock %}
+{% block title %}Create Requisition{% endblock %}
 
 {% block content %}
-	<ul class="breadcrumb">
-		<li class="breadcrumb-item"><a href="#">PURCHASE ORDERS</a></li>
-		<li class="breadcrumb-item active">CREATE RAWMATERIAL REQUISITION</li>
-	</ul>
-	
-	<h1 class="page-header">
-		Create New Requisition
-	</h1>
-	
-	<ul>
-		<!-- <li>Member must have National ID / Passport</li> -->
-    </ul>
-
-<div class="card">
-    <div class="card-body pb-2">
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            {{ requisition_form.as_p }}
-            
-            
-            <table id="requisition_item_formset">
-                <thead>
-                    <tr>
-                        <th>Raw Material</th>
-                        <th>Quantity Ordered</th>
-                        <th>Unit Price</th>
-                        <th>Total Cost</th>
-                       
-                    </tr>
-                </thead>
-                {{ item_formset.management_form }}
-                <tbody>
-                    {% for form in item_formset %}
-                        <tr class="form-row">
-                            <td>{{ form.raw_material }}</td>
-                            <td>{{ form.quantity }}</td>
-                            <td>{{ form.price_per_unit }} <div class="invalid-feedback"></div></td>
-                            <td class="total-cost">0.00</td>
+<style>
+.raw-material-field {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+</style>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Create New Requisition</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="requisition-form">
+                        {% csrf_token %}
+                        
+                        <!-- Requisition Details -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5>Requisition Details</h5>
+                                <div class="mb-3">
+                                    <label for="{{ requisition_form.supplier.id_for_label }}" class="form-label">Supplier *</label>
+                                    {{ requisition_form.supplier }}
+                                    {% if requisition_form.supplier.errors %}
+                                        <div class="text-danger">{{ requisition_form.supplier.errors }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="{{ requisition_form.price_list_document.id_for_label }}" class="form-label">Price List Document</label>
+                                    {{ requisition_form.price_list_document }}
+                                    {% if requisition_form.price_list_document.errors %}
+                                        <div class="text-danger">{{ requisition_form.price_list_document.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
                             
-                        </tr>
-                        <tr>
-                            <td colspan="2">{{ form.errors}}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div class="ms-auto mt-5">
-                <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
-                <button type="submit" class="btn btn-outline-theme me-2">Submit Requisition</button>
-            </div>
-            
-        </form>
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const quantityInput = document.getElementById('id_quantity');
-                const priceInput = document.getElementById('id_price_per_unit');
-                const totalCostInput = document.getElementById('total-cost');
-            
-                function updateTotalCost() {
-                    const quantity = parseFloat(quantityInput.value) || 0;
-                    const pricePerUnit = parseFloat(priceInput.value) || 0;
-                    const totalCost = quantity * pricePerUnit;
-                    totalCostInput.value = totalCost.toFixed(2);
-                }
-            
-                quantityInput.addEventListener('input', updateTotalCost);
-                priceInput.addEventListener('input', updateTotalCost);
-            
-                // Initial calculation in case values are pre-filled
-                updateTotalCost();
-            });
-            </script>
-            <script>
-                $(document).ready(function() {
-                    var formCount = parseInt($('#id_form-TOTAL_FORMS').val()); // Get initial form count
-                    
-                    $('#add_form').click(function() {
-                        var formIdx = formCount;
-                        formCount++;
-                        
-                        var newForm = $('#requisition_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
-                        newForm.find('input, select').each(function() {
-                            var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
-                            var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
-                            $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
-                        });
-                        newForm.find('.remove-form').remove(); // Remove any existing remove buttons
-                        newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
-                        $('#requisition_item_formset tbody').append(newForm); // Append the cloned form to the table body
-                        
-                        $('#id_form-TOTAL_FORMS').val(formCount); // Update the management form with the new form count
-                    });
-                
-                    // Remove formset row
-                    $('#requisition_item_formset').on('click', '.remove-form', function() {
-                        $(this).closest('tr').remove(); // Remove the closest <tr> element
-                        formCount--;
-                        $('#id_form-TOTAL_FORMS').val(formCount); // Decrement form count
-                    });
-                });
-            </script>
-    </div>
-    <div class="card-arrow">
-        <div class="card-arrow-top-left"></div>
-        <div class="card-arrow-top-right"></div>
-        <div class="card-arrow-bottom-left"></div>
-        <div class="card-arrow-bottom-right"></div>
-    </div>
+                            <div class="col-md-6">
+                                <h5>Tax Settings</h5>
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ requisition_form.amounts_are_tax_inclusive }}
+                                        <label class="form-check-label" for="{{ requisition_form.amounts_are_tax_inclusive.id_for_label }}">
+                                            Amounts are tax inclusive
+                                        </label>
+                                    </div>
+                                    <small class="text-muted">If checked, all amounts include tax. If unchecked, tax will be added to amounts.</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="{{ requisition_form.default_tax_code.id_for_label }}" class="form-label">Default Tax Code</label>
+                                    {{ requisition_form.default_tax_code }}
+                                    {% if requisition_form.default_tax_code.errors %}
+                                        <div class="text-danger">{{ requisition_form.default_tax_code.errors }}</div>
+                                    {% endif %}
+                                    <small class="text-muted">Default tax code for items in this requisition (can be overridden per item)</small>
+                                </div>
+                            </div>
+                        </div>
 
-</div>
+                        <!-- Raw Materials Section -->
+                        <div class="mb-4">
+                            <h5>Raw Materials</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="items-table">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Description</th>
+                                            <th>Qty</th>
+                                            <th>Unit Price</th>
+                                            <th>Total</th>
+                                            <th>Tax Code</th>
+                                            <th>Tax Amount</th>
+                                            <th>Total with Tax</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items-tbody">
+                                        {{ item_formset.management_form }}
+                                        {% for form in item_formset %}
+                                        <tr class="item-row">
+                                            <td>
+                                                {{ form.raw_material }}
+                                                {{ form.pricing_source.as_hidden }}
+                                                {% if form.raw_material.errors %}
+                                                    <div class="text-danger small">{{ form.raw_material.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="form-check">
+                                                    {{ form.use_manual_price }}
+                                                    <label class="form-check-label">Use Manual Price</label>
+                                                </div>
+                                                <div class="manual-price-reason-container" style="display: none;">
+                                                    {{ form.manual_price_reason }}
+                                                    <small class="text-muted">Reason (Optional)</small>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {{ form.quantity }}
+                                                {% if form.quantity.errors %}
+                                                    <div class="text-danger small">{{ form.quantity.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ form.price_per_unit }}
+                                                {% if form.price_per_unit.errors %}
+                                                    <div class="text-danger small">{{ form.price_per_unit.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="subtotal-before-tax">0.00</span>
+                                            </td>
+                                            <td>
+                                                {{ form.tax_code }}
+                                                {% if form.tax_code.errors %}
+                                                    <div class="text-danger small">{{ form.tax_code.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="tax-amount">0.00</span>
+                                            </td>
+                                            <td>
+                                                <span class="total-with-tax">0.00</span>
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-danger remove-row">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button type="button" class="btn btn-success" id="add-item-row">
+                                <i class="fa fa-plus"></i> Add Item
+                            </button>
+                        </div>
 
-{% endblock %}
-{% block outter_content %}
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+                        <!-- Additional Expenses Section -->
+                        <div class="mb-4">
+                            <h5>Additional Expenses</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="expenses-table">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Expense Account</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="expenses-tbody">
+                                        {{ expense_formset.management_form }}
+                                        {% for form in expense_formset %}
+                                        <tr class="expense-row">
+                                            <td>
+                                                {{ form.expense_account }}
+                                                {% if form.expense_account.errors %}
+                                                    <div class="text-danger small">{{ form.expense_account.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ form.description }}
+                                                {% if form.description.errors %}
+                                                    <div class="text-danger small">{{ form.description.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ form.amount }}
+                                                {% if form.amount.errors %}
+                                                    <div class="text-danger small">{{ form.amount.errors }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-danger remove-expense-row">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button type="button" class="btn btn-success" id="add-expense-row">
+                                <i class="fa fa-plus"></i> Add Expense
+                            </button>
+                        </div>
 
-<script>
-    $(document).ready(function() {
-        $('#supplier-select').change(function() {
-            var supplierId = $(this).val();
-            $.ajax({
-                url: '{% url "get_raw_materials_by_supplier" %}',
-                data: {
-                    'supplier_id': supplierId
-                },
-                success: function(data) {
-                    $('#requisition_item_formset tbody').each(function() {
-                        $(this).find('select[name$="raw_material"]').each(function() {
-                            var rawMaterialSelect = $(this);
-                            rawMaterialSelect.empty();
-                            rawMaterialSelect.append('<option value="">Select Raw Material</option>');
-                            $.each(data, function(index, rawMaterial) {
-                                rawMaterialSelect.append($('<option>', {
-                                    value: rawMaterial.id,
-                                    text: rawMaterial.name
-                                }));
-                            });
-                        });
-                    });
-                }
-            });
-        });
+                        <!-- Requisition Summary -->
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title">Requisition Summary</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Items Subtotal:</span>
+                                            <span id="items-subtotal">UGX 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Total Tax:</span>
+                                            <span id="total-tax">UGX 0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Items Total with Tax:</span>
+                                            <span id="items-total-with-tax">UGX 0.00</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Expenses Total:</span>
+                                            <span id="expenses-total">UGX 0.00</span>
+                                        </div>
+                                        <hr>
+                                        <div class="d-flex justify-content-between fw-bold">
+                                            <span>Grand Total:</span>
+                                            <span id="grand-total">UGX 0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-        // Handle raw material selection to auto-fill price
-        $(document).on('change', 'select[id$="-raw_material"]', function() {
-        var rawMaterialId = $(this).val();
-        var supplierId = $('#supplier-select').val();
-        var priceInput = $(this).closest('tr').find('input[id$="-price_per_unit"]');
-        var row = $(this).closest('tr');
-        
-        if (rawMaterialId && supplierId) {
-            // Show loading state
-            priceInput.val('Loading...');
-            
-            $.ajax({
-                url: '{% url "get_raw_material_price_list" %}',
-                data: {
-                    'raw_material_id': rawMaterialId,
-                    'supplier_id': supplierId
-                },
-                success: function(data) {
-                    if (data.success) {
-                        if (data.has_price) {
-                            priceInput.val(data.price);
-                            priceInput.removeClass('is-invalid');
-                            priceInput.after('<div class="valid-feedback">Price loaded from price list</div>');
-                        } else {
-                            priceInput.val('');
-                            priceInput.addClass('is-invalid');
-                            priceInput.after('<div class="invalid-feedback">No price found. Please enter manually.</div>');
-                            priceInput.focus();
-                        }
-                        updateTotalCost(row);
-                    } else {
-                        showError('Error: ' + (data.error || 'Failed to load price'));
-                    }
-                },
-                error: function() {
-                    priceInput.val('');
-                    showError('Error loading price. Please enter manually.');
-                }
-            });
-        }
-    });
-
-    // Add this helper function for error messages
-    function showError(message) {
-        // You can implement a toast or alert here
-        alert(message);
-    }
-
-        // Function to update total cost for a row
-        function updateTotalCost(row) {
-            var quantity = parseFloat(row.find('input[id$="-quantity"]').val()) || 0;
-            var pricePerUnit = parseFloat(row.find('input[id$="-price_per_unit"]').val()) || 0;
-            var totalCost = quantity * pricePerUnit;
-            row.find('.total-cost').text('UGX ' + totalCost.toFixed(2));
-        }
-
-        // Update total cost when quantity or price changes
-        $(document).on('input', 'input[id$="-quantity"], input[id$="-price_per_unit"]', function() {
-            updateTotalCost($(this).closest('tr'));
-        });
-
-        // Update the form submission to validate prices
-        $('form').on('submit', function(e) {
-            var hasMissingPrices = false;
-            $('select[id$="-raw_material"]').each(function() {
-                var row = $(this).closest('tr');
-                var priceInput = row.find('input[id$="-price_per_unit"]');
-                if ($(this).val() && !priceInput.val()) {
-                    hasMissingPrices = true;
-                    priceInput.addClass('is-invalid');
-                    if (!priceInput.next('.invalid-feedback').length) {
-                        priceInput.after('<div class="invalid-feedback">Please enter a price for this item</div>');
-                    }
-                }
-            });
-            
-            if (hasMissingPrices) {
-                e.preventDefault();
-                showError('Please enter prices for all selected raw materials');
-            }
-        });
-    });
-
-
-    
-</script>
-{% if form.errors %}
-    <div class="toasts-container">
-        <div class="toast fade show">
-            <div class="toast-header">
-                <i class="far fa-bell text-muted me-2"></i>
-                <strong class="me-auto">Form Validation Error</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">
-                {% for field, error_msgs in form.errors.items %}
-                    {% for error_msg in error_msgs %}
-                    <ul>
-                        <li>{{ error_msg }}</li>
-                    </ul>
-                        
-                        <br>
-                    {% endfor %}
-                {% endfor %}
+                        <!-- Submit Button -->
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-save"></i> Create Requisition
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-{% endif %}
-{% endblock outter_content %}
+</div>
+
+<!-- Hidden template for new item rows -->
+<template id="item-row-template">
+    <tr class="item-row">
+        <td>
+            <select name="form-__prefix__-raw_material" class="form-select raw-material-field">
+                <option value="">Select Raw Material</option>
+            </select>
+            <input type="hidden" name="form-__prefix__-pricing_source" value="system">
+        </td>
+        <td>
+            <div class="form-check">
+                <input type="checkbox" name="form-__prefix__-use_manual_price" class="form-check-input manual-price-toggle">
+                <label class="form-check-label">Use Manual Price</label>
+            </div>
+            <div class="manual-price-reason-container" style="display: none;">
+                <input type="text" name="form-__prefix__-manual_price_reason" class="form-control manual-price-reason" placeholder="Reason (Optional)">
+                <small class="text-muted">Reason (Optional)</small>
+            </div>
+        </td>
+        <td>
+            <input type="number" name="form-__prefix__-quantity" class="form-control quantity-input" step="0.01" min="0">
+        </td>
+        <td>
+            <input type="number" name="form-__prefix__-price_per_unit" class="form-control price-input" step="0.01" min="0">
+        </td>
+        <td>
+            <span class="subtotal-before-tax">0.00</span>
+        </td>
+        <td>
+            <select name="form-__prefix__-tax_code" class="form-select tax-code-select">
+                <option value="">Select tax code</option>
+            </select>
+        </td>
+        <td>
+            <span class="tax-amount">0.00</span>
+        </td>
+        <td>
+            <span class="total-with-tax">0.00</span>
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-danger remove-row">
+                <i class="fa fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<!-- Hidden template for new expense rows -->
+<template id="expense-row-template">
+    <tr class="expense-row">
+        <td>
+            <select name="form-__prefix__-expense_account" class="form-select expense-account-select">
+                <option value="">Select Expense Account</option>
+            </select>
+        </td>
+        <td>
+            <input type="text" name="form-__prefix__-description" class="form-control description-input">
+        </td>
+        <td>
+            <input type="number" name="form-__prefix__-amount" class="form-control amount-input" step="0.01" min="0">
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-danger remove-expense-row">
+                <i class="fa fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+{% endblock %}
+
+{% block outter_content %}
+<script>
+$(document).ready(function() {
+    let itemFormsetIndex = {{ item_formset.forms|length }};
+    let expenseFormsetIndex = {{ expense_formset.forms|length }};
+    
+    // Initialize manual price checkboxes
+    initializeManualPriceCheckboxes();
+    
+    // Initialize raw materials if supplier is already selected (e.g., after form validation errors)
+    const initialSupplierId = $('#id_supplier').val();
+    if (initialSupplierId) {
+        loadRawMaterials(initialSupplierId);
+    } else {
+        // Clear raw material fields if no supplier is initially selected
+        $('.raw-material-field').html('<option value="">Select Raw Material</option>');
+    }
+    
+    // Handle supplier change
+    $('#id_supplier').change(function() {
+        const supplierId = $(this).val();
+        console.log('Supplier changed to:', supplierId);
+        if (supplierId) {
+            loadRawMaterials(supplierId);
+        } else {
+            // Clear all raw material selects if no supplier is selected
+            console.log('No supplier selected, clearing raw material options');
+            $('.raw-material-field').html('<option value="">Select Raw Material</option>');
+        }
+    });
+    
+    // Handle tax inclusive checkbox
+    $('#id_amounts_are_tax_inclusive').change(function() {
+        updateAllCalculations();
+    });
+    
+    // Add item row
+    $('#add-item-row').click(function() {
+        addItemRow();
+    });
+    
+    // Add expense row
+    $('#add-expense-row').click(function() {
+        addExpenseRow();
+    });
+    
+    // Remove row handlers
+    $(document).on('click', '.remove-row', function() {
+        $(this).closest('tr').remove();
+        updateFormsetIndexes();
+        updateAllCalculations();
+    });
+    
+    $(document).on('click', '.remove-expense-row', function() {
+        $(this).closest('tr').remove();
+        updateExpenseFormsetIndexes();
+        updateAllCalculations();
+    });
+    
+    // Handle raw material selection to load price
+    $(document).on('change', 'select[name*="raw_material"]', function() {
+        const row = $(this).closest('tr');
+        const useManualPrice = row.find('input[name*="use_manual_price"]').is(':checked');
+        const rawMaterialId = $(this).val();
+        const supplierId = $('#id_supplier').val();
+        const pricingSourceField = row.find('input[name*="pricing_source"]');
+        
+        // Set pricing source based on manual price checkbox
+        if (pricingSourceField.length > 0) {
+            pricingSourceField.val(useManualPrice ? 'manual' : 'system');
+        }
+        
+        if (rawMaterialId && supplierId && !useManualPrice) {
+            console.log('Loading price for raw material:', rawMaterialId, 'from supplier:', supplierId);
+            loadRawMaterialPrice(row, rawMaterialId, supplierId);
+        } else if (!rawMaterialId) {
+            // Clear price if no raw material selected
+            row.find('input[name*="price_per_unit"]').val('');
+            updateRowCalculation(row);
+        }
+    });
+    
+    // Handle manual price toggle
+    $(document).on('change', 'input[name*="use_manual_price"]', function() {
+        const row = $(this).closest('tr');
+        const reasonContainer = row.find('.manual-price-reason-container');
+        const rawMaterialSelect = row.find('select[name*="raw_material"]');
+        const rawMaterialId = rawMaterialSelect.val();
+        const supplierId = $('#id_supplier').val();
+        const pricingSourceField = row.find('input[name*="pricing_source"]');
+        
+        if ($(this).is(':checked')) {
+            reasonContainer.show();
+            // Set pricing source to manual
+            if (pricingSourceField.length > 0) {
+                pricingSourceField.val('manual');
+            }
+            // Allow manual entry - don't override price
+        } else {
+            reasonContainer.hide();
+            // Set pricing source to system
+            if (pricingSourceField.length > 0) {
+                pricingSourceField.val('system');
+            }
+            // Load system price if raw material is selected
+            if (rawMaterialId && supplierId) {
+                console.log('Loading system price for raw material:', rawMaterialId);
+                loadRawMaterialPrice(row, rawMaterialId, supplierId);
+            }
+        }
+    });
+    
+    // Handle quantity and price changes
+    $(document).on('input', 'input[name*="quantity"], input[name*="price_per_unit"]', function() {
+        updateRowCalculation($(this).closest('tr'));
+    });
+    
+    // Handle tax code changes
+    $(document).on('change', 'select[name*="tax_code"]', function() {
+        updateRowCalculation($(this).closest('tr'));
+    });
+    
+    // Handle expense amount changes
+    $(document).on('input', 'input[name*="amount"]', function() {
+        updateAllCalculations();
+    });
+    
+    // Handle form submission
+    $('#requisition-form').on('submit', function(e) {
+        console.log('Form submission started');
+        
+        // Check if we have any items
+        const itemRows = $('.item-row').length;
+        if (itemRows === 0) {
+            alert('Please add at least one item to the requisition');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Check if supplier is selected
+        const supplierId = $('#id_supplier').val();
+        if (!supplierId) {
+            alert('Please select a supplier');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Validate each item row
+        let validationErrors = [];
+        $('.item-row').each(function(index) {
+            const rawMaterial = $(this).find('select[name*="raw_material"]').val();
+            const quantity = $(this).find('input[name*="quantity"]').val();
+            const pricePerUnit = $(this).find('input[name*="price_per_unit"]').val();
+            
+            if (!rawMaterial) {
+                validationErrors.push(`Row ${index + 1}: Please select a raw material`);
+            }
+            if (!quantity || parseFloat(quantity) <= 0) {
+                validationErrors.push(`Row ${index + 1}: Please enter a valid quantity`);
+            }
+            if (!pricePerUnit || parseFloat(pricePerUnit) <= 0) {
+                validationErrors.push(`Row ${index + 1}: Please enter a valid price per unit`);
+            }
+        });
+        
+        if (validationErrors.length > 0) {
+            alert('Please fix the following errors:\n\n' + validationErrors.join('\n'));
+            e.preventDefault();
+            return false;
+        }
+        
+        // Set pricing source for items that don't have manual pricing checked
+        $('.item-row').each(function() {
+            const useManualPrice = $(this).find('input[name*="use_manual_price"]').is(':checked');
+            const pricingSourceField = $(this).find('input[name*="pricing_source"]');
+            
+            // Ensure pricing source is set correctly
+            if (pricingSourceField.length > 0) {
+                pricingSourceField.val(useManualPrice ? 'manual' : 'system');
+            } else {
+                // Add hidden field for pricing_source if it doesn't exist
+                const namePattern = $(this).find('select[name*="raw_material"]').attr('name');
+                if (namePattern) {
+                    const formIndex = namePattern.match(/form-(\d+)-/)[1];
+                    const pricingSourceName = `form-${formIndex}-pricing_source`;
+                    
+                    $(this).append(`<input type="hidden" name="${pricingSourceName}" value="${useManualPrice ? 'manual' : 'system'}">`);
+                }
+            }
+        });
+        
+        console.log('Form validation passed, submitting...');
+        console.log('Form data being submitted:', $(this).serialize());
+        return true;
+    });
+    
+    function initializeManualPriceCheckboxes() {
+        $('input[name*="use_manual_price"]').each(function() {
+            const row = $(this).closest('tr');
+            const reasonContainer = row.find('.manual-price-reason-container');
+            
+            if ($(this).is(':checked')) {
+                reasonContainer.show();
+            } else {
+                reasonContainer.hide();
+            }
+        });
+    }
+    
+    function loadRawMaterials(supplierId) {
+        console.log('Loading raw materials for supplier:', supplierId);
+        
+        $.get(`/production/get_raw_materials_by_supplier/?supplier_id=${supplierId}`)
+            .done(function(data) {
+                console.log('Raw materials data received:', data);
+                let options = '<option value="">Select Raw Material</option>';
+                data.forEach(function(item) {
+                    options += `<option value="${item.id}">${item.name}</option>`;
+                });
+                
+                // Find and update raw material selects - but preserve existing selections if possible
+                const rawMaterialSelects = $('.raw-material-field');
+                console.log('Found raw material selects:', rawMaterialSelects.length);
+                
+                if (rawMaterialSelects.length > 0) {
+                    rawMaterialSelects.each(function(index) {
+                        const currentValue = $(this).val();
+                        $(this).html(options);
+                        
+                        // Try to preserve the current selection if it's still valid
+                        if (currentValue && $(this).find(`option[value="${currentValue}"]`).length > 0) {
+                            $(this).val(currentValue);
+                            console.log('Preserved selection for select', index, ':', currentValue);
+                        }
+                    });
+                    console.log('Updated', rawMaterialSelects.length, 'raw material selects with', data.length, 'options');
+                } else {
+                    // Fallback: try name selector
+                    const fallbackSelects = $('select[name*="raw_material"]');
+                    console.log('Fallback: Found', fallbackSelects.length, 'selects with name selector');
+                    if (fallbackSelects.length > 0) {
+                        fallbackSelects.each(function() {
+                            const currentValue = $(this).val();
+                            $(this).html(options);
+                            
+                            // Try to preserve the current selection if it's still valid
+                            if (currentValue && $(this).find(`option[value="${currentValue}"]`).length > 0) {
+                                $(this).val(currentValue);
+                            }
+                        });
+                        console.log('Updated via fallback');
+                    }
+                }
+            })
+            .fail(function(xhr, status, error) {
+                console.error('Failed to load raw materials:', error);
+            });
+    }
+    
+    function loadRawMaterialPrice(row, rawMaterialId, supplierId) {
+        $.get(`/production/get_raw_material_price/?raw_material_id=${rawMaterialId}&supplier_id=${supplierId}`)
+            .done(function(data) {
+                if (data.price) {
+                    console.log('Price loaded:', data.price);
+                    row.find('input[name*="price_per_unit"]').val(data.price);
+                    updateRowCalculation(row);
+                } else {
+                    console.log('No price found for this raw material and supplier combination');
+                    row.find('input[name*="price_per_unit"]').val('');
+                    updateRowCalculation(row);
+                }
+            })
+            .fail(function() {
+                console.error('Failed to load raw material price');
+            });
+    }
+    
+    function addItemRow() {
+        const template = document.getElementById('item-row-template');
+        const newRow = template.content.cloneNode(true);
+        
+        // Update form index - use the current count of rows, not the global index
+        const currentRowCount = $('#items-tbody tr.item-row').length;
+        const newIndex = currentRowCount;
+        
+        console.log('Adding new row with index:', newIndex);
+        
+        $(newRow).find('select, input').each(function() {
+            const name = $(this).attr('name');
+            if (name) {
+                const newName = name.replace('__prefix__', newIndex);
+                $(this).attr('name', newName);
+                console.log('Updated field name from', name, 'to', newName);
+            }
+        });
+        
+        // Add the new row to the table first
+        $('#items-tbody').append(newRow);
+        
+        // Update the formset index for next time
+        itemFormsetIndex = currentRowCount + 1;
+        
+        // Load tax codes for the new row
+        const taxCodeSelect = $(`select[name="form-${newIndex}-tax_code"]`);
+        if (taxCodeSelect.length > 0) {
+            loadTaxCodes(taxCodeSelect);
+        }
+        
+        // Load raw materials based on current supplier selection
+        const currentSupplierId = $('#id_supplier').val();
+        if (currentSupplierId) {
+            console.log('Loading raw materials for new row index', newIndex, 'with supplier:', currentSupplierId);
+            const rawMaterialSelect = $(`select[name="form-${newIndex}-raw_material"]`);
+            if (rawMaterialSelect.length > 0) {
+                loadRawMaterialsForRow(rawMaterialSelect, currentSupplierId);
+            } else {
+                console.error('Could not find raw material select for new row');
+            }
+        } else {
+            console.log('No supplier selected, new row will have empty raw materials');
+        }
+        
+        updateFormsetIndexes();
+    }
+    
+    function loadRawMaterialsForRow(selectElement, supplierId) {
+        console.log('Loading raw materials for specific row, supplier:', supplierId);
+        console.log('Target select element:', selectElement.attr('name'));
+        
+        $.get(`/production/get_raw_materials_by_supplier/?supplier_id=${supplierId}`)
+            .done(function(data) {
+                console.log('Raw materials data received for new row:', data.length, 'items');
+                let options = '<option value="">Select Raw Material</option>';
+                data.forEach(function(item) {
+                    options += `<option value="${item.id}">${item.name}</option>`;
+                });
+                
+                selectElement.html(options);
+                console.log('Updated new row raw material select with', data.length, 'options');
+            })
+            .fail(function() {
+                console.error('Failed to load raw materials for new row');
+            });
+    }
+    
+    function addExpenseRow() {
+        const template = document.getElementById('expense-row-template');
+        const newRow = template.content.cloneNode(true);
+        
+        // Update form index
+        const newIndex = expenseFormsetIndex++;
+        $(newRow).find('select, input').each(function() {
+            const name = $(this).attr('name');
+            if (name) {
+                $(this).attr('name', name.replace('__prefix__', newIndex));
+            }
+        });
+        
+        // Load expense accounts
+        loadExpenseAccounts($(newRow).find('select[name*="expense_account"]'));
+        
+        $('#expenses-tbody').append(newRow);
+        updateExpenseFormsetIndexes();
+    }
+    
+    function loadTaxCodes(selectElement) {
+        // Load tax codes from the existing form
+        const existingSelect = $('select[name*="tax_code"]').first();
+        if (existingSelect.length) {
+            selectElement.html(existingSelect.html());
+        }
+    }
+    
+    function loadExpenseAccounts(selectElement) {
+        // Load expense accounts from the existing form
+        const existingSelect = $('select[name*="expense_account"]').first();
+        if (existingSelect.length) {
+            selectElement.html(existingSelect.html());
+        }
+    }
+    
+    function updateFormsetIndexes() {
+        const totalForms = $('#items-tbody tr').length;
+        $('#id_form-TOTAL_FORMS').val(totalForms);
+    }
+    
+    function updateExpenseFormsetIndexes() {
+        const totalForms = $('#expenses-tbody tr').length;
+        $('#id_expense_form-TOTAL_FORMS').val(totalForms);
+    }
+    
+    function updateRowCalculation(row) {
+        const quantity = parseFloat(row.find('input[name*="quantity"]').val()) || 0;
+        const price = parseFloat(row.find('input[name*="price_per_unit"]').val()) || 0;
+        const taxCodeSelect = row.find('select[name*="tax_code"]');
+        const isTaxInclusive = $('#id_amounts_are_tax_inclusive').is(':checked');
+        
+        let subtotal = quantity * price;
+        let taxAmount = 0;
+        let totalWithTax = subtotal;
+        
+        // Calculate tax if tax code is selected
+        if (taxCodeSelect.val()) {
+            const taxRate = parseFloat(taxCodeSelect.find('option:selected').text().match(/\(([\d.]+)%\)/)?.[1]) || 0;
+            const taxRateDecimal = taxRate / 100;
+            
+            if (isTaxInclusive) {
+                // If tax inclusive, calculate base amount and tax
+                const baseAmount = subtotal / (1 + taxRateDecimal);
+                taxAmount = subtotal - baseAmount;
+                subtotal = baseAmount;
+            } else {
+                // If tax exclusive, add tax to subtotal
+                taxAmount = subtotal * taxRateDecimal;
+                totalWithTax = subtotal + taxAmount;
+            }
+        }
+        
+        // Update display
+        row.find('.subtotal-before-tax').text(subtotal.toFixed(2));
+        row.find('.tax-amount').text(taxAmount.toFixed(2));
+        row.find('.total-with-tax').text(totalWithTax.toFixed(2));
+        
+        updateAllCalculations();
+    }
+    
+    function updateAllCalculations() {
+        let itemsSubtotal = 0;
+        let totalTax = 0;
+        let itemsTotalWithTax = 0;
+        let expensesTotal = 0;
+        
+        // Calculate items totals
+        $('.item-row').each(function() {
+            const subtotal = parseFloat($(this).find('.subtotal-before-tax').text()) || 0;
+            const taxAmount = parseFloat($(this).find('.tax-amount').text()) || 0;
+            const totalWithTax = parseFloat($(this).find('.total-with-tax').text()) || 0;
+            
+            itemsSubtotal += subtotal;
+            totalTax += taxAmount;
+            itemsTotalWithTax += totalWithTax;
+        });
+        
+        // Calculate expenses total from expense items
+        $('.expense-row').each(function() {
+            const amountInput = $(this).find('input[name*="amount"]');
+            const amount = parseFloat(amountInput.val()) || 0;
+            expensesTotal += amount;
+            console.log('Expense amount found:', amount, 'Running total:', expensesTotal);
+        });
+        
+        // Calculate grand total
+        const grandTotal = itemsTotalWithTax + expensesTotal;
+        
+        console.log('Calculation summary:');
+        console.log('- Items subtotal (before tax):', itemsSubtotal);
+        console.log('- Total tax:', totalTax);
+        console.log('- Items total with tax:', itemsTotalWithTax);
+        console.log('- Expenses total:', expensesTotal);
+        console.log('- Grand total:', grandTotal);
+        
+        // Update summary display
+        $('#items-subtotal').text(`UGX ${itemsSubtotal.toFixed(2)}`);
+        $('#total-tax').text(`UGX ${totalTax.toFixed(2)}`);
+        $('#items-total-with-tax').text(`UGX ${itemsTotalWithTax.toFixed(2)}`);
+        $('#expenses-total').text(`UGX ${expensesTotal.toFixed(2)}`);
+        $('#grand-total').text(`UGX ${grandTotal.toFixed(2)}`);
+    }
+    
+    // Initial calculation
+    updateAllCalculations();
+});
+</script>
+{% endblock %}

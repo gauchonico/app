@@ -1,16 +1,43 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}Create New Main Store{% endblock %}
+{% block title %}{{ page_title|default:"Create Store Sale" }}{% endblock %}
 
 {% block css %}
-    
     <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
     <link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
+    <style>
+        .form-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        .section-title {
+            color: #495057;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .tax-info {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .customer-info {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+    </style>
 {% endblock %}  
+
 {% block js %}
     <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
     <script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
@@ -28,129 +55,412 @@
     <script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
     <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
     <script src="/assets/plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
-    
-
-
-
 {% endblock %}
 
 {% block content %}
-	<!-- BEGIN coming-soon -->
-	<div class="container">
-        <h1>Create Store Sale</h1>
-       
-        {% if error_message %}
-            <div class="alert alert-danger">{{ error_message }}</div>
-        {% endif %}
-        <form method="post">
-            {% csrf_token %}
-            {{ form.as_p }}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fa fa-shopping-cart me-2"></i>{{ page_title|default:"Create Store Sale" }}</h2>
+            <p class="text-muted mb-0">{{ page_subtitle|default:"Wholesale Customer Sales" }}</p>
+        </div>
+        <a href="{% url 'listStoreSales' %}" class="btn btn-outline-secondary">
+            <i class="fa fa-arrow-left me-1"></i>Back to Sales
+        </a>
+    </div>
+
+    <form method="post" class="needs-validation" novalidate>
+        {% csrf_token %}
+        
+        <!-- Customer Information Section -->
+        <div class="form-section">
+            <h5 class="section-title"><i class="fa fa-user me-2"></i>Customer Information</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="{{ form.customer.id_for_label }}" class="form-label">Customer *</label>
+                    {{ form.customer }}
+                    {% if form.customer.help_text %}<small class="form-text text-muted">{{ form.customer.help_text }}</small>{% endif %}
+                    {% if form.customer.errors %}
+                        <div class="invalid-feedback d-block">{{ form.customer.errors.0 }}</div>
+                    {% endif %}
+                    
+                    <!-- Customer Info Display -->
+                    <div id="customer-info" class="customer-info" style="display: none;">
+                        <strong>Customer Details:</strong>
+                        <div id="customer-details"></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.billing_address.id_for_label }}" class="form-label">Billing Address</label>
+                    {{ form.billing_address }}
+                    {% if form.billing_address.help_text %}<small class="form-text text-muted">{{ form.billing_address.help_text }}</small>{% endif %}
+                    {% if form.billing_address.errors %}
+                        <div class="invalid-feedback d-block">{{ form.billing_address.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sale Details Section -->
+        <div class="form-section">
+            <h5 class="section-title"><i class="fa fa-file-invoice me-2"></i>Sale Details</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                    {{ form.description }}
+                    {% if form.description.help_text %}<small class="form-text text-muted">{{ form.description.help_text }}</small>{% endif %}
+                    {% if form.description.errors %}
+                        <div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="{{ form.due_date.id_for_label }}" class="form-label">Due Date</label>
+                    {{ form.due_date }}
+                    {% if form.due_date.help_text %}<small class="form-text text-muted">{{ form.due_date.help_text }}</small>{% endif %}
+                    {% if form.due_date.errors %}
+                        <div class="invalid-feedback d-block">{{ form.due_date.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tax Information Section -->
+        <div class="form-section">
+            <h5 class="section-title"><i class="fa fa-calculator me-2"></i>Tax Information</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <label for="{{ form.tax_code.id_for_label }}" class="form-label">Tax Code</label>
+                    {{ form.tax_code }}
+                    {% if form.tax_code.help_text %}<small class="form-text text-muted">{{ form.tax_code.help_text }}</small>{% endif %}
+                    {% if form.tax_code.errors %}
+                        <div class="invalid-feedback d-block">{{ form.tax_code.errors.0 }}</div>
+                    {% endif %}
+                    
+                    <!-- Tax Code Info Display -->
+                    <div id="tax-info" class="tax-info" style="display: none;">
+                        <small><strong>Tax Details:</strong> <span id="tax-details"></span></small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check mt-4">
+                        {{ form.withhold_tax }}
+                        <label class="form-check-label" for="{{ form.withhold_tax.id_for_label }}">
+                            Apply Withholding Tax (6%)
+                        </label>
+                    </div>
+                    {% if form.withhold_tax.errors %}
+                        <div class="invalid-feedback d-block">{{ form.withhold_tax.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Section -->
+        <div class="form-section">
+            <h5 class="section-title"><i class="fa fa-list me-2"></i>Sale Items</h5>
             
             {{ formset.management_form }}
-            <table id="sale_item_formset">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Quantity Purchased</th>
-                        <th>Pricing</th>
-                        <th>Cost Per Unit</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for form in formset %}
-                        <tr class="form-row">
-                            <td>{{ form.product }}</td>
-                            <td>{{ form.quantity }}</td>
-                            <td>{{ form.price_group }}</td>
-
-
-                            <td>
-                                <input type="text" name="{{ form.chosen_price.name }}" id="chosen_price{{ forloop.counter }}" readonly>
-                            </td>
-                            <td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>
-                        </tr>
+            <div class="table-responsive">
+                <table class="table table-striped" id="sale_item_formset">
+                    <thead class="table-light">
                         <tr>
-                            <td colspan="4">{{ form.errors }}</td>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Pricing Group</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                            <th>Action</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div class="mt-3">
-                <button type="button" id="add_form" class="btn btn-primary">Add Item</button>
-                <button class="btn btn-outline-theme" type="submit">Process Inventory Purchase</button>
+                    </thead>
+                    <tbody>
+                        {% for form in formset %}
+                            <tr class="form-row">
+                                <td>{{ form.product }}</td>
+                                <td>{{ form.quantity }}</td>
+                                <td>{{ form.price_group }}</td>
+                                <td>
+                                    <input type="number" name="{{ form.chosen_price.name }}" 
+                                           id="chosen_price{{ forloop.counter }}" 
+                                           class="form-control chosen-price" readonly 
+                                           data-row="{{ forloop.counter }}">
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-primary item-total" id="item_total{{ forloop.counter }}">UGX 0</span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-danger btn-sm remove-form">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% if form.errors %}
+                            <tr>
+                                <td colspan="6">
+                                    <div class="alert alert-danger alert-sm">{{ form.errors }}</div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="4" class="text-end">Subtotal:</th>
+                            <th id="subtotal">UGX 0</th>
+                            <th></th>
+                        </tr>
+                        <tr id="tax-row" style="display: none;">
+                            <th colspan="4" class="text-end">Tax:</th>
+                            <th id="tax-amount">UGX 0</th>
+                            <th></th>
+                        </tr>
+                        <tr id="withholding-row" style="display: none;">
+                            <th colspan="4" class="text-end">Withholding Tax:</th>
+                            <th id="withholding-amount">UGX 0</th>
+                            <th></th>
+                        </tr>
+                        <tr class="table-primary">
+                            <th colspan="4" class="text-end">Grand Total:</th>
+                            <th id="grand-total">UGX 0</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
-        </form>
-    </div>
-    <script>
-        $(document).ready(function() {
-            // Get product selection element and cost per unit field
-            const productSelect = $('#id_product');  // Replace with your product selection element ID
-            const costPerUnitField = $('#chosen_price');  // Replace with your cost per unit field ID
+            
+            <div class="mt-3">
+                <button type="button" id="add_form" class="btn btn-primary">
+                    <i class="fa fa-plus me-1"></i>Add Item
+                </button>
+                <button class="btn btn-success ms-2" type="submit">
+                    <i class="fa fa-save me-1"></i>Create Sale
+                </button>
+            </div>
+        </div>
 
-          // AJAX function to fetch wholesale price
-            function fetchWholesalePrice(productId) {
-                $.ajax({
-                url: '{% url 'get_wholesale_price' %}',  // Replace with your URL to fetch wholesale price
-                data: { 'product_id': productId },
-                dataType: 'json',
-                success: function(data) {
-                    if (data.wholesale_price) {
-                        costPerUnitField.val(data.wholesale_price);
-                    } else {
-                        // Handle empty price case (e.g., show a message)
-                        console.error("Error: Wholesale price not found");
-                    }
-                },
-                    error: function(xhr, status, error) {
-                        console.error("Error fetching wholesale price:", error);
-                        alert("An error occurred while fetching the wholesale price. Please contact the administrator.");
-                }
+        <!-- Hidden fields -->
+        {{ form.total_items }}
+    </form>
+</div>
+<script>
+    $(document).ready(function() {
+        // Initialize date picker
+        $('#datepicker').datepicker({
+            format: 'yyyy-mm-dd',
+            autoclose: true,
+            todayHighlight: true
+        });
+
+        // Customer selection handling
+        $('#id_customer').on('change', function() {
+            const customerId = $(this).val();
+            if (customerId) {
+                // Get customer details and populate billing address
+                const customerText = $(this).find('option:selected').text();
+                const customerDetails = customerText.split(' - ');
                 
-            });
-        }
-    
-          // Update cost per unit field on product change
-        productSelect.on('change', function() {
-            const productId = $(this).val();
-            if (productId) {
-            fetchWholesalePrice(productId);
+                // Show customer info
+                $('#customer-info').show();
+                $('#customer-details').html(`
+                    <div class="d-flex justify-content-between">
+                        <span>${customerDetails[0]}</span>
+                        <span class="badge bg-primary">${customerDetails[1] || 'Customer'}</span>
+                    </div>
+                `);
+                
+                // Auto-populate billing address if empty
+                if (!$('#id_billing_address').val()) {
+                    // You can enhance this with AJAX to get full customer details
+                    $('#id_billing_address').val('Address will be populated from customer details...');
+                }
             } else {
-            costPerUnitField.val('');
+                $('#customer-info').hide();
+                $('#id_billing_address').val('');
             }
         });
+
+        // Tax code selection handling
+        $('#id_tax_code').on('change', function() {
+            const taxCodeId = $(this).val();
+            if (taxCodeId) {
+                const taxText = $(this).find('option:selected').text();
+                $('#tax-info').show();
+                $('#tax-details').text(taxText);
+                $('#tax-row').show();
+            } else {
+                $('#tax-info').hide();
+                $('#tax-row').hide();
+            }
+            calculateTotals();
+        });
+
+        // Withholding tax checkbox
+        $('#id_withhold_tax').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#withholding-row').show();
+            } else {
+                $('#withholding-row').hide();
+            }
+            calculateTotals();
+        });
+
+        // Product and pricing group change handling
+        $(document).on('change', 'select[name*="product"], select[name*="price_group"], input[name*="quantity"]', function() {
+            const row = $(this).closest('tr');
+            const productSelect = row.find('select[name*="product"]');
+            const priceGroupSelect = row.find('select[name*="price_group"]');
+            const quantityInput = row.find('input[name*="quantity"]');
+            const priceInput = row.find('input[name*="chosen_price"]');
+            const totalSpan = row.find('.item-total');
+
+            if (productSelect.val() && priceGroupSelect.val()) {
+                // Fetch price based on product and price group
+                fetchProductPrice(productSelect.val(), priceGroupSelect.val(), priceInput, totalSpan, quantityInput);
+            }
+        });
+
+        // Function to fetch product price
+        function fetchProductPrice(productId, priceGroupId, priceInput, totalSpan, quantityInput) {
+            $.ajax({
+                url: '{% url "get_product_price_groups" 0 %}'.replace('0', productId),
+                data: { 'price_group_id': priceGroupId },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.price) {
+                        priceInput.val(data.price);
+                        updateItemTotal(priceInput, totalSpan, quantityInput);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error fetching product price:", error);
+                }
+            });
+        }
+
+        // Update item total
+        function updateItemTotal(priceInput, totalSpan, quantityInput) {
+            const price = parseFloat(priceInput.val()) || 0;
+            const quantity = parseFloat(quantityInput.val()) || 0;
+            const total = price * quantity;
+            totalSpan.text('UGX ' + total.toLocaleString());
+            calculateTotals();
+        }
+
+        // Calculate all totals
+        function calculateTotals() {
+            let subtotal = 0;
+            
+            // Calculate subtotal from all items
+            $('.item-total').each(function() {
+                const totalText = $(this).text().replace('UGX ', '').replace(/,/g, '');
+                const total = parseFloat(totalText) || 0;
+                subtotal += total;
+            });
+
+            $('#subtotal').text('UGX ' + subtotal.toLocaleString());
+
+            // Calculate tax
+            let taxAmount = 0;
+            const taxCodeSelect = $('#id_tax_code');
+            if (taxCodeSelect.val()) {
+                // Get tax rate from selected option (you may need to enhance this)
+                const taxText = taxCodeSelect.find('option:selected').text();
+                const taxMatch = taxText.match(/(\d+\.?\d*)%/);
+                if (taxMatch) {
+                    const taxRate = parseFloat(taxMatch[1]) / 100;
+                    taxAmount = subtotal * taxRate;
+                }
+            }
+            $('#tax-amount').text('UGX ' + taxAmount.toLocaleString());
+
+            // Calculate withholding tax
+            let withholdingAmount = 0;
+            if ($('#id_withhold_tax').is(':checked')) {
+                withholdingAmount = (subtotal + taxAmount) * 0.06; // 6% withholding tax
+            }
+            $('#withholding-amount').text('UGX ' + withholdingAmount.toLocaleString());
+
+            // Calculate grand total
+            const grandTotal = subtotal + taxAmount + withholdingAmount;
+            $('#grand-total').text('UGX ' + grandTotal.toLocaleString());
+        }
+
+        // Add new form row
+        $('#add_form').click(function() {
+            const formsetDiv = $('#sale_item_formset tbody');
+            const totalForms = parseInt($('#id_saleitem_set-TOTAL_FORMS').val());
+            const newFormHtml = `
+                <tr class="form-row">
+                    <td>
+                        <select name="form-${totalForms}-product" class="form-control" required>
+                            <option value="">Select Product</option>
+                            {% for product in formset.0.product.field.queryset %}
+                            <option value="{{ product.id }}">{{ product.product.product_name }} ({{ product.quantity }} available)</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" name="form-${totalForms}-quantity" class="form-control" min="1" required>
+                    </td>
+                    <td>
+                        <select name="form-${totalForms}-price_group" class="form-control">
+                            <option value="">Select Price Group</option>
+                            {% for group in price_groups %}
+                            <option value="{{ group.id }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" name="form-${totalForms}-chosen_price" class="form-control chosen-price" readonly>
+                    </td>
+                    <td>
+                        <span class="fw-bold text-primary item-total">UGX 0</span>
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-danger btn-sm remove-form">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            formsetDiv.append(newFormHtml);
+            $('#id_saleitem_set-TOTAL_FORMS').val(totalForms + 1);
+        });
+
+        // Remove form row
+        $(document).on('click', '.remove-form', function() {
+            $(this).closest('tr').remove();
+            calculateTotals();
+        });
+
+        // Form validation
+        $('form').on('submit', function(e) {
+            let isValid = true;
+            const customerSelect = $('#id_customer');
+            
+            if (!customerSelect.val()) {
+                isValid = false;
+                customerSelect.addClass('is-invalid');
+                alert('Please select a customer');
+            } else {
+                customerSelect.removeClass('is-invalid');
+            }
+
+            // Check if at least one item is added
+            if ($('.form-row').length === 0) {
+                isValid = false;
+                alert('Please add at least one item to the sale');
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+
+        // Initialize calculations on page load
+        calculateTotals();
     });
 </script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            var formCount = $('#id_saleitem_set-TOTAL_FORMS').val(); // Get initial form count
-            
-            $('#add_form').click(function() {
-                var formIdx = formCount;
-                formCount++;
-                
-                var newForm = $('#sale_item_formset tbody tr.form-row:first').clone(false); // Clone the first form row
-                newForm.find('input, select').each(function() {
-                    var name = $(this).attr('name').replace(/-\d+-/, '-' + formIdx + '-'); // Update name attribute
-                    var id = $(this).attr('id').replace(/-\d+-/, '-' + formIdx + '-'); // Update id attribute
-                    $(this).attr({'name': name, 'id': id}).val(''); // Clear input values if needed
-                });
-                newForm.find('.remove-form').remove(); // Remove any existing remove buttons
-                newForm.append('<td><button type="button" class="btn btn-danger btn-sm remove-form">Remove</button></td>'); // Add remove button
-                $('#sale_item_formset tbody').append(newForm); // Append the cloned form to the table body
-                
-                $('#id_saleitem_set-TOTAL_FORMS').val(formCount); // Update the management form with the new form count
-            });
-        
-            // Remove formset row
-            $('#sale_item_formset').on('click', '.remove-form', function() {
-                $(this).closest('tr').remove(); // Remove the closest <tr> element
-                formCount--;
-                $('#id_saleitem_set-TOTAL_FORMS').val(formCount); // Decrement form count
-            });
-        });
-    </script>
 
 {% endblock %}
 {% block outter_content %}

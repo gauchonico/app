@@ -499,7 +499,7 @@ ProductionOrderFormSet = modelformset_factory(
 class SaleOrderForm(forms.ModelForm):
     class Meta:
         model = StoreSale
-        fields = ['customer', 'withhold_tax', 'vat']
+        fields = ['customer', 'withhold_tax']
 
     sale_items = forms.inlineformset_factory(
         parent_model=StoreSale,
@@ -524,24 +524,39 @@ class SaleOrderForm(forms.ModelForm):
 ######## Form for creating store sale #################################
 class TestForm(forms.ModelForm):
     total_items = forms.IntegerField(widget=forms.HiddenInput(), required=False)
+    
     class Meta:
         model = StoreSale
-        fields = ['customer','withhold_tax','vat','due_date']
+        fields = ['customer', 'tax_code', 'description', 'billing_address', 'withhold_tax', 'due_date']
         widgets = {
             'customer': forms.Select(attrs={'class':'form-control'}),
+            'tax_code': forms.Select(attrs={'class':'form-control'}),
+            'description': forms.Textarea(attrs={'class':'form-control', 'rows': 3, 'placeholder': 'Sale description or special notes...'}),
+            'billing_address': forms.Textarea(attrs={'class':'form-control', 'rows': 3, 'placeholder': 'Customer billing address...'}),
             'withhold_tax': forms.CheckboxInput(attrs={'class':'form-check-input'}),
-            'vat': forms.CheckboxInput(attrs={'class':'form-check-input'}),
             'due_date': forms.DateInput(attrs={'class':'form-control','id':'datepicker', 'placeholder':"yy/mm/dd"}),
-            
         }
+        
     def __init__(self, *args, **kwargs):
         super(TestForm, self).__init__(*args, **kwargs)
         if self.instance.pk:  # Check if the instance already exists
             self.fields['total_items'].initial = self.instance.saleitem_set.count()
         
+        # Auto-populate billing address when customer is selected
+        if self.instance.pk and self.instance.customer and not self.instance.billing_address:
+            customer = self.instance.customer
+            self.fields['billing_address'].initial = f"{customer.address}\nPhone: {customer.phone}\nEmail: {customer.email}"
+        
     def save(self, commit=True):
         instance = super().save(commit=commit)
-        # ... other save logic
+        
+        # Auto-populate billing address from customer if not provided
+        if not instance.billing_address and instance.customer:
+            customer = instance.customer
+            instance.billing_address = f"{customer.address}\nPhone: {customer.phone}\nEmail: {customer.email}"
+            if commit:
+                instance.save()
+        
         return instance
     
 ##Form to select store in salons store inventory adjustment view
@@ -634,60 +649,109 @@ TestItemFormset = inlineformset_factory(
 class RequisitionForm(forms.ModelForm):
     class Meta:
         model = Requisition
-        fields = ['supplier','price_list_document']
+        fields = ['supplier', 'price_list_document', 'amounts_are_tax_inclusive', 'default_tax_code']
         widgets = {
-            'supplier': forms.Select(attrs={
-                'class': 'form-control selectpicker',
-                'data-live-search':'true',
-                'id':'supplier-select',
-                'data-size':'5',
-                'data-live-search-placeholder':'Search Suppliers',
-                
-            
-            }),
+            'supplier': forms.Select(attrs={'class': 'form-select'}),
             'price_list_document': forms.FileInput(attrs={'class': 'form-control'}),
+            'amounts_are_tax_inclusive': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'default_tax_code': forms.Select(attrs={'class': 'form-select'}),
         }
-        labels ={  
-            'price_list_document':'Upload Supplier Price List *',
-        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter to only active tax codes
+        self.fields['default_tax_code'].queryset = TaxCode.objects.filter(is_active=True)
+        self.fields['default_tax_code'].empty_label = "Select default tax code (optional)"
+
 class RequisitionItemForm(forms.ModelForm):
+    use_manual_price = forms.BooleanField(
+        required=False, 
+        label="Use Manual Price",
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    
     class Meta:
         model = RequisitionItem
-        fields = ['raw_material', 'quantity','price_per_unit']
+        fields = [
+            'raw_material', 'quantity', 'price_per_unit', 'pricing_source', 
+            'manual_price_reason', 'tax_code'
+        ]
         widgets = {
-            'raw_material': forms.Select(attrs={'class': 'form-control'}), #add 'id':'id_raw_material'
-            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Units Ordered'}),
-            'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Price per Unit (Kg, Liter, Piece)'}),
+            'raw_material': forms.Select(attrs={'class': 'form-select raw-material-field'}, choices=[('', 'Select Raw Material')]),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'pricing_source': forms.Select(attrs={'class': 'form-select'}),
+            'manual_price_reason': forms.TextInput(attrs={'class': 'form-control'}),
+            'tax_code': forms.Select(attrs={'class': 'form-select'}),
         }
+
     def __init__(self, *args, **kwargs):
-        print(f"RequisitionItemForm __init__ kwargs before pop: {kwargs}") # DEBUG
-        self.supplier = kwargs.pop('supplier', None)
-        print(f"RequisitionItemForm __init__ kwargs after pop: {kwargs}") # DEBUG
+        supplier = kwargs.pop('supplier', None)
         super().__init__(*args, **kwargs)
-
-        # Filter raw_material queryset based on the supplier
-        if self.supplier:  # Changed from 'supplier' to 'self.supplier'
-            # Assuming RawMaterial has a many-to-many or some relation to Supplier
-            # or you want only materials associated with prices from this supplier
-            self.fields['raw_material'].queryset = RawMaterial.objects.filter(
-                rawmaterialprice__supplier=self.supplier  # Changed from 'supplier' to 'self.supplier'
-            ).distinct()
-        else:
-            # If no supplier is selected yet (initial form load), provide an empty queryset
-            # or a queryset of all materials, depending on your desired initial state
-            self.fields['raw_material'].queryset = RawMaterial.objects.none() # No choices initially
-            # OR: self.fields['raw_material'].queryset = RawMaterial.objects.all() # All choices initially
-            # Choosing .none() is often better for dynamic forms as it forces a supplier selection first.
-         
-        # Add a placeholder for the raw_material select
+        
+        # Always show all raw materials initially, let JavaScript handle filtering
+        self.fields['raw_material'].queryset = RawMaterial.objects.all()
         self.fields['raw_material'].empty_label = "Select Raw Material"
+        
+        # Filter to only active tax codes
+        self.fields['tax_code'].queryset = TaxCode.objects.filter(is_active=True)
+        self.fields['tax_code'].empty_label = "Select tax code"
+        
+        # Make manual_price_reason not required
+        self.fields['manual_price_reason'].required = False
 
-# Create your formset factory
-RequisitionItemFormSet = forms.inlineformset_factory(
-    Requisition, RequisitionItem,
+    def clean(self):
+        cleaned_data = super().clean()
+        use_manual_price = cleaned_data.get('use_manual_price')
+        
+        if use_manual_price:
+            cleaned_data['pricing_source'] = 'manual'
+            if not cleaned_data.get('manual_price_reason'):
+                cleaned_data['manual_price_reason'] = "Manual price adjustment"
+        else:
+            cleaned_data['pricing_source'] = 'system'
+        
+        return cleaned_data
+
+class RequisitionExpenseItemForm(forms.ModelForm):
+    class Meta:
+        model = RequisitionExpenseItem
+        fields = ['expense_account', 'amount', 'description']
+        widgets = {
+            'expense_account': forms.Select(attrs={'class': 'form-select'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'description': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter to only active expense accounts
+        from accounts.models import ChartOfAccounts
+        self.fields['expense_account'].queryset = ChartOfAccounts.objects.filter(
+            account_type='expense', 
+            is_active=True
+        )
+
+# Create formsets
+_RequisitionItemFormSet = inlineformset_factory(
+    Requisition, 
+    RequisitionItem, 
     form=RequisitionItemForm,
-    extra=1, # Number of empty forms to display initially
-    can_delete=True
+    extra=1, 
+    can_delete=True,
+    fields=[
+        'raw_material', 'quantity', 'price_per_unit', 'use_manual_price', 
+        'manual_price_reason', 'tax_code'
+    ]
+)
+
+RequisitionExpenseItemFormSet = inlineformset_factory(
+    Requisition, 
+    RequisitionExpenseItem, 
+    form=RequisitionExpenseItemForm,
+    extra=1, 
+    can_delete=True,
+    fields=['expense_account', 'amount', 'description']
 )
         
 class LPOForm(forms.ModelForm):

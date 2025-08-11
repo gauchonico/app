@@ -39,10 +39,14 @@ from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, TruncYea
 from POSMagic import settings
 from POSMagicApp.decorators import allowed_users
 from POSMagicApp.models import Branch, Customer, Staff
+from accounts.models import ChartOfAccounts
+from auditlog.models import LogEntry
+from django.contrib.contenttypes.models import ContentType
+from django.core.paginator import Paginator
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -4762,8 +4766,9 @@ def manager_store_accessory_report(request):
 def create_requisition(request):
     _RequisitionItemFormSet = modelformset_factory(RequisitionItem, form=RequisitionItemForm, extra=1)
 
-    # Initialize item_formset to None outside the if/else to ensure it's always defined
+    # Initialize formsets to None outside the if/else to ensure they're always defined
     item_formset = None 
+    expense_formset = None
     
     if request.method == 'POST':
         requisition_form = RequisitionForm(request.POST, request.FILES)
@@ -4774,10 +4779,6 @@ def create_requisition(request):
         
         # Try to get the supplier from the submitted data *before* full validation,
         # so we can pass it to the item_formset even if the main form has other errors.
-        # Use the correct POST key for your supplier field based on its prefix.
-        # If RequisitionForm uses prefix='requisition' and field is 'supplier', it's 'requisition-supplier'.
-        # If RequisitionForm has no prefix, and field is 'supplier', it's just 'supplier'.
-        # Let's assume you're using 'requisition-supplier' based on typical prefixing.
         posted_supplier_id = request.POST.get('supplier') # ADJUST THIS IF YOUR FIELD NAME IS DIFFERENT
 
         if posted_supplier_id:
@@ -4789,7 +4790,7 @@ def create_requisition(request):
                 pass 
         # --- End of critical change ---
 
-        # Initialize the formset with the potentially available supplier
+        # Initialize the formsets with the potentially available supplier
         # This formset instance will be used for rendering if the main form is invalid.
         item_formset = _RequisitionItemFormSet(
             request.POST,
@@ -4798,47 +4799,69 @@ def create_requisition(request):
             form_kwargs={'supplier': current_supplier} # Use the safely defined 'current_supplier'
         )
         
-        if requisition_form.is_valid() and item_formset.is_valid():
-            # If both are valid, proceed to save
+        # Initialize expense formset (doesn't need supplier filtering)
+        expense_formset = RequisitionExpenseItemFormSet(
+            request.POST,
+            request.FILES,
+            queryset=RequisitionExpenseItem.objects.none()
+        )
+        
+        if requisition_form.is_valid() and item_formset.is_valid() and expense_formset.is_valid():
+            # If all are valid, proceed to save
             requisition = requisition_form.save(commit=False)
             # requisition.supplier is already set by requisition_form.save() if it's a direct field
             requisition.save()
             
-            # Save each form in the formset
+            # Save each form in the item formset
             for form in item_formset:
                 if form.cleaned_data and form.cleaned_data.get('quantity') and form.cleaned_data.get('raw_material'):
                     requisition_item = form.save(commit=False)
                     requisition_item.requisition = requisition
                     
-                    raw_material = form.cleaned_data['raw_material']
-                    current_price = RawMaterialPrice.get_current_price(
-                        raw_material=raw_material,
-                        supplier=current_supplier # Use current_supplier here too
-                    )
+                    # Only set system price if no price provided or using system pricing
+                    pricing_source = form.cleaned_data.get('pricing_source', 'system')
+                    current_price_per_unit = form.cleaned_data.get('price_per_unit')
                     
-                    if current_price is not None:
-                        requisition_item.price_per_unit = current_price
+                    if pricing_source == 'system' or not current_price_per_unit:
+                        # Get system price only for system pricing or when no price provided
+                        raw_material = form.cleaned_data['raw_material']
+                        current_price = RawMaterialPrice.get_current_price(
+                            raw_material=raw_material,
+                            supplier=current_supplier
+                        )
+                        
+                        if current_price is not None:
+                            requisition_item.price_per_unit = current_price
+                            requisition_item.pricing_source = 'system'
+                    # For manual pricing, keep the user's input price_per_unit
                     
                     requisition_item.save()
             
+            # Save each form in the expense formset
+            for form in expense_formset:
+                if form.cleaned_data and form.cleaned_data.get('expense_account') and form.cleaned_data.get('amount'):
+                    expense_item = form.save(commit=False)
+                    expense_item.requisition = requisition
+                    expense_item.save()
+            
             return redirect('requisition_details', requisition_id=requisition.id)
         else:
-            # If either form or formset is invalid, they will contain errors.
+            # If any form or formset is invalid, they will contain errors.
             # They are already initialized with request.POST data, so they'll render with errors.
             print("Requisition Form Errors:", requisition_form.errors)
             print("Item Formset Errors:", item_formset.errors)
-            # Remove the problematic line that was causing the error
-            # print("Item Formset Non-Field Errors:", item_formset.non_field_errors())
-
+            print("Expense Formset Errors:", expense_formset.errors)
 
     else: # GET request
         requisition_form = RequisitionForm()
         # For a GET request, no supplier is selected yet, so formset is initialized with None
         item_formset = _RequisitionItemFormSet(queryset=RequisitionItem.objects.none(), form_kwargs={'supplier': None})
+        expense_formset = RequisitionExpenseItemFormSet(queryset=RequisitionExpenseItem.objects.none())
 
     return render(request, 'create_requisition.html', {
         'requisition_form': requisition_form,
         'item_formset': item_formset,
+        'expense_formset': expense_formset,
     })
     
 def get_raw_materials_by_supplier(request):
@@ -5059,18 +5082,79 @@ def export_requisitions_csv(request):
 
 def requisition_details(request, requisition_id):
     requisition = get_object_or_404(Requisition, pk=requisition_id)
-    requisition_items = RequisitionItem.objects.filter(requisition=requisition)
+    requisition_items = RequisitionItem.objects.filter(requisition=requisition).select_related('raw_material', 'tax_code')
+    expense_items = RequisitionExpenseItem.objects.filter(requisition=requisition).select_related('expense_account')
     user_is_finance = request.user.groups.filter(name='Finance').exists()
-    # Calculate total cost
-    total_cost = sum(item.quantity * item.price_per_unit for item in requisition_items)
+    
+    # Calculate enhanced totals with tax information
+    requisition_items_with_totals = []
+    items_subtotal_before_tax = 0
+    total_tax_amount = 0
+    items_total_with_tax = 0
+    
+    for item in requisition_items:
+        subtotal_before_tax = item.quantity * item.price_per_unit
+        tax_amount = 0
+        total_with_tax = subtotal_before_tax
+        
+        # Calculate tax if tax code is present
+        if item.tax_code:
+            tax_rate_decimal = item.tax_code.rate / 100
+            
+            if requisition.amounts_are_tax_inclusive:
+                # If tax inclusive, calculate base amount and tax
+                base_amount = subtotal_before_tax / (1 + tax_rate_decimal)
+                tax_amount = subtotal_before_tax - base_amount
+                subtotal_before_tax = base_amount
+            else:
+                # If tax exclusive, add tax to subtotal
+                tax_amount = subtotal_before_tax * tax_rate_decimal
+                total_with_tax = subtotal_before_tax + tax_amount
+        
+        # Determine pricing source display
+        pricing_source_display = "System Price"
+        if hasattr(item, 'pricing_source') and item.pricing_source == 'manual':
+            pricing_source_display = "Manual Price"
+            if hasattr(item, 'manual_price_reason') and item.manual_price_reason:
+                pricing_source_display += f" ({item.manual_price_reason})"
+        
+        requisition_items_with_totals.append({
+            'item': item,
+            'subtotal_before_tax': subtotal_before_tax,
+            'tax_amount': tax_amount,
+            'total_with_tax': total_with_tax,
+            'pricing_source_display': pricing_source_display,
+            'tax_code_display': f"{item.tax_code.code} - {item.tax_code.name} ({item.tax_code.rate}%)" if item.tax_code else "No Tax"
+        })
+        
+        items_subtotal_before_tax += subtotal_before_tax
+        total_tax_amount += tax_amount
+        items_total_with_tax += total_with_tax
+    
+    # Calculate expenses total
+    expenses_total = sum(expense.amount for expense in expense_items)
+    
+    # Calculate grand total
+    grand_total = items_total_with_tax + expenses_total
+    
+    # Calculate legacy total cost for backward compatibility
+    total_cost = sum(item.quantity * item.price_per_unit for item in requisition_items) + expenses_total
+    
     context = {
         'requisition': requisition,
         'requisition_items': requisition_items,
-        'total_cost':total_cost,
+        'requisition_items_with_totals': requisition_items_with_totals,
+        'expense_items': expense_items,
+        'items_subtotal_before_tax': items_subtotal_before_tax,
+        'total_tax_amount': total_tax_amount,
+        'items_total_with_tax': items_total_with_tax,
+        'expenses_total': expenses_total,
+        'grand_total': grand_total,
+        'total_cost': total_cost,
         'status': requisition.status,
         'user_is_finance': user_is_finance,
     }
-    return render(request, 'requisition_details.html',context)
+    return render(request, 'requisition_details.html', context)
 
 def delete_requisition(request, requisition_id):
     # Retrieve the Requisition object or raise 404 if not found
@@ -5089,7 +5173,22 @@ def approve_requisition(request, requisition_id):
     requisition = Requisition.objects.get(pk=requisition_id)
     requisition.status = 'approved'
     requisition.save()
-    messages.success(request, 'Request approved successfully')
+    
+    # Create LPO automatically when requisition is approved
+    lpo, created = LPO.objects.get_or_create(
+        requisition=requisition,
+        defaults={
+            'status': 'pending',
+            'payment_duration': 30,  # Default payment duration
+            'payment_option': 'bank',  # Default payment option
+        }
+    )
+    
+    if created:
+        messages.success(request, f'Requisition approved successfully. LPO {lpo.lpo_number} has been created and is pending document verification.')
+    else:
+        messages.success(request, 'Requisition approved successfully. LPO already exists.')
+        
     return redirect('lpos_list')
 
 def reject_requisition(request, requisition_id):
@@ -5101,8 +5200,34 @@ def reject_requisition(request, requisition_id):
 
 ################LPOS###########################
 def lpo_list(request):
-    lpos = LPO.objects.all().order_by('-created_at')
-    context = {'lpos': lpos}
+    lpos = LPO.objects.all().select_related('requisition', 'requisition__supplier').order_by('-created_at')
+    
+    # Calculate summary statistics
+    total_lpos = lpos.count()
+    pending_lpos = lpos.filter(status='pending').count()
+    verified_lpos = lpos.filter(status='verified').count()
+    rejected_lpos = lpos.filter(status='rejected').count()
+    paid_lpos = lpos.filter(is_paid=True).count()
+    unpaid_lpos = lpos.filter(is_paid=False).count()
+    
+    # Calculate total values
+    from django.db.models import Sum
+    total_value = sum(lpo.requisition.total_cost for lpo in lpos if lpo.requisition.total_cost)
+    total_outstanding = sum(lpo.outstanding_balance for lpo in lpos)
+    total_paid = sum(lpo.amount_paid for lpo in lpos if lpo.amount_paid)
+    
+    context = {
+        'lpos': lpos,
+        'total_lpos': total_lpos,
+        'pending_lpos': pending_lpos,
+        'verified_lpos': verified_lpos,
+        'rejected_lpos': rejected_lpos,
+        'paid_lpos': paid_lpos,
+        'unpaid_lpos': unpaid_lpos,
+        'total_value': total_value,
+        'total_outstanding': total_outstanding,
+        'total_paid': total_paid,
+    }
     return render(request, 'lpo_list.html', context)
 
 @allowed_users(allowed_roles=['Finance'])
@@ -5112,6 +5237,21 @@ def lpo_verify(request, pk):
     if lpo.status != 'pending':
         messages.error(request, "You can't verify this LPO.")
         return redirect('lpos_list')
+
+    # Calculate requisition totals if missing
+    requisition = lpo.requisition
+    if not requisition.total_cost:
+        requisition.calculate_total_cost()
+        requisition.save()
+    
+    # Get detailed requisition information
+    requisition_items = requisition.requisitionitem_set.all().select_related('raw_material', 'tax_code')
+    expense_items = requisition.expense_items.all().select_related('expense_account')
+    
+    # Calculate totals for display
+    items_total = sum(item.quantity * item.price_per_unit for item in requisition_items)
+    expenses_total = sum(expense.amount for expense in expense_items)
+    grand_total = items_total + expenses_total
 
     if request.method == 'POST':
         form = LPOForm(request.POST, request.FILES, instance=lpo)
@@ -5132,53 +5272,165 @@ def lpo_verify(request, pk):
     else:
         form = LPOForm(instance=lpo)
 
-    return render(request, 'lpo_verify.html', {'form': form, 'lpo': lpo})
+    context = {
+        'form': form, 
+        'lpo': lpo,
+        'requisition': requisition,
+        'requisition_items': requisition_items,
+        'expense_items': expense_items,
+        'items_total': items_total,
+        'expenses_total': expenses_total,
+        'grand_total': grand_total,
+        'items_count': requisition_items.count(),
+        'expenses_count': expense_items.count(),
+    }
+    return render(request, 'lpo_verify.html', context)
 
+@allowed_users(allowed_roles=['Finance'])
 def pay_lpo(request, lpo_id):
     lpo = get_object_or_404(LPO, id=lpo_id)
+    requisition = lpo.requisition
+    
+    # Calculate comprehensive payment details
+    requisition_items = requisition.requisitionitem_set.all().select_related('raw_material', 'tax_code')
+    expense_items = requisition.expense_items.all().select_related('expense_account')
+    
+    # Calculate item-level details
+    items_with_totals = []
+    items_subtotal_before_tax = 0
+    total_tax_amount = 0
+    
+    for item in requisition_items:
+        subtotal_before_tax = item.subtotal_before_tax
+        tax_amount = item.tax_amount
+        total_with_tax = item.total_cost
+        
+        items_with_totals.append({
+            'item': item,
+            'subtotal_before_tax': subtotal_before_tax,
+            'tax_amount': tax_amount,
+            'total_with_tax': total_with_tax,
+            'tax_code_display': f"{item.tax_code.code} ({item.tax_code.rate}%)" if item.tax_code else "No Tax",
+            'pricing_source': item.get_pricing_source_display(),
+        })
+        
+        items_subtotal_before_tax += subtotal_before_tax
+        total_tax_amount += tax_amount
+    
+    # Calculate expense totals
+    expenses_total = sum(expense.amount for expense in expense_items)
+    
+    # Calculate overall totals
+    items_total_with_tax = items_subtotal_before_tax + total_tax_amount
+    grand_total = items_total_with_tax + expenses_total
+    
+    # Payment status
+    amount_paid = lpo.amount_paid or 0
+    outstanding_balance = max(0, grand_total - amount_paid)
+    payment_percentage = (amount_paid / grand_total * 100) if grand_total > 0 else 0
+    
+    # Previous payments
+    payment_vouchers = lpo.paymentvoucher_set.all().order_by('-payment_date')
+
+    # Get available payment accounts
+    payment_accounts = ChartOfAccounts.objects.filter(
+        account_type__in=['asset', 'liability'],
+        is_active=True
+    ).order_by('account_code')
+    
+    # Filter to relevant payment accounts (cash, bank, accounts payable, etc.)
+    payment_accounts = payment_accounts.filter(
+        models.Q(account_name__icontains='cash') |
+        models.Q(account_name__icontains='bank') |
+        models.Q(account_name__icontains='payable') |
+        models.Q(account_name__icontains='mobile') |
+        models.Q(account_name__icontains='petty') |
+        models.Q(account_category='current_asset') |
+        models.Q(account_category='current_liability')
+    )
 
     # Check if the request method is POST
     if request.method == 'POST':
-        amount_paid = request.POST.get('amount_paid', 0)
-        pay_by = request.POST.get('pay_by', '')  # Capture the payment method
+        amount_paid_input = request.POST.get('amount_paid', 0)
+        payment_account_id = request.POST.get('payment_account', '')
         voucher_notes = request.POST.get('voucher_notes', '')
+        
         try:
-            amount_paid = Decimal(amount_paid)
-            if amount_paid <= 0:
+            amount_paid_input = Decimal(amount_paid_input)
+            if amount_paid_input <= 0:
                 messages.error(request, "Amount must be positive.")
                 return redirect('pay_lpo', lpo_id=lpo.id)
             
+            if amount_paid_input > outstanding_balance:
+                messages.error(request, f"Amount cannot exceed outstanding balance of UGX {outstanding_balance:,.0f}")
+                return redirect('pay_lpo', lpo_id=lpo.id)
+            
+            if not payment_account_id:
+                messages.error(request, "Please select a payment account.")
+                return redirect('pay_lpo', lpo_id=lpo.id)
+            
             # Update LPO with the new payment
-            lpo.amount_paid += amount_paid
+            lpo.amount_paid = (lpo.amount_paid or 0) + amount_paid_input
             lpo.save()
             
             # Check if full payment
-            payment_type = 'full' if lpo.outstanding_balance <= 0 else 'partial'
+            new_outstanding = max(0, grand_total - lpo.amount_paid)
+            payment_type = 'full' if new_outstanding <= 0 else 'partial'
             
-            # Create payment voucher (consider using a form if needed)
+            # Validate payment account
+            try:
+                payment_account = ChartOfAccounts.objects.get(id=payment_account_id)
+            except ChartOfAccounts.DoesNotExist:
+                messages.error(request, "Please select a valid payment account.")
+                return redirect('pay_lpo', lpo_id=lpo.id)
+
+            # Create payment voucher
             voucher = PaymentVoucher(
                 lpo=lpo, 
-                amount_paid=amount_paid,
-                pay_by=pay_by,
+                amount_paid=amount_paid_input,
+                payment_account=payment_account,
                 voucher_notes=voucher_notes, 
                 payment_type=payment_type
             )
-            # Save the voucher (calls the custom save() logic)
             voucher.save()
 
-            # Check if the balance has been cleared
-            if lpo.outstanding_balance <= 0:
-                messages.success(request, "Payment completed successfully.")
+            # Success message
+            if new_outstanding <= 0:
+                messages.success(request, f"Payment of UGX {amount_paid_input:,.0f} completed successfully. LPO is now fully paid.")
             else:
-                messages.success(request, "Payment received. Outstanding balance updated.")
+                messages.success(request, f"Payment of UGX {amount_paid_input:,.0f} received. Outstanding balance: UGX {new_outstanding:,.0f}")
 
-            return redirect('production_payment_vouchers')  # Redirect to the PO details page
+            return redirect('production_payment_vouchers')
 
         except ValueError:
-            messages.error(request, "Invalid amount.")
+            messages.error(request, "Invalid amount entered.")
+            return redirect('pay_lpo', lpo_id=lpo.id)
+        except Exception as e:
+            messages.error(request, f"Payment failed: {str(e)}")
             return redirect('pay_lpo', lpo_id=lpo.id)
     
-    return render(request, 'lpo_pay.html', {'lpo': lpo})
+    context = {
+        'lpo': lpo,
+        'requisition': requisition,
+        'items_with_totals': items_with_totals,
+        'expense_items': expense_items,
+        'items_subtotal_before_tax': items_subtotal_before_tax,
+        'total_tax_amount': total_tax_amount,
+        'items_total_with_tax': items_total_with_tax,
+        'expenses_total': expenses_total,
+        'grand_total': grand_total,
+        'amount_paid': amount_paid,
+        'outstanding_balance': outstanding_balance,
+        'payment_percentage': payment_percentage,
+        'payment_vouchers': payment_vouchers,
+        'supplier': requisition.supplier,
+        'amounts_are_tax_inclusive': requisition.amounts_are_tax_inclusive,
+        'items_count': requisition_items.count(),
+        'expenses_count': expense_items.count(),
+        'payment_accounts': payment_accounts,
+    }
+    
+    return render(request, 'lpo_pay.html', context)
 
 class LpoDetailView(DetailView):
     model = LPO
@@ -5187,6 +5439,45 @@ class LpoDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        
+        # Get requisition items with calculated totals
+        requisition_items = self.object.requisition.requisitionitem_set.all()
+        items_with_totals = []
+        items_subtotal = 0
+        
+        for item in requisition_items:
+            item_total = item.quantity * item.price_per_unit
+            items_with_totals.append({
+                'item': item,
+                'total_cost': item_total,
+                'pricing_badge': 'Manual' if item.pricing_source == 'manual' else 'System',
+                'price_variance': item.price_variance_percentage if item.pricing_source == 'manual' else None
+            })
+            items_subtotal += item_total
+        
+        # Get expense items
+        expense_items = self.object.requisition.expense_items.all()
+        expenses_total = sum(expense.amount for expense in expense_items)
+        
+        # Calculate totals
+        grand_total = items_subtotal + expenses_total
+        amount_paid = self.object.amount_paid or 0
+        outstanding_balance = max(0, grand_total - amount_paid)
+        
+        # Add summary data
+        context.update({
+            'requisition_items_with_totals': items_with_totals,
+            'expense_items': expense_items,
+            'items_subtotal': items_subtotal,
+            'expenses_total': expenses_total,
+            'grand_total': grand_total,
+            'amount_paid': amount_paid,
+            'outstanding_balance': outstanding_balance,
+            'payment_percentage': (amount_paid / grand_total * 100) if grand_total > 0 else 0,
+            'supplier': self.object.requisition.supplier,
+            'requisition': self.object.requisition,
+        })
+        
         return context
     
 class ProDeView(FormView):
@@ -5603,8 +5894,27 @@ def production_payment_vouchers(request):
         voucher.voucher_number = voucher.generate_voucher_number()
         voucher.save()
     
-    context ={
+    # Calculate summary statistics
+    total_amount = prod_vouchers.aggregate(
+        total=models.Sum('amount_paid')
+    )['total'] or 0
+    
+    full_payments = prod_vouchers.filter(payment_type='full').count()
+    partial_payments = prod_vouchers.filter(payment_type='partial').count()
+    
+    # Prefetch related data for better performance
+    prod_vouchers = prod_vouchers.select_related(
+        'lpo', 
+        'lpo__requisition', 
+        'lpo__requisition__supplier',
+        'payment_account'
+    )
+    
+    context = {
         'prod_vouchers': prod_vouchers,
+        'total_amount': total_amount,
+        'full_payments': full_payments,
+        'partial_payments': partial_payments,
     }
     return render(request, 'production_payment_vouchers.html', context)
 
@@ -6542,3 +6852,194 @@ def manufactured_products_report(request):
     }
     
     return render(request, 'manufactured_products_report.html', context)
+
+def debug_requisition_totals(request):
+    """Debug view to check and fix requisition total calculations"""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'})
+    
+    from .models import Requisition, LPO
+    
+    action = request.GET.get('action', 'check')
+    requisition_id = request.GET.get('requisition_id')
+    
+    if requisition_id:
+        # Debug specific requisition
+        try:
+            requisition = Requisition.objects.get(id=requisition_id)
+            debug_info = requisition.debug_total_calculation()
+            
+            if action == 'fix':
+                requisition.recalculate_and_save_total()
+                debug_info['message'] = 'Total recalculated and saved'
+            
+            # Also check LPO if exists
+            lpo_info = None
+            try:
+                lpo = LPO.objects.get(requisition=requisition)
+                lpo_info = lpo.debug_outstanding_balance()
+            except LPO.DoesNotExist:
+                lpo_info = {'message': 'No LPO found for this requisition'}
+            
+            return JsonResponse({
+                'requisition_debug': debug_info,
+                'lpo_debug': lpo_info
+            })
+            
+        except Requisition.DoesNotExist:
+            return JsonResponse({'error': 'Requisition not found'})
+    
+    else:
+        # Check all requisitions
+        requisitions = Requisition.objects.all()
+        issues = []
+        
+        for req in requisitions:
+            calculated_total = req.calculate_total_cost()
+            stored_total = req.total_cost or 0
+            
+            if abs(calculated_total - stored_total) > 0.01:  # Allow for small rounding differences
+                issues.append({
+                    'id': req.id,
+                    'requisition_no': req.requisition_no,
+                    'stored_total': float(stored_total),
+                    'calculated_total': float(calculated_total),
+                    'difference': float(calculated_total - stored_total)
+                })
+        
+        if action == 'fix_all':
+            fixed_count = 0
+            for req in requisitions:
+                old_total = req.total_cost
+                req.recalculate_and_save_total()
+                if old_total != req.total_cost:
+                    fixed_count += 1
+            
+            return JsonResponse({
+                'message': f'Fixed {fixed_count} requisitions',
+                'issues_found': len(issues)
+            })
+        
+        return JsonResponse({
+            'total_requisitions': requisitions.count(),
+            'issues_found': len(issues),
+            'issues': issues[:10],  # Limit to first 10 for display
+            'message': f'Found {len(issues)} requisitions with total calculation issues'
+        })
+def get_raw_material_price(request):
+    raw_material_id = request.GET.get("raw_material_id")
+    supplier_id = request.GET.get("supplier_id")
+    try:
+        raw_material = RawMaterial.objects.get(id=raw_material_id)
+        supplier = Supplier.objects.get(id=supplier_id)
+        price = RawMaterialPrice.get_current_price(raw_material=raw_material, supplier=supplier)
+        if price:
+            return JsonResponse({"price": float(price)})
+        else:
+            return JsonResponse({"price": None})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+# Audit Log Views
+@allowed_users(allowed_roles=['Admin', 'Finance', 'Management'])
+def audit_logs(request):
+    """View all audit logs for high-level users"""
+    # Get filter parameters
+    model_filter = request.GET.get('model', '')
+    action_filter = request.GET.get('action', '')
+    user_filter = request.GET.get('user', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Start with all log entries, ordered by timestamp (newest first)
+    logs = LogEntry.objects.all().order_by('-timestamp')
+    
+    # Apply filters
+    if model_filter:
+        try:
+            content_type = ContentType.objects.get(model=model_filter.lower())
+            logs = logs.filter(content_type=content_type)
+        except ContentType.DoesNotExist:
+            pass
+    
+    if action_filter:
+        logs = logs.filter(action__icontains=action_filter)
+    
+    if user_filter:
+        logs = logs.filter(actor__username__icontains=user_filter)
+    
+    if date_from:
+        logs = logs.filter(timestamp__date__gte=date_from)
+    
+    if date_to:
+        logs = logs.filter(timestamp__date__lte=date_to)
+    
+    # Get unique models for filter dropdown
+    available_models = ContentType.objects.filter(
+        id__in=LogEntry.objects.values_list('content_type_id', flat=True).distinct()
+    ).order_by('model')
+    
+    # Pagination
+    paginator = Paginator(logs, 50)  # Show 50 logs per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'available_models': available_models,
+        'current_filters': {
+            'model': model_filter,
+            'action': action_filter,
+            'user': user_filter,
+            'date_from': date_from,
+            'date_to': date_to,
+        }
+    }
+    
+    return render(request, 'audit_logs.html', context)
+
+@allowed_users(allowed_roles=['Admin', 'Finance', 'Management'])
+def audit_log_detail(request, log_id):
+    """View detailed audit log entry"""
+    log_entry = get_object_or_404(LogEntry, id=log_id)
+    
+    context = {
+        'log_entry': log_entry,
+        'changes': log_entry.changes_dict if hasattr(log_entry, 'changes_dict') else {}
+    }
+    
+    return render(request, 'audit_log_detail.html', context)
+
+@allowed_users(allowed_roles=['Admin', 'Finance', 'Management'])
+def model_audit_logs(request, model_name, object_id):
+    """View audit logs for a specific model instance"""
+    try:
+        content_type = ContentType.objects.get(model=model_name.lower())
+        logs = LogEntry.objects.filter(
+            content_type=content_type,
+            object_id=object_id
+        ).order_by('-timestamp')
+        
+        # Get the actual object if it exists
+        model_class = content_type.model_class()
+        try:
+            obj = model_class.objects.get(pk=object_id)
+            object_name = str(obj)
+        except model_class.DoesNotExist:
+            obj = None
+            object_name = f"Deleted {model_name} (ID: {object_id})"
+        
+        context = {
+            'logs': logs,
+            'model_name': model_name.title(),
+            'object_id': object_id,
+            'object_name': object_name,
+            'obj': obj
+        }
+        
+        return render(request, 'model_audit_logs.html', context)
+        
+    except ContentType.DoesNotExist:
+        messages.error(request, f"Model '{model_name}' not found.")
+        return redirect('audit_logs')
