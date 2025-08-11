@@ -2,6 +2,7 @@
 {% load humanize %}
 {% load static %}
 
+
 {% block title %}Manufactured Process Details{% endblock %}
 
 {% block css %}
@@ -188,25 +189,207 @@
 		<!-- BEGIN col-3 -->
 		
 		<!-- END col-3 -->
-		<table class="table">
-			<tr>
-				<th>Ingredient</th>
-				<th>Quantity Used</th>
-				<th>Cost per Unit</th>
-				<th>Total Cost</th>
-				<th>Unit Measurement</th>
-			</tr>
-			{% for ingredient in ingredients_used %}
-			<tr>
-				<td>{{ ingredient.name }}</td>
-				<td>{{ ingredient.quantity }}</td>
-				<td>{{ ingredient.cost_per_unit|floatformat|intcomma }}</td>
-				<td>{{ ingredient.total_cost|floatformat|intcomma }}</td>
-				<td>{{ ingredient.unit_measurement }}</td>
-			</tr>
-			{% endfor %}
-		</table>
-		<!-- BEGIN col-6 -->
+		<div class="col-xl-3 col-lg-6">
+			<!-- BEGIN card -->
+			<div class="card mb-3">
+				<!-- BEGIN card-body -->
+				<div class="card-body">
+					<!-- BEGIN title -->
+					<div class="d-flex fw-bold small mb-3">
+						<span class="flex-grow-1">SUGGESTED SELLING PRICE</span>
+						<a href="#" data-toggle="card-expand" class="text-inverse text-opacity-50 text-decoration-none"><i class="bi bi-fullscreen"></i></a>
+					</div>
+					<!-- END title -->
+					<!-- BEGIN stat-lg -->
+					<div class="row align-items-center mb-2">
+						<div class="col-7">
+							<h3 class="mb-0">{{ cost_analysis.profit_margin_suggestion|floatformat:0|intcomma }}</h3>
+						</div>
+						<div class="col-5">
+							<div class="mt-n2" data-render="apexchart" data-type="area" data-title="Profit" data-height="30"></div>
+						</div>
+					</div>
+					<!-- END stat-lg -->
+					<!-- BEGIN stat-sm -->
+					<div class="small text-inverse text-opacity-50 text-truncate">
+						<i class="fa fa-percentage fa-fw me-1"></i> 100% markup suggested<br>
+						<i class="fa fa-coins fa-fw me-1"></i> Cost: {{ cost_per_product|floatformat:0|intcomma }}<br>
+						<i class="fa fa-chart-line fa-fw me-1"></i> Profit: {{ cost_analysis.profit_margin_suggestion|add:cost_per_product|floatformat:0|intcomma }}
+					</div>
+					<!-- END stat-sm -->
+				</div>
+				<!-- END card-body -->
+				
+				<!-- BEGIN card-arrow -->
+				<div class="card-arrow">
+					<div class="card-arrow-top-left"></div>
+					<div class="card-arrow-top-right"></div>
+					<div class="card-arrow-bottom-left"></div>
+					<div class="card-arrow-bottom-right"></div>
+				</div>
+				<!-- END card-arrow -->
+			</div>
+			<!-- END card -->
+		</div>
+		<!-- END col-3 -->
+		
+		<!-- Enhanced Ingredient Cost Breakdown -->
+		<div class="col-12">
+			<div class="card mb-4">
+				<div class="card-header">
+					<h5 class="card-title mb-0">
+						<i class="fa fa-flask me-2"></i>Detailed Cost Breakdown
+						<small class="text-muted">- Ingredient Usage & Costs</small>
+					</h5>
+				</div>
+				<div class="card-body">
+					<div class="table-responsive">
+						<table class="table table-striped" id="ingredientCostTable">
+							<thead class="table-dark">
+								<tr>
+									<th>Ingredient</th>
+									<th>Usage Details</th>
+									<th>Unit Cost</th>
+									<th>Total Cost</th>
+									<th>% of Total</th>
+									<th>Price Source</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for ingredient in ingredients_used %}
+								<tr>
+									<td>
+										<strong>{{ ingredient.name }}</strong>
+										<br><small class="text-muted">{{ ingredient.unit_measurement }}</small>
+									</td>
+									<td>
+										<div class="usage-details">
+											<strong>{{ ingredient.total_quantity_needed|floatformat:0 }} {{ ingredient.base_unit }}</strong>
+											<br><small class="text-info">{{ ingredient.usage_description }}</small>
+											<br><small class="text-muted">{{ ingredient.quantity_per_unit|floatformat:2 }} {{ ingredient.base_unit }} per unit × {{ quantity }} units</small>
+										</div>
+									</td>
+									<td>
+										<div class="unit-cost">
+											<strong>UGX {{ ingredient.price_per_base_unit|floatformat:4|intcomma }}</strong>
+											<br><small class="text-muted">per {{ ingredient.base_unit }}</small>
+											<br><small class="text-success">UGX {{ ingredient.cost_per_product_unit|floatformat:2|intcomma }} per product</small>
+										</div>
+									</td>
+									<td>
+										<div class="total-cost">
+											<strong class="h5 text-primary">UGX {{ ingredient.total_cost|floatformat:0|intcomma }}</strong>
+											<br><small class="text-muted">for {{ quantity }} units</small>
+										</div>
+									</td>
+									<td>
+										<div class="cost-percentage">
+											<span class="badge bg-info fs-6">{{ ingredient.cost_percentage|floatformat:1 }}%</span>
+											<div class="progress mt-1" style="height: 6px;">
+												<div class="progress-bar bg-info" style="width: {{ ingredient.cost_percentage }}%"></div>
+											</div>
+										</div>
+									</td>
+									<td>
+										<div class="price-source">
+											<small class="text-muted">{{ ingredient.price_source }}</small>
+											{% if ingredient.price_supplier != 'Unknown supplier' %}
+											<br><small class="text-success">{{ ingredient.price_supplier }}</small>
+											{% endif %}
+											{% if ingredient.price_date %}
+											<br><small class="text-info">{{ ingredient.price_date|date:"M d, Y" }}</small>
+											{% endif %}
+										</div>
+									</td>
+								</tr>
+								{% endfor %}
+							</tbody>
+							<tfoot class="table-light">
+								<tr class="table-primary">
+									<th colspan="3" class="text-end">Total Production Cost:</th>
+									<th><strong class="h4">UGX {{ total_production_cost|floatformat:0|intcomma }}</strong></th>
+									<th><span class="badge bg-success">100%</span></th>
+									<th></th>
+								</tr>
+							</tfoot>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Cost Analysis Summary -->
+		<div class="col-12">
+			<div class="card">
+				<div class="card-header">
+					<h5 class="card-title mb-0">
+						<i class="fa fa-chart-pie me-2"></i>Production Cost Analysis
+					</h5>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-md-3">
+							<div class="text-center p-3 border rounded">
+								<h6 class="text-muted">Total Batch Cost</h6>
+								<h3 class="text-primary">UGX {{ cost_analysis.total_batch_cost|floatformat:0|intcomma }}</h3>
+								<small class="text-muted">for {{ cost_analysis.units_produced }} units</small>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="text-center p-3 border rounded">
+								<h6 class="text-muted">Cost Per Unit</h6>
+								<h3 class="text-success">UGX {{ cost_analysis.cost_per_unit|floatformat:0|intcomma }}</h3>
+								<small class="text-muted">manufacturing cost</small>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="text-center p-3 border rounded">
+								<h6 class="text-muted">Suggested Price (100% markup)</h6>
+								<h3 class="text-warning">UGX {{ cost_analysis.profit_margin_suggestion|floatformat:0|intcomma }}</h3>
+								<small class="text-muted">selling price per unit</small>
+							</div>
+						</div>
+						<div class="col-md-3">
+							<div class="text-center p-3 border rounded">
+								<h6 class="text-muted">Potential Profit</h6>
+								<h3 class="text-info">UGX {{ cost_analysis.profit_margin_suggestion|floatformat:0|intcomma }}</h3>
+								<small class="text-muted">per unit profit</small>
+							</div>
+						</div>
+					</div>
+					
+					<hr class="my-4">
+					
+					<div class="row">
+						<div class="col-md-6">
+							<h6><i class="fa fa-info-circle me-2"></i>Cost Breakdown</h6>
+							<ul class="list-unstyled">
+								<li><strong>Most Expensive Ingredient:</strong> 
+									{% for ingredient in ingredients_used %}
+										{% if forloop.first %}{{ ingredient.name }} (UGX {{ ingredient.total_cost|floatformat:0|intcomma }}){% endif %}
+									{% endfor %}
+								</li>
+								<li><strong>Average Ingredient Cost:</strong> UGX {{ cost_analysis.average_ingredient_cost|floatformat:0|intcomma }}</li>
+								<li><strong>Total Ingredients Used:</strong> {{ ingredients_used|length }}</li>
+							</ul>
+						</div>
+						<div class="col-md-6">
+							<h6><i class="fa fa-lightbulb me-2"></i>Business Insights</h6>
+							<ul class="list-unstyled">
+								<li><strong>Break-even Price:</strong> UGX {{ cost_analysis.cost_per_unit|floatformat:0|intcomma }} per unit</li>
+								<li><strong>Recommended Retail:</strong> UGX {{ cost_analysis.profit_margin_suggestion|floatformat:0|intcomma }} per unit</li>
+								<li><strong>Batch Profitability:</strong> 
+									{% widthratio cost_analysis.profit_margin_suggestion 1 quantity as potential_revenue %}
+									UGX {{ potential_revenue|floatformat:0|intcomma }} potential revenue
+								</li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Old simple table removed -->
         
 		<div class="col-xl-6">
 			

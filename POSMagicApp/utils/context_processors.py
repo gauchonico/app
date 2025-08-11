@@ -493,6 +493,12 @@ def sidebar_menu(request):
     resolved_path = resolve(request.path_info)
     current_path_name = resolved_path.url_name
     
+    # Check if user is authenticated and has user attribute
+    if not hasattr(request, 'user') or not request.user.is_authenticated:
+        # Return basic menu for unauthenticated users
+        sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
+        return {'sidebar_menu': sidebar_menu}
+    
     # Check for superuser first
     if request.user.is_superuser:
         # Show all menus for superuser
@@ -582,7 +588,7 @@ def sidebar_menu(request):
             })
             sidebar_menu.append({
                 'icon': 'bi bi-receipt',
-                'text': 'Manage Sales',
+                'text': 'Sales Orders',
                 'children': [
                     {
                     'url': '/production/list_store_sales',

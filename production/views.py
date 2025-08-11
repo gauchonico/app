@@ -1308,7 +1308,7 @@ def manufacture_product(request, product_id):
 
                     # Calculate cost per ingredient
                     cost_per = cost_per_unit(product)
-                    total_cost = sum(cost_data['cost_per_unit'] for cost_data in cost_per)
+                    total_cost = sum(cost_data['cost_per_ingredient'] for cost_data in cost_per)
                     
                     # Log used ingredients if using ManufacturedProductIngredient model
                     for usage in ingredient_usage:
@@ -1349,7 +1349,42 @@ def manufacture_product(request, product_id):
             except ProductionOrder.DoesNotExist:
                 pass
 
-    return render(request, 'manufacture-product.html', {'product': product, 'form': form})
+    # Add ingredient availability check for preview (similar to approval page)
+    from production.utils import check_ingredient_availability_for_production
+    
+    # Get approved production orders for this product
+    approved_orders = ProductionOrder.objects.filter(
+        product=product, 
+        status__in=['Approved', 'In-progress']
+    ).order_by('-created_at')
+    
+    # Determine quantity to check for ingredient availability
+    availability_check = None
+    check_quantity = 1  # Default
+    
+    if hasattr(form, 'initial') and 'quantity' in form.initial and form.initial['quantity']:
+        # Use the quantity from form if available (from production order)
+        check_quantity = form.initial['quantity']
+    elif approved_orders.exists():
+        # Use the first approved order's quantity as default
+        check_quantity = approved_orders.first().approved_quantity
+    
+    # Create a simple object to pass to availability checker
+    class MockProductionOrder:
+        def __init__(self, product, quantity):
+            self.product = product
+            self.quantity = quantity
+    
+    mock_order = MockProductionOrder(product, check_quantity)
+    availability_check = check_ingredient_availability_for_production(mock_order, check_quantity)
+
+    return render(request, 'manufacture-product.html', {
+        'product': product, 
+        'form': form,
+        'availability_check': availability_check,
+        'check_quantity': check_quantity,
+        'approved_orders': approved_orders,
+    })
 
 def manufactured_products_report(request):
     period = request.GET.get('period', 'month')  # 'month', 'week', 'day'
@@ -1410,9 +1445,46 @@ def raw_material_utilization_report(request):
             grouped_data[raw_material_name] = []
         grouped_data[raw_material_name].append(entry)
     
+    # Additional parameters for enhanced template
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    period = request.GET.get('period', 'day')
+    view_type = request.GET.get('view', 'summary')
+    
+    # Parse dates if provided
+    try:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else selected_date
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else selected_date
+    except:
+        start_date = selected_date
+        end_date = selected_date
+    
     context = {
         'grouped_data': grouped_data,
         'selected_date': selected_date,
+        'start_date': start_date,
+        'end_date': end_date,
+        'period': period,
+        'view_type': view_type,
+        'utilization_data': None,  # Use simple view
+        'total_materials_used': 0,
+        'total_value_consumed': 0,
+        'unique_materials': len(grouped_data),
+        'avg_usage_per_material': 0,
+        'top_materials': [],
+        'overall_recommendations': [],
+        'period_options': [
+            ('day', 'Daily'),
+            ('week', 'Weekly'),
+            ('month', 'Monthly'),
+        ],
+        'view_options': [
+            ('summary', 'Summary View'),
+            ('detailed', 'Detailed View'),
+            ('analytics', 'Analytics View'),
+        ],
+        'raw_materials': [],
+        'selected_raw_material': None,
     }
     
     return render(request, 'raw_material_utilization_report.html', context)
@@ -2061,32 +2133,87 @@ def manufacturedproduct_detail(request, product_id):
     quantity = manufactured_product.quantity
     ingredient_costs = cost_per_unit(product)
     
-    # Calculate total cost considering quantity
-     # Initialize total cost to 0
+    # Enhanced cost calculation with detailed breakdown
     total_ingredient_cost = 0
     ingredients_used_data = []
     
     for ingredient_cost in ingredient_costs:
         # Calculate total quantity of each ingredient needed for the given quantity of product
-        total_quantity_needed = ingredient_cost['quantity'] * quantity
-        total_cost_for_ingredient = ingredient_cost['cost_per_unit'] * total_quantity_needed
+        quantity_per_unit = ingredient_cost['quantity_per_unit']  # Base units (grams, ml, pieces)
+        total_quantity_needed = quantity_per_unit * quantity
+        
+        # Get pricing information
+        price_per_base_unit = ingredient_cost['price_per_base_unit']  # Price per gram/ml/piece
+        cost_per_ingredient_unit = ingredient_cost['cost_per_ingredient']  # Cost per product unit
+        total_cost_for_ingredient = cost_per_ingredient_unit * quantity
         
         # Add to the running total of ingredient costs
         total_ingredient_cost += total_cost_for_ingredient
         
+        # Get price source information for transparency
+        price_source = ingredient_cost.get('price_source', 'Unknown source')
+        price_supplier = ingredient_cost.get('price_supplier', 'Unknown supplier')
+        price_date = ingredient_cost.get('price_date')
+        
+        # Calculate price context (e.g., if bought 1kg at UGX 24,000)
+        unit_measurement = ingredient_cost['unit_of_measurement']
+        if unit_measurement.lower() in ['kilograms', 'kg']:
+            # Convert base price to larger unit price (grams to kg)
+            price_per_larger_unit = price_per_base_unit * 1000
+            larger_unit = 'kg'
+            base_unit = 'grams'
+        elif unit_measurement.lower() in ['liters', 'litres', 'l']:
+            # Convert base price to larger unit price (ml to liters)
+            price_per_larger_unit = price_per_base_unit * 1000
+            larger_unit = 'liters'
+            base_unit = 'ml'
+        else:
+            price_per_larger_unit = price_per_base_unit
+            larger_unit = unit_measurement
+            base_unit = unit_measurement
+        
+        # Format usage description
+        if unit_measurement.lower() in ['kilograms', 'kg']:
+            usage_description = f"Used {total_quantity_needed:.0f}g from {unit_measurement} @ UGX {price_per_larger_unit:,.0f}"
+        elif unit_measurement.lower() in ['liters', 'litres', 'l']:
+            usage_description = f"Used {total_quantity_needed:.0f}ml from {unit_measurement} @ UGX {price_per_larger_unit:,.0f}"
+        else:
+            usage_description = f"Used {total_quantity_needed:.0f} {unit_measurement} @ UGX {price_per_larger_unit:,.2f} each"
+        
         # Collect detailed ingredient usage data
         ingredients_used_data.append({
             'name': ingredient_cost['name'],
-            'quantity': total_quantity_needed,
-            'cost_per_unit': ingredient_cost['cost_per_unit'],
+            'quantity_per_unit': quantity_per_unit,
+            'total_quantity_needed': total_quantity_needed,
+            'price_per_base_unit': price_per_base_unit,
+            'price_per_larger_unit': price_per_larger_unit,
+            'cost_per_product_unit': cost_per_ingredient_unit,
             'total_cost': total_cost_for_ingredient,
-            'unit_measurement': ingredient_cost.get('unit_measurement', 'N/A'),
+            'unit_measurement': unit_measurement,
+            'larger_unit': larger_unit,
+            'base_unit': base_unit,
+            'usage_description': usage_description,
+            'price_source': price_source,
+            'price_supplier': price_supplier,
+            'price_date': price_date,
         })
+    
+    # Calculate cost percentages after total is known
+    for ingredient_data in ingredients_used_data:
+        ingredient_data['cost_percentage'] = (ingredient_data['total_cost'] / total_ingredient_cost * 100) if total_ingredient_cost > 0 else 0
     
     # Calculate the cost per unit of product and the total production cost
     cost_per_product = total_ingredient_cost / quantity if quantity > 0 else 0
     total_production_cost = total_ingredient_cost  # This is for the whole production batch
 
+    # Additional cost analysis
+    cost_analysis = {
+        'total_batch_cost': total_production_cost,
+        'cost_per_unit': cost_per_product,
+        'units_produced': quantity,
+        'profit_margin_suggestion': cost_per_product * 2,  # Suggested selling price (100% markup)
+        'average_ingredient_cost': total_ingredient_cost / len(ingredients_used_data) if ingredients_used_data else 0,
+    }
     
     # Get the associated production order, if any
     production_order = manufactured_product.production_order
@@ -2100,24 +2227,52 @@ def manufacturedproduct_detail(request, product_id):
         'ingredients_used': ingredients_used_data,
         'cost_per_product': cost_per_product,
         'total_production_cost': total_production_cost,
+        'cost_analysis': cost_analysis,
         'production_order': production_order,
         'referer': referer,
     }
     return render(request, 'manufactured-product-details.html', context)
 
 def get_raw_material_price(raw_material_name):
-  """
-  Retrieves the latest unit price for a raw material based on its name.
-  """
-  try:
-    raw_material = RawMaterial.objects.get(name=raw_material_name)
-    latest_purchase_order = raw_material.purchaseorder_set.order_by('-created_at').first()
-    if latest_purchase_order:
-        return latest_purchase_order.unit_price
-    else:
-        return 0  # Handle case where no purchase order exists (optional)
-  except RawMaterial.DoesNotExist:
-    return None  #
+    """
+    Retrieves the latest unit price for a raw material based on its name.
+    Priority: 1. Latest requisition price, 2. RawMaterialPrice, 3. Legacy PurchaseOrder
+    """
+    try:
+        raw_material = RawMaterial.objects.get(name=raw_material_name)
+
+        # Priority 1: Get the most recent requisition item for this raw material
+        latest_requisition_item = RequisitionItem.objects.filter(
+            raw_material=raw_material,
+            price_per_unit__gt=0  # Only consider items with valid prices
+        ).order_by('-requisition__created_at').first()
+    
+        if latest_requisition_item:
+            print(f'Found requisition price for {raw_material_name}: {latest_requisition_item.price_per_unit}')
+            return latest_requisition_item.price_per_unit
+        
+        # Priority 2: Try to get from RawMaterialPrice if no requisition history
+        latest_raw_material_price = RawMaterialPrice.objects.filter(
+            raw_material=raw_material,
+            is_current=True
+        ).order_by('-effective_date').first()
+    
+        if latest_raw_material_price:
+            print(f'Found RawMaterialPrice for {raw_material_name}: {latest_raw_material_price.price}')
+            return latest_raw_material_price.price
+        
+        # Priority 3: Legacy fallback to PurchaseOrder (for backward compatibility)
+        latest_purchase_order = raw_material.purchaseorder_set.order_by('-created_at').first()
+        if latest_purchase_order:
+            print(f'Found legacy PurchaseOrder price for {raw_material_name}: {latest_purchase_order.unit_price}')
+            return latest_purchase_order.unit_price
+        else:
+            print(f'No price found for {raw_material_name}')
+            return 0  # Handle case where no price exists
+        
+    except RawMaterial.DoesNotExist:
+        print(f'Raw material {raw_material_name} does not exist')
+    return None
 
 @login_required(login_url='/login/')
 def product_inventory_details(request, inventory_id):
@@ -3305,6 +3460,16 @@ def approve_production_order(request, pk):
     #     return redirect('store_inventory_list')  # Redirect to homepage on permission error
     
     production_order = ProductionOrder.objects.get(pk=pk)
+    
+    # Import the new utility function for ingredient checking
+    from production.utils import check_ingredient_availability_for_production
+    
+    # Check ingredient availability for the requested quantity
+    availability_check = check_ingredient_availability_for_production(
+        production_order, 
+        production_order.quantity
+    )
+    
     if request.method == 'POST':
         approved_quantity = request.POST.get('approved_quantity')
         if approved_quantity:
@@ -3315,6 +3480,12 @@ def approve_production_order(request, pk):
                 elif approved_quantity > production_order.quantity:
                     messages.error(request, "Approved quantity cannot be greater than requested quantity.")
                 else:
+                    # Check availability for the approved quantity (optional additional check)
+                    approved_availability_check = check_ingredient_availability_for_production(
+                        production_order, 
+                        approved_quantity
+                    )
+                    
                     production_order.approved_quantity = approved_quantity
                     production_order.status = 'Approved'
                     production_order.save()
@@ -3328,7 +3499,11 @@ def approve_production_order(request, pk):
                     return redirect('productionProduction')
             except ValueError:
                 messages.error(request, "Invalid approved quantity. Please enter a number.")
-    context = {'production_order': production_order}
+    
+    context = {
+        'production_order': production_order,
+        'availability_check': availability_check,
+    }
     return render(request, 'approve_production_order.html', context)
 
 # reject production order

@@ -9,6 +9,56 @@
     <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
     <link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+    <style>
+        .ingredient-preview {
+            
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .ingredient-header {
+            {% comment %} background: #e9ecef; {% endcomment %}
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 8px 8px 0 0;
+        }
+        .ingredient-item {
+            
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .ingredient-item:last-child {
+            border-bottom: none;
+        }
+        .sufficient {
+            border-left: 3px solid #28a745;
+            background: #f8fff9;
+        }
+        .insufficient {
+            border-left: 3px solid #dc3545;
+            background: #fff8f8;
+        }
+        .status-indicator {
+            font-size: 0.8em;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        .status-sufficient {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-insufficient {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .manufacturing-form {
+            {% comment %} background: white; {% endcomment %}
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+        }
+    </style>
 {% endblock %}
 
 {% block js %}
@@ -28,6 +78,7 @@
     <script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
     <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
 {% endblock %}
+
 {% block content %}
     
         <!-- BEGIN container -->
@@ -39,61 +90,178 @@
                     <!-- BEGIN row -->
                     <div class="row">
                         <!-- BEGIN col-9 -->
-                        <div class="col-xl-8">
+                        <div class="col-xl-9">
                             <ul class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
-                                <li class="breadcrumb-item active">FACTORY</li>
+                                <li class="breadcrumb-item active">MANUFACTURE</li>
                             </ul>
                             
                             <h1 class="page-header">
-                                Manufacture Product <small>page header description goes here...</small>
+                                Manufacture Product <small>{{ product.product_name }}</small>
                             </h1>
                             
                             <hr class="mb-4">
                             
-                            <!-- BEGIN #datatable -->
-                            <h1>{{ product.product_name }}</h1>
-                            {% if messages %}
-                            <ul>
-                                {% for message in messages %}
-                                    <li class="{{ message.tags }}">{{ message }}</li>
+                            <!-- Product Information -->
+                            <div class="row mb-4">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5><i class="fa fa-industry me-2"></i>{{ product.product_name }}</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <p class="mb-1"><strong>Product:</strong> {{ product.product_name }}</p>
+                                                    <p class="mb-1"><strong>Category:</strong> {{ product.category|default:"N/A" }}</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    {% if availability_check.overall_sufficient %}
+                                                    <div class="alert alert-success mb-0">
+                                                        <i class="fa fa-check-circle me-2"></i><strong>Ready to Manufacture</strong>
+                                                        <br><small>All ingredients available for {{ check_quantity }} unit(s)</small>
+                                                    </div>
+                                                    {% else %}
+                                                    <div class="alert alert-warning mb-0">
+                                                        <i class="fa fa-exclamation-triangle me-2"></i><strong>Check Ingredients</strong>
+                                                        <br><small>Maximum producible: {{ availability_check.can_produce_quantity }} units</small>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Ingredient Requirements Preview -->
+                            {% if availability_check.ingredients %}
+                            <div class="ingredient-preview">
+                                <div class="ingredient-header">
+                                    <h6 class="mb-0"><i class="fa fa-flask me-2"></i>Ingredient Requirements (for {{ check_quantity }} unit{{ check_quantity|pluralize }})</h6>
+                                </div>
+                                {% for ingredient in availability_check.ingredients %}
+                                <div class="ingredient-item {% if ingredient.is_sufficient %}sufficient{% else %}insufficient{% endif %}">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <strong>{{ ingredient.raw_material.name }}</strong>
+                                            <br><small class="text-muted">{{ ingredient.unit_measurement }}</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <strong>{{ ingredient.total_quantity_needed_display|floatformat:2 }}</strong>
+                                            <br><small class="text-muted">Required
+                                            {% if ingredient.unit_measurement|lower == 'kilograms' or ingredient.unit_measurement|lower == 'kg' %}
+                                            (grams)
+                                            {% elif ingredient.unit_measurement|lower == 'liters' or ingredient.unit_measurement|lower == 'litres' %}
+                                            (ml)
+                                            {% else %}
+                                            ({{ ingredient.unit_measurement }})
+                                            {% endif %}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <strong>{{ ingredient.current_stock|floatformat:2 }}</strong>
+                                            <br><small class="text-muted">Available ({{ ingredient.unit_measurement }})</small>
+                                            <br><small class="text-muted">= {{ ingredient.current_stock_base_units|floatformat:0 }}
+                                            {% if ingredient.unit_measurement|lower == 'kilograms' or ingredient.unit_measurement|lower == 'kg' %}
+                                            grams
+                                            {% elif ingredient.unit_measurement|lower == 'liters' or ingredient.unit_measurement|lower == 'litres' %}
+                                            ml
+                                            {% else %}
+                                            {{ ingredient.unit_measurement }}
+                                            {% endif %}
+                                            </small>
+                                        </div>
+                                        <div class="col-md-2 text-center">
+                                            {% if ingredient.is_sufficient %}
+                                            <span class="status-indicator status-sufficient">✓ Sufficient</span>
+                                            {% else %}
+                                            <span class="status-indicator status-insufficient">✗ Insufficient</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
                                 {% endfor %}
-                            </ul>
+                            </div>
+                            {% endif %}
+
+                            <!-- Messages -->
+                            {% if messages %}
+                            <div class="mb-3">
+                                {% for message in messages %}
+                                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                                {% endfor %}
+                            </div>
                             {% endif %}
                         
-                            <form method="post">
-                                {% csrf_token %}
-                                <div class="mb-3">
-                                    <label class="form-label">Production Order <span class="text-danger">*</span></label>
-                                    <select name="production_order" id="id_production_order" class="form-control" onchange="updateQuantity(this.value)">
-                                        <option value="">---------</option>
-                                        {% for choice in form.production_order.field.choices %}
-                                            {% if choice.0 %}
-                                                <option value="{{ choice.0 }}" {% if choice.0 == form.production_order.value %}selected{% endif %}>
-                                                    {{ choice.1 }}
-                                                </option>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Quantity <span class="text-danger">*</span></label>
-                                    {{ form.quantity }}
-                                </div>
+                            <!-- Manufacturing Form -->
+                            <div class="manufacturing-form">
+                                <h5 class="mb-3"><i class="fa fa-cogs me-2"></i>Manufacturing Details</h5>
                                 
-                                <div class="mb-3">
-                                    <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
-                                    {{ form.expiry_date }}
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Manufacture Notes <span class="text-danger">*</span></label>
-                                    {{ form.notes }}
-                                </div>
-     
-                                
-                                <button class="btn btn-danger" type="submit">Manufacture</button>
-                            </form>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Production Order <span class="text-danger">*</span></label>
+                                                <select name="production_order" id="id_production_order" class="form-control" onchange="updateQuantity(this.value)">
+                                                    <option value="">Select Production Order</option>
+                                                    {% for choice in form.production_order.field.choices %}
+                                                        {% if choice.0 %}
+                                                            <option value="{{ choice.0 }}" {% if choice.0 == form.production_order.value %}selected{% endif %}>
+                                                                {{ choice.1 }}
+                                                            </option>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </select>
+                                                <small class="form-text text-muted">Select approved production order</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Quantity to Manufacture <span class="text-danger">*</span></label>
+                                                {{ form.quantity }}
+                                                <small class="form-text text-muted">
+                                                    {% if availability_check.overall_sufficient %}
+                                                    Can manufacture up to {{ availability_check.can_produce_quantity }} units
+                                                    {% else %}
+                                                    Maximum available: {{ availability_check.can_produce_quantity }} units
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
+                                                {{ form.expiry_date }}
+                                                <small class="form-text text-muted">Product expiration date</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Manufacturing Notes <span class="text-danger">*</span></label>
+                                                {{ form.notes }}
+                                                <small class="form-text text-muted">Production notes and observations</small>
+                                            </div>
+                                        </div>
+                                    </div>
+         
+                                    <div class="d-flex justify-content-between">
+                                        <a href="{% url 'manufacturedProductList' %}" class="btn btn-secondary">
+                                            <i class="fa fa-arrow-left me-1"></i>Back to List
+                                        </a>
+                                        <button class="btn btn-success" type="submit">
+                                            <i class="fa fa-industry me-1"></i>Start Manufacturing
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                             
                             <script>
                                 function updateQuantity(productionOrderId) {
@@ -107,6 +275,9 @@
                                                 if (data.success) {
                                                     quantityField.value = data.approved_quantity;
                                                     quantityField.readOnly = true; // Make readonly when production order is selected
+                                                    
+                                                    // Update ingredient preview for new quantity
+                                                    updateIngredientPreview(data.approved_quantity);
                                                 }
                                             })
                                             .catch(error => {
@@ -116,6 +287,95 @@
                                         // Clear quantity and make editable if no production order is selected
                                         quantityField.value = '';
                                         quantityField.readOnly = false;
+                                        
+                                        // Reset ingredient preview to default
+                                        updateIngredientPreview(1);
+                                    }
+                                }
+                                
+                                function updateIngredientPreview(quantity) {
+                                    // Update the header to show the new quantity
+                                    const ingredientHeader = document.querySelector('.ingredient-header h6');
+                                    if (ingredientHeader) {
+                                        const pluralSuffix = quantity > 1 ? 's' : '';
+                                        ingredientHeader.innerHTML = `<i class="fa fa-flask me-2"></i>Ingredient Requirements (for ${quantity} unit${pluralSuffix})`;
+                                    }
+                                    
+                                    // Update each ingredient requirement
+                                    const ingredientItems = document.querySelectorAll('.ingredient-item');
+                                    ingredientItems.forEach((item, index) => {
+                                        const requiredElement = item.querySelector('.col-md-3:nth-child(2) strong');
+                                        const statusElement = item.querySelector('.status-indicator');
+                                        const availableStockElement = item.querySelector('.col-md-3:nth-child(3) strong');
+                                        const availableBaseElement = item.querySelector('.col-md-3:nth-child(3) small:last-child');
+                                        
+                                        if (requiredElement && availableStockElement && availableBaseElement) {
+                                            // Get the base requirement per unit from data attributes or calculate
+                                            const baseRequirement = parseFloat(requiredElement.getAttribute('data-base-requirement') || 
+                                                                             (parseFloat(requiredElement.textContent) / {{ check_quantity }}));
+                                            
+                                            // Extract available base units (grams, ml, pieces) from the text
+                                            const availableBaseText = availableBaseElement.textContent;
+                                            const availableBaseMatch = availableBaseText.match(/= ([\d,.]+)/);
+                                            const availableBase = availableBaseMatch ? parseFloat(availableBaseMatch[1].replace(/,/g, '')) : 0;
+                                            
+                                            const newRequired = baseRequirement * quantity;
+                                            
+                                            // Store base requirement for future calculations
+                                            requiredElement.setAttribute('data-base-requirement', baseRequirement);
+                                            
+                                            // Update the displayed requirement (already in base units)
+                                            requiredElement.textContent = newRequired.toFixed(2);
+                                            
+                                            // Update status indicator based on base units comparison
+                                            const isSufficient = availableBase >= newRequired;
+                                            if (statusElement) {
+                                                if (isSufficient) {
+                                                    statusElement.className = 'status-indicator status-sufficient';
+                                                    statusElement.textContent = '✓ Sufficient';
+                                                } else {
+                                                    statusElement.className = 'status-indicator status-insufficient';
+                                                    const shortage = (newRequired - availableBase).toFixed(0);
+                                                    
+                                                    // Get the unit type from the ingredient name/context
+                                                    const unitText = availableBaseElement.textContent;
+                                                    let shortageUnit = 'units';
+                                                    if (unitText.includes('grams')) {
+                                                        shortageUnit = 'g';
+                                                    } else if (unitText.includes('ml')) {
+                                                        shortageUnit = 'ml';
+                                                    }
+                                                    
+                                                    statusElement.textContent = `✗ Short: ${shortage}${shortageUnit}`;
+                                                }
+                                            }
+                                            
+                                            // Update row styling
+                                            const ingredientRow = item;
+                                            if (isSufficient) {
+                                                ingredientRow.classList.remove('insufficient');
+                                                ingredientRow.classList.add('sufficient');
+                                            } else {
+                                                ingredientRow.classList.remove('sufficient');
+                                                ingredientRow.classList.add('insufficient');
+                                            }
+                                        }
+                                    });
+                                    
+                                    // Update overall status alert
+                                    const statusAlert = document.querySelector('.alert');
+                                    if (statusAlert) {
+                                        const alertText = statusAlert.querySelector('small');
+                                        if (alertText) {
+                                            const isSuccess = statusAlert.classList.contains('alert-success');
+                                            const pluralSuffix = quantity > 1 ? 's' : '';
+                                            if (isSuccess) {
+                                                alertText.textContent = `All ingredients available for ${quantity} unit${pluralSuffix}`;
+                                            } else {
+                                                // Keep the max producible info as is, just update the message context
+                                                alertText.innerHTML = alertText.innerHTML.replace(/for \d+ unit\(s\)/, `for ${quantity} unit${pluralSuffix}`);
+                                            }
+                                        }
                                     }
                                 }
                                 
@@ -125,10 +385,20 @@
                                     if (productionOrderSelect && productionOrderSelect.value) {
                                         updateQuantity(productionOrderSelect.value);
                                     }
+                                    
+                                    // Store base requirements for all ingredients on page load
+                                    const ingredientItems = document.querySelectorAll('.ingredient-item');
+                                    ingredientItems.forEach(item => {
+                                        const requiredElement = item.querySelector('.col-md-3:nth-child(2) strong');
+                                        if (requiredElement && !requiredElement.getAttribute('data-base-requirement')) {
+                                            const currentRequired = parseFloat(requiredElement.textContent);
+                                            const baseRequirement = currentRequired / {{ check_quantity }};
+                                            requiredElement.setAttribute('data-base-requirement', baseRequirement);
+                                        }
+                                    });
                                 });
                             </script>
                                 
-                            <!-- END #datatable -->
                         </div>
                         <!-- END col-9-->
                         <!-- BEGIN col-3 -->
@@ -137,7 +407,24 @@
                             <nav id="sidebar-bootstrap" class="navbar navbar-sticky d-none d-xl-block">
                                 <nav class="nav">
                                     <a class="nav-link active" href="{% url 'createProduct' %}">Roll Out New Product</a>
-                                    <a class="nav-link" href="#datatable" data-toggle="scroll-to">Product List</a>
+                                    <a class="nav-link" href="{% url 'manufacturedProductList' %}">Manufactured Products</a>
+                                    <a class="nav-link" href="{% url 'productionProduction' %}">Production Orders</a>
+                                    
+                                    {% if availability_check %}
+                                    <div class="mt-3 p-3 bg-light rounded">
+                                        <h6 class="mb-2">Ingredient Status</h6>
+                                        {% if availability_check.overall_sufficient %}
+                                        <small class="text-success">
+                                            <i class="fa fa-check-circle me-1"></i>All ingredients available
+                                        </small>
+                                        {% else %}
+                                        <small class="text-warning">
+                                            <i class="fa fa-exclamation-triangle me-1"></i>Check ingredient levels
+                                        </small>
+                                        {% endif %}
+                                        <br><small class="text-muted">Max producible: {{ availability_check.can_produce_quantity }} units</small>
+                                    </div>
+                                    {% endif %}
                                 </nav>
                             </nav>
                             <!-- END #sidebar-bootstrap -->
@@ -153,6 +440,7 @@
         <!-- END container -->
   
 {% endblock %}
+
 {% block outter_content %}
 {% if messages %}
     <div class="toasts-container">
@@ -160,7 +448,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Product Actions</strong>
+                    <strong class="me-auto">Manufacturing</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">

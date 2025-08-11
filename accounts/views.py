@@ -837,9 +837,9 @@ def manufacturing_report(request):
         # Calculate total cost for this product using the same logic as manufactured product details
         total_ingredient_cost = 0
         for ingredient_cost in cost_per:
-            # Calculate total quantity of each ingredient needed for the total quantity of product
-            total_quantity_needed = ingredient_cost['quantity'] * item['total_quantity']
-            total_cost_for_ingredient = ingredient_cost['cost_per_unit'] * total_quantity_needed
+            # The cost_per_ingredient is already the cost per unit of product
+            # So we just multiply by the total quantity of products manufactured
+            total_cost_for_ingredient = ingredient_cost['cost_per_ingredient'] * item['total_quantity']
             total_ingredient_cost += total_cost_for_ingredient
         
         item['total_cost'] = total_ingredient_cost
@@ -871,8 +871,8 @@ def manufacturing_report(request):
             cost_per = cost_per_unit(mp.product)
             # Calculate using the same logic as manufactured product details
             for ingredient_cost in cost_per:
-                total_quantity_needed = ingredient_cost['quantity'] * mp.quantity
-                total_cost_for_ingredient = ingredient_cost['cost_per_unit'] * total_quantity_needed
+                # The cost_per_ingredient is already the cost per unit of product
+                total_cost_for_ingredient = ingredient_cost['cost_per_ingredient'] * mp.quantity
                 day_total_cost += total_cost_for_ingredient
         day['total_cost'] = day_total_cost
 
@@ -975,8 +975,8 @@ def export_manufacturing_csv(request, start_date, end_date, selected_product):
         # Calculate total cost for this product
         total_ingredient_cost = 0
         for ingredient_cost in cost_per:
-            total_quantity_needed = ingredient_cost['quantity'] * item['total_quantity']
-            total_cost_for_ingredient = ingredient_cost['cost_per_unit'] * total_quantity_needed
+            # The cost_per_ingredient is already the cost per unit of product
+            total_cost_for_ingredient = ingredient_cost['cost_per_ingredient'] * item['total_quantity']
             total_ingredient_cost += total_cost_for_ingredient
         
         item['total_cost'] = total_ingredient_cost
@@ -1028,8 +1028,8 @@ def export_manufacturing_csv(request, start_date, end_date, selected_product):
             cost_per = cost_per_unit(mp.product)
             # Calculate using the same logic as manufactured product details
             for ingredient_cost in cost_per:
-                total_quantity_needed = ingredient_cost['quantity'] * mp.quantity
-                total_cost_for_ingredient = ingredient_cost['cost_per_unit'] * total_quantity_needed
+                # The cost_per_ingredient is already the cost per unit of product  
+                total_cost_for_ingredient = ingredient_cost['cost_per_ingredient'] * mp.quantity
                 day_total_cost += total_cost_for_ingredient
         day['total_cost'] = day_total_cost
     

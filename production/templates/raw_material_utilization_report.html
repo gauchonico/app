@@ -1,93 +1,374 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
-{% block title %}Production Orders{% endblock %}
+{% block title %}Raw Material Utilization Report{% endblock %}
 
 {% block css %}
-	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
-    <link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
+<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+<link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
+<style>
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .status-adequate { background-color: #d4edda; color: #155724; }
+    .status-low { background-color: #fff3cd; color: #856404; }
+    .status-critical { background-color: #f8d7da; color: #721c24; }
+    .status-excess { background-color: #d1ecf1; color: #0c5460; }
+    
+    .suggestion-item {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+        padding: 8px 12px;
+        margin: 4px 0;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+    
+    .suggestion-urgent {
+        border-left-color: #dc3545;
+        background: #fff5f5;
+    }
+    
+    .suggestion-warning {
+        border-left-color: #ffc107;
+        background: #fffbf0;
+    }
+    
+    .suggestion-info {
+        border-left-color: #17a2b8;
+        background: #f0fdff;
+    }
+</style>
 {% endblock %}
 
 {% block js %}
-    <script src="/assets/plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
-	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
-	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+<script src="/assets/plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
+<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
 {% endblock %}
+
 {% block content %}
-<div class="container">
-    <h1>Raw Material Utilization Report</h1>
-    <a href="{% url 'raw_material_utilization_reports' %}">hey</a>
-    
-    <!-- Filter Form -->
-    {% comment %} <form method="get" style="margin-bottom: 20px;">
-        <label for="start_date">Start Date:</label>
-        <input type="date" name="start_date" id="start_date" value="{{ start_date }}">
-        
-        <label for="end_date">End Date:</label>
-        <input type="date" name="end_date" id="end_date" value="{{ end_date }}">
-    
-        <label for="period">Select Period:</label>
-        <select name="period" id="period">
-            <option value="day" {% if period == 'day' %}selected{% endif %}>Daily</option>
-            <option value="week" {% if period == 'week' %}selected{% endif %}>Weekly</option>
-            <option value="month" {% if period == 'month' %}selected{% endif %}>Monthly</option>
-            <option value="year" {% if period == 'year' %}selected{% endif %}>Yearly</option>
-        </select>
-        <button class="btn btn-theme" type="submit">Filter</button>
-    </form> {% endcomment %}
-    <form method="get" action="{% url 'raw_material_utilization_report' %}">
-        <label for="date">Select Date:</label>
-        <input type="date" id="date" name="date" value="{{ selected_date|date:'Y-m-d' }}">
-        <button class="btn btn-theme" type="submit">Generate Report</button>
-    </form>
+<ul class="breadcrumb">
+    <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
+    <li class="breadcrumb-item active">RAW MATERIAL UTILIZATION REPORT</li>
+</ul>
 
+<h1 class="page-header">
+    <i class="fas fa-chart-line me-2"></i>Raw Material Utilization Report
+    <small class="text-muted">- Track usage, costs, and efficiency</small>
+</h1>
 
-    
-    
-    <!-- Report Table -->
-    <h2 class="mt-5">Report from </h2>
-    {% for raw_material, entries in grouped_data.items %}
-    <h5 class="text-warning">{{ raw_material }}</h5>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Unit of Measurement</th>
-                <th>Initial Stock</th>
-                <th>Usage / Addition</th>
-                <th>Final Stock</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in entries %}
-            <tr>
-                <td>{{ entry.raw_material__unit_measurement }}</td>
-                <td>{{ entry.initial_stock }}</td>
-                <td>
-                    {% if entry.total_usage <= 0 %}
-                        <span class="text-danger">{{ entry.total_usage }}</span>
-                    {% else %}
-                        <span class="text-theme">{{ entry.total_usage }}</span>
-                    {% endif %}
-                </td>
-                <td>{{ entry.final_stock|floatformat }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% endfor %}
+<!-- Enhanced Filter Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-filter me-2"></i>Report Filters
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" 
+                       value="{{ start_date|date:'Y-m-d'|default:'' }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" 
+                       value="{{ end_date|date:'Y-m-d'|default:'' }}">
+            </div>
+            <div class="col-md-2">
+                <label for="period" class="form-label">Period</label>
+                <select class="form-control" id="period" name="period">
+                    {% for value, label in period_options %}
+                    <option value="{{ value }}" {% if period == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="view" class="form-label">View Type</label>
+                <select class="form-control" id="view" name="view">
+                    {% for value, label in view_options %}
+                    <option value="{{ value }}" {% if view_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-1"></i>Generate Report
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
+
+<!-- Summary Statistics -->
+{% if utilization_data %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-primary">{{ unique_materials|default:0 }}</h3>
+                <p class="card-text">Materials Tracked</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-success">{{ total_materials_used|floatformat:1|intcomma }}</h3>
+                <p class="card-text">Total Usage</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-warning">UGX {{ total_value_consumed|floatformat:0|intcomma }}</h3>
+                <p class="card-text">Total Value Consumed</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="text-info">{{ avg_usage_per_material|floatformat:1|intcomma }}</h3>
+                <p class="card-text">Avg. Usage per Material</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Materials -->
+{% if top_materials %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-trophy me-2"></i>Top 5 Consuming Materials
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for material_name, data in top_materials %}
+            <div class="col-md-2-4">
+                <div class="text-center p-3 border rounded">
+                    <h6 class="fw-bold">{{ material_name }}</h6>
+                    <p class="mb-1"><strong>{{ data.total_usage|floatformat:1|intcomma }}</strong> {{ data.unit }}</p>
+                    <small class="text-muted">UGX {{ data.total_cost|floatformat:0|intcomma }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Overall Recommendations -->
+{% if overall_recommendations %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-lightbulb me-2"></i>System Recommendations
+        </h5>
+    </div>
+    <div class="card-body">
+        {% for recommendation in overall_recommendations %}
+        <div class="suggestion-item {% if recommendation.type == 'cost' %}suggestion-warning{% elif recommendation.type == 'efficiency' %}suggestion-urgent{% else %}suggestion-info{% endif %}">
+            <strong>{{ recommendation.message }}</strong><br>
+            <small>Recommended Action: {{ recommendation.action }}</small>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Detailed Utilization Data -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-table me-2"></i>Material Utilization Details
+            <small class="text-muted">- {{ start_date|date:"M d, Y" }} to {{ end_date|date:"M d, Y" }}</small>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped" id="utilizationTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Material</th>
+                        <th>Period</th>
+                        <th>Usage</th>
+                        <th>Current Stock</th>
+                        <th>Usage Cost</th>
+                        <th>Efficiency</th>
+                        <th>Status</th>
+                        <th>Suggestions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in utilization_data %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.raw_material.name }}</strong>
+                            <br><small class="text-muted">{{ item.raw_material.unit_measurement }}</small>
+                        </td>
+                        <td>{{ item.period|date:"M d, Y" }}</td>
+                        <td>
+                            <strong>{{ item.total_usage|floatformat:2|intcomma }}</strong>
+                            <br><small class="text-muted">
+                                {{ item.products_count }} products, {{ item.batches_count }} batches
+                            </small>
+                        </td>
+                        <td>
+                            <span class="{% if item.stock_status == 'critical' %}text-danger{% elif item.stock_status == 'low' %}text-warning{% elif item.stock_status == 'excess' %}text-info{% else %}text-success{% endif %}">
+                                {{ item.current_stock|floatformat:2|intcomma }}
+                            </span>
+                        </td>
+                        <td>
+                            <strong>UGX {{ item.usage_cost|floatformat:0|intcomma }}</strong>
+                            <br><small class="text-muted">@ UGX {{ item.unit_price|floatformat:2|intcomma }}</small>
+                        </td>
+                        <td>
+                            <small>
+                                {{ item.efficiency_per_product|floatformat:2 }}/product<br>
+                                {{ item.efficiency_per_batch|floatformat:2 }}/batch
+                            </small>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ item.stock_status }}">
+                                {{ item.stock_status|title }}
+                            </span>
+                        </td>
+                        <td>
+                            {% for suggestion in item.suggestions %}
+                            <div class="suggestion-item {% if 'URGENT' in suggestion %}suggestion-urgent{% elif 'Consider' in suggestion %}suggestion-warning{% else %}suggestion-info{% endif %}">
+                                {{ suggestion }}
+                            </div>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- Simple view for backward compatibility -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-calendar me-2"></i>Single Date Report
+            <small class="text-muted">- {{ selected_date|date:"M d, Y" }}</small>
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="date" class="form-label">Select Date:</label>
+                    <input type="date" id="date" name="date" class="form-control" value="{{ selected_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary" type="submit">Generate Report</button>
+                </div>
+            </div>
+        </form>
+
+        {% for raw_material, entries in grouped_data.items %}
+        <div class="mb-4">
+            <h5 class="text-primary border-bottom pb-2">{{ raw_material }}</h5>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Unit of Measurement</th>
+                            <th>Initial Stock</th>
+                            <th>Usage / Addition</th>
+                            <th>Final Stock</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries %}
+                        <tr>
+                            <td>{{ entry.raw_material__unit_measurement }}</td>
+                            <td>{{ entry.initial_stock|floatformat:2|intcomma }}</td>
+                            <td>
+                                {% if entry.total_usage <= 0 %}
+                                    <span class="text-danger">{{ entry.total_usage|floatformat:2|intcomma }}</span>
+                                {% else %}
+                                    <span class="text-success">{{ entry.total_usage|floatformat:2|intcomma }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry.final_stock|floatformat:2|intcomma }}</td>
+                            <td>
+                                {% if entry.final_stock < 100 %}
+                                    <span class="status-badge status-critical">Low Stock</span>
+                                {% elif entry.final_stock < 500 %}
+                                    <span class="status-badge status-low">Monitor</span>
+                                {% else %}
+                                    <span class="status-badge status-adequate">Adequate</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No utilization data found</h5>
+            <p class="text-muted">Try selecting a different date or check if there were any production activities.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<script>
+$(document).ready(function() {
+    // Initialize DataTable for enhanced view
+    if ($('#utilizationTable').length) {
+        $('#utilizationTable').DataTable({
+            responsive: true,
+            pageLength: 25,
+            order: [[6, 'desc']], // Sort by status (critical first)
+            columnDefs: [
+                { targets: [7], orderable: false } // Disable sorting for suggestions column
+            ],
+            buttons: [
+                'copy', 'csv', 'excel', 'pdf', 'print'
+            ],
+            dom: 'Bfrtip'
+        });
+    }
+    
+    // Set default end date to start date if not set
+    $('#start_date').change(function() {
+        if (!$('#end_date').val()) {
+            $('#end_date').val($(this).val());
+        }
+    });
+});
+</script>
 {% endblock %}

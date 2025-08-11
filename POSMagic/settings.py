@@ -58,7 +58,7 @@ INSTALLED_APPS = [
     'salon.apps.SalonConfig',
     'accounts.apps.AccountsConfig',
     'crispy_forms',
-    'auditlog',  # Django audit logging
+    'auditlog',  # Django audit logging - temporarily disabled
 ]
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
