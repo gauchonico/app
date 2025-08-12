@@ -2131,13 +2131,16 @@ from auditlog.registry import auditlog
 # Register key models for audit tracking
 auditlog.register(Supplier)
 auditlog.register(RawMaterial) 
-auditlog.register(Requisition)
-auditlog.register(RequisitionItem)
-auditlog.register(RequisitionExpenseItem)
-auditlog.register(LPO)
-auditlog.register(PaymentVoucher)
-auditlog.register(RawMaterialPrice)
-auditlog.register(TaxCode)
-auditlog.register(GoodsReceivedNote)
-auditlog.register(Production)
-auditlog.register(ManufactureProduct)
+# Temporarily disable auditlog registrations due to changes_text constraint issues
+# This can be re-enabled once auditlog version compatibility is resolved
+
+# auditlog.register(Requisition)
+# auditlog.register(RequisitionItem)
+# auditlog.register(RequisitionExpenseItem)
+# auditlog.register(LPO)
+# auditlog.register(PaymentVoucher)
+# auditlog.register(RawMaterialPrice)
+# auditlog.register(TaxCode)
+# auditlog.register(GoodsReceivedNote)
+# auditlog.register(Production)
+# auditlog.register(ManufactureProduct)
