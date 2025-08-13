@@ -569,8 +569,10 @@ class StoreSelectionForm(forms.Form):
     )
         
 class TestItemForm(forms.ModelForm):
-    product = forms.ModelChoiceField(queryset=LivaraMainStore.objects.filter(quantity__gt=0)),
-    widget=forms.Select(attrs={'class': 'form-control'}
+    product = forms.ModelChoiceField(
+        queryset=LivaraMainStore.objects.filter(quantity__gt=0),
+        required=False,  # Make it not required for empty forms
+        widget=forms.Select(attrs={'class': 'form-control'})
     )
     price_group = forms.ModelChoiceField(
         queryset=PriceGroup.objects.filter(is_active=True),  # Filter only active pricing groups
@@ -578,6 +580,7 @@ class TestItemForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-control'}),
     )
     chosen_price = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'readonly': True}), required=False)
+    
     class Meta:
         model = SaleItem
         fields = '__all__'
@@ -588,11 +591,30 @@ class TestItemForm(forms.ModelForm):
             'chosen_price': forms.NumberInput(attrs={'class': 'form-control', 'readonly': True}),
         }
         
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make quantity not required for empty forms
+        self.fields['quantity'].required = False
+        
     def clean(self):
         """Update the chosen_price based on the selected pricing group."""
         cleaned_data = super().clean()
         product_instance = cleaned_data.get('product')
         price_group = cleaned_data.get('price_group')
+        quantity = cleaned_data.get('quantity')
+
+        # If this is an empty form (no product or quantity), skip validation
+        if not product_instance or not quantity:
+            return cleaned_data
+
+        # Validate that both product and quantity are provided
+        if product_instance and not quantity:
+            self.add_error('quantity', 'Quantity is required when a product is selected.')
+            return cleaned_data
+        
+        if quantity and not product_instance:
+            self.add_error('product', 'Product is required when quantity is provided.')
+            return cleaned_data
 
         if product_instance:
             # Navigate relationships to get the Product instance
@@ -644,6 +666,8 @@ TestItemFormset = inlineformset_factory(
     form = TestItemForm,
     extra=1, 
     can_delete=True,
+    validate_min=False,  # Allow empty forms
+    validate_max=False,  # Allow unlimited forms
 )
 
 class RequisitionForm(forms.ModelForm):

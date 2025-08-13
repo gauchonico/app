@@ -1791,23 +1791,6 @@ def raw_material_additions_detail(request):
             'description': f'Delivered from {requisition.supplier.name}'
         })
     
-    # # Get inventory adjustments that added this material
-    # inventory_additions = RawMaterialInventory.objects.filter(
-    #     raw_material=raw_material,
-    #     adjustment__gt=0,
-    #     last_updated__date__gte=from_date,
-    #     last_updated__date__lte=to_date
-    # ).order_by('last_updated')
-    
-    # for adjustment in inventory_additions:
-    #     additions.append({
-    #         'type': 'inventory_adjustment',
-    #         'date': adjustment.last_updated,
-    #         'reference': f'Adjustment #{adjustment.id}',
-    #         'quantity': adjustment.adjustment,
-    #         'description': 'Manual inventory adjustment'
-    #     })
-    
     # Sort all additions by date
     additions.sort(key=lambda x: x['date'], reverse=True)
     
@@ -1898,24 +1881,6 @@ def raw_material_deductions_detail(request):
             'description': write_off.reason,
             'written_off_by': write_off.written_off_by.get_full_name() if write_off.written_off_by else 'Unknown'
         })
-    
-    # Get inventory adjustments that deducted this material
-    # inventory_deductions = RawMaterialInventory.objects.filter(
-    #     raw_material=raw_material,
-    #     adjustment__lt=0,
-    #     last_updated__date__gte=from_date,
-    #     last_updated__date__lte=to_date
-    # ).order_by('last_updated')
-    
-    # for adjustment in inventory_deductions:
-    #     deductions.append({
-    #         'type': 'inventory_adjustment',
-    #         'date': adjustment.last_updated,
-    #         'reference': adjustment.id,  # Use integer id for consistency
-    #         'reference_display': f'Adjustment #{adjustment.id}',  # Use formatted string for display
-    #         'quantity': abs(adjustment.adjustment),  # Make positive for display
-    #         'description': 'Manual inventory adjustment'
-    #     })
     
     # Sort all deductions by date
     deductions.sort(key=lambda x: x['date'], reverse=True)
@@ -3594,11 +3559,137 @@ def create_store_sale(request):
     return render(request, 'create_store_sale.html', context)
 
 def list_store_sales(request):
-    sale_orders = StoreSale.objects.all().order_by('-sale_date')  # Order by creation date descending
+    sale_orders = StoreSale.objects.select_related('customer', 'tax_code').prefetch_related('saleitem_set__product__product__product').all().order_by('-sale_date')
+    
+    # Calculate summary statistics
+    total_sales = sale_orders.count()
+    total_value = sum(sale.total_amount or 0 for sale in sale_orders)
+    pending_sales = sale_orders.filter(status='ordered').count()
+    delivered_sales = sale_orders.filter(status='delivered').count()
+    paid_sales = sale_orders.filter(status='paid').count()
+    
+    # Calculate overdue sales
+    today = date.today()
+    overdue_sales = sum(1 for sale in sale_orders if sale.due_date and sale.due_date < today and sale.status != 'paid')
+    
     for sale_order in sale_orders:
-        sale_order.remaining_days = sale_order.get_remaining_days()  # Directly use the method
-    context = {'sale_orders': sale_orders}
+        sale_order.remaining_days = sale_order.get_remaining_days()
+        # Calculate absolute value for overdue days display
+        sale_order.overdue_days = abs(sale_order.remaining_days) if sale_order.remaining_days < 0 else 0
+        # Calculate item count
+        sale_order.item_count = sale_order.saleitem_set.count()
+        # Calculate total quantity
+        sale_order.total_quantity = sum(item.quantity for item in sale_order.saleitem_set.all())
+    
+    context = {
+        'sale_orders': sale_orders,
+        'total_sales': total_sales,
+        'total_value': total_value,
+        'pending_sales': pending_sales,
+        'delivered_sales': delivered_sales,
+        'paid_sales': paid_sales,
+        'overdue_sales': overdue_sales,
+    }
     return render(request, 'list_store_sales.html', context)
+
+def edit_store_sale(request, sale_id):
+    """Edit a store sale - only allowed for orders that haven't been delivered"""
+    sale = get_object_or_404(StoreSale, id=sale_id)
+    
+    # Check if sale can be edited (only ordered status can be edited)
+    if sale.status != 'ordered':
+        messages.error(request, f"Cannot edit sale #{sale.id}. Only orders with 'Ordered' status can be edited.")
+        return redirect('listStoreSales')
+    
+    if request.method == 'POST':
+        form = TestForm(request.POST, instance=sale)
+        formset = TestItemFormset(request.POST, instance=sale)
+        
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                # Restore inventory from old items before updating
+                old_items = sale.saleitem_set.all()
+                for old_item in old_items:
+                    old_item.product.quantity += old_item.quantity
+                    old_item.product.save()
+                
+                # Check inventory for new items
+                sufficient_inventory = True
+                inventory_errors = []
+                
+                for item_form in formset:
+                    product = item_form.cleaned_data.get('product')
+                    quantity = item_form.cleaned_data.get('quantity')
+                    if product and quantity:
+                        if product.quantity < quantity:
+                            sufficient_inventory = False
+                            shortage = quantity - product.quantity
+                            inventory_errors.append(f"{product.product.product_name}: Need {quantity}, Available {product.quantity} (Shortage: {shortage})")
+                            item_form.add_error('quantity', f'Insufficient quantity. Available: {product.quantity}')
+                
+                if sufficient_inventory:
+                    # Save the sale
+                    store_sale = form.save(commit=False)
+                    store_sale.save()
+                    
+                    # Delete old items and save new ones
+                    sale.saleitem_set.all().delete()
+                    
+                    # Count actual items and save them
+                    actual_items_count = 0
+                    for item_form in formset:
+                        if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
+                            sale_item = item_form.save(commit=False)
+                            sale_item.sale = store_sale
+                            sale_item.save()
+                            actual_items_count += 1
+                    
+                    # Update inventory
+                    for item_form in formset:
+                        if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
+                            product = item_form.cleaned_data.get('product')
+                            quantity = item_form.cleaned_data.get('quantity')
+                            if product and quantity:
+                                product.quantity -= quantity
+                                product.save()
+                    
+                    # Update total items count
+                    store_sale.total_items = actual_items_count
+                    
+                    # Recalculate financial amounts after all items are saved
+                    if actual_items_count > 0:
+                        store_sale.calculate_financial_amounts()
+                        store_sale.save()
+                        grand_total = store_sale.total_amount
+                    else:
+                        grand_total = Decimal('0.00')
+                    
+                    messages.success(request, f"Sale #{sale.id} updated successfully! Total: UGX {grand_total:,.2f}")
+                    return redirect('listStoreSales')
+                else:
+                    # Add detailed inventory error messages
+                    error_message = "Insufficient inventory for the following items:\n" + "\n".join(inventory_errors)
+                    messages.error(request, error_message)
+        else:
+            # Show form errors
+            if form.errors:
+                messages.error(request, "Please correct the errors in the form.")
+            if formset.errors:
+                messages.error(request, "Please correct the errors in the sale items.")
+    else:
+        form = TestForm(instance=sale)
+        formset = TestItemFormset(instance=sale)
+    
+    price_groups = PriceGroup.objects.filter(is_active=True)
+    context = {
+        'form': form, 
+        'formset': formset, 
+        'price_groups': price_groups,
+        'sale': sale,
+        'page_title': f'Edit Store Sale #{sale.id}',
+        'page_subtitle': f'Customer: {sale.customer.first_name} {sale.customer.last_name}'
+    }
+    return render(request, 'edit_store_sale.html', context)
 
 # finance view of all direct store sales
 def finance_list_store_sales(request):
@@ -3622,41 +3713,80 @@ def create_store_test(request):
 
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
-                form.instance.total_items = formset.total_form_count()
-                store_sale = form.save(commit=False)
-                
-                #Check inventory before saving
+                # Check inventory before saving
                 sufficient_inventory = True
+                inventory_errors = []
+                
                 for item_form in formset:
                     product = item_form.cleaned_data.get('product')
                     quantity = item_form.cleaned_data.get('quantity')
+                    # Only validate if both product and quantity are provided
                     if product and quantity:
-                        
                         if product.quantity < quantity:
                             sufficient_inventory = False
-                            item_form.add_error('quantity', 'Insufficient quantity in store. Request for production.')
-                            
+                            shortage = quantity - product.quantity
+                            inventory_errors.append(f"{product.product.product_name}: Need {quantity}, Available {product.quantity} (Shortage: {shortage})")
+                            item_form.add_error('quantity', f'Insufficient quantity. Available: {product.quantity}')
+                
                 if sufficient_inventory:
+                    # Save the sale first
+                    store_sale = form.save(commit=False)
                     store_sale.save()
+                    
+                    # Count actual items and save them
+                    actual_items_count = 0
                     for item_form in formset:
-                        if form.cleaned_data:
+                        if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
                             sale_item = item_form.save(commit=False)
                             sale_item.sale = store_sale
                             sale_item.save()
-                        
+                            actual_items_count += 1
+                    
+                    # Update inventory
+                    for item_form in formset:
+                        if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
+                            product = item_form.cleaned_data.get('product')
+                            quantity = item_form.cleaned_data.get('quantity')
+                            if product and quantity:
+                                product.quantity -= quantity
+                                product.save()
+                    
+                    # Update total items count
+                    store_sale.total_items = actual_items_count
+                    
+                    # Recalculate financial amounts after all items are saved
+                    if actual_items_count > 0:
+                        store_sale.calculate_financial_amounts()
+                        store_sale.save()
+                        grand_total = store_sale.total_amount
+                    else:
+                        grand_total = Decimal('0.00')
+                    
+                    messages.success(request, f"Sale created successfully! Total: UGX {grand_total:,.2f}")
                     return redirect('listStoreSales')
                 else:
-                # Add a general error message
-                    messages.error(request, "Insufficient quantity in one or more items. Please adjust the quantities or request for production.")
+                    # Add detailed inventory error messages
+                    error_message = "Insufficient inventory for the following items:\n" + "\n".join(inventory_errors)
+                    messages.error(request, error_message)
         else:
-            messages.error(request, "There was an error with your submission. Please check the form and try again.")
+            # Show form errors
+            if form.errors:
+                messages.error(request, "Please correct the errors in the form.")
+            if formset.errors:
+                messages.error(request, "Please correct the errors in the sale items.")
             
     else:
         form = TestForm()
         formset = TestItemFormset(queryset=SaleItem.objects.none())
         
     price_groups = PriceGroup.objects.filter(is_active=True)  # Fetch only active price groups
-    context = {'form': form, 'formset': formset, 'price_groups': price_groups}
+    context = {
+        'form': form, 
+        'formset': formset, 
+        'price_groups': price_groups,
+        'page_title': 'Create Store Sale',
+        'page_subtitle': 'Wholesale Customer Sales'
+    }
     return render(request, 'testing.html', context)
 
 #nolonger used as we use pricing group now
@@ -3743,19 +3873,48 @@ def pay_order_status(request, store_sale_id):
 
 def store_sale_order_details(request, pk):
     sale_order = get_object_or_404(StoreSale, pk=pk)
-    # Calculate the total order amount
-    sale_items = SaleItem.objects.filter(sale=sale_order)
-    total_order_amount = sum(
-        item.quantity * item.product.product.product.wholesale_price 
-        for item in sale_items
-            if item.product and item.product.product.product.wholesale_price is not None
-        )
-
+    
+    # Get sale items with optimized queries
+    sale_items = sale_order.saleitem_set.select_related(
+        'product__product__product'
+    ).all()
+    
+    # Calculate financial breakdown
+    subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price)
+    tax_amount = sale_order.tax_amount or Decimal('0.00')
+    withholding_tax = sale_order.withholding_tax or Decimal('0.00')
+    total_amount = sale_order.total_amount or Decimal('0.00')
+    
+    # Calculate due date and remaining days
+    due_date = sale_order.due_date
+    remaining_days = sale_order.get_remaining_days() if due_date else None
+    is_overdue = remaining_days < 0 if remaining_days is not None else False
+    overdue_days = abs(remaining_days) if is_overdue else 0
+    
+    # Get company info (you may need to adjust this based on your company model)
+    company_info = {
+        'name': 'THE VENTURES INC',
+        'address': 'Plot 131 Martyrs Way, Ntinda',
+        'phone': '+256 123 456 789',
+        'email': 'info@theventuresinc.com',
+        'website': 'www.theventuresinc.com',
+        'tin': 'TIN: 123456789',
+    }
+    
     referer = request.META.get('HTTP_REFERER')
     context = {
         'sale_order': sale_order,
+        'sale_items': sale_items,
         'referer': referer,
-        'total_order_amount': total_order_amount,
+        'subtotal': subtotal,
+        'tax_amount': tax_amount,
+        'withholding_tax': withholding_tax,
+        'total_amount': total_amount,
+        'due_date': due_date,
+        'remaining_days': remaining_days,
+        'is_overdue': is_overdue,
+        'overdue_days': overdue_days,
+        'company_info': company_info,
     }
     return render(request,'store_sale_details.html', context)
 
@@ -4078,42 +4237,47 @@ def saloon_sale(request):
 
 # Get price group for product
 def get_product_price_groups(request, product_id):
-    print(f"Fetching price groups for product {product_id}")  # Debug log
+    print(f"Fetching price for product {product_id}")  # Debug log
     try:
+        # Get the LivaraMainStore instance
+        store_product = LivaraMainStore.objects.get(id=product_id)
+        price_group_id = request.GET.get('price_group_id')
         
-        product = Production.objects.get(id=product_id)
+        if not price_group_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Price group ID is required'
+            }, status=400)
         
-        # Get all price groups
-        retail_price = ProductPrice.objects.filter(
+        # Get the actual product (Production instance)
+        product = store_product.product.product
+        
+        # Get the price for the specific price group
+        product_price = ProductPrice.objects.filter(
             product=product,
-            price_group__name__iexact='retail price'  # Assuming your retail price group is named "Retail"
-        ).select_related('price_group').first()
+            price_group_id=price_group_id
+        ).first()
         
-        
-        if retail_price:
-            price_groups_data = [{
-                'id': retail_price.price_group.id,
-                'name': retail_price.price_group.name,
-                'description': retail_price.price_group.description,
-                'is_active': retail_price.price_group.is_active,
-                'price': str(retail_price.price)
-            }]
-            
+        if product_price:
             return JsonResponse({
                 'success': True,
                 'product_name': product.product_name,
-                'price_groups': price_groups_data
+                'price': str(product_price.price),
+                'price_group_name': product_price.price_group.name
             })
         else:
+            # Fallback to wholesale price if no price group price found
             return JsonResponse({
-                'success': False,
-                'error': 'Retail price not found for this product'
-            }, status=404)
+                'success': True,
+                'product_name': product.product_name,
+                'price': str(product.wholesale_price),
+                'price_group_name': 'Wholesale (Default)'
+            })
         
-    except Production.DoesNotExist:
+    except LivaraMainStore.DoesNotExist:
         return JsonResponse({
             'success': False,
-            'error': 'Product not found'
+            'error': 'Product not found in store'
         }, status=404)
     except Exception as e:
         print(f"Error in get_product_price_groups: {str(e)}")  # Debug log

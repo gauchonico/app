@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load humanize %}
 {% load static %}
 
 {% block title %}Store Sales{% endblock %}
@@ -51,6 +51,58 @@
 					
 					<hr class="mb-4">
 
+					<!-- Summary Statistics -->
+					<div class="row mb-4">
+						<div class="col-md-2">
+							<div class="card bg-primary text-white">
+								<div class="card-body text-center">
+									<h4 class="mb-0">{{ total_sales }}</h4>
+									<small>Total Sales</small>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-2">
+							<div class="card bg-warning text-white">
+								<div class="card-body text-center">
+									<h4 class="mb-0">{{ pending_sales }}</h4>
+									<small>Pending</small>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-2">
+							<div class="card bg-info text-white">
+								<div class="card-body text-center">
+									<h4 class="mb-0">{{ delivered_sales }}</h4>
+									<small>Delivered</small>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-2">
+							<div class="card bg-success text-white">
+								<div class="card-body text-center">
+									<h4 class="mb-0">{{ paid_sales }}</h4>
+									<small>Paid</small>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-2">
+							<div class="card bg-danger text-white">
+								<div class="card-body text-center">
+									<h4 class="mb-0">{{ overdue_sales }}</h4>
+									<small>Overdue</small>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-2">
+							<div class="card bg-secondary text-white">
+								<div class="card-body text-center">
+									<h4 class="mb-0">UGX {{ total_value|floatformat:0|intcomma }}</h4>
+									<small>Total Value</small>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					<!-- BEGIN #datatable -->
 					<div class="table-responsive text-nowrap">
 						<div class="card">
@@ -59,69 +111,69 @@
 									<thead>
 										<tr class="align-middle">
 											<th class="border-top-0 pt-0 pb-2">#</th>
-											<th class="border-top-0 pt-0 pb-2 ">Customer</th>
+											<th class="border-top-0 pt-0 pb-2">Customer</th>
 											<th class="border-top-0 pt-0 pb-2">Date</th>
 											<th class="border-top-0 pt-0 pb-2">Status</th>
-											<th>Payment Status</th>
-											<th></th>
-											<th class="border-top-0 pt-0 pb-2">Delivery Status</th>
-											<th class="border-top-0 pt-0 pb-2">Products</th>
-										
-								
-											
-											
-											<th class="align-middle border-top-0 pt-0 pb-2">View</th>
-											
+											<th class="border-top-0 pt-0 pb-2">Items</th>
+											<th class="border-top-0 pt-0 pb-2">Total Amount</th>
+											<th class="border-top-0 pt-0 pb-2">Due Date</th>
+											<th class="border-top-0 pt-0 pb-2">Actions</th>
 										</tr>
 									</thead>
 									<tbody>
 										{% for sale_order in sale_orders %}
 										<tr class="align-middle">
 											<td class="align-middle">{{forloop.counter}}</td>
-											<td class="ext-truncate"><span class="col-5 text-truncate">{{ sale_order.customer.first_name }}</span></td>
-											<td class="align-middle col-sm-1">{{ sale_order.sale_date }}</td>
-											<td class="col-1 align-middle"><span class="badge {% if sale_order.status == 'ordered' %}border border-warning text-warning{% elif sale_order.status == 'paid' %}border border-success text-success{% elif sale_order.status == 'delivered' %}border border-primary text-primary{% else %}bg-white text-dark{% endif %} px-2 pt-5px pb-5px rounded fs-12px d-inline-flex align-items-center"><i class="fa fa-circle fs-9px fa-fw me-5px"></i> {{ sale_order.get_status_display }} </span></td>
-											<td>
-												{{sale_order.payment_status}}
+											<td class="ext-truncate">
+												<strong>{{ sale_order.customer.first_name }} {{ sale_order.customer.last_name }}</strong><br>
+												<small class="text-muted">{{ sale_order.customer.phone }}</small>
 											</td>
-											<td>
-												{% if sale_order.remaining_days >= 0 %}
-												<span class="text-inverse">{{ sale_order.remaining_days }} days remaining until payment is due.
+											<td class="align-middle">{{ sale_order.sale_date|date:"M d, Y" }}</td>
+											<td class="align-middle">
+												<span class="badge {% if sale_order.status == 'ordered' %}bg-warning{% elif sale_order.status == 'delivered' %}bg-info{% elif sale_order.status == 'paid' %}bg-success{% else %}bg-secondary{% endif %} px-2 py-1 rounded">
+													{{ sale_order.get_status_display }}
+												</span>
+											</td>
+											<td class="align-middle text-center">
+												<span class="badge bg-light text-dark">{{ sale_order.item_count }} items</span><br>
+												<small class="text-muted">{{ sale_order.total_quantity }} units</small>
+											</td>
+											<td class="align-middle">
+												<strong>UGX {{ sale_order.total_amount|floatformat:0|intcomma }}</strong>
+											</td>
+											<td class="align-middle">
+												{% if sale_order.due_date %}
+													{% if sale_order.remaining_days >= 0 %}
+														<span class="text-success">{{ sale_order.due_date|date:"M d, Y" }}</span><br>
+														<small class="text-muted">{{ sale_order.remaining_days }} days left</small>
+													{% else %}
+														<span class="text-danger">{{ sale_order.due_date|date:"M d, Y" }}</span><br>
+														<small class="text-danger">{{ sale_order.overdue_days }} days overdue</small>
+													{% endif %}
 												{% else %}
-												<span class="text-danger">{{ sale_order.remaining_days }} days overdue.</span>
+													<span class="text-muted">No due date</span>
 												{% endif %}
 											</td>
-											<td class="align-middle span-1">
-												<ul class="list-group">
-													{% for sale_item in sale_order.saleitem_set.all %}
-													<li class="list-group-item">{{ sale_item.product.product.product.product_name }} -{{ sale_item.quantity }} units</li>
-													{% endfor %}
-												</ul>
-											</td class="align-middle">
-											<td>
-												{% if sale_order.status == 'ordered' %}
-													<form method="post" action="{% url 'update_order_status' sale_order.pk %}">
-														{% csrf_token %}
-														<input type="hidden" name="order_id" value="{{ sale_order.pk }}">
-														<button type="submit" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Confirm goods have reached customer">Delivered</button>
-													</form>
-													
-													{% elif sale_order.status == 'delivered' %}
-														<span class="text-success">Waiting for Payment</span>
-													{% elif sale_order.status == 'paid' %}
-														<span class="text-success">Order is Paid</span>
-												{% endif %}
+											<td class="align-middle">
+												<div class="btn-group" role="group">
+													<a href="{% url 'store_sale_order_details' sale_order.pk %}" class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="View Details">
+														<i class="fa fa-eye"></i>
+													</a>
+													{% if sale_order.status == 'ordered' %}
+													<a href="{% url 'edit_store_sale' sale_order.pk %}" class="btn btn-sm btn-outline-warning" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Edit Sale">
+														<i class="fa fa-edit"></i>
+													</a>
+													{% endif %}
+													{% if sale_order.status == 'ordered' %}
+														<form method="post" action="{% url 'update_order_status' sale_order.pk %}" class="d-inline">
+															{% csrf_token %}
+															<button type="submit" class="btn btn-sm btn-outline-success" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Mark as Delivered">
+																<i class="fa fa-check"></i>
+															</button>
+														</form>
+													{% endif %}
+												</div>
 											</td>
-											
-											
-											<td class="col-1 align-middle">
-												
-                                                    <a href="{% url 'store_sale_order_details' sale_order.pk %}"><i class="fa fa-eye text-theme" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Click to preview"></i></a>
-													
-                                                
-											</td>
-											
-											
 										</tr>
 										{% endfor %}
 									</tbody>

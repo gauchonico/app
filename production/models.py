@@ -1364,6 +1364,10 @@ class StoreSale(models.Model):
     description = models.TextField(blank=True, null=True, help_text="Sale description or notes")
     billing_address = models.TextField(blank=True, null=True, help_text="Customer billing address")
     
+    # Financial fields
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Subtotal before tax")
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Tax amount")
+    withholding_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Withholding tax amount")
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Total sale amount
 
     def __str__(self):
@@ -1375,53 +1379,61 @@ class StoreSale(models.Model):
             self.billing_address = f"{self.customer.address}\nPhone: {self.customer.phone}\nEmail: {self.customer.email}"
         
         if not self.pk:
-            #save sale to generate id before calculating total
+            # Save sale to generate id before calculating total
             super().save(*args, **kwargs)
-        # Calculate total before saving
-        self.total_amount = self.calculate_total()
+        
+        # Calculate financial amounts
+        self.calculate_financial_amounts()
+        
         if not self.due_date and self.sale_date:  # Check if sale_date is not None
             self.due_date = self.sale_date + self.PAYMENT_DURATION
         super().save(*args, **kwargs)  # Call parent save method
     
-    def calculate_total(self):
+    def calculate_financial_amounts(self):
+        """Calculate and set all financial amounts for the sale"""
         try:
             # Get all sale items associated with this StoreSale
-            sale_items = self.saleitem_set.all()  # Fetch all sale items for this sale
+            sale_items = self.saleitem_set.all()
             
             # Calculate subtotal using the chosen price for each sale item
             subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
-            print(f"Subtotal: {subtotal}")  # Debugging output
-
-            # Convert subtotal to Decimal if needed
-            subtotal = Decimal(subtotal)
-
-            total = subtotal
+            self.subtotal = Decimal(subtotal)
             
-            # Apply tax code if specified
+            # Calculate tax amount if tax code is specified
             if self.tax_code:
-                tax_amount = self.tax_code.calculate_tax_amount(subtotal)
-                total += tax_amount
-                print(f"Tax Amount ({self.tax_code.code}): {tax_amount}")
+                self.tax_amount = self.tax_code.calculate_tax_amount(self.subtotal)
+            else:
+                self.tax_amount = Decimal('0.00')
             
+            # Calculate withholding tax if enabled
             if self.withhold_tax:
-                withholding_tax_amount = total * self.WITHHOLDING_TAX_RATE
-                print(f"Withholding Tax Amount: {withholding_tax_amount}")  # Debugging output
-                total += withholding_tax_amount
-
-            print(f"Final Total: {total}")  # Debugging output
-            return total
+                self.withholding_tax = (self.subtotal + self.tax_amount) * self.WITHHOLDING_TAX_RATE
+            else:
+                self.withholding_tax = Decimal('0.00')
+            
+            # Calculate total amount
+            self.total_amount = self.subtotal + self.tax_amount + self.withholding_tax
+            
         except (TypeError, ValueError) as e:
-            print(f"Error in calculate_total: {e}")  # Debugging output
-            return Decimal('0.00')
-
+            print(f"Error in calculate_financial_amounts: {e}")
+            self.subtotal = Decimal('0.00')
+            self.tax_amount = Decimal('0.00')
+            self.withholding_tax = Decimal('0.00')
+            self.total_amount = Decimal('0.00')
+    
+    def calculate_total(self):
+        """Legacy method - now uses calculate_financial_amounts"""
+        self.calculate_financial_amounts()
+        return self.total_amount
+        
     def get_remaining_days(self):
         today = date.today()
         due_date = self.due_date if self.due_date else self.sale_date + self.PAYMENT_DURATION
         return (due_date - today).days  # Allow negative values for overdue days
     
     @property
-    def tax_amount(self):
-        """Calculate tax amount for this sale"""
+    def calculated_tax_amount(self):
+        """Calculate tax amount for this sale (property version for backward compatibility)"""
         if self.tax_code:
             sale_items = self.saleitem_set.all()
             subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
@@ -1433,7 +1445,7 @@ class StoreSale(models.Model):
         """Calculate subtotal before tax"""
         sale_items = self.saleitem_set.all()
         return sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
-
+        
 class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
     product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)  # Link to product
@@ -1644,7 +1656,7 @@ class Requisition(models.Model):
     @property
     def items_subtotal(self):
         return sum(item.total_cost for item in self.requisitionitem_set.all())
-
+            
     @property
     def expenses_total(self):
         return sum(expense.amount for expense in self.expense_items.all())
@@ -1703,7 +1715,7 @@ class RequisitionItem(models.Model):
 
     def __str__(self):
         return f'{self.raw_material.name} - {self.quantity} units for {self.requisition.requisition_no}'
-    
+
     def save(self, *args, **kwargs):
         # Set default tax code from requisition if not specified
         if not self.tax_code and self.requisition.default_tax_code:
@@ -1757,7 +1769,7 @@ class RequisitionItem(models.Model):
         else:
             # If tax exclusive, add tax to subtotal
             return self.tax_code.calculate_tax_amount(subtotal)
-    
+
     @property
     def total_cost(self):
         """Calculate total cost including tax"""
@@ -1771,7 +1783,7 @@ class RequisitionItem(models.Model):
         else:
             # If tax exclusive, add tax to subtotal
             return self.tax_code.calculate_total_with_tax(subtotal)
-    
+
     @property
     def price_difference(self):
         """Calculate difference between manual and system price"""
@@ -1803,7 +1815,7 @@ class RequisitionExpenseItem(models.Model):
     class Meta:
         ordering = ['created_at']
     
-
+    
 class LPO(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -1911,7 +1923,7 @@ class LPO(models.Model):
         }
 
 # Choices for pricing source
-
+            
 class GoodsReceivedNote(models.Model):
     REASON_CHOICES = [
         ('Successful', 'Successful'),

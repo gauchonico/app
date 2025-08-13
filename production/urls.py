@@ -190,6 +190,7 @@ urlpatterns = [
     path('finance_list_store_sales/', views.finance_list_store_sales, name="financeListStoreSales"),
     path('pay_order_status/<int:store_sale_id>/', views.pay_order_status, name='pay_order_status'),
     path('store_sale_order_details/<int:pk>/', views.store_sale_order_details, name='store_sale_order_details'),
+    path('edit_store_sale/<int:sale_id>/', views.edit_store_sale, name='edit_store_sale'),
     path('monthly-commissions/', views.monthly_commission_list, name='monthly_commission_list'),
     path('monthly-commissions/<int:staff_id>/<int:year>/<int:month>/', views.staff_monthly_commission_detail, name='staff_monthly_commission_detail'),
     path('product-commissions/', views.product_commission_list, name='product_commission_list'),

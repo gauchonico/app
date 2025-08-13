@@ -2,7 +2,7 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}{{ page_title|default:"Create Store Sale" }}{% endblock %}
+{% block title %}{{ page_title|default:"Edit Store Sale" }}{% endblock %}
 
 {% block css %}
     <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -11,29 +11,30 @@
     <link href="/assets/plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
     <style>
         .form-section {
-            
             border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
-            border-left: 4px solid #007bff;
+            border-left: 4px solid #ffc107;
         }
         .section-title {
-            
             margin-bottom: 15px;
             font-weight: 600;
         }
         .tax-info {
-            {% comment %} background: #e8f4fd; {% endcomment %}
             border: 1px solid #bee5eb;
             border-radius: 6px;
             padding: 10px;
             margin-top: 10px;
         }
         .customer-info {
-            {% comment %} background: #f8f9fa; {% endcomment %}
             border-radius: 6px;
             padding: 15px;
             margin-top: 10px;
+        }
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
         }
     </style>
 {% endblock %}  
@@ -62,12 +63,24 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2><i class="fa fa-shopping-cart me-2"></i>{{ page_title|default:"Create Store Sale" }}</h2>
-            <p class="text-muted mb-0">{{ page_subtitle|default:"Wholesale Customer Sales" }}</p>
+            <h2><i class="fa fa-edit me-2"></i>{{ page_title|default:"Edit Store Sale" }}</h2>
+            <p class="text-muted mb-0">{{ page_subtitle|default:"Modify Existing Sale Order" }}</p>
         </div>
-        <a href="{% url 'listStoreSales' %}" class="btn btn-outline-secondary">
-            <i class="fa fa-arrow-left me-1"></i>Back to Sales
-        </a>
+        <div>
+            <a href="{% url 'listStoreSales' %}" class="btn btn-outline-secondary me-2">
+                <i class="fa fa-arrow-left me-1"></i>Back to Sales
+            </a>
+            <a href="{% url 'store_sale_order_details' sale.id %}" class="btn btn-outline-info">
+                <i class="fa fa-eye me-1"></i>View Details
+            </a>
+        </div>
+    </div>
+
+    <!-- Warning Alert -->
+    <div class="alert alert-warning" role="alert">
+        <i class="fa fa-exclamation-triangle me-2"></i>
+        <strong>Important:</strong> You are editing Sale #{{ sale.id }}. Only orders with "Ordered" status can be edited. 
+        Changes will affect inventory levels and financial calculations.
     </div>
 
     <form method="post" class="needs-validation" novalidate>
@@ -160,42 +173,6 @@
         <div class="form-section">
             <h5 class="section-title"><i class="fa fa-list me-2"></i>Sale Items</h5>
             
-            <!-- Summary Cards -->
-            <div class="row mb-3">
-                <div class="col-md-3">
-                    <div class="card bg-light">
-                        <div class="card-body text-center">
-                            <h6 class="card-title text-muted">Subtotal</h6>
-                            <h4 class="text-primary mb-0" id="summary-subtotal">UGX 0</h4>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-light">
-                        <div class="card-body text-center">
-                            <h6 class="card-title text-muted">Tax Amount</h6>
-                            <h4 class="text-info mb-0" id="summary-tax">UGX 0</h4>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-light">
-                        <div class="card-body text-center">
-                            <h6 class="card-title text-muted">Withholding Tax</h6>
-                            <h4 class="text-warning mb-0" id="summary-withholding">UGX 0</h4>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body text-center">
-                            <h6 class="card-title">Grand Total</h6>
-                            <h4 class="mb-0" id="summary-total">UGX 0</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
             {{ formset.management_form }}
             <div class="table-responsive">
                 <table class="table table-striped" id="sale_item_formset">
@@ -240,7 +217,7 @@
                             </tr>
                             {% if form.errors %}
                             <tr>
-                                <td colspan="6">
+                                <td colspan="8">
                                     <div class="alert alert-danger alert-sm">{{ form.errors }}</div>
                                 </td>
                             </tr>
@@ -273,8 +250,8 @@
                 <button type="button" id="add_form" class="btn btn-primary">
                     <i class="fa fa-plus me-1"></i>Add Item
                 </button>
-                <button class="btn btn-success ms-2" type="submit">
-                    <i class="fa fa-save me-1"></i>Create Sale
+                <button class="btn btn-warning ms-2" type="submit">
+                    <i class="fa fa-save me-1"></i>Update Sale
                 </button>
             </div>
         </div>
@@ -283,6 +260,7 @@
         {{ form.total_items }}
     </form>
 </div>
+
 <script>
     $(document).ready(function() {
         // Initialize date picker
@@ -311,7 +289,6 @@
                 
                 // Auto-populate billing address if empty
                 if (!$('#id_billing_address').val()) {
-                    // You can enhance this with AJAX to get full customer details
                     $('#id_billing_address').val('Address will be populated from customer details...');
                 }
             } else {
@@ -582,7 +559,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Error Creating Sale</strong>
+                    <strong class="me-auto">Sale Update</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">
