@@ -1463,9 +1463,12 @@ class SaleItem(models.Model):
             product_price = ProductPrice.objects.filter(product=self.product.product.product, price_group=self.price_group).first()
             if product_price:
                 self.chosen_price = product_price.price
+            else:
+                # No price configured in the selected group - this should be handled by form validation
+                raise ValueError(f"No price configured for {self.product.product.product.product_name} in price group '{self.price_group.name}'. Please contact Finance to set up pricing.")
         else:
-            # Default to the wholesale price if no group is selected
-            self.chosen_price = self.product.product.product.wholesale_price
+            # No price group selected - this should be handled by form validation
+            raise ValueError(f"Price group is required for {self.product.product.product.product_name}. Please select a pricing group.")
 
         # Calculate the total price
         self.total_price = (self.quantity * self.chosen_price) if self.chosen_price else 0
@@ -1474,15 +1477,97 @@ class SaleItem(models.Model):
 
 class StoreSaleReceipt(models.Model):
     store_sale = models.OneToOneField(StoreSale, on_delete=models.CASCADE)
-    receipt_number = models.CharField(max_length=10, unique=True)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    total_vat = models.DecimalField(max_digits=10, decimal_places=2)
-    withholding_tax = models.DecimalField(max_digits=10, decimal_places=2)
-    total_due = models.DecimalField(max_digits=10, decimal_places=2)
+    receipt_number = models.CharField(max_length=20, unique=True, help_text="Unique receipt number for payment reference")
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Subtotal before tax")
+    total_vat = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total VAT amount")
+    withholding_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Withholding tax amount")
+    total_due = models.DecimalField(max_digits=10, decimal_places=2, help_text="Total amount due for payment")
+    
+    # Payment processing fields
+    payment_status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending Payment'),
+        ('partial', 'Partially Paid'),
+        ('paid', 'Fully Paid'),
+        ('overdue', 'Overdue'),
+    ], default='pending', help_text="Current payment status")
+    
+    payment_due_date = models.DateField(help_text="Date when payment is due",null=True, blank=True)
+    payment_terms = models.CharField(max_length=100, default="45 days from delivery", help_text="Payment terms")
+    
+    # Additional details for payment processing
+    customer_name = models.CharField(max_length=200, help_text="Customer name for payment reference",blank=True, null=True)
+    customer_phone = models.CharField(max_length=20, help_text="Customer contact for payment follow-up",blank=True, null=True)
+    customer_email = models.EmailField(blank=True, null=True, help_text="Customer email for payment notifications")
+    
+    # Tax information
+    tax_code = models.CharField(max_length=50, blank=True, help_text="Tax code applied to this receipt")
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text="Tax rate percentage")
+    
+    # Delivery information
+    delivery_date = models.DateTimeField(help_text="Date when order was delivered",null=True, blank=True)
+    delivered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, help_text="User who marked as delivered")
+    
+    # Notes and references
+    notes = models.TextField(blank=True, help_text="Additional notes for payment processing")
+    reference_number = models.CharField(max_length=50, blank=True, help_text="External reference number")
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Store Sale Receipt"
+        verbose_name_plural = "Store Sale Receipts"
 
     def __str__(self):
-        return f"Receipt {self.receipt_number} for StoreSale {self.store_sale.id}"
+        return f"Receipt {self.receipt_number} - {self.customer_name}"
+
+    def save(self, *args, **kwargs):
+        # Auto-populate customer details from store sale
+        if not self.customer_name and self.store_sale:
+            self.customer_name = f"{self.store_sale.customer.first_name} {self.store_sale.customer.last_name}"
+        if not self.customer_phone and self.store_sale:
+            self.customer_phone = self.store_sale.customer.phone
+        if not self.customer_email and self.store_sale:
+            self.customer_email = self.store_sale.customer.email
+        
+        # Auto-populate tax information
+        if not self.tax_code and self.store_sale.tax_code:
+            self.tax_code = f"{self.store_sale.tax_code.code} - {self.store_sale.tax_code.name}"
+            self.tax_rate = self.store_sale.tax_code.rate
+        
+        # Set payment due date if not set
+        if not self.payment_due_date:
+            from datetime import timedelta
+            from datetime import date
+            # Use delivery_date if available, otherwise use current date
+            if self.delivery_date:
+                self.payment_due_date = self.delivery_date.date() + timedelta(days=45)
+            else:
+                self.payment_due_date = date.today() + timedelta(days=45)
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def is_overdue(self):
+        """Check if payment is overdue"""
+        from datetime import date
+        return self.payment_status == 'pending' and date.today() > self.payment_due_date
+
+    @property
+    def days_overdue(self):
+        """Calculate days overdue"""
+        from datetime import date
+        if self.is_overdue:
+            return (date.today() - self.payment_due_date).days
+        return 0
+
+    @property
+    def payment_status_display(self):
+        """Get payment status with overdue indicator"""
+        if self.is_overdue:
+            return f"Overdue ({self.days_overdue} days)"
+        return self.get_payment_status_display()
         
 
 class RawMaterialPrice(models.Model):
@@ -2141,8 +2226,8 @@ def update_supplier_prices_on_delivery(sender, instance, **kwargs):
 from auditlog.registry import auditlog
 
 # Register key models for audit tracking
-auditlog.register(Supplier)
-auditlog.register(RawMaterial) 
+# auditlog.register(Supplier)
+# auditlog.register(RawMaterial) 
 # Temporarily disable auditlog registrations due to changes_text constraint issues
 # This can be re-enabled once auditlog version compatibility is resolved
 
@@ -2156,3 +2241,117 @@ auditlog.register(RawMaterial)
 # auditlog.register(GoodsReceivedNote)
 # auditlog.register(Production)
 # auditlog.register(ManufactureProduct)
+# auditlog.register(StoreSalePayment)
+
+class StoreSalePayment(models.Model):
+    """Track customer payments for store sales with Chart of Accounts integration"""
+    
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('mobile_money', 'Mobile Money'),
+        ('cheque', 'Cheque'),
+        ('credit_card', 'Credit Card'),
+        ('other', 'Other'),
+    ]
+    
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    # Payment details
+    receipt = models.ForeignKey(StoreSaleReceipt, on_delete=models.CASCADE, related_name='payments')
+    payment_reference = models.CharField(max_length=50, unique=True, help_text="Unique payment reference number")
+    payment_date = models.DateTimeField(auto_now_add=True, help_text="Date and time of payment")
+    
+    # Financial details
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount paid by customer")
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, help_text="Method of payment")
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    
+    # Chart of Accounts integration
+    revenue_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                       related_name='store_sale_payments', 
+                                       help_text="Revenue account to credit (e.g., Sales Revenue)")
+    bank_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                    related_name='store_sale_bank_payments', 
+                                    help_text="Bank account to debit (e.g., Bank Account)")
+    
+    # Customer and receipt details
+    customer_name = models.CharField(max_length=200, help_text="Customer name for reference")
+    receipt_number = models.CharField(max_length=20, help_text="Receipt number being paid")
+    
+    # Additional details
+    transaction_id = models.CharField(max_length=100, blank=True, null=True, 
+                                    help_text="External transaction ID (bank transfer, mobile money, etc.)")
+    notes = models.TextField(blank=True, help_text="Additional payment notes")
+    received_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   help_text="User who received the payment")
+    
+    # Audit fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-payment_date']
+        verbose_name = "Store Sale Payment"
+        verbose_name_plural = "Store Sale Payments"
+    
+    def __str__(self):
+        return f"Payment {self.payment_reference} - {self.customer_name} - UGX {self.amount_paid:,.0f}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate payment reference if not provided
+        if not self.payment_reference:
+            from datetime import datetime
+            import uuid
+            current_date = datetime.now().strftime('%Y%m%d')
+            unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
+            self.payment_reference = f"PAY{current_date}{unique_id}"
+        
+        # Auto-populate customer and receipt details
+        if not self.customer_name and self.receipt:
+            self.customer_name = self.receipt.customer_name
+        if not self.receipt_number and self.receipt:
+            self.receipt_number = self.receipt.receipt_number
+        
+        super().save(*args, **kwargs)
+        
+        # Update receipt payment status after payment is completed
+        if self.payment_status == 'completed':
+            self.update_receipt_payment_status()
+    
+    def update_receipt_payment_status(self):
+        """Update the receipt payment status based on total payments"""
+        if not self.receipt:
+            return
+        
+        total_paid = sum(payment.amount_paid for payment in self.receipt.payments.filter(payment_status='completed'))
+        receipt_total = self.receipt.total_due
+        
+        if total_paid >= receipt_total:
+            self.receipt.payment_status = 'paid'
+        elif total_paid > 0:
+            self.receipt.payment_status = 'partial'
+        else:
+            self.receipt.payment_status = 'pending'
+        
+        self.receipt.save()
+    
+    @property
+    def payment_method_display(self):
+        """Get human-readable payment method"""
+        return dict(self.PAYMENT_METHOD_CHOICES).get(self.payment_method, self.payment_method)
+    
+    @property
+    def is_completed(self):
+        """Check if payment is completed"""
+        return self.payment_status == 'completed'
+    
+    @property
+    def can_be_reversed(self):
+        """Check if payment can be reversed"""
+        return self.payment_status == 'completed' and self.payment_date.date() >= (timezone.now().date() - timedelta(days=30))

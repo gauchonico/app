@@ -392,6 +392,29 @@
 
         // Function to fetch product price
         function fetchProductPrice(productId, priceGroupId, priceInput, subtotalSpan, taxSpan, totalSpan, quantityInput) {
+            // Check if price group is selected
+            if (!priceGroupId) {
+                // Show error for missing price group
+                const productSelect = priceInput.closest('tr').find('select[name*="product"]');
+                const productName = productSelect.find('option:selected').text();
+                
+                // Show error in the price input field
+                priceInput.val('❌ Price Group Required');
+                priceInput.css('color', '#dc3545');
+                priceInput.css('font-weight', 'bold');
+                
+                // Clear calculations
+                subtotalSpan.text('UGX 0');
+                taxSpan.text('UGX 0');
+                totalSpan.text('UGX 0');
+                
+                // Show error message
+                if (productName && productName !== '---------') {
+                    alert(`❌ ERROR: Price group is required for "${productName}".\n\nOnly pricing groups set by Finance can be used for sales.\n\nPlease select a pricing group to continue.`);
+                }
+                return;
+            }
+            
             $.ajax({
                 url: '{% url "get_product_price_groups" 0 %}'.replace('0', productId),
                 data: { 'price_group_id': priceGroupId },
@@ -399,19 +422,32 @@
                 success: function(data) {
                     if (data.success && data.price) {
                         priceInput.val(data.price);
+                        priceInput.css('color', '#000');
+                        priceInput.css('font-weight', 'normal');
                         updateItemCalculations(priceInput, subtotalSpan, taxSpan, totalSpan, quantityInput);
                         console.log(`Price fetched: ${data.price} for ${data.product_name} (${data.price_group_name})`);
                     } else {
                         console.error("Error fetching product price:", data.error);
-                        priceInput.val('');
+                        priceInput.val('❌ Price Not Configured');
+                        priceInput.css('color', '#dc3545');
+                        priceInput.css('font-weight', 'bold');
                         subtotalSpan.text('UGX 0');
                         taxSpan.text('UGX 0');
                         totalSpan.text('UGX 0');
+                        
+                        // Show error message
+                        const productSelect = priceInput.closest('tr').find('select[name*="product"]');
+                        const productName = productSelect.find('option:selected').text();
+                        if (productName && productName !== '---------') {
+                            alert(`❌ ERROR: No price configured for "${productName}" in the selected price group.\n\nPlease contact Finance to set up pricing for this product.`);
+                        }
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error("Error fetching product price:", error);
-                    priceInput.val('');
+                    priceInput.val('❌ Error Loading Price');
+                    priceInput.css('color', '#dc3545');
+                    priceInput.css('font-weight', 'bold');
                     subtotalSpan.text('UGX 0');
                     taxSpan.text('UGX 0');
                     totalSpan.text('UGX 0');
@@ -485,6 +521,33 @@
             const finalTotal = grandTotal + withholdingAmount;
             $('#final-total').text('UGX ' + finalTotal.toLocaleString());
         }
+
+        // Check for missing price groups before form submission
+        $('form').on('submit', function(e) {
+            let missingPriceGroups = [];
+            
+            $('select[name*="product"]').each(function() {
+                const productSelect = $(this);
+                const productName = productSelect.find('option:selected').text();
+                const row = productSelect.closest('tr');
+                const priceGroupSelect = row.find('select[name*="price_group"]');
+                const quantityInput = row.find('input[name*="quantity"]');
+                
+                // Only check if product and quantity are selected
+                if (productName && productName !== '---------' && quantityInput.val() && parseFloat(quantityInput.val()) > 0) {
+                    if (!priceGroupSelect.val()) {
+                        missingPriceGroups.push(productName);
+                    }
+                }
+            });
+            
+            if (missingPriceGroups.length > 0) {
+                e.preventDefault();
+                const message = `❌ ERROR: Price groups are required for the following products:\n\n${missingPriceGroups.join('\n')}\n\nOnly pricing groups set by Finance can be used for sales.\n\nPlease select pricing groups for all products before creating the sale.`;
+                alert(message);
+                return false;
+            }
+        });
 
         // Add new form row
         $('#add_form').click(function() {

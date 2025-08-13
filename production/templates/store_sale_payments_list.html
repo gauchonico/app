@@ -1,0 +1,495 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Store Sale Payments{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payments-container {
+        padding: 20px;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        text-align: center;
+        border-left: 4px solid #007bff;
+    }
+    
+    .stat-card.success {
+        border-left-color: #28a745;
+    }
+    
+    .stat-card.warning {
+        border-left-color: #ffc107;
+    }
+    
+    .stat-card.info {
+        border-left-color: #17a2b8;
+    }
+    
+    .stat-number {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.9em;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .filters-section {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: end;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .filter-group label {
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .filter-control {
+        padding: 8px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .btn-filter {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    
+    .btn-filter:hover {
+        background: #0056b3;
+    }
+    
+    .payments-table {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .table-header {
+        background: #f8f9fa;
+        padding: 20px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .table {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .table th {
+        background: #f8f9fa;
+        padding: 15px;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .table td {
+        padding: 15px;
+        vertical-align: middle;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        font-weight: 600;
+    }
+    
+    .bg-success {
+        background-color: #28a745 !important;
+        color: white;
+    }
+    
+    .bg-warning {
+        background-color: #ffc107 !important;
+        color: #212529;
+    }
+    
+    .bg-danger {
+        background-color: #dc3545 !important;
+        color: white;
+    }
+    
+    .bg-info {
+        background-color: #17a2b8 !important;
+        color: white;
+    }
+    
+    .payment-method {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        font-size: 0.8em;
+    }
+    
+    .payment-method.cash {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .payment-method.bank_transfer {
+        background: #cce5ff;
+        color: #004085;
+    }
+    
+    .payment-method.mobile_money {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .amount {
+        font-weight: 600;
+        color: #28a745;
+    }
+    
+    .customer-name {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .receipt-link {
+        color: #007bff;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .receipt-link:hover {
+        text-decoration: underline;
+    }
+    
+    .no-payments {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .no-payments i {
+        font-size: 4em;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .payment-methods-summary {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .methods-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+    
+    .method-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 6px;
+        text-align: center;
+    }
+    
+    .method-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .method-stats {
+        font-size: 0.9em;
+        color: #6c757d;
+    }
+    
+    @media (max-width: 768px) {
+        .payments-container {
+            padding: 10px;
+        }
+        
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .filters-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .methods-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .table-responsive {
+            font-size: 0.9em;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payments-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fa fa-money-bill"></i> Store Sale Payments</h1>
+                <p class="mb-0">Track and manage all customer payments for store sales</p>
+            </div>
+            <div>
+                <a href="{% url 'store_sale_receipts_list' %}" class="btn btn-light">
+                    <i class="fa fa-receipt"></i> View Receipts
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <div class="stat-card success">
+            <div class="stat-number">{{ completed_payments }}</div>
+            <div class="stat-label">Completed Payments</div>
+        </div>
+        <div class="stat-card info">
+            <div class="stat-number">{{ total_payments }}</div>
+            <div class="stat-label">Total Payments</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-number">UGX {{ total_amount|floatformat:0|intcomma }}</div>
+            <div class="stat-label">Total Amount Collected</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ payment_methods|length }}</div>
+            <div class="stat-label">Payment Methods Used</div>
+        </div>
+    </div>
+
+    <!-- Payment Methods Summary -->
+    {% if payment_methods %}
+    <div class="payment-methods-summary">
+        <h4><i class="fa fa-chart-pie"></i> Payment Methods Breakdown</h4>
+        <div class="methods-grid">
+            {% for method, data in payment_methods.items %}
+            <div class="method-card">
+                <div class="method-name">{{ method }}</div>
+                <div class="method-stats">
+                    {{ data.count }} payments • UGX {{ data.amount|floatformat:0|intcomma }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="filters-section">
+        <h4><i class="fa fa-filter"></i> Filter Payments</h4>
+        <form method="get" class="filters-grid">
+            <div class="filter-group">
+                <label for="status">Payment Status</label>
+                <select name="status" id="status" class="filter-control">
+                    <option value="">All Statuses</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="method">Payment Method</label>
+                <select name="method" id="method" class="filter-control">
+                    <option value="">All Methods</option>
+                    <option value="cash" {% if method_filter == 'cash' %}selected{% endif %}>Cash</option>
+                    <option value="bank_transfer" {% if method_filter == 'bank_transfer' %}selected{% endif %}>Bank Transfer</option>
+                    <option value="mobile_money" {% if method_filter == 'mobile_money' %}selected{% endif %}>Mobile Money</option>
+                    <option value="cheque" {% if method_filter == 'cheque' %}selected{% endif %}>Cheque</option>
+                    <option value="credit_card" {% if method_filter == 'credit_card' %}selected{% endif %}>Credit Card</option>
+                    <option value="other" {% if method_filter == 'other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button type="submit" class="btn-filter">
+                    <i class="fa fa-search"></i> Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Payments Table -->
+    <div class="payments-table">
+        <div class="table-header">
+            <h4><i class="fa fa-list"></i> Payment Records</h4>
+            <p class="mb-0">Showing {{ payments.count }} payment{{ payments.count|pluralize }}</p>
+        </div>
+        
+        {% if payments %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Customer</th>
+                        <th>Receipt</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>Status</th>
+                        <th>Revenue Account</th>
+                        <th>Bank Account</th>
+                        <th>Received By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>
+                            <div>{{ payment.payment_date|date:"M d, Y" }}</div>
+                            <small class="text-muted">{{ payment.payment_date|date:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ payment.payment_reference }}</strong>
+                            {% if payment.transaction_id %}
+                            <br><small class="text-muted">TXN: {{ payment.transaction_id }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="customer-name">{{ payment.customer_name }}</div>
+                        </td>
+                        <td>
+                            <a href="{% url 'store_sale_receipt_detail' payment.receipt.pk %}" class="receipt-link">
+                                {{ payment.receipt_number }}
+                            </a>
+                        </td>
+                        <td>
+                            <div class="amount">UGX {{ payment.amount_paid|floatformat:0|intcomma }}</div>
+                        </td>
+                        <td>
+                            <span class="payment-method {{ payment.payment_method }}">
+                                <i class="fa fa-{% if payment.payment_method == 'cash' %}money-bill{% elif payment.payment_method == 'bank_transfer' %}university{% elif payment.payment_method == 'mobile_money' %}mobile{% elif payment.payment_method == 'cheque' %}file-text{% elif payment.payment_method == 'credit_card' %}credit-card{% else %}credit-card{% endif %}"></i>
+                                {{ payment.payment_method_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge {% if payment.payment_status == 'completed' %}bg-success{% elif payment.payment_status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ payment.get_payment_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <small>{{ payment.revenue_account.account_name }}</small>
+                        </td>
+                        <td>
+                            <small>{{ payment.bank_account.account_name }}</small>
+                        </td>
+                        <td>
+                            {% if payment.received_by %}
+                            <small>{{ payment.received_by.get_full_name|default:payment.received_by.username }}</small>
+                            {% else %}
+                            <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if payment.notes %}
+                    <tr>
+                        <td colspan="10">
+                            <small class="text-muted">
+                                <i class="fa fa-comment"></i> {{ payment.notes }}
+                            </small>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="no-payments">
+            <i class="fa fa-money-bill"></i>
+            <h4>No Payments Found</h4>
+            <p>No payments match the current filters or no payments have been recorded yet.</p>
+            {% if status_filter or method_filter %}
+            <a href="{% url 'store_sale_payments_list' %}" class="btn btn-primary">
+                <i class="fa fa-times"></i> Clear Filters
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-submit form when filters change
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelect = document.getElementById('status');
+        const methodSelect = document.getElementById('method');
+        
+        function submitForm() {
+            const form = document.querySelector('form');
+            form.submit();
+        }
+        
+        if (statusSelect) {
+            statusSelect.addEventListener('change', submitForm);
+        }
+        
+        if (methodSelect) {
+            methodSelect.addEventListener('change', submitForm);
+        }
+    });
+</script>
+{% endblock %}

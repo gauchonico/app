@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Record Payment - {{ receipt.receipt_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .payment-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f8f9fa;
+        min-height: 100vh;
+    }
+    
+    .page-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .summary-item {
+        transition: transform 0.2s ease;
+    }
+    
+    .summary-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .amount-paid {
+        color: #28a745 !important;
+    }
+    
+    .remaining-balance {
+        color: #dc3545 !important;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .form-label i {
+        margin-right: 8px;
+        color: #6c757d;
+    }
+    
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.15);
+    }
+    
+    .form-control.is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .form-text {
+        font-size: 0.85em;
+        color: #6c757d;
+    }
+    
+    .table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .badge {
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .btn {
+        transition: all 0.3s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+    
+    .btn-primary:hover {
+        box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+    }
+    
+    .btn-secondary:hover {
+        box-shadow: 0 4px 8px rgba(108,117,125,0.3);
+    }
+    
+    .no-payments {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .no-payments i {
+        font-size: 4em;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="payment-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fa fa-money-bill"></i> Record Payment</h2>
+                <p class="mb-0">Receipt: {{ receipt.receipt_number }} | Customer: {{ receipt.customer_name }}</p>
+            </div>
+            <div>
+                <a href="{% url 'store_sale_receipt_detail' receipt.pk %}" class="btn btn-light">
+                    <i class="fa fa-arrow-left"></i> Back to Receipt
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Summary -->
+    <div class="card border-primary mb-4">
+        <div class="card-header bg-primary text-white">
+            <h3 class="card-title mb-0"><i class="fa fa-receipt"></i> Receipt Summary</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="card summary-item h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small text-uppercase">Receipt Number</div>
+                            <div class="h5 mb-0 fw-bold">{{ receipt.receipt_number }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="card summary-item h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small text-uppercase">Customer</div>
+                            <div class="h5 mb-0 fw-bold">{{ receipt.customer_name }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="card summary-item h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small text-uppercase">Total Amount</div>
+                            <div class="h5 mb-0 fw-bold">UGX {{ receipt.total_due|floatformat:0|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="card summary-item h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small text-uppercase">Amount Paid</div>
+                            <div class="h5 mb-0 fw-bold amount-paid">UGX {{ total_paid|floatformat:0|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="card summary-item h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small text-uppercase">Remaining Balance</div>
+                            <div class="h5 mb-0 fw-bold remaining-balance">UGX {{ remaining_balance|floatformat:0|intcomma }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 col-sm-6 mb-3">
+                    <div class="card summary-item h-100">
+                        <div class="card-body text-center">
+                            <div class="text-muted small text-uppercase">Payment Status</div>
+                            <div class="mt-2">
+                                <span class="badge {% if receipt.payment_status == 'paid' %}bg-success{% elif receipt.payment_status == 'partial' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ receipt.get_payment_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Form -->
+    {% if remaining_balance > 0 %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h4 class="card-title mb-0"><i class="fa fa-plus-circle"></i> Record New Payment</h4>
+        </div>
+        <div class="card-body">
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                <strong>Please correct the following errors:</strong>
+                {{ form.errors }}
+            </div>
+            {% endif %}
+            
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.amount_paid.id_for_label }}" class="form-label">
+                            <i class="fa fa-money-bill"></i> Amount Paid *
+                        </label>
+                        {{ form.amount_paid }}
+                        {% if form.amount_paid.errors %}
+                        <div class="invalid-feedback d-block">{{ form.amount_paid.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Maximum: UGX {{ remaining_balance|floatformat:0|intcomma }}</div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.payment_method.id_for_label }}" class="form-label">
+                            <i class="fa fa-credit-card"></i> Payment Method *
+                        </label>
+                        {{ form.payment_method }}
+                        {% if form.payment_method.errors %}
+                        <div class="invalid-feedback d-block">{{ form.payment_method.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.payment_status.id_for_label }}" class="form-label">
+                            <i class="fa fa-check-circle"></i> Payment Status *
+                        </label>
+                        {{ form.payment_status }}
+                        {% if form.payment_status.errors %}
+                        <div class="invalid-feedback d-block">{{ form.payment_status.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.transaction_id.id_for_label }}" class="form-label">
+                            <i class="fa fa-hashtag"></i> Transaction ID
+                        </label>
+                        {{ form.transaction_id }}
+                        {% if form.transaction_id.errors %}
+                        <div class="invalid-feedback d-block">{{ form.transaction_id.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Optional: For bank transfers, mobile money, etc.</div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.revenue_account.id_for_label }}" class="form-label">
+                            <i class="fa fa-chart-line"></i> Revenue Account *
+                        </label>
+                        {{ form.revenue_account }}
+                        {% if form.revenue_account.errors %}
+                        <div class="invalid-feedback d-block">{{ form.revenue_account.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Account to credit for sales revenue</div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.bank_account.id_for_label }}" class="form-label">
+                            <i class="fa fa-university"></i> Bank/Cash Account *
+                        </label>
+                        {{ form.bank_account }}
+                        {% if form.bank_account.errors %}
+                        <div class="invalid-feedback d-block">{{ form.bank_account.errors.0 }}</div>
+                        {% endif %}
+                        <div class="form-text">Account to debit for cash received</div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="{{ form.notes.id_for_label }}" class="form-label">
+                        <i class="fa fa-comment"></i> Payment Notes
+                    </label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                    <div class="invalid-feedback d-block">{{ form.notes.errors.0 }}</div>
+                    {% endif %}
+                    <div class="form-text">Optional: Additional notes about this payment</div>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-save"></i> Record Payment
+                    </button>
+                    <a href="{% url 'store_sale_receipt_detail' receipt.pk %}" class="btn btn-secondary">
+                        <i class="fa fa-times"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success">
+        <i class="fa fa-check-circle"></i> 
+        <strong>Payment Complete!</strong> This receipt has been fully paid. No additional payments needed.
+    </div>
+    {% endif %}
+
+    <!-- Payment History -->
+    <div class="card">
+        <div class="card-header bg-info text-white">
+            <h4 class="card-title mb-0"><i class="fa fa-history"></i> Payment History</h4>
+        </div>
+        <div class="card-body">
+            {% if payments %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Reference</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Revenue Account</th>
+                            <th>Bank Account</th>
+                            <th>Received By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td>
+                                <div>{{ payment.payment_date|date:"M d, Y" }}</div>
+                                <small class="text-muted">{{ payment.payment_date|date:"H:i" }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ payment.payment_reference }}</strong>
+                                {% if payment.transaction_id %}
+                                <br><small class="text-muted">TXN: {{ payment.transaction_id }}</small>
+                                {% endif %}
+                            </td>
+                            <td><strong class="text-success">UGX {{ payment.amount_paid|floatformat:0|intcomma }}</strong></td>
+                            <td>
+                                <span class="badge bg-secondary">{{ payment.payment_method_display }}</span>
+                            </td>
+                            <td>
+                                <span class="badge {% if payment.payment_status == 'completed' %}bg-success{% elif payment.payment_status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ payment.get_payment_status_display }}
+                                </span>
+                            </td>
+                            <td><small>{{ payment.revenue_account.account_name }}</small></td>
+                            <td><small>{{ payment.bank_account.account_name }}</small></td>
+                            <td>
+                                {% if payment.received_by %}
+                                <small>{{ payment.received_by.get_full_name|default:payment.received_by.username }}</small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if payment.notes %}
+                        <tr>
+                            <td colspan="8">
+                                <div class="alert alert-light py-2 mb-0">
+                                    <small class="text-muted">
+                                        <i class="fa fa-comment"></i> {{ payment.notes }}
+                                    </small>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="no-payments">
+                <i class="fa fa-money-bill"></i>
+                <h5>No Payments Recorded</h5>
+                <p>No payments have been recorded for this receipt yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-calculate remaining balance
+    document.addEventListener('DOMContentLoaded', function() {
+        const amountPaidInput = document.getElementById('{{ form.amount_paid.id_for_label }}');
+        const remainingBalance = {{ remaining_balance }};
+        
+        if (amountPaidInput) {
+            amountPaidInput.addEventListener('input', function() {
+                const amount = parseFloat(this.value) || 0;
+                if (amount > remainingBalance) {
+                    this.setCustomValidity(`Amount cannot exceed remaining balance (UGX ${remainingBalance.toLocaleString()})`);
+                } else {
+                    this.setCustomValidity('');
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

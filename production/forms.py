@@ -1,6 +1,7 @@
 from django import forms
 
 from POSMagicApp.models import Customer, Staff
+from accounts.models import ChartOfAccounts
 from .models import *
 from django.forms import BaseModelFormSet, ModelForm, ValidationError, inlineformset_factory, modelformset_factory
 import os
@@ -628,10 +629,10 @@ class TestItemForm(forms.ModelForm):
                 if product_price:
                     cleaned_data['chosen_price'] = product_price.price
                 else:
-                    self.add_error('price_group', f"No price found for {production_instance.product_name} in the selected group.")
+                    self.add_error('price_group', f"No price configured for {production_instance.product_name} in the selected price group '{price_group.name}'. Please contact Finance to set up pricing.")
             else:
-                # Default to the wholesale price if no group is selected
-                cleaned_data['chosen_price'] = production_instance.wholesale_price
+                # No price group selected - this is now an error
+                self.add_error('price_group', f"Price group is required for {production_instance.product_name}. Please select a pricing group.")
 
         return cleaned_data
 
@@ -648,9 +649,14 @@ class TestItemForm(forms.ModelForm):
                 product_price = ProductPrice.objects.filter(
                     product=production_instance, price_group=instance.price_group
                 ).first()
-                instance.chosen_price = product_price.price if product_price else production_instance.wholesale_price
+                if product_price:
+                    instance.chosen_price = product_price.price
+                else:
+                    # No price configured in the selected group - this should be handled by form validation
+                    raise ValueError(f"No price configured for {production_instance.product_name} in price group '{instance.price_group.name}'")
             else:
-                instance.chosen_price = production_instance.wholesale_price
+                # No price group selected - this should be handled by form validation
+                raise ValueError(f"Price group is required for {production_instance.product_name}")
 
             # Calculate the total price
             instance.total_price = instance.quantity * instance.chosen_price
@@ -1293,3 +1299,93 @@ class StoreServiceForm(forms.ModelForm):
         if rate <= 0 or rate >= 1:
             raise forms.ValidationError("Commission rate must be between 0 and 1 (e.g., 0.10 for 10%)")
         return rate
+
+class StoreSalePaymentForm(forms.ModelForm):
+    """Form for recording customer payments for store sales"""
+    
+    class Meta:
+        model = StoreSalePayment
+        fields = [
+            'amount_paid', 'payment_method', 'payment_status', 
+            'revenue_account', 'bank_account', 'transaction_id', 'notes'
+        ]
+        widgets = {
+            'amount_paid': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'placeholder': 'Enter amount paid'
+            }),
+            'payment_method': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'payment_status': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'revenue_account': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'bank_account': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'transaction_id': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Transaction ID (optional)'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Payment notes (optional)'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        receipt = kwargs.pop('receipt', None)
+        super().__init__(*args, **kwargs)
+        
+        # Store receipt for validation
+        self.receipt = receipt
+        
+        # Filter Chart of Accounts for appropriate accounts
+        if receipt:
+            # Set default amount to remaining balance
+            remaining_balance = receipt.total_due - sum(
+                payment.amount_paid for payment in receipt.payments.filter(payment_status='completed')
+            )
+            self.fields['amount_paid'].initial = remaining_balance
+        
+        # Filter revenue accounts (income accounts)
+        try:
+            self.fields['revenue_account'].queryset = ChartOfAccounts.objects.filter(
+                account_type__in=['income', 'revenue']
+            ).order_by('account_name')
+        except:
+            # Fallback if ChartOfAccounts is not available
+            self.fields['revenue_account'].queryset = ChartOfAccounts.objects.all().order_by('account_name')
+        
+        # Filter bank accounts (asset accounts)
+        try:
+            self.fields['bank_account'].queryset = ChartOfAccounts.objects.filter(
+                account_type__in=['asset', 'bank', 'cash']
+            ).order_by('account_name')
+        except:
+            # Fallback if ChartOfAccounts is not available
+            self.fields['bank_account'].queryset = ChartOfAccounts.objects.all().order_by('account_name')
+    
+    def clean_amount_paid(self):
+        amount_paid = self.cleaned_data.get('amount_paid')
+        receipt = getattr(self, 'receipt', None)
+        
+        if receipt and amount_paid:
+            # Check if amount exceeds remaining balance
+            total_paid = sum(
+                payment.amount_paid for payment in receipt.payments.filter(payment_status='completed')
+            )
+            remaining_balance = receipt.total_due - total_paid
+            
+            if amount_paid > remaining_balance:
+                raise forms.ValidationError(
+                    f"Amount paid (UGX {amount_paid:,.0f}) cannot exceed remaining balance (UGX {remaining_balance:,.0f})"
+                )
+        
+        return amount_paid

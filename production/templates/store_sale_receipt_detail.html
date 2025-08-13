@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
-{% block title %}Invoice #{{ sale_order.id }}{% endblock %}
+{% block title %}Receipt {{ receipt.receipt_number }}{% endblock %}
 
 {% block css %}
     <style>
@@ -8,10 +8,10 @@
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             body { margin: 0; padding: 20px; }
-            .invoice-container { box-shadow: none; border: 1px solid #ddd; }
+            .receipt-container { box-shadow: none; border: 1px solid #ddd; }
         }
         
-        .invoice-container {
+        .receipt-container {
             max-width: 800px;
             margin: 20px auto;
             background: white;
@@ -20,8 +20,8 @@
             overflow: hidden;
         }
         
-        .invoice-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .receipt-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -38,32 +38,33 @@
             opacity: 0.9;
         }
         
-        .invoice-info {
-            padding: 30px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .invoice-title {
+        .receipt-title {
             font-size: 2rem;
             font-weight: bold;
             color: #333;
             margin-bottom: 20px;
+            text-align: center;
         }
         
-        .invoice-meta {
+        .receipt-info {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .receipt-meta {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin-bottom: 20px;
         }
         
-        .customer-info, .invoice-details {
+        .customer-info, .receipt-details {
             background: #f8f9fa;
             padding: 20px;
             border-radius: 8px;
         }
         
-        .customer-info h4, .invoice-details h4 {
+        .customer-info h4, .receipt-details h4 {
             color: #495057;
             margin-bottom: 15px;
             font-size: 1.1rem;
@@ -85,7 +86,7 @@
             color: #333;
         }
         
-        .status-badge {
+        .payment-status {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 20px;
@@ -94,9 +95,19 @@
             text-transform: uppercase;
         }
         
-        .status-ordered { background: #fff3cd; color: #856404; }
-        .status-delivered { background: #d1ecf1; color: #0c5460; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-partial { background: #d1ecf1; color: #0c5460; }
         .status-paid { background: #d4edda; color: #155724; }
+        .status-overdue { background: #f8d7da; color: #721c24; }
+        
+        .payment-warning {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
         
         .items-section {
             padding: 30px;
@@ -113,7 +124,7 @@
             padding: 15px 10px;
             text-align: left;
             font-weight: 600;
-            color: green;
+            color: #495057;
             border-bottom: 2px solid #dee2e6;
         }
         
@@ -125,17 +136,16 @@
         
         .item-name {
             font-weight: 600;
-            color: green;
+            color: #333;
         }
         
         .item-details {
             font-size: 0.85rem;
-            color: green;
+            color: #6c757d;
             margin-top: 5px;
         }
         
         .amount-cell {
-            color: green;
             text-align: right;
             font-weight: 600;
         }
@@ -175,6 +185,24 @@
             font-weight: 600;
         }
         
+        .payment-section {
+            padding: 30px;
+            background: #e9ecef;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .payment-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .payment-info h4 {
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        
         .footer-section {
             padding: 20px 30px;
             background: #343a40;
@@ -207,22 +235,13 @@
         .btn-print:hover {
             background: #0056b3;
         }
-        
-        .overdue-warning {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            border-left: 4px solid #dc3545;
-        }
     </style>
 {% endblock %}
 
 {% block content %}
-<div class="invoice-container">
-    <!-- Invoice Header -->
-    <div class="invoice-header">
+<div class="receipt-container">
+    <!-- Receipt Header -->
+    <div class="receipt-header">
         <div class="company-logo">{{ company_info.name }}</div>
         <div class="company-details">
             {{ company_info.address }}<br>
@@ -231,83 +250,70 @@
         </div>
     </div>
     
-    <!-- Invoice Information -->
-    <div class="invoice-info">
-        <div class="invoice-title">INVOICE</div>
+    <!-- Receipt Information -->
+    <div class="receipt-info">
+        <div class="receipt-title">DELIVERY RECEIPT</div>
         
-        <div class="invoice-meta">
+        <div class="receipt-meta">
             <div class="customer-info">
-                <h4>Bill To:</h4>
+                <h4>Customer Details:</h4>
                 <div class="info-row">
-                    <span class="info-label">Customer:</span>
-                    <span class="info-value">{{ sale_order.customer.first_name }} {{ sale_order.customer.last_name }}</span>
+                    <span class="info-label">Name:</span>
+                    <span class="info-value">{{ receipt.customer_name }}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Phone:</span>
-                    <span class="info-value">{{ sale_order.customer.phone }}</span>
+                    <span class="info-value">{{ receipt.customer_phone }}</span>
                 </div>
-                {% if sale_order.customer.email %}
+                {% if receipt.customer_email %}
                 <div class="info-row">
                     <span class="info-label">Email:</span>
-                    <span class="info-value">{{ sale_order.customer.email }}</span>
-                </div>
-                {% endif %}
-                {% if sale_order.billing_address %}
-                <div class="info-row">
-                    <span class="info-label">Address:</span>
-                    <span class="info-value">{{ sale_order.billing_address }}</span>
+                    <span class="info-value">{{ receipt.customer_email }}</span>
                 </div>
                 {% endif %}
             </div>
             
-            <div class="invoice-details">
-                <h4>Invoice Details:</h4>
+            <div class="receipt-details">
+                <h4>Receipt Details:</h4>
                 <div class="info-row">
-                    <span class="info-label">Invoice #:</span>
-                    <span class="info-value">{{ sale_order.id }}</span>
+                    <span class="info-label">Receipt #:</span>
+                    <span class="info-value">{{ receipt.receipt_number }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Date:</span>
-                    <span class="info-value">{{ sale_order.sale_date|date:"M d, Y" }}</span>
+                    <span class="info-label">Delivery Date:</span>
+                    <span class="info-value">{{ receipt.delivery_date|date:"M d, Y" }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Status:</span>
+                    <span class="info-label">Payment Status:</span>
                     <span class="info-value">
-                        <span class="status-badge status-{{ sale_order.status }}">
-                            {{ sale_order.get_status_display }}
+                        <span class="payment-status status-{{ receipt.payment_status }}">
+                            {{ receipt.payment_status_display }}
                         </span>
                     </span>
                 </div>
-                {% if sale_order.due_date %}
                 <div class="info-row">
-                    <span class="info-label">Due Date:</span>
-                    <span class="info-value">{{ sale_order.due_date|date:"M d, Y" }}</span>
+                    <span class="info-label">Payment Due:</span>
+                    <span class="info-value">{{ receipt.payment_due_date|date:"M d, Y" }}</span>
                 </div>
-                {% if is_overdue %}
+                {% if receipt.delivered_by %}
                 <div class="info-row">
-                    <span class="info-label">Overdue:</span>
-                    <span class="info-value" style="color: #dc3545;">{{ overdue_days }} days</span>
+                    <span class="info-label">Delivered By:</span>
+                    <span class="info-value">{{ receipt.delivered_by.get_full_name|default:receipt.delivered_by.username }}</span>
                 </div>
-                {% elif remaining_days is not None %}
-                <div class="info-row">
-                    <span class="info-label">Remaining:</span>
-                    <span class="info-value">{{ remaining_days }} days</span>
-                </div>
-                {% endif %}
                 {% endif %}
             </div>
         </div>
         
-        {% if is_overdue %}
-        <div class="overdue-warning">
-            <strong>⚠️ Payment Overdue:</strong> This invoice is {{ overdue_days }} days past due. Please arrange payment immediately.
+        {% if receipt.is_overdue %}
+        <div class="payment-warning">
+            <strong>⚠️ Payment Overdue:</strong> This receipt is {{ receipt.days_overdue }} days past due. Please arrange payment immediately.
         </div>
         {% endif %}
     </div>
     
     <!-- Items Section -->
     <div class="items-section">
-        <h4 style="margin-bottom: 20px; color: #333;">Items Ordered</h4>
+        <h4 style="margin-bottom: 20px; color: #333;">Items Delivered</h4>
         
         <table class="items-table">
             <thead>
@@ -332,23 +338,8 @@
                     <td>{{ item.quantity|floatformat:0 }}</td>
                     <td class="amount-cell">UGX {{ item.chosen_price|floatformat:0|intcomma }}</td>
                     <td class="amount-cell">UGX {{ item.total_price|floatformat:0|intcomma }}</td>
-                    <td class="amount-cell">
-                        {% if sale_order.tax_code and subtotal > 0 %}
-                            {% widthratio item.total_price tax_amount subtotal as item_tax %}
-                            UGX {{ item_tax|floatformat:0|intcomma }}
-                        {% else %}
-                            UGX 0
-                        {% endif %}
-                    </td>
-                    <td class="amount-cell">
-                        {% if sale_order.tax_code and subtotal > 0 %}
-                            {% widthratio item.total_price tax_amount subtotal as item_tax %}
-                            {% widthratio item.total_price|add:item_tax 1 1 as item_total_with_tax %}
-                            UGX {{ item_total_with_tax|floatformat:0|intcomma }}
-                        {% else %}
-                            UGX {{ item.total_price|floatformat:0|intcomma }}
-                        {% endif %}
-                    </td>
+                    <td class="amount-cell">UGX {{ item.item_tax|floatformat:0|intcomma }}</td>
+                    <td class="amount-cell">UGX {{ item.total_price|add:item.item_tax|floatformat:0|intcomma }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -360,56 +351,120 @@
         <table class="summary-table">
             <tr>
                 <td class="summary-label">Subtotal:</td>
-                <td class="summary-value">UGX {{ subtotal|floatformat:0|intcomma }}</td>
+                <td class="summary-value">UGX {{ receipt.subtotal|floatformat:0|intcomma }}</td>
             </tr>
-            {% if tax_amount > 0 %}
+            {% if receipt.total_vat > 0 %}
             <tr>
                 <td class="summary-label">
-                    {% if sale_order.tax_code %}
-                        {{ sale_order.tax_code.name }} ({{ sale_order.tax_code.rate }}%):
+                    {% if receipt.tax_code %}
+                        {{ receipt.tax_code }} ({{ receipt.tax_rate }}%):
                     {% else %}
                         Tax:
                     {% endif %}
                 </td>
-                <td class="summary-value">UGX {{ tax_amount|floatformat:0|intcomma }}</td>
+                <td class="summary-value">UGX {{ receipt.total_vat|floatformat:0|intcomma }}</td>
             </tr>
             {% endif %}
-            {% if withholding_tax > 0 %}
+            {% if receipt.withholding_tax > 0 %}
             <tr>
                 <td class="summary-label">Withholding Tax (6%):</td>
-                <td class="summary-value">UGX {{ withholding_tax|floatformat:0|intcomma }}</td>
+                <td class="summary-value">UGX {{ receipt.withholding_tax|floatformat:0|intcomma }}</td>
             </tr>
             {% endif %}
             <tr class="total-row">
-                <td class="summary-label">Total Amount:</td>
-                <td class="summary-value">UGX {{ total_amount|floatformat:0|intcomma }}</td>
+                <td class="summary-label">Total Amount Due:</td>
+                <td class="summary-value">UGX {{ receipt.total_due|floatformat:0|intcomma }}</td>
             </tr>
         </table>
+    </div>
+    
+    <!-- Payment Information -->
+    <div class="payment-section">
+        <div class="payment-info">
+            <h4>Payment Information</h4>
+            <div class="info-row">
+                <span class="info-label">Payment Terms:</span>
+                <span class="info-value">{{ receipt.payment_terms }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Due Date:</span>
+                <span class="info-value">{{ receipt.payment_due_date|date:"M d, Y" }}</span>
+            </div>
+            {% if receipt.reference_number %}
+            <div class="info-row">
+                <span class="info-label">Reference #:</span>
+                <span class="info-value">{{ receipt.reference_number }}</span>
+            </div>
+            {% endif %}
+            {% if receipt.notes %}
+            <div class="info-row">
+                <span class="info-label">Notes:</span>
+                <span class="info-value">{{ receipt.notes }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Payment History -->
+        {% if receipt.payments.exists %}
+        <div class="payment-history mt-4">
+            <h5>Payment History</h5>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in receipt.payments.all %}
+                        <tr>
+                            <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                            <td>UGX {{ payment.amount_paid|floatformat:0|intcomma }}</td>
+                            <td>{{ payment.payment_method_display }}</td>
+                            <td>
+                                <span class="badge {% if payment.payment_status == 'completed' %}bg-success{% elif payment.payment_status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ payment.get_payment_status_display }}
+                                </span>
+                            </td>
+                            <td>{{ payment.payment_reference }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
     
     <!-- Footer -->
     <div class="footer-section">
         <div class="footer-text">
             Thank you for your business!<br>
-            Payment terms: {{ sale_order.PAYMENT_DURATION.days }} days from invoice date<br>
-            Please include invoice number when making payment
+            Please include receipt number when making payment<br>
+            For payment inquiries, contact: {{ company_info.phone }}
         </div>
     </div>
     
     <!-- Action Buttons (Hidden on Print) -->
     <div class="action-buttons no-print">
         <button class="btn-print" onclick="window.print()">
-            <i class="fa fa-print"></i> Print Invoice
+            <i class="fa fa-print"></i> Print Receipt
         </button>
         <button class="btn-print" onclick="window.history.back()">
-            <i class="fa fa-arrow-left"></i> Back to Orders
+            <i class="fa fa-arrow-left"></i> Back
         </button>
-        {% if sale_order.status == 'ordered' %}
-        <a href="{% url 'edit_store_sale' sale_order.pk %}" class="btn-print" style="text-decoration: none;">
-            <i class="fa fa-edit"></i> Edit Sale
+        <a href="{% url 'store_sale_order_details' receipt.store_sale.pk %}" class="btn-print" style="text-decoration: none;">
+            <i class="fa fa-eye"></i> View Invoice
+        </a>
+        {% if receipt.payment_status != 'paid' %}
+        <a href="{% url 'record_store_sale_payment' receipt.pk %}" class="btn-print" style="text-decoration: none; background: #28a745;">
+            <i class="fa fa-money-bill"></i> Record Payment
         </a>
         {% endif %}
     </div>
 </div>
 {% endblock content %}
-

@@ -45,8 +45,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -3806,10 +3806,14 @@ def get_wholesale_price(request):
 def update_order_status(request, store_sale_id):
     if request.method == 'POST':
         order = StoreSale.objects.get(pk=store_sale_id)
+        
         if order.status == 'delivered':  # Check if already delivered
             messages.warning(request, 'Order is already marked as delivered.')
+        elif order.status == 'paid':  # Check if already paid
+            messages.warning(request, 'Order is already marked as paid.')
         else:
-            order.status = 'paid'
+            # Update order status to delivered
+            order.status = 'delivered'
             order.save()
             
             # Reduce the quantity in the LivaraMainStore inventory (when marked delivered)
@@ -3818,41 +3822,95 @@ def update_order_status(request, store_sale_id):
                 # product.quantity -= sale_item.quantity
                 product.save()
             
-            # Calculate VAT and Withholding Tax
-            if not hasattr(order, 'receipt'):
-                total_vat = Decimal('0.00')
-                for sale_item in order.saleitem_set.all():
-                    if order.vat:
-                        vat_amount = sale_item.total_price * order.VAT_RATE
-                        total_vat += vat_amount
+            # Check if receipt already exists
+            if not hasattr(order, 'storesalereceipt'):
+                # Calculate financial breakdown for receipt
+                sale_items = order.saleitem_set.all()
                 
-                total_amount = order.total_amount
-                withholding_tax_amount = Decimal('0.00')
-                if order.withhold_tax:
-                    withholding_tax_amount = total_amount * order.WITHHOLDING_TAX_RATE
+                # Calculate subtotal
+                subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price)
                 
-            # Generate a unique receipt number with "MSLE to mean main-store-sale"
-            receipt_number = f"MSLE{str(uuid4()).replace('-', '').upper()[:6]}"
-            
-            # Create and save the receipt
-            StoreSaleReceipt.objects.create(
-                store_sale=order,
-                receipt_number=receipt_number,
-                total_amount=total_amount,
-                total_vat=total_vat,
-                withholding_tax=withholding_tax_amount,
-                total_due=total_amount
+                # Calculate tax amount
+                tax_amount = order.tax_amount or Decimal('0.00')
                 
-            )
-            
-            messages.success(request, 'Order status updated and receipt generated successfully!')
+                # Calculate withholding tax
+                withholding_tax_amount = order.withholding_tax or Decimal('0.00')
+                
+                # Get total amount
+                total_amount = order.total_amount or Decimal('0.00')
+                
+                # Generate a unique receipt number with "MSLE" prefix (Main Store Sale)
+                import uuid
+                from datetime import datetime
+                current_date = datetime.now().strftime('%Y%m%d')
+                unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
+                receipt_number = f"MSLE{current_date}{unique_id}"
+                
+                # Create comprehensive receipt
+                from datetime import datetime
+                receipt = StoreSaleReceipt.objects.create(
+                    store_sale=order,
+                    receipt_number=receipt_number,
+                    subtotal=subtotal,
+                    total_vat=tax_amount,  # Use the calculated tax amount
+                    withholding_tax=withholding_tax_amount,
+                    total_due=total_amount,
+                    delivery_date=datetime.now(),
+                    delivered_by=request.user,
+                    notes=f"Receipt generated automatically when order #{order.id} was marked as delivered. Payment due within 45 days."
+                )
+                
+                messages.success(request, f'Order #{order.id} marked as delivered and receipt {receipt_number} generated successfully!')
+            else:
+                messages.info(request, f'Order #{order.id} marked as delivered. Receipt already exists.')
         return redirect('listStoreSales')
     else:
         return redirect('listStoreSales')  # Redirect if not a POST request
     
 def store_sale_list_receipts(request):
-    receipts = StoreSaleReceipt.objects.all().order_by('-created_at')  # Order by most recent
-    context = {'receipts': receipts}
+    """List all store sale receipts with comprehensive payment tracking"""
+    # Get all receipts with optimized queries
+    receipts = StoreSaleReceipt.objects.select_related(
+        'store_sale__customer',
+        'delivered_by'
+    ).all().order_by('-created_at')
+    
+    # Apply filters if provided
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        receipts = receipts.filter(payment_status=status_filter)
+    
+    # Calculate summary statistics
+    total_receipts = receipts.count()
+    pending_receipts = receipts.filter(payment_status='pending').count()
+    paid_receipts = receipts.filter(payment_status='paid').count()
+    overdue_receipts = receipts.filter(payment_status='overdue').count()
+    partial_receipts = receipts.filter(payment_status='partial').count()
+    
+    # Calculate total amounts
+    total_amount = sum(receipt.total_due for receipt in receipts)
+    pending_amount = sum(receipt.total_due for receipt in receipts.filter(payment_status='pending'))
+    overdue_amount = sum(receipt.total_due for receipt in receipts.filter(payment_status='overdue'))
+    paid_amount = sum(receipt.total_due for receipt in receipts.filter(payment_status='paid'))
+    
+    # Add computed fields to receipts
+    for receipt in receipts:
+        receipt.customer_name = receipt.customer_name or f"{receipt.store_sale.customer.first_name} {receipt.store_sale.customer.last_name}"
+        receipt.customer_phone = receipt.customer_phone or receipt.store_sale.customer.phone
+    
+    context = {
+        'receipts': receipts,
+        'total_receipts': total_receipts,
+        'pending_receipts': pending_receipts,
+        'paid_receipts': paid_receipts,
+        'overdue_receipts': overdue_receipts,
+        'partial_receipts': partial_receipts,
+        'total_amount': total_amount,
+        'pending_amount': pending_amount,
+        'overdue_amount': overdue_amount,
+        'paid_amount': paid_amount,
+        'status_filter': status_filter,
+    }
     return render(request, 'store_sale_list_receipts.html', context)
 
 def store_sale_receipt_details(request, store_sale_receipt_id):
@@ -7382,3 +7440,157 @@ def model_audit_logs(request, model_name, object_id):
     except ContentType.DoesNotExist:
         messages.error(request, f"Model '{model_name}' not found.")
         return redirect('audit_logs')
+
+
+def store_sale_receipt_detail(request, receipt_id):
+    """Display detailed receipt information for payment processing"""
+    receipt = get_object_or_404(StoreSaleReceipt, id=receipt_id)
+    
+    # Get sale items for detailed breakdown
+    sale_items = receipt.store_sale.saleitem_set.select_related(
+        'product__product__product',
+        'price_group'
+    ).all()
+    
+    # Calculate item-level breakdown
+    for item in sale_items:
+        # Calculate item tax proportionally
+        if receipt.subtotal > 0:
+            item.item_tax = (item.total_price * receipt.total_vat) / receipt.subtotal
+        else:
+            item.item_tax = 0
+    
+    # Get company info
+    company_info = {
+        'name': 'THE VENTURES INC',
+        'address': 'Plot 131 Martyrs Way, Ntinda',
+        'phone': '+256 123 456 789',
+        'email': 'info@theventuresinc.com',
+        'website': 'www.theventuresinc.com',
+        'tin': 'TIN: 123456789',
+    }
+    
+    context = {
+        'receipt': receipt,
+        'sale_items': sale_items,
+        'company_info': company_info,
+    }
+    return render(request, 'store_sale_receipt_detail.html', context)
+
+
+def record_store_sale_payment(request, receipt_id):
+    """Record a payment for a store sale receipt"""
+    receipt = get_object_or_404(StoreSaleReceipt, id=receipt_id)
+    
+    if request.method == 'POST':
+        form = StoreSalePaymentForm(request.POST, receipt=receipt)
+        if form.is_valid():
+            payment = form.save(commit=False)
+            payment.receipt = receipt
+            payment.received_by = request.user
+            payment.save()
+            
+            messages.success(request, f'Payment of UGX {payment.amount_paid:,.0f} recorded successfully for receipt {receipt.receipt_number}')
+            return redirect('store_sale_receipt_detail', receipt_id=receipt.id)
+    else:
+        form = StoreSalePaymentForm(receipt=receipt)
+    
+    # Calculate payment summary
+    total_paid = sum(payment.amount_paid for payment in receipt.payments.filter(payment_status='completed'))
+    remaining_balance = receipt.total_due - total_paid
+    
+    context = {
+        'receipt': receipt,
+        'form': form,
+        'total_paid': total_paid,
+        'remaining_balance': remaining_balance,
+        'payments': receipt.payments.all().order_by('-payment_date'),
+    }
+    return render(request, 'record_store_sale_payment.html', context)
+
+def store_sale_payments_list(request):
+    """List all store sale payments"""
+    payments = StoreSalePayment.objects.select_related(
+        'receipt', 'revenue_account', 'bank_account', 'received_by'
+    ).all().order_by('-payment_date')
+    
+    # Apply filters
+    status_filter = request.GET.get('status', '')
+    method_filter = request.GET.get('method', '')
+    
+    if status_filter:
+        payments = payments.filter(payment_status=status_filter)
+    if method_filter:
+        payments = payments.filter(payment_method=method_filter)
+    
+    # Calculate summary statistics
+    total_payments = payments.count()
+    completed_payments = payments.filter(payment_status='completed').count()
+    total_amount = sum(payment.amount_paid for payment in payments.filter(payment_status='completed'))
+    
+    # Group by payment method
+    payment_methods = {}
+    for payment in payments.filter(payment_status='completed'):
+        method = payment.payment_method_display
+        if method not in payment_methods:
+            payment_methods[method] = {'count': 0, 'amount': 0}
+        payment_methods[method]['count'] += 1
+        payment_methods[method]['amount'] += payment.amount_paid
+    
+    context = {
+        'payments': payments,
+        'total_payments': total_payments,
+        'completed_payments': completed_payments,
+        'total_amount': total_amount,
+        'payment_methods': payment_methods,
+        'status_filter': status_filter,
+        'method_filter': method_filter,
+    }
+    return render(request, 'store_sale_payments_list.html', context)
+
+def store_sale_payment_detail(request, payment_id):
+    """View detailed payment information"""
+    payment = get_object_or_404(StoreSalePayment, id=payment_id)
+    
+    context = {
+        'payment': payment,
+    }
+    return render(request, 'store_sale_payment_detail.html', context)
+
+
+def store_sale_receipts_list(request):
+    """List all store sale receipts for payment tracking"""
+    receipts = StoreSaleReceipt.objects.select_related(
+        'store_sale__customer',
+        'delivered_by'
+    ).all().order_by('-created_at')
+    
+    # Calculate summary statistics
+    total_receipts = receipts.count()
+    pending_receipts = receipts.filter(payment_status='pending').count()
+    paid_receipts = receipts.filter(payment_status='paid').count()
+    overdue_receipts = receipts.filter(payment_status='overdue').count()
+    partial_receipts = receipts.filter(payment_status='partial').count()
+    
+    # Calculate total amounts
+    total_amount = sum(receipt.total_due for receipt in receipts)
+    pending_amount = sum(receipt.total_due for receipt in receipts.filter(payment_status='pending'))
+    overdue_amount = sum(receipt.total_due for receipt in receipts.filter(payment_status='overdue'))
+    
+    # Add overdue status to receipts
+    for receipt in receipts:
+        receipt.is_overdue = receipt.is_overdue
+        receipt.days_overdue = receipt.days_overdue
+    
+    context = {
+        'receipts': receipts,
+        'total_receipts': total_receipts,
+        'pending_receipts': pending_receipts,
+        'paid_receipts': paid_receipts,
+        'overdue_receipts': overdue_receipts,
+        'partial_receipts': partial_receipts,
+        'total_amount': total_amount,
+        'pending_amount': pending_amount,
+        'overdue_amount': overdue_amount,
+    }
+    return render(request, 'store_sale_receipts_list.html', context)
