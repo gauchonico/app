@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Create Receipt - Invoice #{{ invoice.invoice_number }}{% endblock %}
+
+{% block css %}
+    <style>
+        .receipt-form-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .receipt-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .receipt-body {
+            padding: 30px;
+        }
+        
+        .invoice-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+        }
+        
+        .form-section h5 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="receipt-form-container">
+    <!-- Header -->
+    <div class="receipt-header">
+        <h3><i class="fa fa-receipt me-2"></i>Create Payment Receipt</h3>
+        <p class="mb-0">Invoice #{{ invoice.invoice_number }}</p>
+    </div>
+    
+    <!-- Invoice Summary -->
+    <div class="receipt-body">
+        <div class="invoice-summary">
+            <h5><i class="fa fa-info-circle me-2"></i>Invoice Summary</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Customer:</strong><br>
+                    {{ invoice.customer.first_name }} {{ invoice.customer.last_name }}
+                </div>
+                <div class="col-md-6">
+                    <strong>Order #:</strong><br>
+                    {{ invoice.store_sale.order_number }}
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>Total Amount:</strong><br>
+                    <span class="text-primary">UGX {{ invoice.total_amount|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>Amount Paid:</strong><br>
+                    <span class="text-success">UGX {{ invoice.amount_paid|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>Balance Due:</strong><br>
+                    <span class="text-danger">UGX {{ invoice.balance_due|floatformat:0|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            <!-- Customer Information -->
+            <div class="form-section">
+                <h5><i class="fa fa-user me-2"></i>Customer Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="{{ form.customer_name.id_for_label }}" class="form-label">Customer Name *</label>
+                        {{ form.customer_name }}
+                        {% if form.customer_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.customer_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.customer_phone.id_for_label }}" class="form-label">Phone Number</label>
+                        {{ form.customer_phone }}
+                        {% if form.customer_phone.errors %}
+                            <div class="invalid-feedback d-block">{{ form.customer_phone.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <label for="{{ form.customer_email.id_for_label }}" class="form-label">Email Address</label>
+                        {{ form.customer_email }}
+                        {% if form.customer_email.errors %}
+                            <div class="invalid-feedback d-block">{{ form.customer_email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Information -->
+            <div class="form-section">
+                <h5><i class="fa fa-credit-card me-2"></i>Payment Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="{{ form.total_due.id_for_label }}" class="form-label">Payment Amount *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">UGX</span>
+                            {{ form.total_due }}
+                        </div>
+                        <small class="form-text text-muted">Maximum amount: UGX {{ max_amount|floatformat:0|intcomma }}</small>
+                        {% if form.total_due.errors %}
+                            <div class="invalid-feedback d-block">{{ form.total_due.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.payment_method.id_for_label }}" class="form-label">Payment Method *</label>
+                        {{ form.payment_method }}
+                        {% if form.payment_method.errors %}
+                            <div class="invalid-feedback d-block">{{ form.payment_method.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chart of Accounts -->
+            <div class="form-section">
+                <h5><i class="fa fa-chart-line me-2"></i>Chart of Accounts</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="{{ form.receiving_account.id_for_label }}" class="form-label">Receiving Account *</label>
+                        {{ form.receiving_account }}
+                        <small class="form-text text-muted">Account to receive payment (Cash, Bank, etc.)</small>
+                        {% if form.receiving_account.errors %}
+                            <div class="invalid-feedback d-block">{{ form.receiving_account.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.accounts_receivable_account.id_for_label }}" class="form-label">Accounts Receivable *</label>
+                        {{ form.accounts_receivable_account }}
+                        <small class="form-text text-muted">Account to credit (Accounts Receivable)</small>
+                        {% if form.accounts_receivable_account.errors %}
+                            <div class="invalid-feedback d-block">{{ form.accounts_receivable_account.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Additional Notes -->
+            <div class="form-section">
+                <h5><i class="fa fa-sticky-note me-2"></i>Additional Notes</h5>
+                <label for="{{ form.notes.id_for_label }}" class="form-label">Notes (Optional)</label>
+                {{ form.notes }}
+                {% if form.notes.errors %}
+                    <div class="invalid-feedback d-block">{{ form.notes.errors.0 }}</div>
+                {% endif %}
+                <small class="form-text text-muted">Any additional information about this payment</small>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-outline-secondary">
+                    <i class="fa fa-arrow-left me-1"></i>Back to Invoice
+                </a>
+                <button type="submit" class="btn btn-success">
+                    <i class="fa fa-save me-1"></i>Create Receipt
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Add validation for payment amount
+document.addEventListener('DOMContentLoaded', function() {
+    const amountField = document.getElementById('{{ form.total_due.id_for_label }}');
+    const maxAmount = {{ max_amount }};
+    
+    amountField.addEventListener('input', function() {
+        const value = parseFloat(this.value) || 0;
+        if (value > maxAmount) {
+            this.setCustomValidity(`Payment amount cannot exceed UGX ${maxAmount.toLocaleString()}`);
+        } else if (value <= 0) {
+            this.setCustomValidity('Payment amount must be greater than zero');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+});
+</script>
+{% endblock %}

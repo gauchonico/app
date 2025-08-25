@@ -325,6 +325,15 @@ class ProductionOrder(models.Model):
     class Meta:
         ordering = ['-created_at'] 
 class ManufactureProduct(models.Model):
+    QC_STATUS_CHOICES = [
+        ('pending', 'QC Pending'),
+        ('in_progress', 'QC In Progress'),
+        ('passed', 'QC Passed'),
+        ('failed', 'QC Failed'),
+        ('on_hold', 'QC On Hold'),
+        ('not_required', 'QC Not Required'),
+    ]
+    
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)  # Number of units manufactured
     manufactured_at = models.DateTimeField(auto_now_add=True)
@@ -333,6 +342,12 @@ class ManufactureProduct(models.Model):
     # labor_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=0, default=0)
     expiry_date = models.DateField(null=True,blank=True)
     production_order = models.ForeignKey(ProductionOrder, on_delete=models.CASCADE, null=True, blank=True, related_name='manufactured_products')
+    
+    # Quality Control Integration
+    qc_status = models.CharField(max_length=20, choices=QC_STATUS_CHOICES, default='pending')
+    qc_required = models.BooleanField(default=True, help_text="Whether this batch requires quality control testing")
+    qc_sample_quantity = models.PositiveIntegerField(default=0, help_text="Number of sample bottles to allocate for QC")
+    can_release_to_inventory = models.BooleanField(default=False, help_text="Whether this batch can be released to inventory")
 
     def __str__(self):
         return f"{self.quantity} units of {self.product.product_name} manufactured on {self.manufactured_at.strftime('%Y-%m-%d')}"
@@ -382,6 +397,63 @@ class ManufactureProduct(models.Model):
                 raw_material=ingredient.raw_material,
                 quantity_used=total_quantity_needed
             )
+
+    def create_quality_control_test(self, sample_quantity=None, assigned_tester=None, priority='medium'):
+        """Create a quality control test for this manufactured product batch"""
+        if not self.qc_required:
+            return None
+            
+        # Use provided sample quantity or default to qc_sample_quantity
+        test_sample_qty = sample_quantity or self.qc_sample_quantity or 1
+        
+        # Create the quality control test
+        qc_test = QualityControlTest.objects.create(
+            manufactured_product=self,
+            sample_quantity=test_sample_qty,
+            assigned_tester=assigned_tester,
+            priority=priority,
+            test_name=f"Quality Test for {self.product.product_name} - Batch {self.batch_number}"
+        )
+        
+        # Create sample allocation
+        SampleAllocation.objects.create(
+            manufactured_product=self,
+            quantity_allocated=test_sample_qty,
+            allocated_by=assigned_tester if assigned_tester else None,
+            sample_expiry_date=self.expiry_date
+        )
+        
+        # Update QC status
+        self.qc_status = 'in_progress'
+        self.save(update_fields=['qc_status'])
+        
+        return qc_test
+
+    def get_current_quality_test(self):
+        """Get the most recent quality control test for this batch"""
+        return self.quality_tests.filter(status__in=['pending', 'in_progress']).first()
+
+    def get_latest_qc_result(self):
+        """Get the latest quality control result"""
+        latest_test = self.quality_tests.order_by('-created_at').first()
+        return latest_test.overall_result if latest_test else 'pending'
+
+    def can_be_released(self):
+        """Check if this batch can be released to inventory based on QC status"""
+        if not self.qc_required:
+            return True
+        return self.qc_status == 'passed' and self.can_release_to_inventory
+
+    def get_total_samples_allocated(self):
+        """Get total number of samples allocated for testing"""
+        return self.sample_allocations.aggregate(
+            total=models.Sum('quantity_allocated')
+        )['total'] or 0
+
+    def get_available_quantity_for_inventory(self):
+        """Get quantity available for inventory (excluding samples)"""
+        total_samples = self.get_total_samples_allocated()
+        return max(0, self.quantity - total_samples)
 class ManufacturedProductIngredient(models.Model):
     manufactured_product = models.ForeignKey(ManufactureProduct, on_delete=models.CASCADE, related_name='used_ingredients')
     raw_material = models.ForeignKey(RawMaterial, on_delete=models.CASCADE)
@@ -412,6 +484,290 @@ class WriteOff(models.Model):
 
     def __str__(self):
         return f"WriteOff: {self.manufactured_product_inventory.product.product_name} - {self.quantity} units"
+
+
+################### Quality Control Models ###################
+
+class QualityControlTest(models.Model):
+    """
+    Main model for quality control testing of manufactured products
+    """
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending Testing'),
+        ('in_progress', 'Testing In Progress'),
+        ('completed', 'Testing Completed'),
+        ('on_hold', 'On Hold'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    RESULT_CHOICES = [
+        ('pass', 'Pass'),
+        ('fail', 'Fail'),
+        ('conditional_pass', 'Conditional Pass'),
+        ('pending', 'Pending'),
+    ]
+
+    # Link to the manufactured product batch
+    manufactured_product = models.ForeignKey(
+        ManufactureProduct, 
+        on_delete=models.CASCADE, 
+        related_name='quality_tests'
+    )
+    
+    # Test identification
+    test_number = models.CharField(max_length=50, unique=True, blank=True)
+    test_name = models.CharField(max_length=255, default="Standard Quality Test")
+    
+    # Sample information
+    sample_quantity = models.PositiveIntegerField(help_text="Number of sample bottles allocated for testing")
+    sample_taken_at = models.DateTimeField(auto_now_add=True)
+    
+    # Test scheduling and execution
+    scheduled_test_date = models.DateTimeField(null=True, blank=True)
+    actual_test_date = models.DateTimeField(null=True, blank=True)
+    testing_duration_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # Personnel
+    assigned_tester = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='assigned_quality_tests'
+    )
+    approved_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='approved_quality_tests'
+    )
+    
+    # Test status and priority
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
+    
+    # Results
+    overall_result = models.CharField(max_length=20, choices=RESULT_CHOICES, default='pending')
+    pass_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # Notes and observations
+    testing_notes = models.TextField(blank=True, help_text="General testing observations and notes")
+    failure_reasons = models.TextField(blank=True, help_text="Detailed reasons if test fails")
+    recommendations = models.TextField(blank=True, help_text="QC recommendations and actions")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Quality Control Test"
+        verbose_name_plural = "Quality Control Tests"
+
+    def __str__(self):
+        return f"QC Test {self.test_number} - {self.manufactured_product.product.product_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.test_number:
+            self.test_number = self.generate_test_number()
+        
+        # Auto-set completed_at when status changes to completed
+        if self.status == 'completed' and not self.completed_at:
+            self.completed_at = timezone.now()
+            
+        super().save(*args, **kwargs)
+
+    def generate_test_number(self):
+        """Generate unique test number like QC240101-001"""
+        current_date = timezone.now()
+        date_str = current_date.strftime('%y%m%d')
+        
+        # Count tests for today
+        today_tests = QualityControlTest.objects.filter(
+            created_at__date=current_date.date()
+        ).count()
+        
+        return f"QC{date_str}-{today_tests + 1:03d}"
+
+    @property
+    def is_overdue(self):
+        """Check if test is overdue based on scheduled date"""
+        if self.scheduled_test_date and self.status not in ['completed', 'cancelled']:
+            return timezone.now() > self.scheduled_test_date
+        return False
+
+    @property
+    def days_since_sampling(self):
+        """Calculate days since sample was taken"""
+        return (timezone.now() - self.sample_taken_at).days
+
+
+class QualityTestParameter(models.Model):
+    """
+    Individual test parameters for quality control (pH, density, color, etc.)
+    """
+    PARAMETER_TYPES = [
+        ('physical', 'Physical'),
+        ('chemical', 'Chemical'),
+        ('microbiological', 'Microbiological'),
+        ('sensory', 'Sensory'),
+        ('performance', 'Performance'),
+    ]
+    
+    MEASUREMENT_UNITS = [
+        ('ph', 'pH'),
+        ('percentage', '%'),
+        ('mg_per_ml', 'mg/ml'),
+        ('ppm', 'PPM'),
+        ('visual', 'Visual'),
+        ('pass_fail', 'Pass/Fail'),
+        ('numeric', 'Numeric'),
+        ('text', 'Text'),
+    ]
+    
+    quality_test = models.ForeignKey(
+        QualityControlTest, 
+        on_delete=models.CASCADE, 
+        related_name='test_parameters'
+    )
+    
+    # Parameter definition
+    parameter_name = models.CharField(max_length=100)
+    parameter_type = models.CharField(max_length=20, choices=PARAMETER_TYPES)
+    measurement_unit = models.CharField(max_length=20, choices=MEASUREMENT_UNITS)
+    
+    # Expected/target values
+    target_value = models.CharField(max_length=100, blank=True, help_text="Target or expected value")
+    min_acceptable = models.CharField(max_length=100, blank=True)
+    max_acceptable = models.CharField(max_length=100, blank=True)
+    
+    # Actual results
+    measured_value = models.CharField(max_length=100, blank=True)
+    result_status = models.CharField(
+        max_length=20, 
+        choices=[('pass', 'Pass'), ('fail', 'Fail'), ('na', 'N/A')], 
+        default='na'
+    )
+    
+    # Additional information
+    test_method = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    tested_at = models.DateTimeField(null=True, blank=True)
+    tested_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+
+    class Meta:
+        ordering = ['parameter_name']
+
+    def __str__(self):
+        return f"{self.parameter_name}: {self.measured_value} ({self.result_status})"
+
+
+class QualityControlAction(models.Model):
+    """
+    Actions taken based on quality control results
+    """
+    ACTION_TYPES = [
+        ('release', 'Release to Inventory'),
+        ('hold', 'Hold for Further Testing'),
+        ('rework', 'Rework Required'),
+        ('discard', 'Discard Batch'),
+        ('conditional_release', 'Conditional Release'),
+        ('quarantine', 'Quarantine'),
+    ]
+    
+    quality_test = models.ForeignKey(
+        QualityControlTest, 
+        on_delete=models.CASCADE, 
+        related_name='qc_actions'
+    )
+    
+    action_type = models.CharField(max_length=30, choices=ACTION_TYPES)
+    action_reason = models.TextField()
+    quantity_affected = models.PositiveIntegerField(help_text="Units affected by this action")
+    
+    # Personnel and timing
+    authorized_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    action_date = models.DateTimeField(auto_now_add=True)
+    
+    # Follow-up information
+    follow_up_required = models.BooleanField(default=False)
+    follow_up_date = models.DateTimeField(null=True, blank=True)
+    follow_up_notes = models.TextField(blank=True)
+    
+    # Status tracking
+    is_completed = models.BooleanField(default=False)
+    completion_notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-action_date']
+
+    def __str__(self):
+        return f"{self.action_type} - {self.quality_test.test_number}"
+
+
+class SampleAllocation(models.Model):
+    """
+    Track sample bottles allocated for testing from manufactured batches
+    """
+    manufactured_product = models.ForeignKey(
+        ManufactureProduct, 
+        on_delete=models.CASCADE, 
+        related_name='sample_allocations'
+    )
+    
+    sample_id = models.CharField(max_length=50, unique=True, blank=True)
+    quantity_allocated = models.PositiveIntegerField()
+    allocation_date = models.DateTimeField(auto_now_add=True)
+    allocated_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    
+    # Sample storage and handling
+    storage_location = models.CharField(max_length=255, blank=True)
+    storage_temperature = models.CharField(max_length=50, blank=True)
+    special_handling_notes = models.TextField(blank=True)
+    
+    # Status
+    is_used = models.BooleanField(default=False)
+    used_date = models.DateTimeField(null=True, blank=True)
+    
+    # Expiry tracking
+    sample_expiry_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-allocation_date']
+
+    def __str__(self):
+        return f"Sample {self.sample_id} - {self.quantity_allocated} units"
+
+    def save(self, *args, **kwargs):
+        if not self.sample_id:
+            self.sample_id = self.generate_sample_id()
+        super().save(*args, **kwargs)
+
+    def generate_sample_id(self):
+        """Generate unique sample ID like SMP240101-001"""
+        current_date = timezone.now()
+        date_str = current_date.strftime('%y%m%d')
+        
+        # Count samples for today
+        today_samples = SampleAllocation.objects.filter(
+            allocation_date__date=current_date.date()
+        ).count()
+        
+        return f"SMP{date_str}-{today_samples + 1:03d}"
 
 ################### stores models   
 class Store(models.Model):
@@ -611,6 +967,7 @@ class LivaraInventoryAdjustment(models.Model):
     def __str__(self):
         return f"Adjustment of {self.adjusted_quantity} units for {self.store_inventory.product} on {self.adjustment_date}"
     
+# tracking stock movement from production    
 class StoreTransfer(models.Model):
     liv_main_transfer_number = models.CharField(max_length=20, unique=True, blank=True, null=True)
     delivery_document = models.FileField(upload_to='uploads/products/', null=True, blank=True)
@@ -698,7 +1055,7 @@ class StoreWriteOff(models.Model):
             LivaraInventoryAdjustment.objects.create(
                 store_inventory=self.main_store_product,
                 adjusted_quantity=-self.quantity,  # Negative for write-offs
-                adjustment_reason=f"Write-off: {self.get_reason_display()} - {self.notes}",
+                adjustment_reason=f"Write-off #{self.id} - {self.get_reason_display()}: {self.notes}",
                 adjusted_by=self.approved_by
             )
             
@@ -824,7 +1181,7 @@ class MainStoreAccessoryRequisitionItem(models.Model):
     
 
 
-##############################################
+############################################## small livara stores request for restock
 
 class RestockRequest(models.Model):
     liv_store_transfer_number = models.CharField(max_length=50, unique=True, blank=True)
@@ -1337,75 +1694,80 @@ class Notification(models.Model):
 #### store sales
     
 class StoreSale(models.Model):
+    """Store Sale Order - Initial order capture"""
     VAT_RATE = Decimal('0.18')  # Default VAT rate (18%)
     WITHHOLDING_TAX_RATE = Decimal(0.06)  # Default withholding tax rate (6%)
-    PAYMENT_DURATION = timedelta(days=45)  # Default payment duration (45 days)
-
-    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE)
-    sale_date = models.DateTimeField(auto_now_add=True)
-    payment_status = models.CharField(max_length=255, choices=[
-        ("pending", "Pending"),
-        ("paid", "Paid"),
-        ("overdue", "Overdue"),
-    ], default="pending")
-    due_date = models.DateField(blank=True, null=True)  # Calculated due date
-    # Additional sale statuses
-    STATUS_CHOICES = (
-        ("ordered", "Ordered"),
-        ("delivered", "Delivered"),
-        ("paid","Paid"),
-    )
-    status = models.CharField(max_length=255, choices=STATUS_CHOICES, default="ordered")
-    withhold_tax = models.BooleanField(default=False)  # Option to withhold tax
     
-    # Enhanced fields
-    tax_code = models.ForeignKey('TaxCode', on_delete=models.SET_NULL, null=True, blank=True,
-                                help_text="Tax code for this sale")
-    description = models.TextField(blank=True, null=True, help_text="Sale description or notes")
-    billing_address = models.TextField(blank=True, null=True, help_text="Customer billing address")
+    # Order Information
+    order_number = models.CharField(max_length=20, unique=True, help_text="Unique order number", null=True, blank=True)
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE)
+    order_date = models.DateTimeField(auto_now_add=True)
+    
+    # Order Status
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('confirmed', 'Confirmed'),
+        ('invoiced', 'Invoiced'),
+        ('cancelled', 'Cancelled'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     
     # Financial fields
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Subtotal before tax")
+    subtotal = models.DecimalField(max_length=10, max_digits=10, decimal_places=2, default=0, help_text="Subtotal before tax")
     tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Tax amount")
     withholding_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Withholding tax amount")
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # Total sale amount
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total order amount")
+    
+    # Tax and billing
+    tax_code = models.ForeignKey('TaxCode', on_delete=models.SET_NULL, null=True, blank=True)
+    withhold_tax = models.BooleanField(default=False)
+    billing_address = models.TextField(blank=True, null=True)
+    
+    # Additional fields
+    description = models.TextField(blank=True, null=True, help_text="Order description or notes")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-order_date']
+        verbose_name = "Store Sale Order"
+        verbose_name_plural = "Store Sale Orders"
 
     def __str__(self):
-        return f"Store Sale for {self.customer.first_name} on {self.sale_date.strftime('%Y-%m-%d')}"
-    
+        return f"Order {self.order_number} - {self.customer.first_name}"
+
     def save(self, *args, **kwargs):
+        # Auto-generate order number if not provided
+        if not self.order_number:
+            from datetime import datetime
+            import uuid
+            current_date = datetime.now().strftime('%Y%m%d')
+            unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
+            self.order_number = f"ORD{current_date}{unique_id}"
+        
         # Auto-populate billing address from customer if not provided
         if not self.billing_address and self.customer:
             self.billing_address = f"{self.customer.address}\nPhone: {self.customer.phone}\nEmail: {self.customer.email}"
         
-        if not self.pk:
-            # Save sale to generate id before calculating total
-            super().save(*args, **kwargs)
-        
         # Calculate financial amounts
         self.calculate_financial_amounts()
         
-        if not self.due_date and self.sale_date:  # Check if sale_date is not None
-            self.due_date = self.sale_date + self.PAYMENT_DURATION
-        super().save(*args, **kwargs)  # Call parent save method
-    
+        super().save(*args, **kwargs)
+
     def calculate_financial_amounts(self):
-        """Calculate and set all financial amounts for the sale"""
+        """Calculate and set all financial amounts for the order"""
         try:
-            # Get all sale items associated with this StoreSale
             sale_items = self.saleitem_set.all()
-            
-            # Calculate subtotal using the chosen price for each sale item
             subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
             self.subtotal = Decimal(subtotal)
             
-            # Calculate tax amount if tax code is specified
+            # Calculate tax amount
             if self.tax_code:
                 self.tax_amount = self.tax_code.calculate_tax_amount(self.subtotal)
             else:
                 self.tax_amount = Decimal('0.00')
             
-            # Calculate withholding tax if enabled
+            # Calculate withholding tax
             if self.withhold_tax:
                 self.withholding_tax = (self.subtotal + self.tax_amount) * self.WITHHOLDING_TAX_RATE
             else:
@@ -1420,32 +1782,47 @@ class StoreSale(models.Model):
             self.tax_amount = Decimal('0.00')
             self.withholding_tax = Decimal('0.00')
             self.total_amount = Decimal('0.00')
-    
-    def calculate_total(self):
-        """Legacy method - now uses calculate_financial_amounts"""
-        self.calculate_financial_amounts()
-        return self.total_amount
-        
-    def get_remaining_days(self):
-        today = date.today()
-        due_date = self.due_date if self.due_date else self.sale_date + self.PAYMENT_DURATION
-        return (due_date - today).days  # Allow negative values for overdue days
-    
+
     @property
-    def calculated_tax_amount(self):
-        """Calculate tax amount for this sale (property version for backward compatibility)"""
-        if self.tax_code:
-            sale_items = self.saleitem_set.all()
-            subtotal = sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
-            return self.tax_code.calculate_tax_amount(Decimal(subtotal))
-        return Decimal('0.00')
-    
+    def can_create_invoice(self):
+        """Check if order can be invoiced"""
+        return self.status in ['confirmed'] and self.total_amount > 0
+
     @property
-    def subtotal_before_tax(self):
-        """Calculate subtotal before tax"""
-        sale_items = self.saleitem_set.all()
-        return sum(item.quantity * item.chosen_price for item in sale_items if item.chosen_price is not None)
+    def has_invoice(self):
+        """Check if order has been invoiced"""
+        return hasattr(self, 'sales_invoice')
+
+    def create_invoice(self):
+        """Create a sales invoice for this order"""
+        if not self.can_create_invoice:
+            raise ValueError("Order cannot be invoiced")
         
+        if self.has_invoice:
+            raise ValueError("Order already has an invoice")
+        
+        # Create the invoice with 'sent' status
+        invoice = SalesInvoice.objects.create(
+            store_sale=self,
+            invoice_number=f"INV-{self.order_number}",
+            customer=self.customer,
+            invoice_date=timezone.now(),
+            subtotal=self.subtotal,
+            tax_amount=self.tax_amount,
+            withholding_tax=self.withholding_tax,
+            total_amount=self.total_amount,
+            tax_code=self.tax_code,
+            billing_address=self.billing_address,
+            status='sent',  # Set status to 'sent' immediately
+            created_by=self.created_by
+        )
+        
+        # Update order status
+        self.status = 'invoiced'
+        self.save()
+        
+        return invoice
+
 class SaleItem(models.Model):
     sale = models.ForeignKey(StoreSale, on_delete=models.CASCADE)  # Link to StoreSale
     product = models.ForeignKey(LivaraMainStore, on_delete=models.CASCADE)  # Link to product
@@ -1474,92 +1851,206 @@ class SaleItem(models.Model):
         self.total_price = (self.quantity * self.chosen_price) if self.chosen_price else 0
         super().save(*args, **kwargs)  # Call parent save method
         
+class StoreSalePayment(models.Model):
+    """Track customer payments for store sales with Chart of Accounts integration"""
+    
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('mobile_money', 'Mobile Money'),
+        ('cheque', 'Cheque'),
+        ('credit_card', 'Credit Card'),
+        ('other', 'Other'),
+    ]
+    
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    # Payment details
+    receipt = models.ForeignKey('StoreSaleReceipt', on_delete=models.CASCADE, related_name='payments')
+    payment_reference = models.CharField(max_length=50, unique=True, help_text="Unique payment reference number")
+    payment_date = models.DateTimeField(auto_now_add=True, help_text="Date and time of payment")
+    
+    # Financial details
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount paid by customer")
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, help_text="Method of payment")
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    
+    # Chart of Accounts integration
+    revenue_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                       related_name='store_sale_payments', 
+                                       help_text="Revenue account to credit (e.g., Sales Revenue)")
+    bank_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                    related_name='store_sale_bank_payments', 
+                                    help_text="Bank account to debit (e.g., Bank Account)")
+    
+    # Customer and receipt details
+    customer_name = models.CharField(max_length=200, help_text="Customer name for reference")
+    receipt_number = models.CharField(max_length=20, help_text="Receipt number being paid")
+    
+    # Additional details
+    transaction_id = models.CharField(max_length=100, blank=True, null=True, 
+                                    help_text="External transaction ID (bank transfer, mobile money, etc.)")
+    notes = models.TextField(blank=True, help_text="Additional payment notes")
+    received_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   help_text="User who received the payment")
+    
+    # Audit fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-payment_date']
+        verbose_name = "Store Sale Payment"
+        verbose_name_plural = "Store Sale Payments"
+    
+    def __str__(self):
+        return f"Payment {self.payment_reference} - {self.customer_name} - UGX {self.amount_paid:,.0f}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-generate payment reference if not provided
+        if not self.payment_reference:
+            from datetime import datetime
+            import uuid
+            current_date = datetime.now().strftime('%Y%m%d')
+            unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
+            self.payment_reference = f"PAY{current_date}{unique_id}"
+        
+        # Auto-populate customer and receipt details
+        if not self.customer_name and self.receipt:
+            self.customer_name = self.receipt.customer_name
+        if not self.receipt_number and self.receipt:
+            self.receipt_number = self.receipt.receipt_number
+        
+        super().save(*args, **kwargs)
+        
+        # Update receipt payment status after payment is completed
+        if self.payment_status == 'completed':
+            self.update_receipt_payment_status()
+    
+    def update_receipt_payment_status(self):
+        """Update the receipt payment status based on total payments"""
+        if not self.receipt:
+            return
+        
+        total_paid = sum(payment.amount_paid for payment in self.receipt.payments.filter(payment_status='completed'))
+        receipt_total = self.receipt.total_due
+        
+        if total_paid >= receipt_total:
+            self.receipt.payment_status = 'paid'
+        elif total_paid > 0:
+            self.receipt.payment_status = 'partial'
+        else:
+            self.receipt.payment_status = 'pending'
+        
+        self.receipt.save()
+    
+    @property
+    def payment_method_display(self):
+        """Get human-readable payment method"""
+        return dict(self.PAYMENT_METHOD_CHOICES).get(self.payment_method, self.payment_method)
+    
+    @property
+    def is_completed(self):
+        """Check if payment is completed"""
+        return self.payment_status == 'completed'
+    
+    @property
+    def can_be_reversed(self):
+        """Check if payment can be reversed"""
+        return self.payment_status == 'completed' and self.payment_date.date() >= (timezone.now().date() - timedelta(days=30))
 
-class StoreSaleReceipt(models.Model):
-    store_sale = models.OneToOneField(StoreSale, on_delete=models.CASCADE)
-    receipt_number = models.CharField(max_length=20, unique=True, help_text="Unique receipt number for payment reference")
-    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Subtotal before tax")
-    total_vat = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total VAT amount")
-    withholding_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Withholding tax amount")
-    total_due = models.DecimalField(max_digits=10, decimal_places=2, help_text="Total amount due for payment")
+class SalesInvoice(models.Model):
+    """Sales Invoice - Formal billing document created from Store Sale Order"""
+    PAYMENT_DURATION = timedelta(days=45)  # Default payment duration (45 days)
     
-    # Payment processing fields
-    payment_status = models.CharField(max_length=20, choices=[
-        ('pending', 'Pending Payment'),
-        ('partial', 'Partially Paid'),
-        ('paid', 'Fully Paid'),
+    # Invoice Information
+    store_sale = models.OneToOneField(StoreSale, on_delete=models.CASCADE, related_name='sales_invoice')
+    invoice_number = models.CharField(max_length=20, unique=True, help_text="Unique invoice number")
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE)
+    invoice_date = models.DateTimeField(auto_now_add=True)
+    due_date = models.DateField(help_text="Payment due date")
+    
+    # Invoice Status
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('sent', 'Sent'),
         ('overdue', 'Overdue'),
-    ], default='pending', help_text="Current payment status")
+        ('paid', 'Paid'),
+        ('cancelled', 'Cancelled'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     
-    payment_due_date = models.DateField(help_text="Date when payment is due",null=True, blank=True)
-    payment_terms = models.CharField(max_length=100, default="45 days from delivery", help_text="Payment terms")
+    # Financial fields
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Subtotal before tax")
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Tax amount")
+    withholding_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Withholding tax amount")
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total invoice amount")
     
-    # Additional details for payment processing
-    customer_name = models.CharField(max_length=200, help_text="Customer name for payment reference",blank=True, null=True)
-    customer_phone = models.CharField(max_length=20, help_text="Customer contact for payment follow-up",blank=True, null=True)
-    customer_email = models.EmailField(blank=True, null=True, help_text="Customer email for payment notifications")
+    # Tax and billing
+    tax_code = models.ForeignKey('TaxCode', on_delete=models.SET_NULL, null=True, blank=True)
+    billing_address = models.TextField(blank=True, null=True)
     
-    # Tax information
-    tax_code = models.CharField(max_length=50, blank=True, help_text="Tax code applied to this receipt")
-    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text="Tax rate percentage")
+    # Payment tracking
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total amount paid")
+    balance_due = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Remaining balance")
     
-    # Delivery information
-    delivery_date = models.DateTimeField(help_text="Date when order was delivered",null=True, blank=True)
-    delivered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, help_text="User who marked as delivered")
-    
-    # Notes and references
-    notes = models.TextField(blank=True, help_text="Additional notes for payment processing")
-    reference_number = models.CharField(max_length=50, blank=True, help_text="External reference number")
-    
+    # Additional fields
+    notes = models.TextField(blank=True, help_text="Invoice notes")
+    terms_conditions = models.TextField(blank=True, help_text="Payment terms and conditions")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
-        verbose_name = "Store Sale Receipt"
-        verbose_name_plural = "Store Sale Receipts"
+        ordering = ['-invoice_date']
+        verbose_name = "Sales Invoice"
+        verbose_name_plural = "Sales Invoices"
 
     def __str__(self):
-        return f"Receipt {self.receipt_number} - {self.customer_name}"
+        return f"Invoice {self.invoice_number} - {self.customer.first_name}"
 
     def save(self, *args, **kwargs):
-        # Auto-populate customer details from store sale
-        if not self.customer_name and self.store_sale:
-            self.customer_name = f"{self.store_sale.customer.first_name} {self.store_sale.customer.last_name}"
-        if not self.customer_phone and self.store_sale:
-            self.customer_phone = self.store_sale.customer.phone
-        if not self.customer_email and self.store_sale:
-            self.customer_email = self.store_sale.customer.email
+        # Auto-generate invoice number if not provided
+        if not self.invoice_number:
+            from datetime import datetime
+            import uuid
+            current_date = datetime.now().strftime('%Y%m%d')
+            unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
+            self.invoice_number = f"INV{current_date}{unique_id}"
         
-        # Auto-populate tax information
-        if not self.tax_code and self.store_sale.tax_code:
-            self.tax_code = f"{self.store_sale.tax_code.code} - {self.store_sale.tax_code.name}"
-            self.tax_rate = self.store_sale.tax_code.rate
-        
-        # Set payment due date if not set
-        if not self.payment_due_date:
-            from datetime import timedelta
+        # Set due date if not provided
+        if not self.due_date:
             from datetime import date
-            # Use delivery_date if available, otherwise use current date
-            if self.delivery_date:
-                self.payment_due_date = self.delivery_date.date() + timedelta(days=45)
-            else:
-                self.payment_due_date = date.today() + timedelta(days=45)
+            self.due_date = date.today() + self.PAYMENT_DURATION
+        
+        # Calculate balance due
+        self.balance_due = self.total_amount - self.amount_paid
+        
+        # Update status based on payment
+        if self.balance_due <= 0:
+            self.status = 'paid'
+        elif self.is_overdue:
+            self.status = 'overdue'
         
         super().save(*args, **kwargs)
 
     @property
     def is_overdue(self):
-        """Check if payment is overdue"""
+        """Check if invoice is overdue"""
         from datetime import date
-        return self.payment_status == 'pending' and date.today() > self.payment_due_date
+        return self.balance_due > 0 and date.today() > self.due_date
 
     @property
     def days_overdue(self):
         """Calculate days overdue"""
         from datetime import date
         if self.is_overdue:
-            return (date.today() - self.payment_due_date).days
+            return (date.today() - self.due_date).days
         return 0
 
     @property
@@ -1567,7 +2058,118 @@ class StoreSaleReceipt(models.Model):
         """Get payment status with overdue indicator"""
         if self.is_overdue:
             return f"Overdue ({self.days_overdue} days)"
-        return self.get_payment_status_display()
+        elif self.balance_due <= 0:
+            return "Paid"
+        elif self.amount_paid > 0:
+            return f"Partially Paid (UGX {self.amount_paid:,.0f})"
+        else:
+            return "Unpaid"
+
+    @property
+    def can_create_receipt(self):
+        """Check if invoice can have receipts created"""
+        return self.status in ['sent', 'overdue'] and self.balance_due > 0
+
+    @property
+    def has_receipts(self):
+        """Check if invoice has receipts"""
+        return self.receipts.exists()
+
+    def create_receipt(self, amount_paid, payment_method, **kwargs):
+        """Create a receipt for payment on this invoice"""
+        if not self.can_create_receipt:
+            raise ValueError("Invoice cannot have receipts created")
+        
+        if amount_paid > self.balance_due:
+            raise ValueError("Payment amount exceeds balance due")
+        
+        # Create receipt
+        receipt = StoreSaleReceipt.objects.create(
+            sales_invoice=self,
+            receipt_number=f"RCP-{self.invoice_number}-{timezone.now().strftime('%Y%m%d%H%M')}",
+            customer_name=f"{self.customer.first_name} {self.customer.last_name}",
+            customer_phone=self.customer.phone,
+            customer_email=self.customer.email,
+            total_due=amount_paid,
+            payment_method=payment_method,
+            **kwargs
+        )
+        
+        # Update invoice payment
+        self.amount_paid += amount_paid
+        self.save()
+        
+        return receipt
+        
+
+class StoreSaleReceipt(models.Model):
+    """Sales Receipt - Payment tracking document created from Sales Invoice"""
+    
+    # Receipt Information
+    sales_invoice = models.ForeignKey(SalesInvoice, on_delete=models.CASCADE, related_name='receipts', null=True, blank=True)
+    receipt_number = models.CharField(max_length=20, unique=True, help_text="Unique receipt number for payment reference")
+    receipt_date = models.DateTimeField(help_text="Date when receipt was created",default=timezone.now)
+    
+    # Customer Information
+    customer_name = models.CharField(max_length=200, help_text="Customer name for payment reference", null=True, blank=True)
+    customer_phone = models.CharField(max_length=20, help_text="Customer contact for payment follow-up", blank=True, null=True)
+    customer_email = models.EmailField(blank=True, null=True, help_text="Customer email for payment notifications")
+    
+    # Payment Information
+    total_due = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount paid in this receipt")
+    payment_method = models.CharField(max_length=20, choices=StoreSalePayment.PAYMENT_METHOD_CHOICES, help_text="Method of payment", null=True, blank=True)
+    
+    # Chart of Accounts Integration
+    receiving_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                        related_name='receipts_received', 
+                                        help_text="Account to receive payment (e.g., Cash, Bank)", null=True, blank=True)
+    accounts_receivable_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                                   related_name='receipts_receivable', 
+                                                   help_text="Accounts Receivable account to credit", null=True, blank=True)
+    
+    # Payment Status
+    payment_status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending Payment'),
+        ('partial', 'Partially Paid'),
+        ('paid', 'Fully Paid'),
+        ('overdue', 'Overdue'),
+    ], default='paid', help_text="Current payment status")
+    
+    # Additional fields
+    notes = models.TextField(blank=True, help_text="Additional notes for payment processing")
+    reference_number = models.CharField(max_length=50, blank=True, help_text="External reference number")
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-receipt_date']
+        verbose_name = "Sales Receipt"
+        verbose_name_plural = "Sales Receipts"
+
+    def __str__(self):
+        return f"Receipt {self.receipt_number} - {self.customer_name}"
+
+    def save(self, *args, **kwargs):
+        # Auto-generate receipt number if not provided
+        if not self.receipt_number:
+            from datetime import datetime
+            import uuid
+            current_date = datetime.now().strftime('%Y%m%d')
+            unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
+            self.receipt_number = f"RCP{current_date}{unique_id}"
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def invoice_number(self):
+        """Get the related invoice number"""
+        return self.sales_invoice.invoice_number
+
+    @property
+    def order_number(self):
+        """Get the related order number"""
+        return self.sales_invoice.store_sale.order_number
         
 
 class RawMaterialPrice(models.Model):
@@ -2243,115 +2845,148 @@ from auditlog.registry import auditlog
 # auditlog.register(ManufactureProduct)
 # auditlog.register(StoreSalePayment)
 
-class StoreSalePayment(models.Model):
-    """Track customer payments for store sales with Chart of Accounts integration"""
+class CreditNote(models.Model):
+    """Credit Note - Document for returns, refunds, and invoice adjustments"""
     
-    PAYMENT_METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('bank_transfer', 'Bank Transfer'),
-        ('mobile_money', 'Mobile Money'),
-        ('cheque', 'Cheque'),
-        ('credit_card', 'Credit Card'),
-        ('other', 'Other'),
+    CREDIT_NOTE_TYPES = [
+        ('return', 'Customer Return'),
+        ('refund', 'Refund'),
+        ('adjustment', 'Invoice Adjustment'),
+        ('discount', 'Discount/Allowance'),
+        ('error', 'Invoice Error'),
     ]
     
-    PAYMENT_STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed'),
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('issued', 'Issued'),
+        ('applied', 'Applied'),
         ('cancelled', 'Cancelled'),
     ]
     
-    # Payment details
-    receipt = models.ForeignKey(StoreSaleReceipt, on_delete=models.CASCADE, related_name='payments')
-    payment_reference = models.CharField(max_length=50, unique=True, help_text="Unique payment reference number")
-    payment_date = models.DateTimeField(auto_now_add=True, help_text="Date and time of payment")
+    # Credit Note Information
+    credit_note_number = models.CharField(max_length=20, unique=True, help_text="Unique credit note number")
+    credit_note_date = models.DateTimeField(auto_now_add=True, help_text="Date when credit note was created")
+    credit_note_type = models.CharField(max_length=20, choices=CREDIT_NOTE_TYPES, help_text="Type of credit note")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     
-    # Financial details
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount paid by customer")
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, help_text="Method of payment")
-    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    # Related Documents
+    sales_invoice = models.ForeignKey(SalesInvoice, on_delete=models.CASCADE, related_name='credit_notes', 
+                                    help_text="Related sales invoice")
     
-    # Chart of Accounts integration
-    revenue_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
-                                       related_name='store_sale_payments', 
-                                       help_text="Revenue account to credit (e.g., Sales Revenue)")
-    bank_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
-                                    related_name='store_sale_bank_payments', 
-                                    help_text="Bank account to debit (e.g., Bank Account)")
+    # Customer Information
+    customer_name = models.CharField(max_length=200, help_text="Customer name")
+    customer_phone = models.CharField(max_length=20, blank=True, null=True, help_text="Customer contact")
+    customer_email = models.EmailField(blank=True, null=True, help_text="Customer email")
     
-    # Customer and receipt details
-    customer_name = models.CharField(max_length=200, help_text="Customer name for reference")
-    receipt_number = models.CharField(max_length=20, help_text="Receipt number being paid")
+    # Financial Information
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, help_text="Subtotal before tax")
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Tax amount")
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Total credit amount")
     
-    # Additional details
-    transaction_id = models.CharField(max_length=100, blank=True, null=True, 
-                                    help_text="External transaction ID (bank transfer, mobile money, etc.)")
-    notes = models.TextField(blank=True, help_text="Additional payment notes")
-    received_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
-                                   help_text="User who received the payment")
+    # Chart of Accounts Integration
+    accounts_receivable_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                                   related_name='credit_notes_receivable', 
+                                                   help_text="Accounts Receivable account to debit")
+    sales_return_account = models.ForeignKey('accounts.ChartOfAccounts', on_delete=models.PROTECT, 
+                                           related_name='credit_notes_sales_return', 
+                                           help_text="Sales Returns account to credit")
     
-    # Audit fields
+    # Additional Information
+    reason = models.TextField(help_text="Reason for credit note")
+    reference_number = models.CharField(max_length=50, blank=True, help_text="External reference number")
+    notes = models.TextField(blank=True, help_text="Additional notes")
+    
+    # Audit Information
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, help_text="User who created the credit note")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['-payment_date']
-        verbose_name = "Store Sale Payment"
-        verbose_name_plural = "Store Sale Payments"
+        ordering = ['-credit_note_date']
+        verbose_name = "Credit Note"
+        verbose_name_plural = "Credit Notes"
     
     def __str__(self):
-        return f"Payment {self.payment_reference} - {self.customer_name} - UGX {self.amount_paid:,.0f}"
+        return f"Credit Note {self.credit_note_number} - {self.customer_name}"
     
     def save(self, *args, **kwargs):
-        # Auto-generate payment reference if not provided
-        if not self.payment_reference:
+        # Auto-generate credit note number if not provided
+        if not self.credit_note_number:
             from datetime import datetime
             import uuid
             current_date = datetime.now().strftime('%Y%m%d')
             unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
-            self.payment_reference = f"PAY{current_date}{unique_id}"
+            self.credit_note_number = f"CN{current_date}{unique_id}"
         
-        # Auto-populate customer and receipt details
-        if not self.customer_name and self.receipt:
-            self.customer_name = self.receipt.customer_name
-        if not self.receipt_number and self.receipt:
-            self.receipt_number = self.receipt.receipt_number
+        # Calculate total if not set
+        if not self.total_amount:
+            self.total_amount = self.subtotal + self.tax_amount
         
         super().save(*args, **kwargs)
-        
-        # Update receipt payment status after payment is completed
-        if self.payment_status == 'completed':
-            self.update_receipt_payment_status()
-    
-    def update_receipt_payment_status(self):
-        """Update the receipt payment status based on total payments"""
-        if not self.receipt:
-            return
-        
-        total_paid = sum(payment.amount_paid for payment in self.receipt.payments.filter(payment_status='completed'))
-        receipt_total = self.receipt.total_due
-        
-        if total_paid >= receipt_total:
-            self.receipt.payment_status = 'paid'
-        elif total_paid > 0:
-            self.receipt.payment_status = 'partial'
-        else:
-            self.receipt.payment_status = 'pending'
-        
-        self.receipt.save()
     
     @property
-    def payment_method_display(self):
-        """Get human-readable payment method"""
-        return dict(self.PAYMENT_METHOD_CHOICES).get(self.payment_method, self.payment_method)
+    def invoice_number(self):
+        """Get the related invoice number"""
+        return self.sales_invoice.invoice_number
     
     @property
-    def is_completed(self):
-        """Check if payment is completed"""
-        return self.payment_status == 'completed'
+    def order_number(self):
+        """Get the related order number"""
+        return self.sales_invoice.store_sale.order_number
     
     @property
-    def can_be_reversed(self):
-        """Check if payment can be reversed"""
-        return self.payment_status == 'completed' and self.payment_date.date() >= (timezone.now().date() - timedelta(days=30))
+    def can_be_applied(self):
+        """Check if credit note can be applied to invoice"""
+        return self.status == 'issued' and self.sales_invoice.balance_due > 0
+    
+    def apply_to_invoice(self):
+        """Apply credit note to reduce invoice balance"""
+        if not self.can_be_applied:
+            raise ValueError("Credit note cannot be applied")
+        
+        # Calculate how much can be applied
+        amount_to_apply = min(self.total_amount, self.sales_invoice.balance_due)
+        
+        # Update invoice balance
+        self.sales_invoice.amount_paid += amount_to_apply
+        self.sales_invoice.save()
+        
+        # Update credit note status
+        self.status = 'applied'
+        self.save()
+        
+        # Create journal entry for the credit note application
+        from accounts.models import JournalEntry, JournalEntryLine
+        
+        journal_entry = JournalEntry.objects.create(
+            date=self.credit_note_date.date(),
+            reference=f"CN-{self.credit_note_number}",
+            description=f"Credit note applied to Invoice {self.invoice_number}",
+            entry_type='credit_note',
+            created_by=self.created_by,
+            is_posted=True,
+            posted_at=timezone.now()
+        )
+        
+        # Create journal entry lines
+        # Debit: Accounts Receivable (reduce receivable)
+        JournalEntryLine.objects.create(
+            journal_entry=journal_entry,
+            account=self.accounts_receivable_account,
+            entry_type='debit',
+            amount=amount_to_apply,
+            description=f"Credit note applied for {self.customer_name}"
+        )
+        
+        # Credit: Sales Returns
+        JournalEntryLine.objects.create(
+            journal_entry=journal_entry,
+            account=self.sales_return_account,
+            entry_type='credit',
+            amount=amount_to_apply,
+            description=f"Credit note for Invoice {self.invoice_number}"
+        )
+        
+        return amount_to_apply
+
+

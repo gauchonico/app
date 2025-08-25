@@ -195,6 +195,18 @@ urlpatterns = [
     path('record_payment/<int:receipt_id>/', views.record_store_sale_payment, name='record_store_sale_payment'),
     path('store_sale_payments/', views.store_sale_payments_list, name='store_sale_payments_list'),
     path('store_sale_payment/<int:payment_id>/', views.store_sale_payment_detail, name='store_sale_payment_detail'),
+
+    # Invoice URLs
+    path('create_invoice/<int:order_id>/', views.create_invoice_from_order, name='create_invoice_from_order'),
+    path('confirm_order/<int:order_id>/', views.confirm_order, name='confirm_order'),
+    path('main_store_invoices/', views.main_store_invoices, name='main_store_invoices'),
+    path('invoice/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
+    path('create_receipt/<int:invoice_id>/', views.create_receipt_from_invoice, name='create_receipt_from_invoice'),
+    path('store_sale_list_receipts/', views.store_sale_list_receipts, name='store_sale_list_receipts'),
+    path('create_credit_note/<int:invoice_id>/', views.create_credit_note_from_invoice, name='create_credit_note_from_invoice'),
+    path('credit_notes/', views.list_credit_notes, name='list_credit_notes'),
+    path('credit_note/<int:credit_note_id>/', views.credit_note_detail, name='credit_note_detail'),
+    path('apply_credit_note/<int:credit_note_id>/', views.apply_credit_note, name='apply_credit_note'),
     path('monthly-commissions/', views.monthly_commission_list, name='monthly_commission_list'),
     path('monthly-commissions/<int:staff_id>/<int:year>/<int:month>/', views.staff_monthly_commission_detail, name='staff_monthly_commission_detail'),
     path('product-commissions/', views.product_commission_list, name='product_commission_list'),
@@ -245,7 +257,7 @@ urlpatterns = [
     path('price-alerts/delete/<int:alert_id>/', views.delete_alert, name='delete_alert'),
     path('raw-material-prices/add/', views.add_raw_material_price, name='add_raw_material_price'),
     
-path('get-raw-material-price-list/', views.get_raw_material_price_list, name='get_raw_material_price_list'),
+     path('get-raw-material-price-list/', views.get_raw_material_price_list, name='get_raw_material_price_list'),
     path('update-price/<int:raw_material_id>/<int:supplier_id>/', 
          views.update_raw_material_price, 
          name='update_raw_material_price'),
@@ -265,5 +277,22 @@ path('get-raw-material-price-list/', views.get_raw_material_price_list, name='ge
     # Livara Main Store URLs
     path('livara-main-store/', views.livara_main_store_list, name='livara_main_store_list'),
     path('livara-main-store/<int:pk>/', views.livara_main_store_detail, name='livara_main_store_detail'),
+    path('livara-main-store/inventory-report/', views.livara_main_store_inventory_report, name='livara_main_store_inventory_report'),
+    path('livara-inventory-adjustments/', views.livara_inventory_adjustments_list, name='livara_inventory_adjustments_list'),
+    path('livara-inventory-adjustments/<int:adjustment_id>/', views.livara_inventory_adjustment_detail, name='livara_inventory_adjustment_detail'),
+    path('livara-stock-movements/', views.livara_stock_movements, name='livara_stock_movements'),
     path('all-supplier-prices/', views.all_supplier_prices, name='all_supplier_prices'),
+    path('main_store_write_off_details/<int:writeoff_id>/', views.main_store_write_off_details, name='main_store_write_off_details'),
+   
+    # Quality Control URLs
+    path('quality-control/', views.quality_control_dashboard, name='quality_control_dashboard'),
+    path('quality-control/tests/', views.quality_control_test_list, name='quality_control_test_list'),
+    path('quality-control/tests/<int:test_id>/', views.quality_control_test_detail, name='quality_control_test_detail'),
+    path('quality-control/tests/<int:test_id>/edit/', views.edit_quality_control_test, name='edit_quality_control_test'),
+    path('quality-control/tests/<int:test_id>/action/', views.quality_control_action, name='quality_control_action'),
+    path('quality-control/create/<int:manufactured_product_id>/', views.create_quality_control_test, name='create_quality_control_test'),
+    path('quality-control/pending/', views.pending_quality_tests, name='pending_quality_tests'),
+    path('quality-control/my-tests/', views.my_quality_tests, name='my_quality_tests'),
+    path('quality-control/reports/', views.quality_control_reports, name='quality_control_reports'),
+   
 ]

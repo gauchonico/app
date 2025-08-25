@@ -28,7 +28,7 @@
     
     .stats-card {
         {% comment %} background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); {% endcomment %}
-        color: white;
+        {% comment %} color: white; {% endcomment %}
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 1rem;
@@ -51,12 +51,14 @@
     }
     
     .stats-number {
+        color: white;
         font-size: 2.5rem;
         font-weight: bold;
         margin-bottom: 0.5rem;
     }
     
     .stats-label {
+        color: white;
         font-size: 0.9rem;
         opacity: 0.9;
     }
@@ -69,7 +71,7 @@
     
     .table thead th {
         {% comment %} background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); {% endcomment %}
-        color: white;
+        {% comment %} color: white; {% endcomment %}
         border: none;
         font-weight: 600;
     }
@@ -117,10 +119,7 @@
         height: 100% !important;
     }
     
-    .chart-container h5 {
-        color: white;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-    }
+
     
     .quick-actions {
         background: transparent;
@@ -187,8 +186,8 @@ if (typeof $.fn.DataTable === 'undefined') {
             <li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
             <li class="breadcrumb-item active">LIVARA MAIN STORE</li>
         </ul>
-        <h2 class="text-white mb-0">Main Store Transfers Dashboard</h2>
-        <p class="text-white-50 mb-0">Manage transfers from production to Livara main store</p>
+        <h2 class="mb-0">Main Store Transfers Dashboard</h2>
+        <p class="mb-0">Manage transfers from production to Livara main store</p>
     </div>
 </div>
 

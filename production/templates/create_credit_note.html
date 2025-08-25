@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Create Credit Note - Invoice #{{ invoice.invoice_number }}{% endblock %}
+
+{% block css %}
+    <style>
+        .credit-note-form-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .credit-note-header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .credit-note-body {
+            padding: 30px;
+        }
+        
+        .invoice-summary {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .form-section {
+            margin-bottom: 25px;
+        }
+        
+        .form-section h5 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .amount-calculator {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .total-amount {
+            background: #dc3545;
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="credit-note-form-container">
+    <!-- Header -->
+    <div class="credit-note-header">
+        <h3><i class="fa fa-undo me-2"></i>Create Credit Note</h3>
+        <p class="mb-0">Invoice #{{ invoice.invoice_number }}</p>
+    </div>
+    
+    <!-- Invoice Summary -->
+    <div class="credit-note-body">
+        <div class="invoice-summary">
+            <h5><i class="fa fa-info-circle me-2"></i>Invoice Summary</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Customer:</strong><br>
+                    {{ invoice.customer.first_name }} {{ invoice.customer.last_name }}
+                </div>
+                <div class="col-md-6">
+                    <strong>Order #:</strong><br>
+                    {{ invoice.store_sale.order_number }}
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>Invoice Amount:</strong><br>
+                    <span class="text-primary">UGX {{ invoice.total_amount|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>Amount Paid:</strong><br>
+                    <span class="text-success">UGX {{ invoice.amount_paid|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>Balance Due:</strong><br>
+                    <span class="text-danger">UGX {{ invoice.balance_due|floatformat:0|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Information Alert -->
+        <div class="alert-info">
+            <h6><i class="fa fa-lightbulb me-2"></i>Credit Note Information</h6>
+            <p class="mb-0">
+                A credit note reduces the amount owed on this invoice. It can be used for returns, refunds, 
+                discounts, or corrections. The credit note will be applied to reduce the invoice balance.
+            </p>
+        </div>
+        
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            <!-- Credit Note Type -->
+            <div class="form-section">
+                <h5><i class="fa fa-tag me-2"></i>Credit Note Type</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="{{ form.credit_note_type.id_for_label }}" class="form-label">Type *</label>
+                        {{ form.credit_note_type }}
+                        {% if form.credit_note_type.errors %}
+                            <div class="invalid-feedback d-block">{{ form.credit_note_type.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Select the reason for this credit note</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.reference_number.id_for_label }}" class="form-label">Reference Number</label>
+                        {{ form.reference_number }}
+                        {% if form.reference_number.errors %}
+                            <div class="invalid-feedback d-block">{{ form.reference_number.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">External reference (optional)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Customer Information -->
+            <div class="form-section">
+                <h5><i class="fa fa-user me-2"></i>Customer Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="{{ form.customer_name.id_for_label }}" class="form-label">Customer Name *</label>
+                        {{ form.customer_name }}
+                        {% if form.customer_name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.customer_name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.customer_phone.id_for_label }}" class="form-label">Phone Number</label>
+                        {{ form.customer_phone }}
+                        {% if form.customer_phone.errors %}
+                            <div class="invalid-feedback d-block">{{ form.customer_phone.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <label for="{{ form.customer_email.id_for_label }}" class="form-label">Email Address</label>
+                        {{ form.customer_email }}
+                        {% if form.customer_email.errors %}
+                            <div class="invalid-feedback d-block">{{ form.customer_email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Financial Information -->
+            <div class="form-section">
+                <h5><i class="fa fa-calculator me-2"></i>Financial Information</h5>
+                <div class="amount-calculator">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="{{ form.subtotal.id_for_label }}" class="form-label">Subtotal *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">UGX</span>
+                                {{ form.subtotal }}
+                            </div>
+                            {% if form.subtotal.errors %}
+                                <div class="invalid-feedback d-block">{{ form.subtotal.errors.0 }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">Amount before tax</small>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.tax_amount.id_for_label }}" class="form-label">Tax Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">UGX</span>
+                                {{ form.tax_amount }}
+                            </div>
+                            {% if form.tax_amount.errors %}
+                                <div class="invalid-feedback d-block">{{ form.tax_amount.errors.0 }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">Tax amount (if applicable)</small>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12">
+                            <div class="total-amount">
+                                Total Credit Amount: <span id="total-amount">UGX 0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chart of Accounts -->
+            <div class="form-section">
+                <h5><i class="fa fa-chart-line me-2"></i>Chart of Accounts</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="{{ form.accounts_receivable_account.id_for_label }}" class="form-label">Accounts Receivable *</label>
+                        {{ form.accounts_receivable_account }}
+                        <small class="form-text text-muted">Account to debit (reduce receivable)</small>
+                        {% if form.accounts_receivable_account.errors %}
+                            <div class="invalid-feedback d-block">{{ form.accounts_receivable_account.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label for="{{ form.sales_return_account.id_for_label }}" class="form-label">Sales Return Account *</label>
+                        {{ form.sales_return_account }}
+                        <small class="form-text text-muted">Account to credit (sales returns)</small>
+                        {% if form.sales_return_account.errors %}
+                            <div class="invalid-feedback d-block">{{ form.sales_return_account.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reason and Notes -->
+            <div class="form-section">
+                <h5><i class="fa fa-sticky-note me-2"></i>Reason and Notes</h5>
+                <div class="row">
+                    <div class="col-md-12">
+                        <label for="{{ form.reason.id_for_label }}" class="form-label">Reason for Credit Note *</label>
+                        {{ form.reason }}
+                        {% if form.reason.errors %}
+                            <div class="invalid-feedback d-block">{{ form.reason.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Detailed explanation for this credit note</small>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Additional Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">{{ form.notes.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Any additional information (optional)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-outline-secondary">
+                    <i class="fa fa-arrow-left me-1"></i>Back to Invoice
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fa fa-save me-1"></i>Create Credit Note
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Calculate total amount automatically
+document.addEventListener('DOMContentLoaded', function() {
+    const subtotalField = document.getElementById('{{ form.subtotal.id_for_label }}');
+    const taxField = document.getElementById('{{ form.tax_amount.id_for_label }}');
+    const totalDisplay = document.getElementById('total-amount');
+    
+    function calculateTotal() {
+        const subtotal = parseFloat(subtotalField.value) || 0;
+        const tax = parseFloat(taxField.value) || 0;
+        const total = subtotal + tax;
+        totalDisplay.textContent = `UGX ${total.toLocaleString()}`;
+    }
+    
+    subtotalField.addEventListener('input', calculateTotal);
+    taxField.addEventListener('input', calculateTotal);
+    
+    // Calculate initial total
+    calculateTotal();
+    
+    // Form validation
+    const form = document.querySelector('.needs-validation');
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}

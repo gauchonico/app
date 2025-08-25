@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Livara Main Store Inventory Report{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-warehouse"></i>
+                        Livara Main Store Inventory Report
+                    </h4>
+                    <div>
+                        <a href="{% url 'livara_inventory_adjustments_list' %}" class="btn btn-outline-info me-2">
+                            <i class="fas fa-adjust"></i> View All Adjustments
+                        </a>
+                        <a href="{% url 'livara_main_store_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Inventory
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Date Range and Search Filter -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <form method="get" class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="from" class="form-label">From Date</label>
+                                    <input type="date" class="form-control" id="from" name="from" value="{{ from }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="to" class="form-label">To Date</label>
+                                    <input type="date" class="form-control" id="to" name="to" value="{{ to }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="q" class="form-label">Search Products</label>
+                                    <input type="text" class="form-control" id="q" name="q" 
+                                           placeholder="Search by product name or batch number..." value="{{ q }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-search"></i> Filter
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Period Summary -->
+                    <div class="alert alert-info">
+                        <strong>Report Period:</strong> {{ from_date|date:"M d, Y" }} to {{ to_date|date:"M d, Y" }}
+                        <br>
+                        <small>This report shows stock movements tracked through inventory adjustments for accurate accounting.</small>
+                    </div>
+
+                    <!-- Inventory Report Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="inventoryTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Batch</th>
+                                    <th>Opening Stock</th>
+                                    <th>Stock In</th>
+                                    <th>Stock Out</th>
+                                    <th>Closing Stock</th>
+                                    <th>Current Qty</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows %}
+                                <tr {% if row.discrepancy != 0 %}class="table-warning"{% endif %}>
+                                    <td>
+                                        <strong>{{ row.product_name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if row.batch_number %}
+                                            <span class="badge bg-secondary">{{ row.batch_number }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info fs-6">{{ row.opening_stock|intcomma }}</span>
+                                    </td>
+                                    <td>
+                                        {% if row.stock_in > 0 %}
+                                            <div class="d-flex align-items-center">
+                                                <a href="{% url 'livara_stock_movements' %}?product={{ row.product_name|urlencode }}&type=in&from_date={{ from }}&to_date={{ to }}" 
+                                                   class="badge bg-success fs-6 me-2 text-decoration-none text-white" 
+                                                   title="View all stock increases for {{ row.product_name }}">
+                                                    <i class="fas fa-arrow-up"></i> {{ row.stock_in|intcomma }}
+                                                </a>
+                                                {% if row.stock_in_records %}
+                                                    <button class="btn btn-sm btn-outline-success" 
+                                                            onclick="toggleStockDetails(this)"
+                                                            title="Show/hide details">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </div>
+                                            <!-- Hidden details for stock in -->
+                                            {% if row.stock_in_records %}
+                                            <div class="stock-details mt-2" style="display: none;">
+                                                {% for record in row.stock_in_records %}
+                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                        <small class="text-success">
+                                                            <strong>+{{ record.quantity }}</strong> - {{ record.reason|truncatechars:30 }}
+                                                            <br><em>{{ record.date|date:"M d, H:i" }} by {{ record.user }}</em>
+                                                        </small>
+                                                        <a href="{% url 'livara_inventory_adjustment_detail' record.id %}" 
+                                                           class="btn btn-xs btn-outline-success ms-2" 
+                                                           title="View adjustment details">
+                                                            <i class="fas fa-external-link-alt"></i>
+                                                        </a>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.stock_out > 0 %}
+                                            <div class="d-flex align-items-center">
+                                                <a href="{% url 'livara_stock_movements' %}?product={{ row.product_name|urlencode }}&type=out&from_date={{ from }}&to_date={{ to }}" 
+                                                   class="badge bg-danger fs-6 me-2 text-decoration-none text-white" 
+                                                   title="View all stock decreases for {{ row.product_name }}">
+                                                    <i class="fas fa-arrow-down"></i> {{ row.stock_out|intcomma }}
+                                                </a>
+                                                
+                                            </div>
+                                            <!-- Hidden details for stock out -->
+                                            {% if row.stock_out_records %}
+                                            <div class="stock-details mt-2" style="display: none;">
+                                                {% for record in row.stock_out_records %}
+                                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                                        <small class="text-danger">
+                                                            <strong>-{{ record.quantity }}</strong> - {{ record.reason|truncatechars:30 }}
+                                                            <br><em>{{ record.date|date:"M d, H:i" }} by {{ record.user }}</em>
+                                                        </small>
+                                                        <a href="{% url 'livara_inventory_adjustment_detail' record.id %}" 
+                                                           class="btn btn-xs btn-outline-danger ms-2" 
+                                                           title="View adjustment details">
+                                                            <i class="fas fa-external-link-alt"></i>
+                                                        </a>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary fs-6">{{ row.closing_stock|intcomma }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if row.discrepancy == 0 %}bg-success{% else %}bg-warning text-dark{% endif %} fs-6">
+                                            {{ row.current_quantity|intcomma }}
+                                        </span>
+                                        {% if row.discrepancy != 0 %}
+                                            <small class="d-block text-warning mt-1">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                Diff: {{ row.discrepancy|floatformat:0 }}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'livara_inventory_adjustments_list' %}?q={{ row.product_name|urlencode }}" 
+                                           class="btn btn-sm btn-outline-info" title="View all adjustments for this product">
+                                            <i class="fas fa-list"></i> Adjustments
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                                            <p>No inventory items found for the selected criteria.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Summary -->
+                    {% if rows %}
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            Showing {{ rows|length }} product{{ rows|length|pluralize }} 
+                            for period {{ from }} to {{ to }}
+                            {% if q %}matching "{{ q }}"{% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleStockDetails(button) {
+    // Find the stock details div in the same cell
+    const stockDetails = button.closest('td').querySelector('.stock-details');
+    if (stockDetails) {
+        if (stockDetails.style.display === 'none') {
+            stockDetails.style.display = 'block';
+            button.innerHTML = '<i class="fas fa-eye-slash"></i>';
+        } else {
+            stockDetails.style.display = 'none';
+            button.innerHTML = '<i class="fas fa-eye"></i>';
+        }
+    }
+}
+
+// Initialize DataTable for better sorting and filtering
+$(document).ready(function() {
+    if (typeof $.fn.DataTable !== 'undefined') {
+        $('#inventoryTable').DataTable({
+            "pageLength": 25,
+            "order": [[ 0, "asc" ]],
+            "columnDefs": [
+                { "orderable": false, "targets": [7] } // Disable sorting on Actions column
+            ]
+        });
+    }
+});
+</script>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .table th {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .card-header {
+        
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.025);
+    }
+    
+    .stock-details {
+        font-size: 0.8rem;
+        padding: 0.5rem;
+        border-left: 3px solid #ddd;
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+    }
+    
+    .table-warning {
+        background-color: rgba(255, 193, 7, 0.1) !important;
+    }
+</style>
+{% endblock %}

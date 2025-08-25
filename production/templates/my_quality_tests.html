@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Quality Tests{% endblock %}
+
+{% block css %}
+<style>
+    .test-card {
+        transition: transform 0.2s;
+        cursor: pointer;
+    }
+    .test-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    }
+    .priority-urgent {
+        border-left: 4px solid #dc3545;
+    }
+    .priority-high {
+        border-left: 4px solid #fd7e14;
+    }
+    .priority-medium {
+        border-left: 4px solid #0dcaf0;
+    }
+    .priority-low {
+        border-left: 4px solid #6c757d;
+    }
+    .overdue-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'productionPage' %}">PRODUCTION</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_dashboard' %}">QUALITY CONTROL</a></li>
+                <li class="breadcrumb-item active">MY TESTS</li>
+            </ul>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-header">
+                    <i class="fa fa-user me-2"></i>My Quality Tests
+                    <small class="text-muted">Assigned to {{ user.get_full_name|default:user.username }}</small>
+                </h1>
+                <div>
+                    <a href="{% url 'quality_control_dashboard' %}" class="btn btn-outline-primary me-2">
+                        <i class="fa fa-dashboard"></i> Dashboard
+                    </a>
+                    <a href="{% url 'quality_control_test_list' %}" class="btn btn-outline-secondary">
+                        <i class="fa fa-list"></i> All Tests
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ pending_tests.count }}</h4>
+                            <p class="mb-0">Pending Tests</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ in_progress_tests.count }}</h4>
+                            <p class="mb-0">In Progress</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-flask fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ completed_tests.count }}</h4>
+                            <p class="mb-0">Completed</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Tests -->
+    {% if pending_tests %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fa fa-clock me-2"></i>Pending Tests
+                        <span class="badge bg-dark ms-2">{{ pending_tests.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for test in pending_tests %}
+                        <div class="col-lg-6 col-xl-4 mb-3">
+                            <div class="card test-card priority-{{ test.priority }} position-relative"
+                                 onclick="window.location.href='{% url 'quality_control_test_detail' test.id %}'">
+                                {% if test.is_overdue %}
+                                    <div class="overdue-indicator">
+                                        <i class="fa fa-exclamation-triangle text-danger fa-lg" title="Overdue"></i>
+                                    </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ test.test_number }}</h6>
+                                    <p class="card-text">
+                                        <strong>{{ test.manufactured_product.product.product_name }}</strong><br>
+                                        <small class="text-muted">Batch: {{ test.manufactured_product.batch_number }}</small>
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-{{ test.priority }} 
+                                            {% if test.priority == 'urgent' %}danger
+                                            {% elif test.priority == 'high' %}warning
+                                            {% elif test.priority == 'medium' %}info
+                                            {% else %}secondary{% endif %}">
+                                            {{ test.get_priority_display }}
+                                        </span>
+                                        {% if test.scheduled_test_date %}
+                                            <small class="text-muted">
+                                                Due: {{ test.scheduled_test_date|date:"M j" }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                    {% if test.is_overdue %}
+                                        <div class="mt-2">
+                                            <small class="text-danger">
+                                                <i class="fa fa-exclamation-triangle me-1"></i>
+                                                {{ test.days_since_sampling }} days overdue
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="btn-group btn-group-sm w-100" role="group">
+                                        <a href="{% url 'edit_quality_control_test' test.id %}" 
+                                           class="btn btn-outline-primary" onclick="event.stopPropagation();">
+                                            <i class="fa fa-edit"></i> Start Test
+                                        </a>
+                                        <a href="{% url 'quality_control_test_detail' test.id %}" 
+                                           class="btn btn-outline-info" onclick="event.stopPropagation();">
+                                            <i class="fa fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- In Progress Tests -->
+    {% if in_progress_tests %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fa fa-flask me-2"></i>Tests In Progress
+                        <span class="badge bg-dark ms-2">{{ in_progress_tests.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for test in in_progress_tests %}
+                        <div class="col-lg-6 col-xl-4 mb-3">
+                            <div class="card test-card border-info"
+                                 onclick="window.location.href='{% url 'quality_control_test_detail' test.id %}'">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ test.test_number }}</h6>
+                                    <p class="card-text">
+                                        <strong>{{ test.manufactured_product.product.product_name }}</strong><br>
+                                        <small class="text-muted">Batch: {{ test.manufactured_product.batch_number }}</small>
+                                    </p>
+                                    {% if test.actual_test_date %}
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                <i class="fa fa-play me-1"></i>
+                                                Started: {{ test.actual_test_date|date:"M j, H:i" }}
+                                            </small>
+                                        </p>
+                                    {% endif %}
+                                    <div class="progress mb-2" style="height: 5px;">
+                                        <div class="progress-bar bg-info" style="width: {{ test.progress_percentage|default:0 }}%"></div>
+                                    </div>
+                                    <small class="text-muted">
+                                        Parameters: {{ test.completed_params_count|default:0 }}/{{ test.total_params_count|default:0 }} completed
+                                    </small>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="btn-group btn-group-sm w-100" role="group">
+                                        <a href="{% url 'edit_quality_control_test' test.id %}" 
+                                           class="btn btn-info" onclick="event.stopPropagation();">
+                                            <i class="fa fa-edit"></i> Continue
+                                        </a>
+                                        <a href="{% url 'quality_control_test_detail' test.id %}" 
+                                           class="btn btn-outline-info" onclick="event.stopPropagation();">
+                                            <i class="fa fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Completed Tests -->
+    {% if completed_tests %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fa fa-check-circle me-2"></i>Recently Completed Tests
+                        <span class="badge bg-dark ms-2">{{ completed_tests.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Test #</th>
+                                    <th>Product</th>
+                                    <th>Batch</th>
+                                    <th>Result</th>
+                                    <th>Pass Rate</th>
+                                    <th>Completed</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in completed_tests|slice:":10" %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'quality_control_test_detail' test.id %}" class="text-decoration-none fw-bold">
+                                            {{ test.test_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ test.manufactured_product.product.product_name }}</td>
+                                    <td><code>{{ test.manufactured_product.batch_number }}</code></td>
+                                    <td>
+                                        {% if test.overall_result == 'pass' %}
+                                            <span class="badge bg-success">Pass</span>
+                                        {% elif test.overall_result == 'fail' %}
+                                            <span class="badge bg-danger">Fail</span>
+                                        {% elif test.overall_result == 'conditional_pass' %}
+                                            <span class="badge bg-warning">Conditional</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.pass_percentage %}
+                                            {{ test.pass_percentage }}%
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ test.completed_at|date:"M j, Y H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'quality_control_test_detail' test.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fa fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if completed_tests.count > 10 %}
+                        <div class="text-center mt-3">
+                            <a href="{% url 'quality_control_test_list' %}?assigned_to={{ user.id }}&status=completed" 
+                               class="btn btn-outline-primary">
+                                View All {{ completed_tests.count }} Completed Tests
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if not pending_tests and not in_progress_tests and not completed_tests %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fa fa-flask fa-4x text-muted mb-4"></i>
+                    <h4 class="text-muted">No Quality Tests Assigned</h4>
+                    <p class="text-muted mb-4">You don't have any quality control tests assigned to you at the moment.</p>
+                    <div>
+                        <a href="{% url 'quality_control_dashboard' %}" class="btn btn-primary me-2">
+                            <i class="fa fa-dashboard"></i> Go to QC Dashboard
+                        </a>
+                        <a href="{% url 'quality_control_test_list' %}" class="btn btn-outline-secondary">
+                            <i class="fa fa-list"></i> View All Tests
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    // Auto-refresh every 2 minutes for pending tests
+    {% if pending_tests or in_progress_tests %}
+    setTimeout(function() {
+        location.reload();
+    }, 120000);
+    {% endif %}
+</script>
+{% endblock %}

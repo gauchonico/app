@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
-{% block title %}Invoice #{{ sale_order.id }}{% endblock %}
+{% block title %}Order #{{ sale_order.order_number }}{% endblock %}
 
 {% block css %}
     <style>
@@ -233,11 +233,11 @@
     
     <!-- Invoice Information -->
     <div class="invoice-info">
-        <div class="invoice-title">INVOICE</div>
+        <div class="invoice-title">ORDER</div>
         
         <div class="invoice-meta">
             <div class="customer-info">
-                <h4>Bill To:</h4>
+                <h4>To:</h4>
                 <div class="info-row">
                     <span class="info-label">Customer:</span>
                     <span class="info-value">{{ sale_order.customer.first_name }} {{ sale_order.customer.last_name }}</span>
@@ -261,14 +261,18 @@
             </div>
             
             <div class="invoice-details">
-                <h4>Invoice Details:</h4>
+                <h4>Order Details:</h4>
                 <div class="info-row">
-                    <span class="info-label">Invoice #:</span>
-                    <span class="info-value">{{ sale_order.id }}</span>
+                    <span class="info-label">Order #:</span>
+                    <span class="info-value">{{ sale_order.order_number }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Date:</span>
-                    <span class="info-value">{{ sale_order.sale_date|date:"M d, Y" }}</span>
+                    <span class="info-label">Order Date:</span>
+                    <span class="info-value">{{ sale_order.order_date|date:"M d, Y" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Order Number:</span>
+                    <span class="info-value">{{ sale_order.order_number }}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Status:</span>
@@ -278,29 +282,33 @@
                         </span>
                     </span>
                 </div>
-                {% if sale_order.due_date %}
+                {% if sale_order.has_invoice %}
+                <div class="info-row">
+                    <span class="info-label">Invoice Number:</span>
+                    <span class="info-value">{{ sale_order.sales_invoice.invoice_number }}</span>
+                </div>
                 <div class="info-row">
                     <span class="info-label">Due Date:</span>
-                    <span class="info-value">{{ sale_order.due_date|date:"M d, Y" }}</span>
+                    <span class="info-value">{{ sale_order.sales_invoice.due_date|date:"M d, Y" }}</span>
                 </div>
-                {% if is_overdue %}
+                {% if sale_order.sales_invoice.is_overdue %}
                 <div class="info-row">
                     <span class="info-label">Overdue:</span>
-                    <span class="info-value" style="color: #dc3545;">{{ overdue_days }} days</span>
+                    <span class="info-value" style="color: #dc3545;">{{ sale_order.sales_invoice.days_overdue }} days</span>
                 </div>
-                {% elif remaining_days is not None %}
+                {% else %}
                 <div class="info-row">
-                    <span class="info-label">Remaining:</span>
-                    <span class="info-value">{{ remaining_days }} days</span>
+                    <span class="info-label">Payment Status:</span>
+                    <span class="info-value">{{ sale_order.sales_invoice.payment_status_display }}</span>
                 </div>
                 {% endif %}
                 {% endif %}
             </div>
         </div>
         
-        {% if is_overdue %}
+        {% if sale_order.has_invoice and sale_order.sales_invoice.is_overdue %}
         <div class="overdue-warning">
-            <strong>⚠️ Payment Overdue:</strong> This invoice is {{ overdue_days }} days past due. Please arrange payment immediately.
+            <strong>⚠️ Payment Overdue:</strong> This invoice is {{ sale_order.sales_invoice.days_overdue }} days past due. Please arrange payment immediately.
         </div>
         {% endif %}
     </div>
@@ -391,22 +399,59 @@
     <div class="footer-section">
         <div class="footer-text">
             Thank you for your business!<br>
-            Payment terms: {{ sale_order.PAYMENT_DURATION.days }} days from invoice date<br>
-            Please include invoice number when making payment
+            {% if sale_order.has_invoice %}
+                Payment terms: 45 days from invoice date<br>
+                Please include invoice number when making payment
+            {% else %}
+                This order will be invoiced when ready for delivery<br>
+                Payment terms will be specified on the invoice
+            {% endif %}
         </div>
     </div>
     
     <!-- Action Buttons (Hidden on Print) -->
     <div class="action-buttons no-print">
         <button class="btn-print" onclick="window.print()">
-            <i class="fa fa-print"></i> Print Invoice
+            <i class="fa fa-print"></i> Print Order
         </button>
         <button class="btn-print" onclick="window.history.back()">
             <i class="fa fa-arrow-left"></i> Back to Orders
         </button>
-        {% if sale_order.status == 'ordered' %}
+        
+        <!-- Debug Info (remove in production) -->
+        <div style="background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 12px;">
+            <strong>Debug Info:</strong><br>
+            Status: {{ sale_order.status }}<br>
+            Total Amount: {{ sale_order.total_amount }}<br>
+            Can Create Invoice: {{ sale_order.can_create_invoice }}<br>
+            Has Invoice: {{ sale_order.has_invoice }}
+        </div>
+        
+        <!-- Create Invoice Button -->
+        {% if sale_order.can_create_invoice %}
+        <a href="{% url 'create_invoice_from_order' sale_order.pk %}" class="btn-print" style="text-decoration: none; background-color: #28a745; color: white;">
+            <i class="fa fa-file-invoice"></i> Create Invoice
+        </a>
+        {% else %}
+        <button class="btn-print" style="background-color: #6c757d; color: white; cursor: not-allowed;" disabled>
+            <i class="fa fa-file-invoice"></i> Create Invoice (Order must be confirmed)
+        </button>
+        {% endif %}
+        
+        <!-- View Invoice Button -->
+        {% if sale_order.has_invoice %}
+        <a href="{% url 'invoice_detail' sale_order.sales_invoice.pk %}" class="btn-print" style="text-decoration: none; background-color: #17a2b8; color: white;">
+            <i class="fa fa-eye"></i> View Invoice
+        </a>
+        {% endif %}
+        
+        <!-- Edit Order Button -->
+        {% if sale_order.status == 'draft' %}
         <a href="{% url 'edit_store_sale' sale_order.pk %}" class="btn-print" style="text-decoration: none;">
-            <i class="fa fa-edit"></i> Edit Sale
+            <i class="fa fa-edit"></i> Edit Order
+        </a>
+        <a href="{% url 'confirm_order' sale_order.pk %}" class="btn-print" style="text-decoration: none; background-color: #ffc107; color: #000;">
+            <i class="fa fa-check"></i> Confirm Order
         </a>
         {% endif %}
     </div>

@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quality Control Dashboard{% endblock %}
+
+{% block css %}
+<style>
+    .qc-card {
+        transition: transform 0.2s;
+    }
+    .qc-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    }
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .overdue {
+        color: #dc3545;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'productionPage' %}">PRODUCTION</a></li>
+                <li class="breadcrumb-item active">QUALITY CONTROL DASHBOARD</li>
+            </ul>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-header">
+                    <i class="fa fa-flask me-2"></i>Quality Control Dashboard
+                </h1>
+                <div>
+                    <a href="{% url 'quality_control_test_list' %}" class="btn btn-outline-primary me-2">
+                        <i class="fa fa-list"></i> All Tests
+                    </a>
+                    <a href="{% url 'my_quality_tests' %}" class="btn btn-primary">
+                        <i class="fa fa-user"></i> My Tests
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card qc-card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ pending_tests }}</h4>
+                            <p class="mb-0">Pending Tests</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-black bg-opacity-25">
+                    <a href="{% url 'pending_quality_tests' %}" class="text-white text-decoration-none">
+                        <i class="fa fa-arrow-circle-right"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card qc-card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ in_progress_tests }}</h4>
+                            <p class="mb-0">In Progress</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-flask fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-black bg-opacity-25">
+                    <a href="{% url 'quality_control_test_list' %}?status=in_progress" class="text-white text-decoration-none">
+                        <i class="fa fa-arrow-circle-right"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card qc-card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ completed_tests }}</h4>
+                            <p class="mb-0">Completed</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-black bg-opacity-25">
+                    <a href="{% url 'quality_control_test_list' %}?status=completed" class="text-white text-decoration-none">
+                        <i class="fa fa-arrow-circle-right"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card qc-card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ overdue_tests }}</h4>
+                            <p class="mb-0">Overdue</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-exclamation-triangle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-black bg-opacity-25">
+                    <a href="{% url 'pending_quality_tests' %}" class="text-white text-decoration-none">
+                        <i class="fa fa-arrow-circle-right"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Tests and Quick Actions -->
+    <div class="row">
+        <!-- Recent Tests -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fa fa-history me-2"></i>Recent Quality Tests
+                    </h5>
+                    <a href="{% url 'quality_control_test_list' %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_tests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Test #</th>
+                                    <th>Product</th>
+                                    <th>Batch</th>
+                                    <th>Status</th>
+                                    <th>Assigned To</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in recent_tests %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'quality_control_test_detail' test.id %}" class="text-decoration-none">
+                                            {{ test.test_number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ test.manufactured_product.product.product_name }}</td>
+                                    <td>{{ test.manufactured_product.batch_number }}</td>
+                                    <td>
+                                        {% if test.status == 'pending' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif test.status == 'in_progress' %}
+                                            <span class="badge bg-info">In Progress</span>
+                                        {% elif test.status == 'completed' %}
+                                            {% if test.overall_result == 'pass' %}
+                                                <span class="badge bg-success">Passed</span>
+                                            {% elif test.overall_result == 'fail' %}
+                                                <span class="badge bg-danger">Failed</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Completed</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ test.get_status_display }}</span>
+                                        {% endif %}
+                                        
+                                        {% if test.is_overdue %}
+                                            <i class="fa fa-exclamation-triangle text-danger ms-1" title="Overdue"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.assigned_tester %}
+                                            {{ test.assigned_tester.get_full_name|default:test.assigned_tester.username }}
+                                        {% else %}
+                                            <span class="text-muted">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ test.created_at|date:"M j, Y" }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'quality_control_test_detail' test.id %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fa fa-eye"></i>
+                                            </a>
+                                            {% if test.status != 'completed' %}
+                                            <a href="{% url 'edit_quality_control_test' test.id %}" 
+                                               class="btn btn-outline-success" title="Edit Test">
+                                                <i class="fa fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fa fa-flask fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No quality tests found</p>
+                        <a href="{% url 'manufacturedProductList' %}" class="btn btn-primary">
+                            Start Manufacturing
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions & Stats -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'pending_quality_tests' %}" class="btn btn-warning">
+                            <i class="fa fa-clock me-2"></i>View Pending Tests
+                        </a>
+                        <a href="{% url 'my_quality_tests' %}" class="btn btn-info">
+                            <i class="fa fa-user me-2"></i>My Assigned Tests
+                        </a>
+                        <a href="{% url 'quality_control_reports' %}" class="btn btn-secondary">
+                            <i class="fa fa-chart-bar me-2"></i>QC Reports
+                        </a>
+                        <a href="{% url 'manufacturedProductList' %}" class="btn btn-primary">
+                            <i class="fa fa-plus me-2"></i>View Manufactured Products
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Results Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-chart-pie me-2"></i>Test Results Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if completed_test_results %}
+                        {% for result in completed_test_results %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-capitalize">{{ result.overall_result|default:"Unknown" }}</span>
+                            <span class="badge 
+                                {% if result.overall_result == 'pass' %}bg-success
+                                {% elif result.overall_result == 'fail' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ result.count }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No completed tests yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    // Auto-refresh dashboard every 30 seconds
+    setTimeout(function() {
+        location.reload();
+    }, 30000);
+</script>
+{% endblock %}

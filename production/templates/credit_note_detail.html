@@ -1,0 +1,373 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Credit Note #{{ credit_note.credit_note_number }}{% endblock %}
+
+{% block css %}
+<style>
+    .credit-note-detail-container {
+        max-width: 1000px;
+        margin: 20px auto;
+        background: white;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .credit-note-header {
+        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+    
+    .credit-note-body {
+        padding: 30px;
+    }
+    
+    .credit-note-info {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid #dc3545;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .info-item {
+        background: white;
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .info-value {
+        color: #212529;
+        font-size: 1.1rem;
+    }
+    
+    .amount-summary {
+        background: #dc3545;
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .amount-summary h3 {
+        margin-bottom: 10px;
+        font-size: 2rem;
+    }
+    
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-draft { background: #e2e3e5; color: #383d41; }
+    .status-issued { background: #cce5ff; color: #004085; }
+    .status-applied { background: #d4edda; color: #155724; }
+    .status-cancelled { background: #f8d7da; color: #721c24; }
+    
+    .credit-note-type-badge {
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-weight: 500;
+        font-size: 0.8rem;
+    }
+    
+    .credit-note-type-return { background: #f8d7da; color: #721c24; }
+    .credit-note-type-refund { background: #d1ecf1; color: #0c5460; }
+    .credit-note-type-adjustment { background: #fff3cd; color: #856404; }
+    .credit-note-type-discount { background: #d4edda; color: #155724; }
+    .credit-note-type-error { background: #e2e3e5; color: #383d41; }
+    
+    .related-documents {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .document-link {
+        display: inline-block;
+        background: #007bff;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 4px;
+        text-decoration: none;
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .document-link:hover {
+        background: #0056b3;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .reason-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+    
+    .btn-apply {
+        background: #28a745;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .btn-apply:hover {
+        background: #218838;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .btn-apply:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+        color: white;
+        text-decoration: none;
+    }
+    
+    .chart-accounts {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .account-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .account-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="credit-note-detail-container">
+    <!-- Header -->
+    <div class="credit-note-header">
+        <h2><i class="fa fa-undo me-2"></i>Credit Note #{{ credit_note.credit_note_number }}</h2>
+        <p class="mb-0">{{ credit_note.customer_name }}</p>
+    </div>
+    
+    <!-- Body -->
+    <div class="credit-note-body">
+        <!-- Amount Summary -->
+        <div class="amount-summary">
+            <h3>UGX {{ credit_note.total_amount|floatformat:0|intcomma }}</h3>
+            <p class="mb-0">Total Credit Amount</p>
+        </div>
+        
+        <!-- Credit Note Information -->
+        <div class="credit-note-info">
+            <h5><i class="fa fa-info-circle me-2"></i>Credit Note Information</h5>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Credit Note Number</div>
+                    <div class="info-value">{{ credit_note.credit_note_number }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Date Created</div>
+                    <div class="info-value">{{ credit_note.credit_note_date|date:"M d, Y" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Type</div>
+                    <div class="info-value">
+                        <span class="credit-note-type-badge credit-note-type-{{ credit_note.credit_note_type }}">
+                            {{ credit_note.get_credit_note_type_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">
+                        <span class="status-badge status-{{ credit_note.status }}">
+                            {{ credit_note.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Created By</div>
+                    <div class="info-value">{{ credit_note.created_by.get_full_name|default:credit_note.created_by.username }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Reference Number</div>
+                    <div class="info-value">{{ credit_note.reference_number|default:"N/A" }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Customer Information -->
+        <div class="credit-note-info">
+            <h5><i class="fa fa-user me-2"></i>Customer Information</h5>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Customer Name</div>
+                    <div class="info-value">{{ credit_note.customer_name }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Phone Number</div>
+                    <div class="info-value">{{ credit_note.customer_phone|default:"N/A" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Email Address</div>
+                    <div class="info-value">{{ credit_note.customer_email|default:"N/A" }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Financial Details -->
+        <div class="credit-note-info">
+            <h5><i class="fa fa-calculator me-2"></i>Financial Details</h5>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Subtotal</div>
+                    <div class="info-value">UGX {{ credit_note.subtotal|floatformat:0|intcomma }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Tax Amount</div>
+                    <div class="info-value">UGX {{ credit_note.tax_amount|floatformat:0|intcomma }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Total Amount</div>
+                    <div class="info-value">UGX {{ credit_note.total_amount|floatformat:0|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chart of Accounts -->
+        <div class="chart-accounts">
+            <h5><i class="fa fa-chart-line me-2"></i>Chart of Accounts</h5>
+            <div class="account-item">
+                <div>
+                    <strong>Accounts Receivable Account:</strong><br>
+                    <small class="text-muted">Account to debit (reduce receivable)</small>
+                </div>
+                <div>
+                    {{ credit_note.accounts_receivable_account.account_code }} - {{ credit_note.accounts_receivable_account.account_name }}
+                </div>
+            </div>
+            <div class="account-item">
+                <div>
+                    <strong>Sales Return Account:</strong><br>
+                    <small class="text-muted">Account to credit (sales returns)</small>
+                </div>
+                <div>
+                    {{ credit_note.sales_return_account.account_code }} - {{ credit_note.sales_return_account.account_name }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Related Documents -->
+        <div class="related-documents">
+            <h5><i class="fa fa-file-alt me-2"></i>Related Documents</h5>
+            <a href="{% url 'invoice_detail' credit_note.sales_invoice.pk %}" class="document-link">
+                <i class="fa fa-file-invoice me-1"></i>View Invoice #{{ credit_note.invoice_number }}
+            </a>
+            <a href="{% url 'store_sale_order_details' credit_note.order.pk %}" class="document-link">
+                <i class="fa fa-shopping-cart me-1"></i>View Order #{{ credit_note.order_number }}
+            </a>
+        </div>
+        
+        <!-- Reason and Notes -->
+        <div class="reason-section">
+            <h5><i class="fa fa-sticky-note me-2"></i>Reason and Notes</h5>
+            <div class="mb-3">
+                <strong>Reason for Credit Note:</strong><br>
+                {{ credit_note.reason|linebreaks }}
+            </div>
+            {% if credit_note.notes %}
+            <div>
+                <strong>Additional Notes:</strong><br>
+                {{ credit_note.notes|linebreaks }}
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <a href="{% url 'list_credit_notes' %}" class="btn-secondary">
+                <i class="fa fa-arrow-left me-1"></i>Back to Credit Notes
+            </a>
+            
+            {% if credit_note.can_be_applied %}
+            <a href="{% url 'apply_credit_note' credit_note.pk %}" class="btn-apply">
+                <i class="fa fa-check me-1"></i>Apply Credit Note
+            </a>
+            {% else %}
+            <button class="btn-apply" disabled>
+                <i class="fa fa-check me-1"></i>Apply Credit Note
+            </button>
+            {% endif %}
+        </div>
+        
+        <!-- Application Status -->
+        {% if credit_note.status == 'applied' %}
+        <div class="alert alert-success mt-3">
+            <i class="fa fa-check-circle me-2"></i>
+            <strong>Credit Note Applied:</strong> This credit note has been applied to reduce the invoice balance.
+        </div>
+        {% elif credit_note.status == 'issued' %}
+        <div class="alert alert-info mt-3">
+            <i class="fa fa-info-circle me-2"></i>
+            <strong>Credit Note Ready:</strong> This credit note is ready to be applied to the invoice.
+        </div>
+        {% elif credit_note.status == 'cancelled' %}
+        <div class="alert alert-warning mt-3">
+            <i class="fa fa-exclamation-triangle me-2"></i>
+            <strong>Credit Note Cancelled:</strong> This credit note has been cancelled and cannot be applied.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

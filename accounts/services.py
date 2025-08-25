@@ -141,10 +141,20 @@ class AccountingService:
         try:
             with transaction.atomic():
                 # Calculate manufacturing cost from raw material usage
-                total_cost = sum(
-                    ingredient.quantity_used * ingredient.raw_material.current_price
-                    for ingredient in manufacture_product.manufacturedproductingredient_set.all()
-                )
+                total_cost = 0
+                for ingredient in manufacture_product.used_ingredients.all():
+                    # Get the latest price for this raw material from any supplier
+                    from production.models import RawMaterialPrice
+                    latest_price = RawMaterialPrice.objects.filter(
+                        raw_material=ingredient.raw_material,
+                        is_current=True
+                    ).first()
+                    
+                    ingredient_cost = 0
+                    if latest_price:
+                        ingredient_cost = ingredient.quantity_used * latest_price.price
+                    
+                    total_cost += ingredient_cost
                 
                 # Create journal entry
                 journal_entry = JournalEntry.objects.create(

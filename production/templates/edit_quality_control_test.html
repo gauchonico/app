@@ -1,0 +1,719 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit QC Test {{ test.test_number }}{% endblock %}
+
+{% block css %}
+<style>
+    .parameter-formset {
+        {% comment %} background: #f8f9fa; {% endcomment %}
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+    }
+    .parameter-row {
+        {% comment %} background: white; {% endcomment %}
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        position: relative;
+    }
+    .parameter-row.deleted {
+        background: #f8d7da;
+        opacity: 0.7;
+    }
+    .delete-parameter {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    .form-section {
+        {% comment %} background: #fff; {% endcomment %}
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .section-header {
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .parameter-type-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    .result-indicator {
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+    .pass { color: #198754; }
+    .fail { color: #dc3545; }
+    .na { color: #6c757d; }
+    
+    .auto-calc-field {
+        background-color: #e9ecef;
+    }
+    
+    .progress-section {
+        {% comment %} background: #e3f2fd; {% endcomment %}
+        border-left: 4px solid #2196f3;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'productionPage' %}">PRODUCTION</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_dashboard' %}">QUALITY CONTROL</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_test_detail' test.id %}">{{ test.test_number }}</a></li>
+                <li class="breadcrumb-item active">EDIT</li>
+            </ul>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-header">
+                    <i class="fa fa-edit me-2"></i>Edit QC Test {{ test.test_number }}
+                    <span class="badge bg-info ms-2">{{ test.get_status_display }}</span>
+                </h1>
+                <div>
+                    <a href="{% url 'quality_control_test_detail' test.id %}" class="btn btn-outline-secondary me-2">
+                        <i class="fa fa-arrow-left"></i> Back to Test
+                    </a>
+                    <button type="button" class="btn btn-info" onclick="autoFillSampleData()">
+                        <i class="fa fa-magic"></i> Auto-fill Sample Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="qc-test-form">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Main Form -->
+            <div class="col-lg-8">
+                <!-- Test Information -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <h5><i class="fa fa-info-circle me-2"></i>Test Information</h5>
+                    </div>
+                    
+                    <!-- Progress Indicator -->
+                    <div class="progress-section">
+                        <h6 class="mb-3">Test Progress</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="progress mb-2" style="height: 8px;">
+                                    <div class="progress-bar bg-info" id="parameter-progress" style="width: 0%"></div>
+                                </div>
+                                <small class="text-muted">Parameters Completed: <span id="progress-text">0/0</span></small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-end">
+                                    <span class="badge bg-secondary" id="overall-status">In Progress</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                {{ form.status }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Overall Result</label>
+                                {{ form.overall_result }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Actual Test Date</label>
+                                {{ form.actual_test_date }}
+                                <small class="form-text text-muted">When testing actually started</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Testing Duration (Hours)</label>
+                                {{ form.testing_duration_hours }}
+                                <small class="form-text text-muted">Total time spent testing</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Pass Percentage</label>
+                                {{ form.pass_percentage }}
+                                <small class="form-text text-muted">Auto-calculated based on parameters</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Parameters -->
+                <div class="form-section">
+                    <div class="section-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fa fa-list-alt me-2"></i>Test Parameters</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addParameter()">
+                            <i class="fa fa-plus"></i> Add Parameter
+                        </button>
+                    </div>
+                    
+                    <div id="parameter-formset">
+                        {{ parameter_formset.management_form }}
+                        {{ parameter_formset.non_form_errors }}
+                        
+                        <div id="parameter-forms">
+                            {% for form in parameter_formset %}
+                                <div class="parameter-row" data-form-idx="{{ forloop.counter0 }}">
+                                    {% if form.DELETE %}
+                                        <div class="delete-parameter">
+                                            {{ form.DELETE }}
+                                            <label for="{{ form.DELETE.id_for_label }}" class="btn btn-sm btn-outline-danger">
+                                                <i class="fa fa-trash"></i> Delete
+                                            </label>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {{ form.non_field_errors }}
+                                    {% for hidden in form.hidden_fields %}
+                                        {{ hidden }}
+                                    {% endfor %}
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.parameter_name.label }}</label>
+                                                {{ form.parameter_name }}
+                                                {{ form.parameter_name.errors }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.parameter_type.label }}</label>
+                                                {{ form.parameter_type }}
+                                                {{ form.parameter_type.errors }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.measurement_unit.label }}</label>
+                                                {{ form.measurement_unit }}
+                                                {{ form.measurement_unit.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.target_value.label }}</label>
+                                                {{ form.target_value }}
+                                                {{ form.target_value.errors }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.min_acceptable.label }}</label>
+                                                {{ form.min_acceptable }}
+                                                {{ form.min_acceptable.errors }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.max_acceptable.label }}</label>
+                                                {{ form.max_acceptable }}
+                                                {{ form.max_acceptable.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.measured_value.label }}</label>
+                                                {{ form.measured_value }}
+                                                {{ form.measured_value.errors }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.result_status.label }}</label>
+                                                {{ form.result_status }}
+                                                {{ form.result_status.errors }}
+                                                <div class="result-indicator mt-1" data-result-field="{{ form.result_status.id_for_label }}">
+                                                    <span class="na">Not Tested</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.test_method.label }}</label>
+                                                {{ form.test_method }}
+                                                {{ form.test_method.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {% if form.notes %}
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="mb-3">
+                                                <label class="form-label">{{ form.notes.label }}</label>
+                                                {{ form.notes }}
+                                                {{ form.notes.errors }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Notes and Results -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <h5><i class="fa fa-clipboard-list me-2"></i>Test Notes & Results</h5>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.testing_notes.label }}</label>
+                                {{ form.testing_notes }}
+                                {{ form.testing_notes.errors }}
+                                <small class="form-text text-muted">General observations during testing</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.failure_reasons.label }}</label>
+                                {{ form.failure_reasons }}
+                                {{ form.failure_reasons.errors }}
+                                <small class="form-text text-muted">Detailed reasons if test fails</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.recommendations.label }}</label>
+                                {{ form.recommendations }}
+                                {{ form.recommendations.errors }}
+                                <small class="form-text text-muted">QC recommendations and next steps</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <!-- Test Summary -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fa fa-info-circle me-2"></i>Test Summary
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td><strong>Product:</strong></td>
+                                <td>{{ test.manufactured_product.product.product_name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Batch:</strong></td>
+                                <td><code>{{ test.manufactured_product.batch_number }}</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Sample Qty:</strong></td>
+                                <td>{{ test.sample_quantity }} bottles</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Priority:</strong></td>
+                                <td>
+                                    <span class="badge bg-{{ test.priority }}">{{ test.get_priority_display }}</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Created:</strong></td>
+                                <td>{{ test.created_at|date:"M j, Y" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fa fa-bolt me-2"></i>Quick Actions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-save me-2"></i>Save Progress
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="completeTest()">
+                                <i class="fa fa-check me-2"></i>Complete Test
+                            </button>
+                            <button type="button" class="btn btn-info" onclick="calculatePassRate()">
+                                <i class="fa fa-calculator me-2"></i>Calculate Pass Rate
+                            </button>
+                            <a href="{% url 'quality_control_test_detail' test.id %}" class="btn btn-outline-secondary">
+                                <i class="fa fa-eye me-2"></i>View Test Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help & Guidelines -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fa fa-question-circle me-2"></i>Testing Guidelines
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb-2">
+                                <i class="fa fa-check text-success me-2"></i>
+                                <small>Record actual measured values accurately</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fa fa-check text-success me-2"></i>
+                                <small>Mark pass/fail based on acceptable ranges</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fa fa-check text-success me-2"></i>
+                                <small>Add detailed notes for any anomalies</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fa fa-check text-success me-2"></i>
+                                <small>Complete all parameters before finishing</small>
+                            </li>
+                            <li>
+                                <i class="fa fa-check text-success me-2"></i>
+                                <small>Review results before final submission</small>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+let parameterFormCount = {{ parameter_formset.total_form_count }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateProgress();
+    initializeResultIndicators();
+    setupParameterValidation();
+    
+    // Auto-save every 2 minutes
+    setInterval(autoSave, 120000);
+});
+
+function addParameter() {
+    const formContainer = document.getElementById('parameter-forms');
+    const totalForms = document.getElementById('id_test_parameters-TOTAL_FORMS');
+    const formNum = parseInt(totalForms.value);
+    
+    // Clone the last parameter form and update IDs
+    const lastForm = document.querySelector('.parameter-row:last-child');
+    const newForm = lastForm.cloneNode(true);
+    
+    // Update form index and clear values
+    newForm.setAttribute('data-form-idx', formNum);
+    newForm.querySelectorAll('input, select, textarea').forEach(function(input) {
+        const name = input.name.replace(/-\d+-/, `-${formNum}-`);
+        const id = input.id.replace(/-\d+-/, `-${formNum}-`);
+        input.name = name;
+        input.id = id;
+        if (input.type !== 'hidden') {
+            input.value = '';
+        }
+    });
+    
+    // Update labels
+    newForm.querySelectorAll('label').forEach(function(label) {
+        const forAttr = label.getAttribute('for');
+        if (forAttr) {
+            label.setAttribute('for', forAttr.replace(/-\d+-/, `-${formNum}-`));
+        }
+    });
+    
+    formContainer.appendChild(newForm);
+    totalForms.value = formNum + 1;
+    parameterFormCount++;
+    
+    updateProgress();
+}
+
+function initializeResultIndicators() {
+    document.querySelectorAll('[data-result-field]').forEach(function(indicator) {
+        const fieldId = indicator.getAttribute('data-result-field');
+        const select = document.getElementById(fieldId);
+        
+        if (select) {
+            updateResultIndicator(select, indicator);
+            select.addEventListener('change', function() {
+                updateResultIndicator(this, indicator);
+                updateProgress();
+            });
+        }
+    });
+}
+
+function updateResultIndicator(select, indicator) {
+    const value = select.value;
+    indicator.innerHTML = '';
+    
+    if (value === 'pass') {
+        indicator.innerHTML = '<span class="pass"><i class="fa fa-check-circle"></i> Pass</span>';
+    } else if (value === 'fail') {
+        indicator.innerHTML = '<span class="fail"><i class="fa fa-times-circle"></i> Fail</span>';
+    } else {
+        indicator.innerHTML = '<span class="na"><i class="fa fa-minus-circle"></i> Not Tested</span>';
+    }
+}
+
+function setupParameterValidation() {
+    // Auto-validate measured values against acceptable ranges
+    document.querySelectorAll('input[name*="measured_value"]').forEach(function(input) {
+        input.addEventListener('blur', function() {
+            validateParameter(this);
+        });
+    });
+}
+
+function validateParameter(measuredInput) {
+    const row = measuredInput.closest('.parameter-row');
+    const minInput = row.querySelector('input[name*="min_acceptable"]');
+    const maxInput = row.querySelector('input[name*="max_acceptable"]');
+    const resultSelect = row.querySelector('select[name*="result_status"]');
+    
+    if (!measuredInput.value) return;
+    
+    const measured = parseFloat(measuredInput.value);
+    const min = minInput?.value ? parseFloat(minInput.value) : null;
+    const max = maxInput?.value ? parseFloat(maxInput.value) : null;
+    
+    let isPass = true;
+    
+    if (min !== null && measured < min) isPass = false;
+    if (max !== null && measured > max) isPass = false;
+    
+    if (resultSelect && !isNaN(measured)) {
+        resultSelect.value = isPass ? 'pass' : 'fail';
+        resultSelect.dispatchEvent(new Event('change'));
+    }
+}
+
+function updateProgress() {
+    const resultSelects = document.querySelectorAll('select[name*="result_status"]');
+    const totalParams = resultSelects.length;
+    let completedParams = 0;
+    let passedParams = 0;
+    
+    resultSelects.forEach(function(select) {
+        if (select.value && select.value !== 'na') {
+            completedParams++;
+            if (select.value === 'pass') {
+                passedParams++;
+            }
+        }
+    });
+    
+    const progressPercent = totalParams > 0 ? (completedParams / totalParams) * 100 : 0;
+    const passPercent = totalParams > 0 ? (passedParams / totalParams) * 100 : 0;
+    
+    // Update progress bar
+    const progressBar = document.getElementById('parameter-progress');
+    if (progressBar) {
+        progressBar.style.width = progressPercent + '%';
+    }
+    
+    // Update progress text
+    const progressText = document.getElementById('progress-text');
+    if (progressText) {
+        progressText.textContent = completedParams + '/' + totalParams;
+    }
+    
+    // Update pass percentage field
+    const passPercentField = document.getElementById('id_pass_percentage');
+    if (passPercentField && totalParams > 0) {
+        passPercentField.value = passPercent.toFixed(1);
+    }
+    
+    // Update overall status
+    const statusField = document.getElementById('id_overall_result');
+    const statusBadge = document.getElementById('overall-status');
+    
+    if (completedParams === totalParams && totalParams > 0) {
+        if (passPercent >= 80) {
+            if (statusField) statusField.value = 'pass';
+            if (statusBadge) {
+                statusBadge.textContent = 'Pass';
+                statusBadge.className = 'badge bg-success';
+            }
+        } else if (passPercent >= 60) {
+            if (statusField) statusField.value = 'conditional_pass';
+            if (statusBadge) {
+                statusBadge.textContent = 'Conditional Pass';
+                statusBadge.className = 'badge bg-warning';
+            }
+        } else {
+            if (statusField) statusField.value = 'fail';
+            if (statusBadge) {
+                statusBadge.textContent = 'Fail';
+                statusBadge.className = 'badge bg-danger';
+            }
+        }
+    }
+}
+
+function calculatePassRate() {
+    updateProgress();
+    alert('Pass rate calculated and updated automatically based on parameter results.');
+}
+
+function completeTest() {
+    const statusField = document.getElementById('id_status');
+    const actualDateField = document.getElementById('id_actual_test_date');
+    
+    if (statusField) {
+        statusField.value = 'completed';
+    }
+    
+    if (actualDateField && !actualDateField.value) {
+        const now = new Date();
+        const isoString = now.toISOString().slice(0, 16);
+        actualDateField.value = isoString;
+    }
+    
+    updateProgress();
+    
+    // Submit the form
+    document.getElementById('qc-test-form').submit();
+}
+
+function autoSave() {
+    // Auto-save functionality
+    const formData = new FormData(document.getElementById('qc-test-form'));
+    formData.append('auto_save', 'true');
+    
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    }).then(response => {
+        if (response.ok) {
+            // Show auto-save indicator
+            showNotification('Progress auto-saved', 'success');
+        }
+    }).catch(error => {
+        console.error('Auto-save failed:', error);
+    });
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 200px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+function autoFillSampleData() {
+    if (confirm('This will fill in sample test data for demonstration purposes. Continue?')) {
+        // Fill in sample data for parameters
+        const sampleData = [
+            {parameter: 'pH Level', type: 'chemical', unit: 'ph', target: '7.0', min: '6.5', max: '7.5', measured: '6.8', result: 'pass'},
+            {parameter: 'Density', type: 'physical', unit: 'mg_per_ml', target: '1.02', min: '1.00', max: '1.05', measured: '1.03', result: 'pass'},
+            {parameter: 'Color', type: 'sensory', unit: 'visual', target: 'Clear', min: '', max: '', measured: 'Clear', result: 'pass'}
+        ];
+        
+        const parameterRows = document.querySelectorAll('.parameter-row');
+        parameterRows.forEach((row, index) => {
+            if (index < sampleData.length) {
+                const data = sampleData[index];
+                const fields = {
+                    'parameter_name': data.parameter,
+                    'parameter_type': data.type,
+                    'measurement_unit': data.unit,
+                    'target_value': data.target,
+                    'min_acceptable': data.min,
+                    'max_acceptable': data.max,
+                    'measured_value': data.measured,
+                    'result_status': data.result
+                };
+                
+                Object.keys(fields).forEach(fieldName => {
+                    const input = row.querySelector(`[name*="${fieldName}"]`);
+                    if (input && fields[fieldName]) {
+                        input.value = fields[fieldName];
+                        if (input.tagName === 'SELECT') {
+                            input.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+            }
+        });
+        
+        updateProgress();
+    }
+}
+
+// Handle delete parameter checkboxes
+document.addEventListener('change', function(e) {
+    if (e.target.name && e.target.name.includes('DELETE')) {
+        const row = e.target.closest('.parameter-row');
+        if (e.target.checked) {
+            row.classList.add('deleted');
+        } else {
+            row.classList.remove('deleted');
+        }
+        updateProgress();
+    }
+});
+</script>
+{% endblock %}

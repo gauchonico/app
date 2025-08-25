@@ -1,0 +1,537 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Invoice #{{ invoice.invoice_number }}{% endblock %}
+
+{% block css %}
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { margin: 0; padding: 20px; }
+            .invoice-container { box-shadow: none; border: 1px solid #ddd; }
+        }
+        
+        .invoice-container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .invoice-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .company-logo {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .company-details {
+            font-size: 0.5rem;
+            opacity: 0.9;
+        }
+        
+        .invoice-info {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .invoice-title {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .invoice-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+        
+        .customer-info, .invoice-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .customer-info h4, .invoice-details h4 {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #6c757d;
+        }
+        
+        .info-value {
+            color: #333;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-paid { background: #d4edda; color: #155724; }
+        .status-sent { background: #fff3cd; color: #856404; }
+        .status-overdue { background: #f8d7da; color: #721c24; }
+        .status-draft { background: #e2e3e5; color: #383d41; }
+        
+        .overdue-warning {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .items-section {
+            padding: 30px;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .items-table th {
+            background: #f8f9fa;
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .item-name {
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .item-details {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 4px;
+        }
+        
+        .amount-cell {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .summary-section {
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .summary-table td {
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .summary-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .summary-value {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        
+        .total-row {
+            border-top: 2px solid #dee2e6;
+            font-size: 1.1rem;
+        }
+        
+        .total-row .summary-label {
+            color: #333;
+        }
+        
+        .total-row .summary-value {
+            color: #28a745;
+        }
+        
+        .footer-section {
+            padding: 30px;
+            background: #f8f9fa;
+            text-align: center;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .footer-text {
+            color: #6c757d;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .action-buttons {
+            padding: 20px;
+            text-align: center;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .btn-print {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-print:hover {
+            background: #0056b3;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .payment-status {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .receipts-section {
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .receipts-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .receipts-table th {
+            background: #e9ecef;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .receipts-table td {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="invoice-container">
+    <!-- Invoice Header -->
+    <div class="invoice-header">
+        <div class="company-logo">THE VENTURES INC</div>
+        <div class="company-details">
+            Plot 131 Martyrs Way, Ntinda<br>
+            Phone: +256 123 456 789 | Email: info@theventuresinc.com<br>
+            Website: www.theventuresinc.com | TIN: 123456789
+        </div>
+    </div>
+    
+    <!-- Invoice Information -->
+    <div class="invoice-info">
+        <div class="invoice-title">INVOICE</div>
+        
+        <div class="invoice-meta">
+            <div class="customer-info">
+                <h4>To:</h4>
+                <div class="info-row">
+                    <span class="info-label">Customer:</span>
+                    <span class="info-value">{{ invoice.customer.first_name }} {{ invoice.customer.last_name }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Phone:</span>
+                    <span class="info-value">{{ invoice.customer.phone }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ invoice.customer.email }}</span>
+                </div>
+                {% if invoice.billing_address %}
+                <div class="info-row">
+                    <span class="info-label">Address:</span>
+                    <span class="info-value">{{ invoice.billing_address|linebreaks }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="invoice-details">
+                <h4>Invoice Details:</h4>
+                <div class="info-row">
+                    <span class="info-label">Invoice #:</span>
+                    <span class="info-value">{{ invoice.invoice_number }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Order #:</span>
+                    <span class="info-value">{{ invoice.store_sale.order_number }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Invoice Date:</span>
+                    <span class="info-value">{{ invoice.invoice_date|date:"M d, Y" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Due Date:</span>
+                    <span class="info-value">{{ invoice.due_date|date:"M d, Y" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value">
+                        <span class="status-badge status-{{ invoice.status }}">
+                            {{ invoice.get_status_display }}
+                        </span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Payment Status:</span>
+                    <span class="info-value">{{ invoice.payment_status_display }}</span>
+                </div>
+            </div>
+        </div>
+        
+        {% if invoice.is_overdue %}
+        <div class="overdue-warning">
+            <strong>⚠️ Payment Overdue:</strong> This invoice is {{ invoice.days_overdue }} days past due. Please arrange payment immediately.
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Payment Status Section -->
+    <div class="payment-status">
+        <h5><i class="fa fa-credit-card me-2"></i>Payment Summary</h5>
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Total Amount:</strong><br>
+                <span class="text-primary">UGX {{ invoice.total_amount|floatformat:0|intcomma }}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Amount Paid:</strong><br>
+                <span class="text-success">UGX {{ invoice.amount_paid|floatformat:0|intcomma }}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Balance Due:</strong><br>
+                <span class="text-danger">UGX {{ invoice.balance_due|floatformat:0|intcomma }}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Receipts:</strong><br>
+                <span class="text-info">{{ invoice.receipts.count }} receipt(s)</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Items Section -->
+    <div class="items-section">
+        <h4 style="margin-bottom: 20px; color: #333;">Items Ordered</h4>
+        
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Subtotal</th>
+                    <th>Tax</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.saleitem_set.all %}
+                <tr>
+                    <td>
+                        <div class="item-name">{{ item.product.product.product.product_name }}</div>
+                        {% if item.price_group %}
+                        <div class="item-details">Price Group: {{ item.price_group.name }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.quantity|floatformat:0 }}</td>
+                    <td class="amount-cell">UGX {{ item.chosen_price|floatformat:0|intcomma }}</td>
+                    <td class="amount-cell">UGX {{ item.total_price|floatformat:0|intcomma }}</td>
+                    <td class="amount-cell">
+                        {% if invoice.tax_code and invoice.subtotal > 0 %}
+                            {% widthratio item.total_price invoice.tax_amount invoice.subtotal as item_tax %}
+                            UGX {{ item_tax|floatformat:0|intcomma }}
+                        {% else %}
+                            UGX 0
+                        {% endif %}
+                    </td>
+                    <td class="amount-cell">
+                        {% if invoice.tax_code and invoice.subtotal > 0 %}
+                            {% widthratio item.total_price invoice.tax_amount invoice.subtotal as item_tax %}
+                            {% widthratio item.total_price|add:item_tax 1 1 as item_total_with_tax %}
+                            UGX {{ item_total_with_tax|floatformat:0|intcomma }}
+                        {% else %}
+                            UGX {{ item.total_price|floatformat:0|intcomma }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Summary Section -->
+    <div class="summary-section">
+        <table class="summary-table">
+            <tr>
+                <td class="summary-label">Subtotal:</td>
+                <td class="summary-value">UGX {{ invoice.subtotal|floatformat:0|intcomma }}</td>
+            </tr>
+            {% if invoice.tax_amount > 0 %}
+            <tr>
+                <td class="summary-label">
+                    {% if invoice.tax_code %}
+                        {{ invoice.tax_code.name }} ({{ invoice.tax_code.rate }}%):
+                    {% else %}
+                        Tax:
+                    {% endif %}
+                </td>
+                <td class="summary-value">UGX {{ invoice.tax_amount|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endif %}
+            {% if invoice.withholding_tax > 0 %}
+            <tr>
+                <td class="summary-label">Withholding Tax (6%):</td>
+                <td class="summary-value">UGX {{ invoice.withholding_tax|floatformat:0|intcomma }}</td>
+            </tr>
+            {% endif %}
+            <tr class="total-row">
+                <td class="summary-label">Total Amount:</td>
+                <td class="summary-value">UGX {{ invoice.total_amount|floatformat:0|intcomma }}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Receipts Section -->
+    {% if invoice.receipts.exists %}
+    <div class="receipts-section">
+        <h4><i class="fa fa-receipt me-2"></i>Payment Receipts</h4>
+        <table class="receipts-table">
+            <thead>
+                <tr>
+                    <th>Receipt #</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for receipt in invoice.receipts.all %}
+                <tr>
+                    <td>{{ receipt.receipt_number }}</td>
+                    <td>{{ receipt.receipt_date|date:"M d, Y" }}</td>
+                    <td class="amount-cell">UGX {{ receipt.total_due|floatformat:0|intcomma }}</td>
+                    <td>{{ receipt.get_payment_method_display }}</td>
+                    <td>
+                        <span class="badge bg-success">Paid</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Footer -->
+    <div class="footer-section">
+        <div class="footer-text">
+            Thank you for your business!<br>
+            Payment terms: 45 days from invoice date<br>
+            Please include invoice number when making payment
+        </div>
+    </div>
+    
+    <!-- Action Buttons (Hidden on Print) -->
+    <div class="action-buttons no-print">
+        <button class="btn-print" onclick="window.print()">
+            <i class="fa fa-print"></i> Print Invoice
+        </button>
+        <button class="btn-print" onclick="window.history.back()">
+            <i class="fa fa-arrow-left"></i> Back to Invoices
+        </button>
+        
+        {% comment %} <!-- Send Invoice Button -->
+        {% if invoice.status == 'draft' %}
+        <a href="{% url 'send_invoice' invoice.pk %}" class="btn-print" style="background-color: #ffc107; color: #000;">
+            <i class="fa fa-paper-plane"></i> Send Invoice
+        </a>
+        {% endif %} {% endcomment %}
+        
+        <!-- Create Receipt Button -->
+        {% if invoice.can_create_receipt %}
+        <a href="{% url 'create_receipt_from_invoice' invoice.pk %}" class="btn-print" style="background-color: #28a745;">
+            <i class="fa fa-plus"></i> Issue Receipt
+        </a>
+        {% elif invoice.status == 'draft' %}
+        <button class="btn-print" style="background-color: #6c757d; cursor: not-allowed;" disabled>
+            <i class="fa fa-plus"></i> Issue Receipt (Send Invoice First)
+        </button>
+        {% elif invoice.balance_due <= 0 %}
+        <button class="btn-print" style="background-color: #6c757d; cursor: not-allowed;" disabled>
+            <i class="fa fa-plus"></i> Issue Receipt (Fully Paid)
+        </button>
+        {% else %}
+        <button class="btn-print" style="background-color: #6c757d; cursor: not-allowed;" disabled>
+            <i class="fa fa-plus"></i> Issue Receipt (Not Available)
+        </button>
+        {% endif %}
+        
+        <!-- View Order Button -->
+        <a href="{% url 'store_sale_order_details' invoice.store_sale.pk %}" class="btn-print" style="background-color: #17a2b8;">
+            <i class="fa fa-eye"></i> View Order
+        </a>
+        
+        <!-- Create Credit Note Button -->
+        <a href="{% url 'create_credit_note_from_invoice' invoice.pk %}" class="btn-print" style="background-color: #dc3545;">
+            <i class="fa fa-undo"></i> Create Credit Note
+        </a>
+    </div>
+</div>
+{% endblock %}

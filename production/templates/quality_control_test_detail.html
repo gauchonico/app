@@ -1,0 +1,522 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}QC Test {{ test.test_number }}{% endblock %}
+
+{% block css %}
+<style>
+    .info-card {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+    }
+    .parameter-row:hover {
+        background-color: #f8f9fa;
+    }
+    .status-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    .status-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #dee2e6;
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -0.75rem;
+        top: 0.5rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #007bff;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #dee2e6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'productionPage' %}">PRODUCTION</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_dashboard' %}">QUALITY CONTROL</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_test_list' %}">TESTS</a></li>
+                <li class="breadcrumb-item active">{{ test.test_number }}</li>
+            </ul>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-header">
+                    <i class="fa fa-flask me-2"></i>QC Test {{ test.test_number }}
+                    {% if test.overall_result == 'pass' %}
+                        <span class="badge bg-success ms-2">PASSED</span>
+                    {% elif test.overall_result == 'fail' %}
+                        <span class="badge bg-danger ms-2">FAILED</span>
+                    {% elif test.overall_result == 'conditional_pass' %}
+                        <span class="badge bg-warning ms-2">CONDITIONAL</span>
+                    {% elif test.status == 'pending' %}
+                        <span class="badge bg-warning ms-2">PENDING</span>
+                    {% elif test.status == 'in_progress' %}
+                        <span class="badge bg-info ms-2">IN PROGRESS</span>
+                    {% endif %}
+                    
+                    {% if test.is_overdue %}
+                        <span class="badge bg-danger ms-2">OVERDUE</span>
+                    {% endif %}
+                </h1>
+                <div>
+                    <a href="{% url 'quality_control_test_list' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fa fa-arrow-left"></i> Back to List
+                    </a>
+                    {% if test.status != 'completed' and test.status != 'cancelled' %}
+                    <a href="{% url 'edit_quality_control_test' test.id %}" class="btn btn-primary me-2">
+                        <i class="fa fa-edit"></i> Edit Test
+                    </a>
+                    {% endif %}
+                    {% if test.status == 'completed' and test.overall_result != 'pass' %}
+                    <a href="{% url 'quality_control_action' test.id %}" class="btn btn-warning">
+                        <i class="fa fa-cog"></i> Take Action
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Test Information -->
+        <div class="col-lg-8">
+            <!-- Basic Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-info-circle me-2"></i>Test Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Test Number:</strong></td>
+                                    <td>{{ test.test_number }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Test Name:</strong></td>
+                                    <td>{{ test.test_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Product:</strong></td>
+                                    <td>{{ test.manufactured_product.product.product_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Batch Number:</strong></td>
+                                    <td><code>{{ test.manufactured_product.batch_number }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Sample Quantity:</strong></td>
+                                    <td>{{ test.sample_quantity }} bottles</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        {% if test.status == 'pending' %}
+                                            <span class="badge bg-warning">{{ test.get_status_display }}</span>
+                                        {% elif test.status == 'in_progress' %}
+                                            <span class="badge bg-info">{{ test.get_status_display }}</span>
+                                        {% elif test.status == 'completed' %}
+                                            <span class="badge bg-success">{{ test.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ test.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Priority:</strong></td>
+                                    <td>
+                                        {% if test.priority == 'urgent' %}
+                                            <span class="badge bg-danger">{{ test.get_priority_display }}</span>
+                                        {% elif test.priority == 'high' %}
+                                            <span class="badge bg-warning">{{ test.get_priority_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-info">{{ test.get_priority_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Assigned Tester:</strong></td>
+                                    <td>
+                                        {% if test.assigned_tester %}
+                                            {{ test.assigned_tester.get_full_name|default:test.assigned_tester.username }}
+                                        {% else %}
+                                            <span class="text-muted">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Scheduled Date:</strong></td>
+                                    <td>
+                                        {% if test.scheduled_test_date %}
+                                            {{ test.scheduled_test_date|date:"M j, Y H:i" }}
+                                        {% else %}
+                                            <span class="text-muted">Not scheduled</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Created:</strong></td>
+                                    <td>{{ test.created_at|date:"M j, Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Parameters -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fa fa-list-alt me-2"></i>Test Parameters
+                    </h5>
+                    {% if parameters.count %}
+                        <span class="badge bg-secondary">{{ parameters.count }} parameters</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if parameters %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Type</th>
+                                    <th>Target Value</th>
+                                    <th>Acceptable Range</th>
+                                    <th>Measured Value</th>
+                                    <th>Result</th>
+                                    <th>Tested By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for param in parameters %}
+                                <tr class="parameter-row">
+                                    <td>
+                                        <strong>{{ param.parameter_name }}</strong>
+                                        {% if param.test_method %}
+                                            <br><small class="text-muted">{{ param.test_method }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ param.get_parameter_type_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if param.target_value %}
+                                            {{ param.target_value }} <small class="text-muted">{{ param.get_measurement_unit_display }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Not set</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if param.min_acceptable and param.max_acceptable %}
+                                            {{ param.min_acceptable }} - {{ param.max_acceptable }}
+                                        {% elif param.min_acceptable %}
+                                            ≥ {{ param.min_acceptable }}
+                                        {% elif param.max_acceptable %}
+                                            ≤ {{ param.max_acceptable }}
+                                        {% else %}
+                                            <span class="text-muted">Not set</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if param.measured_value %}
+                                            <strong>{{ param.measured_value }}</strong> <small class="text-muted">{{ param.get_measurement_unit_display }}</small>
+                                            {% if param.tested_at %}
+                                                <br><small class="text-muted">{{ param.tested_at|date:"M j, H:i" }}</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Not tested</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if param.result_status == 'pass' %}
+                                            <span class="badge bg-success">Pass</span>
+                                        {% elif param.result_status == 'fail' %}
+                                            <span class="badge bg-danger">Fail</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if param.tested_by %}
+                                            {{ param.tested_by.get_full_name|default:param.tested_by.username }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% if param.notes %}
+                                <tr>
+                                    <td colspan="7" class="border-0 pt-0">
+                                        <small class="text-muted">
+                                            <i class="fa fa-sticky-note me-1"></i>{{ param.notes }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fa fa-list-alt fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No test parameters defined yet</p>
+                        {% if test.status != 'completed' %}
+                            <a href="{% url 'edit_quality_control_test' test.id %}" class="btn btn-primary">
+                                <i class="fa fa-plus"></i> Add Parameters
+                            </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Test Results & Notes -->
+            {% if test.status == 'completed' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-clipboard-check me-2"></i>Test Results
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Overall Result</h6>
+                            {% if test.overall_result == 'pass' %}
+                                <p class="text-success fs-5">
+                                    <i class="fa fa-check-circle me-2"></i>PASSED
+                                </p>
+                            {% elif test.overall_result == 'fail' %}
+                                <p class="text-danger fs-5">
+                                    <i class="fa fa-times-circle me-2"></i>FAILED
+                                </p>
+                            {% elif test.overall_result == 'conditional_pass' %}
+                                <p class="text-warning fs-5">
+                                    <i class="fa fa-exclamation-circle me-2"></i>CONDITIONAL PASS
+                                </p>
+                            {% endif %}
+                            
+                            {% if test.pass_percentage %}
+                                <p><strong>Pass Rate:</strong> {{ test.pass_percentage }}%</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if test.testing_duration_hours %}
+                                <h6>Testing Duration</h6>
+                                <p>{{ test.testing_duration_hours }} hours</p>
+                            {% endif %}
+                            
+                            {% if test.actual_test_date %}
+                                <h6>Completed On</h6>
+                                <p>{{ test.actual_test_date|date:"M j, Y H:i" }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if test.testing_notes %}
+                    <div class="mt-3">
+                        <h6>Testing Notes</h6>
+                        <div class="bg-light p-3 rounded">
+                            {{ test.testing_notes|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if test.failure_reasons %}
+                    <div class="mt-3">
+                        <h6 class="text-danger">Failure Reasons</h6>
+                        <div class="bg-danger bg-opacity-10 border border-danger rounded p-3">
+                            {{ test.failure_reasons|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if test.recommendations %}
+                    <div class="mt-3">
+                        <h6>Recommendations</h6>
+                        <div class="bg-info bg-opacity-10 border border-info rounded p-3">
+                            {{ test.recommendations|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if test.status != 'completed' and test.status != 'cancelled' %}
+                            <a href="{% url 'edit_quality_control_test' test.id %}" class="btn btn-primary">
+                                <i class="fa fa-edit me-2"></i>Edit Test
+                            </a>
+                        {% endif %}
+                        
+                        {% if test.status == 'completed' and test.overall_result != 'pass' %}
+                            <a href="{% url 'quality_control_action' test.id %}" class="btn btn-warning">
+                                <i class="fa fa-cog me-2"></i>Take Action
+                            </a>
+                        {% endif %}
+                        
+                        <a href="{% url 'quality_control_test_list' %}" class="btn btn-outline-secondary">
+                            <i class="fa fa-list me-2"></i>All Tests
+                        </a>
+                        
+                        <a href="{% url 'quality_control_dashboard' %}" class="btn btn-outline-primary">
+                            <i class="fa fa-dashboard me-2"></i>QC Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Allocation -->
+            {% if sample_allocations %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-vials me-2"></i>Sample Allocation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for allocation in sample_allocations %}
+                    <div class="border rounded p-2 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span><strong>{{ allocation.sample_id }}</strong></span>
+                            <span class="badge bg-info">{{ allocation.quantity_allocated }} bottles</span>
+                        </div>
+                        <small class="text-muted">
+                            Allocated: {{ allocation.allocation_date|date:"M j, Y" }}
+                            {% if allocation.allocated_by %}
+                                by {{ allocation.allocated_by.get_full_name|default:allocation.allocated_by.username }}
+                            {% endif %}
+                        </small>
+                        {% if allocation.storage_location %}
+                            <br><small class="text-muted">
+                                <i class="fa fa-map-marker me-1"></i>{{ allocation.storage_location }}
+                            </small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- QC Actions History -->
+            {% if actions %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-history me-2"></i>Actions History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="status-timeline">
+                        {% for action in actions %}
+                        <div class="timeline-item">
+                            <div class="mb-2">
+                                <strong class="text-capitalize">{{ action.get_action_type_display }}</strong>
+                                <span class="badge bg-secondary ms-2">{{ action.quantity_affected }} units</span>
+                            </div>
+                            <p class="mb-1">{{ action.action_reason }}</p>
+                            <small class="text-muted">
+                                {{ action.action_date|date:"M j, Y H:i" }} by {{ action.authorized_by.get_full_name|default:action.authorized_by.username }}
+                            </small>
+                            {% if action.follow_up_required %}
+                                <br><small class="text-warning">
+                                    <i class="fa fa-flag"></i> Follow-up required
+                                    {% if action.follow_up_date %}
+                                        by {{ action.follow_up_date|date:"M j, Y" }}
+                                    {% endif %}
+                                </small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Test Timeline -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-clock me-2"></i>Test Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="status-timeline">
+                        <div class="timeline-item">
+                            <div><strong>Test Created</strong></div>
+                            <small class="text-muted">{{ test.created_at|date:"M j, Y H:i" }}</small>
+                        </div>
+                        
+                        {% if test.sample_taken_at %}
+                        <div class="timeline-item">
+                            <div><strong>Samples Allocated</strong></div>
+                            <small class="text-muted">{{ test.sample_taken_at|date:"M j, Y H:i" }}</small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if test.scheduled_test_date %}
+                        <div class="timeline-item">
+                            <div><strong>Scheduled for Testing</strong></div>
+                            <small class="text-muted">{{ test.scheduled_test_date|date:"M j, Y H:i" }}</small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if test.actual_test_date %}
+                        <div class="timeline-item">
+                            <div><strong>Testing Started</strong></div>
+                            <small class="text-muted">{{ test.actual_test_date|date:"M j, Y H:i" }}</small>
+                        </div>
+                        {% endif %}
+                        
+                        {% if test.completed_at %}
+                        <div class="timeline-item">
+                            <div><strong>Test Completed</strong></div>
+                            <small class="text-muted">{{ test.completed_at|date:"M j, Y H:i" }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

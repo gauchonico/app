@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Inventory Adjustment Detail{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-adjust"></i>
+                        Inventory Adjustment Detail
+                    </h4>
+                    <div>
+                        <a href="{% url 'livara_inventory_adjustments_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Adjustments
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Main Adjustment Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-8">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-info-circle"></i>
+                                        Adjustment Information
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>Product:</strong>
+                                            <p class="mb-2">{{ adjustment.store_inventory.product.product.product_name }}</p>
+                                            
+                                            <strong>Batch Number:</strong>
+                                            <p class="mb-2">
+                                                {% if adjustment.store_inventory.batch_number %}
+                                                    <span class="badge bg-secondary">{{ adjustment.store_inventory.batch_number }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">No batch number</span>
+                                                {% endif %}
+                                            </p>
+                                            
+                                            <strong>Adjustment Date:</strong>
+                                            <p class="mb-2">
+                                                <i class="fas fa-calendar"></i>
+                                                {{ adjustment.adjustment_date|date:"F d, Y" }}
+                                                <br>
+                                                <small class="text-muted">{{ adjustment.adjustment_date|time:"H:i:s" }}</small>
+                                            </p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong>Quantity Adjusted:</strong>
+                                            <p class="mb-2">
+                                                {% if adjustment.adjusted_quantity > 0 %}
+                                                    <span class="badge bg-success fs-5">
+                                                        <i class="fas fa-arrow-up"></i>
+                                                        +{{ adjustment.adjusted_quantity|intcomma }}
+                                                    </span>
+                                                    <small class="d-block text-success mt-1">Stock Increase</small>
+                                                {% elif adjustment.adjusted_quantity < 0 %}
+                                                    <span class="badge bg-danger fs-5">
+                                                        <i class="fas fa-arrow-down"></i>
+                                                        {{ adjustment.adjusted_quantity|intcomma }}
+                                                    </span>
+                                                    <small class="d-block text-danger mt-1">Stock Decrease</small>
+                                                {% else %}
+                                                    <span class="badge bg-secondary fs-5">0</span>
+                                                    <small class="d-block text-muted mt-1">No Change</small>
+                                                {% endif %}
+                                            </p>
+                                            
+                                            <strong>Adjusted By:</strong>
+                                            <p class="mb-2">
+                                                {% if adjustment.adjusted_by %}
+                                                    <i class="fas fa-user"></i>
+                                                    {{ adjustment.adjusted_by.get_full_name|default:adjustment.adjusted_by.username }}
+                                                    <br>
+                                                    <small class="text-muted">{{ adjustment.adjusted_by.username }}</small>
+                                                {% else %}
+                                                    <span class="text-muted">System</span>
+                                                {% endif %}
+                                            </p>
+                                            
+                                            <strong>Stock After Adjustment:</strong>
+                                            <p class="mb-2">
+                                                <span class="badge bg-info fs-5">{{ stock_after_adjustment|intcomma }}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-clipboard-list"></i>
+                                        Quick Actions
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'livara_inventory_adjustments_list' %}?q={{ adjustment.store_inventory.product.product.product_name|urlencode }}" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-list"></i>
+                                            View All Adjustments for This Product
+                                        </a>
+                                        <a href="{% url 'livara_main_store_detail' adjustment.store_inventory.id %}" 
+                                           class="btn btn-outline-info btn-sm">
+                                            <i class="fas fa-boxes"></i>
+                                            View Product Inventory
+                                        </a>
+                                        <a href="{% url 'livara_main_store_inventory_report' %}?q={{ adjustment.store_inventory.product.product.product_name|urlencode }}" 
+                                           class="btn btn-outline-success btn-sm">
+                                            <i class="fas fa-chart-line"></i>
+                                            View Product Report
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Adjustment Reason -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card border-warning">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-comment"></i>
+                                        Adjustment Reason
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-0">{{ adjustment.adjustment_reason }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Related Adjustments -->
+                    {% if related_adjustments %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-history"></i>
+                                        Recent Adjustments for {{ adjustment.store_inventory.product.product.product_name }}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Date</th>
+                                                    <th>Quantity</th>
+                                                    <th>Reason</th>
+                                                    <th>User</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for related in related_adjustments %}
+                                                <tr>
+                                                    <td>
+                                                        {{ related.adjustment_date|date:"M d, Y" }}
+                                                        <br>
+                                                        <small class="text-muted">{{ related.adjustment_date|time:"H:i" }}</small>
+                                                    </td>
+                                                    <td>
+                                                        {% if related.adjusted_quantity > 0 %}
+                                                            <span class="badge bg-success">
+                                                                <i class="fas fa-arrow-up"></i>
+                                                                +{{ related.adjusted_quantity|intcomma }}
+                                                            </span>
+                                                        {% elif related.adjusted_quantity < 0 %}
+                                                            <span class="badge bg-danger">
+                                                                <i class="fas fa-arrow-down"></i>
+                                                                {{ related.adjusted_quantity|intcomma }}
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">0</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <small>{{ related.adjustment_reason|truncatechars:50 }}</small>
+                                                    </td>
+                                                    <td>
+                                                        {% if related.adjusted_by %}
+                                                            {{ related.adjusted_by.username }}
+                                                        {% else %}
+                                                            <span class="text-muted">System</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <a href="{% url 'livara_inventory_adjustment_detail' related.id %}" 
+                                                           class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-eye"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .card-header {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+</style>
+{% endblock %}

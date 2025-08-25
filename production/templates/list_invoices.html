@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}Sales Invoices{% endblock %}
+
+{% block css %}
+    <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+    <link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+{% endblock %}
+
+{% block js %}
+    <script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
+    <script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+    <script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+    <script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
+    <script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
+    <script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fa fa-file-invoice me-2"></i>Sales Invoices</h2>
+            <p class="text-muted mb-0">Manage and track all customer invoices</p>
+        </div>
+        <div>
+            <a href="{% url 'listStoreSales' %}" class="btn btn-outline-secondary me-2">
+                <i class="fa fa-arrow-left me-1"></i>Back to Orders
+            </a>
+            <a href="{% url 'store_sale_list_receipts' %}" class="btn btn-outline-success me-2">
+                <i class="fa fa-receipt me-1"></i>View Receipts
+            </a>
+            <a href="{% url 'list_credit_notes' %}" class="btn btn-outline-danger me-2">
+                <i class="fa fa-undo me-1"></i>View Credit Notes
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ total_invoices }}</h4>
+                    <small>Total Invoices</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ paid_invoices }}</h4>
+                    <small>Paid</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ pending_invoices }}</h4>
+                    <small>Pending</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">{{ overdue_invoices }}</h4>
+                    <small>Overdue</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h4 class="mb-0">UGX {{ total_value|floatformat:0|intcomma }}</h4>
+                    <small>Total Invoice Value</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">All Invoices</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover" id="invoices-table">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Customer</th>
+                            <th>Order #</th>
+                            <th>Invoice Date</th>
+                            <th>Due Date</th>
+                            <th>Amount</th>
+                            <th>Paid</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for invoice in invoices %}
+                        <tr>
+                            <td>
+                                <strong>{{ invoice.invoice_number }}</strong>
+                            </td>
+                            <td>{{ invoice.customer.first_name }} {{ invoice.customer.last_name }}</td>
+                            <td>{{ invoice.store_sale.order_number }}</td>
+                            <td>{{ invoice.invoice_date|date:"M d, Y" }}</td>
+                            <td>
+                                {{ invoice.due_date|date:"M d, Y" }}
+                                {% if invoice.is_overdue %}
+                                    <span class="badge bg-danger ms-1">{{ invoice.days_overdue }} days overdue</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">UGX {{ invoice.total_amount|floatformat:0|intcomma }}</td>
+                            <td class="text-end">UGX {{ invoice.amount_paid|floatformat:0|intcomma }}</td>
+                            <td class="text-end">UGX {{ invoice.balance_due|floatformat:0|intcomma }}</td>
+                            <td>
+                                {% if invoice.status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% elif invoice.status == 'overdue' %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% elif invoice.status == 'sent' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ invoice.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'invoice_detail' invoice.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fa fa-eye"></i> View
+                                    </a>
+                                    {% if invoice.can_create_receipt %}
+                                    <a href="#" class="btn btn-sm btn-outline-success">
+                                        <i class="fa fa-plus"></i> Receipt
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">
+                                <i class="fa fa-file-invoice fa-3x mb-3"></i>
+                                <p>No invoices found</p>
+                                <a href="{% url 'listStoreSales' %}" class="btn btn-primary">
+                                    <i class="fa fa-plus me-1"></i>Create Orders First
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#invoices-table').DataTable({
+        responsive: true,
+        order: [[3, 'desc']], // Sort by invoice date descending
+        pageLength: 25,
+        language: {
+            search: "Search invoices:",
+            lengthMenu: "Show _MENU_ invoices per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ invoices",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

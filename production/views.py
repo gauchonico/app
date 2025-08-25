@@ -45,8 +45,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -641,9 +641,6 @@ def productsList(request):
 
     }
     return render(request, "products-list.html", context)
-
-
-
 @login_required(login_url='/login/')
 def productDetails(request, product_id):
     product = Production.objects.get( pk=product_id)
@@ -1241,7 +1238,6 @@ def download_raw_material_price_template(request):
     writer.writerow(['Salt', 'ABC Suppliers', '25.00', '2024-01-15', 'false'])
     
     return response
-
 @login_required(login_url='/login/')
 def manufacture_product(request, product_id):
     product = Production.objects.get(pk=product_id)
@@ -1285,26 +1281,46 @@ def manufacture_product(request, product_id):
                     # Deduct raw materials
                     deduct_raw_materials(product, quantity)
                     
-                    # Create ManufactureProduct instance
+                    # Get quality control data from form
+                    qc_required = form.cleaned_data.get('qc_required', True)
+                    qc_sample_quantity = form.cleaned_data.get('qc_sample_quantity', 0)
+                    auto_create_qc_test = form.cleaned_data.get('auto_create_qc_test', True)
+                    
+                    # Create ManufactureProduct instance with QC information
                     manufacture_product = ManufactureProduct.objects.create(
                         product=product,
                         quantity=quantity,
                         notes=notes,
                         expiry_date=expiry_date,
-                        production_order=production_order
+                        production_order=production_order,
+                        qc_required=qc_required,
+                        qc_sample_quantity=qc_sample_quantity,
+                        qc_status='pending' if qc_required else 'not_required',
+                        can_release_to_inventory=not qc_required  # Can release immediately if QC not required
                     )
                     manufacture_product.batch_number = manufacture_product.generate_batch_number()
                     manufacture_product.save()
                     
-                    # Update manufactured product inventory
-                    manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
-                        product=product,
-                        batch_number=manufacture_product.batch_number,
-                        defaults={'quantity': Decimal(str(quantity)), 'expiry_date': expiry_date}
-                    )
-                    if not created:
-                        manufactured_product_inventory.quantity += quantity
-                        manufactured_product_inventory.save()
+                    # Only add to inventory immediately if QC is not required
+                    # If QC is required, inventory will be added after QC approval
+                    if not qc_required:
+                        manufactured_product_inventory, created = ManufacturedProductInventory.objects.get_or_create(
+                            product=product,
+                            batch_number=manufacture_product.batch_number,
+                            defaults={'quantity': Decimal(str(quantity)), 'expiry_date': expiry_date}
+                        )
+                        if not created:
+                            manufactured_product_inventory.quantity += quantity
+                            manufactured_product_inventory.save()
+                    
+                    # Create quality control test if required and auto-create is enabled
+                    qc_test = None
+                    if qc_required and auto_create_qc_test and qc_sample_quantity > 0:
+                        qc_test = manufacture_product.create_quality_control_test(
+                            sample_quantity=qc_sample_quantity,
+                            assigned_tester=request.user,
+                            priority='medium'
+                        )
 
                     # Calculate cost per ingredient
                     cost_per = cost_per_unit(product)
@@ -1326,9 +1342,22 @@ def manufacture_product(request, product_id):
                     context = {
                         'cost_per': cost_per,
                         'total_cost': total_cost,
+                        'qc_test': qc_test,
+                        'qc_required': qc_required,
                     }
 
-                    messages.success(request, f"Successfully manufactured {quantity} units of {product.product_name}")
+                    # Success message with QC information
+                    success_msg = f"Successfully manufactured {quantity} units of {product.product_name}"
+                    if qc_required:
+                        if qc_test:
+                            success_msg += f". Quality control test {qc_test.test_number} created with {qc_sample_quantity} sample bottles."
+                        else:
+                            success_msg += f". {qc_sample_quantity} sample bottles allocated for QC testing."
+                        success_msg += " Batch is pending QC approval before inventory release."
+                    else:
+                        success_msg += ". Batch released to inventory immediately (QC not required)."
+                    
+                    messages.success(request, success_msg)
                     return redirect('manufacturedProductList')
                 else:
                     # Display all insufficient stock errors at once
@@ -1802,7 +1831,6 @@ def raw_material_additions_detail(request):
         'total_additions': sum(item['quantity'] for item in additions)
     }
     return render(request, 'raw_material_additions_detail.html', context)
-
 def raw_material_deductions_detail(request):
     """Detailed view of all deductions for a specific raw material during a date range"""
     
@@ -2423,7 +2451,7 @@ def mark_transfer_completed (request, transfer_id):
                     LivaraInventoryAdjustment.objects.create(
                         store_inventory=livara_inventory,
                         adjusted_quantity=delivered_quantity,  # Assuming a positive quantity indicates an increase
-                        adjustment_reason="Stock Transfer Completed",
+                        adjustment_reason=f"Stock Transfer #{transfer_request.liv_main_transfer_number or transfer_request.id}",
                         adjusted_by=request.user  # Assuming the logged-in user is responsible
                     )
 
@@ -2439,7 +2467,9 @@ def mark_transfer_completed (request, transfer_id):
         'transfer_items': transfer_items,
     }
 
+
     return render(request, 'mark_transfer_completed.html', context)
+
 
 def detailed_inventory_report(request):
     selected_date = request.GET.get('date', datetime.now().date())
@@ -2547,6 +2577,399 @@ def livara_main_store_inventory(request):
     }
     return render(request, 'livara_main_store_inventory.html', context)
 
+def livara_main_store_inventory_report(request):
+    """Detailed Livara main store inventory report with date range and search.
+    Shows opening stock, stock in (transfers), stock out (sales/writeoffs), and closing stock.
+    Uses LivaraInventoryAdjustment records for accurate tracking.
+    """
+    from django.utils import timezone as dj_timezone
+    from datetime import datetime, time
+    from django.db.models import Q, Sum
+    
+    # Parse query params
+    query = request.GET.get('q', '').strip()
+    from_str = request.GET.get('from')
+    to_str = request.GET.get('to')
+    
+    # Default to today if not provided
+    today = dj_timezone.localdate()
+    if from_str:
+        try:
+            from_date = datetime.strptime(from_str, '%Y-%m-%d').date()
+        except ValueError:
+            from_date = today
+    else:
+        from_date = today
+    
+    if to_str:
+        try:
+            to_date = datetime.strptime(to_str, '%Y-%m-%d').date()
+        except ValueError:
+            to_date = today
+    else:
+        to_date = today
+    
+    # Normalize to datetimes spanning full days in local TZ
+    range_start = dj_timezone.make_aware(datetime.combine(from_date, time.min))
+    range_end = dj_timezone.make_aware(datetime.combine(to_date, time.max))
+    
+    # Base queryset for inventory items
+    items_qs = LivaraMainStore.objects.select_related('product__product')
+    if query:
+        items_qs = items_qs.filter(
+            Q(product__product__product_name__icontains=query) |
+            Q(batch_number__icontains=query)
+        )
+    
+    def get_opening_stock(inv_item, start_dt):
+        """Calculate opening stock as of start date (before the period)"""
+        adjustments = LivaraInventoryAdjustment.objects.filter(
+            store_inventory=inv_item,
+            adjustment_date__lt=start_dt
+        ).aggregate(total=Sum('adjusted_quantity'))
+        return adjustments['total'] or 0
+    
+    def get_stock_movements_in_range(inv_item, start_dt, end_dt):
+        """Get all stock movements within the date range"""
+        adjustments = LivaraInventoryAdjustment.objects.filter(
+            store_inventory=inv_item,
+            adjustment_date__gte=start_dt,
+            adjustment_date__lte=end_dt
+        ).select_related('adjusted_by').order_by('adjustment_date')
+        
+        stock_in = 0
+        stock_out = 0
+        stock_in_records = []
+        stock_out_records = []
+        
+        for adj in adjustments:
+            if adj.adjusted_quantity > 0:
+                stock_in += adj.adjusted_quantity
+                stock_in_records.append({
+                    'quantity': adj.adjusted_quantity,
+                    'reason': adj.adjustment_reason,
+                    'date': adj.adjustment_date,
+                    'user': adj.adjusted_by.username if adj.adjusted_by else 'System',
+                    'id': adj.id
+                })
+            else:
+                stock_out += abs(adj.adjusted_quantity)
+                stock_out_records.append({
+                    'quantity': abs(adj.adjusted_quantity),
+                    'reason': adj.adjustment_reason,
+                    'date': adj.adjustment_date,
+                    'user': adj.adjusted_by.username if adj.adjusted_by else 'System',
+                    'id': adj.id
+                })
+        
+        return stock_in, stock_out, stock_in_records, stock_out_records
+    
+    # Build report rows
+    report_rows = []
+    for inv in items_qs.order_by('product__product__product_name'):
+        opening_stock = get_opening_stock(inv, range_start)
+        stock_in, stock_out, stock_in_records, stock_out_records = get_stock_movements_in_range(inv, range_start, range_end)
+        closing_stock = opening_stock + stock_in - stock_out
+        
+        # Verify closing stock matches current quantity
+        current_quantity = inv.quantity
+        
+        report_rows.append({
+            'item': inv,
+            'product_name': inv.product.product.product_name,
+            'batch_number': inv.batch_number,
+            'opening_stock': opening_stock,
+            'stock_in': stock_in,
+            'stock_in_records': stock_in_records,
+            'stock_out': stock_out,
+            'stock_out_records': stock_out_records,
+            'closing_stock': closing_stock,
+            'current_quantity': current_quantity,
+            'discrepancy': current_quantity - closing_stock,  # Should be 0 if tracking is accurate
+        })
+    
+    context = {
+        'rows': report_rows,
+        'q': query,
+        'from': from_date.strftime('%Y-%m-%d'),
+        'to': to_date.strftime('%Y-%m-%d'),
+        'from_date': from_date,
+        'to_date': to_date,
+    }
+    return render(request, 'livara_main_store_inventory_report.html', context)
+
+@login_required
+def livara_inventory_adjustments_list(request):
+    """Display all Livara inventory adjustments with search and filtering capabilities."""
+    from django.db.models import Q
+    from django.utils import timezone as dj_timezone
+    from datetime import datetime, time
+    
+    # Get filter parameters
+    query = request.GET.get('q', '').strip()
+    product_filter = request.GET.get('product', '').strip()
+    type_filter = request.GET.get('type', '')  # 'positive', 'negative', or empty
+    from_date = request.GET.get('from_date', '')
+    to_date = request.GET.get('to_date', '')
+    
+    # Base queryset with related data
+    adjustments = LivaraInventoryAdjustment.objects.select_related(
+        'store_inventory__product__product',
+        'adjusted_by'
+    ).order_by('-adjustment_date')
+    
+    # Apply search filter
+    if query:
+        adjustments = adjustments.filter(
+            Q(store_inventory__product__product__product_name__icontains=query) |
+            Q(store_inventory__batch_number__icontains=query) |
+            Q(adjustment_reason__icontains=query) |
+            Q(adjusted_by__username__icontains=query)
+        )
+    
+    # Apply product filter
+    if product_filter:
+        adjustments = adjustments.filter(
+            store_inventory__product__product__product_name__icontains=product_filter
+        )
+    
+    # Apply type filter (positive/negative)
+    if type_filter == 'positive':
+        adjustments = adjustments.filter(adjusted_quantity__gt=0)
+    elif type_filter == 'negative':
+        adjustments = adjustments.filter(adjusted_quantity__lt=0)
+    
+    # Apply date range filter
+    if from_date:
+        try:
+            from_dt = dj_timezone.make_aware(datetime.combine(
+                datetime.strptime(from_date, '%Y-%m-%d').date(), 
+                time.min
+            ))
+            adjustments = adjustments.filter(adjustment_date__gte=from_dt)
+        except ValueError:
+            pass
+    
+    if to_date:
+        try:
+            to_dt = dj_timezone.make_aware(datetime.combine(
+                datetime.strptime(to_date, '%Y-%m-%d').date(), 
+                time.max
+            ))
+            adjustments = adjustments.filter(adjustment_date__lte=to_dt)
+        except ValueError:
+            pass
+    
+    # Calculate summary statistics
+    total_adjustments = adjustments.count()
+    positive_adjustments = adjustments.filter(adjusted_quantity__gt=0).count()
+    negative_adjustments = adjustments.filter(adjusted_quantity__lt=0).count()
+    
+    # Get recent adjustments (last 7 days)
+    from datetime import timedelta
+    recent_date = dj_timezone.now() - timedelta(days=7)
+    recent_adjustments = adjustments.filter(adjustment_date__gte=recent_date).count()
+    
+    context = {
+        'adjustments': adjustments,
+        'query': query,
+        'product_filter': product_filter,
+        'type_filter': type_filter,
+        'from_date': from_date,
+        'to_date': to_date,
+        'total_adjustments': total_adjustments,
+        'positive_adjustments': positive_adjustments,
+        'negative_adjustments': negative_adjustments,
+        'recent_adjustments': recent_adjustments,
+    }
+    
+    return render(request, 'livara_inventory_adjustments_list.html', context)
+
+@login_required
+def livara_inventory_adjustment_detail(request, adjustment_id):
+    """Display details of a specific Livara inventory adjustment."""
+    adjustment = get_object_or_404(
+        LivaraInventoryAdjustment.objects.select_related(
+            'store_inventory__product__product',
+            'adjusted_by'
+        ),
+        id=adjustment_id
+    )
+    
+    # Get related adjustments for the same product (last 10)
+    related_adjustments = LivaraInventoryAdjustment.objects.filter(
+        store_inventory=adjustment.store_inventory
+    ).exclude(id=adjustment.id).select_related('adjusted_by').order_by('-adjustment_date')[:10]
+    
+    # Calculate stock balance after this adjustment
+    adjustments_before = LivaraInventoryAdjustment.objects.filter(
+        store_inventory=adjustment.store_inventory,
+        adjustment_date__lte=adjustment.adjustment_date
+    ).aggregate(total=Sum('adjusted_quantity'))
+    
+    stock_after_adjustment = adjustments_before['total'] or 0
+    
+    context = {
+        'adjustment': adjustment,
+        'related_adjustments': related_adjustments,
+        'stock_after_adjustment': stock_after_adjustment,
+    }
+    
+    return render(request, 'livara_inventory_adjustment_detail.html', context)
+
+@login_required
+def livara_stock_movements(request):
+    """Show stock movements for a specific product and date range with links to original records."""
+    from django.db.models import Q
+    from django.utils import timezone as dj_timezone
+    from datetime import datetime, time
+    import re
+    
+    # Get parameters
+    product_name = request.GET.get('product', '')
+    movement_type = request.GET.get('type', '')  # 'in' or 'out'
+    from_date = request.GET.get('from_date', '')
+    to_date = request.GET.get('to_date', '')
+    
+    if not product_name:
+        messages.error(request, "Product name is required.")
+        return redirect('livara_inventory_adjustments_list')
+    
+    # Parse dates
+    try:
+        from_dt = dj_timezone.make_aware(datetime.combine(
+            datetime.strptime(from_date, '%Y-%m-%d').date(), 
+            time.min
+        )) if from_date else None
+        to_dt = dj_timezone.make_aware(datetime.combine(
+            datetime.strptime(to_date, '%Y-%m-%d').date(), 
+            time.max
+        )) if to_date else None
+    except ValueError:
+        from_dt = to_dt = None
+    
+    # Get adjustments for the product
+    adjustments_qs = LivaraInventoryAdjustment.objects.filter(
+        store_inventory__product__product__product_name__icontains=product_name
+    ).select_related('store_inventory__product__product', 'adjusted_by')
+    
+    # Apply date filters
+    if from_dt:
+        adjustments_qs = adjustments_qs.filter(adjustment_date__gte=from_dt)
+    if to_dt:
+        adjustments_qs = adjustments_qs.filter(adjustment_date__lte=to_dt)
+    
+    # Apply movement type filter
+    if movement_type == 'in':
+        adjustments_qs = adjustments_qs.filter(adjusted_quantity__gt=0)
+    elif movement_type == 'out':
+        adjustments_qs = adjustments_qs.filter(adjusted_quantity__lt=0)
+    
+    # Process adjustments to extract source links
+    movements = []
+    for adj in adjustments_qs.order_by('-adjustment_date'):
+        movement_data = {
+            'adjustment': adj,
+            'quantity': adj.adjusted_quantity,
+            'date': adj.adjustment_date,
+            'reason': adj.adjustment_reason,
+            'user': adj.adjusted_by.username if adj.adjusted_by else 'System',
+            'source_link': None,
+            'source_type': None,
+            'source_id': None
+        }
+        
+        # Extract source information from reason
+        reason = adj.adjustment_reason
+        
+        # Check for different types of source records
+        if "Store Sale - Invoice #" in reason:
+            # Extract invoice number and find the store sale ID
+            invoice_match = re.search(r'Invoice #(\w+)', reason)
+            if invoice_match:
+                invoice_number = invoice_match.group(1)
+                try:
+                    from production.models import SalesInvoice
+                    invoice = SalesInvoice.objects.select_related('store_sale').get(invoice_number=invoice_number)
+                    # Get the store sale ID and link directly
+                    store_sale_id = invoice.store_sale.id
+                    movement_data.update({
+                        'd': f"/production/store_sale_order_details/{store_sale_id}/",
+                        'source_type': 'Store Sale',
+                        'source_id': store_sale_id,
+                        'invoice_number': invoice_number
+                    })
+                except SalesInvoice.DoesNotExist:
+                    movement_data.update({
+                        'source_type': 'Store Sale (Not Found)',
+                        'source_link': None
+                    })
+        
+        elif "Stock Transfer #" in reason:
+            # Extract transfer number/ID and find the transfer
+            transfer_match = re.search(r'Stock Transfer #(\w+)', reason)
+            if transfer_match:
+                transfer_id = transfer_match.group(1)
+                try:
+                    from production.models import StoreTransfer
+                    # Try to find by transfer number first, then by ID
+                    try:
+                        transfer = StoreTransfer.objects.get(liv_main_transfer_number=transfer_id)
+                    except StoreTransfer.DoesNotExist:
+                        transfer = StoreTransfer.objects.get(id=transfer_id)
+                    
+                    movement_data.update({
+                        'source_link': f"/production/main_stock_transfer/",
+                        'source_type': 'Stock Transfer',
+                        'source_id': transfer.id,
+                        'source_object': transfer,
+                        'transfer_number': transfer.liv_main_transfer_number or f"TRF-{transfer.id}"
+                    })
+                except (StoreTransfer.DoesNotExist, ValueError):
+                    movement_data.update({
+                        'source_type': 'Stock Transfer',
+                        'source_link': None
+                    })
+            
+        elif "Write-off #" in reason:
+            # Extract write-off ID and link directly to write-off detail
+            writeoff_match = re.search(r'Write-off #(\d+)', reason)
+            if writeoff_match:
+                writeoff_id = writeoff_match.group(1)
+                movement_data.update({
+                    'source_link': f"/production/main_store_write_off_details/{writeoff_id}/",
+                    'source_type': 'Write Off',
+                    'source_id': writeoff_id
+                })
+        
+        elif "Restock Request #" in reason:
+            # Extract restock request ID and link to restock request detail
+            restock_match = re.search(r'Restock Request #(\d+)', reason)
+            if restock_match:
+                restock_id = restock_match.group(1)
+                # Extract store name from the reason if available
+                store_match = re.search(r'Restock Request #\d+ - (.+)', reason)
+                store_name = store_match.group(1) if store_match else 'Store'
+                movement_data.update({
+                    'source_link': f"/production/restock_requests/",  # Link to restock requests list for now
+                    'source_type': 'Restock Request',
+                    'source_id': restock_id,
+                    'store_name': store_name
+                })
+        
+        movements.append(movement_data)
+    
+    context = {
+        'movements': movements,
+        'product_name': product_name,
+        'movement_type': movement_type,
+        'from_date': from_date,
+        'to_date': to_date,
+        'total_movements': len(movements),
+    }
+    
+    return render(request, 'livara_stock_movements.html', context)
+
 #Mainstore WriteOff List and creation
 @login_required
 def create_main_store_writeoff(request):
@@ -2572,6 +2995,12 @@ def main_store_writeoff_list(request):
 #approve livaramainstore wiriteoffs
 def is_finance(user):
     return user.groups.filter(name='Finance').exists()
+
+def main_store_write_off_details(request):
+    writeoff_id = request.GET.get('writeoff_id')
+    writeoff = get_object_or_404(StoreWriteOff, id=writeoff_id)
+    context = { 'writeoff': writeoff }
+    return render(request,'main_store_write_off_details.html',context)
 
 @require_POST
 @user_passes_test(is_finance)
@@ -2599,9 +3028,21 @@ def approve_mainstore_writeoff(request):
         writeoff.approved_at = timezone.now()
         writeoff.save()
         
+        # Create inventory adjustment for the write-off
+        LivaraInventoryAdjustment.objects.create(
+            store_inventory=writeoff.main_store_product,
+            adjusted_quantity=-writeoff.quantity,  # Negative because it's a reduction
+            adjustment_reason=f"Write-off #{writeoff.id} - {writeoff.get_reason_display()}",
+            adjusted_by=request.user
+        )
+        
+        # Update the main store inventory
+        writeoff.main_store_product.quantity -= writeoff.quantity
+        writeoff.main_store_product.save()
+        
         return JsonResponse({
             'success': True,
-            'message': 'Write-off approved successfully'
+            'message': 'Write-off approved successfully and inventory adjusted'
         })
     except Exception as e:
         return JsonResponse({
@@ -3073,7 +3514,6 @@ class ApproveStoreTransferView(FormView):
                 if item_form.errors:
                     print(f"Formset errors: {item_form.errors}")
             return self.form_invalid(formset)
-        
 class DeliverRestockRequestView(FormView):
     template_name = 'deliver_restock_request.html'
     form_class = RestockRequestForm
@@ -3130,15 +3570,21 @@ class DeliverRestockRequestView(FormView):
                         restock_item.product.quantity -= delivered_quantity
                         restock_item.product.save()
 
-                        # Create inventory adjustment record (optional)
-                        # InventoryAdjustment.objects.create(
-                        #     store_inventory=store_inventory,
-                        #     adjusted_quantity=delivered_quantity,
-                        #     adjustment_reason="Restock Fulfillment",
-                        #     adjusted_by=restock_request.user,
-                        #     transfer_to_store=restock_request.store,
-                        #     transfer_date=timezone.now()
-                        # )
+                        # Create Livara inventory adjustment record for main store reduction
+                        LivaraInventoryAdjustment.objects.create(
+                            store_inventory=restock_item.product,
+                            adjusted_quantity=-delivered_quantity,  # Negative because stock is going out
+                            adjustment_reason=f"Restock Request #{restock_request.id} - {restock_request.store.name}",
+                            adjusted_by=self.request.user
+                        )
+
+                        # Create inventory adjustment record for small store
+                        InventoryAdjustment.objects.create(
+                            store_inventory=store_inventory,
+                            adjusted_quantity=delivered_quantity,
+                            adjustment_reason="Restock Fulfillment",
+                            adjusted_by=self.request.user,
+                        )
 
                     else:
                         messages.error(self.request, f"Insufficient stock for {restock_item.product.product_name}.")
@@ -3185,6 +3631,14 @@ def mark_restock_as_delivered(request, restock_id):
         livara_store_product = item.product
         livara_store_product.quantity -= item.quantity
         livara_store_product.save()
+
+        # Create inventory adjustment record for main store reduction
+        LivaraInventoryAdjustment.objects.create(
+            store_inventory=livara_store_product,
+            adjusted_quantity=-item.quantity,  # Negative because stock is going out
+            adjustment_reason=f"Restock Request #{restock_request.id} - {restock_request.store.name}",
+            adjusted_by=request.user
+        )
 
         # Update or create the store inventory record
         store_inventory, created = StoreInventory.objects.get_or_create(
@@ -3559,23 +4013,33 @@ def create_store_sale(request):
     return render(request, 'create_store_sale.html', context)
 
 def list_store_sales(request):
-    sale_orders = StoreSale.objects.select_related('customer', 'tax_code').prefetch_related('saleitem_set__product__product__product').all().order_by('-sale_date')
+    sale_orders = StoreSale.objects.select_related('customer', 'tax_code').prefetch_related('saleitem_set__product__product__product').all().order_by('-order_date')
     
     # Calculate summary statistics
     total_sales = sale_orders.count()
     total_value = sum(sale.total_amount or 0 for sale in sale_orders)
-    pending_sales = sale_orders.filter(status='ordered').count()
-    delivered_sales = sale_orders.filter(status='delivered').count()
-    paid_sales = sale_orders.filter(status='paid').count()
+    draft_sales = sale_orders.filter(status='draft').count()
+    confirmed_sales = sale_orders.filter(status='confirmed').count()
+    invoiced_sales = sale_orders.filter(status='invoiced').count()
     
-    # Calculate overdue sales
+    # Calculate overdue sales (from invoices)
     today = date.today()
-    overdue_sales = sum(1 for sale in sale_orders if sale.due_date and sale.due_date < today and sale.status != 'paid')
+    overdue_sales = 0
+    for sale_order in sale_orders:
+        if hasattr(sale_order, 'sales_invoice') and sale_order.sales_invoice.is_overdue:
+            overdue_sales += 1
     
     for sale_order in sale_orders:
-        sale_order.remaining_days = sale_order.get_remaining_days()
+        # Get due date and remaining days from invoice if exists
+        if hasattr(sale_order, 'sales_invoice'):
+            sale_order.due_date = sale_order.sales_invoice.due_date
+            sale_order.remaining_days = (sale_order.sales_invoice.due_date - today).days
+        else:
+            sale_order.due_date = None
+            sale_order.remaining_days = None
+        
         # Calculate absolute value for overdue days display
-        sale_order.overdue_days = abs(sale_order.remaining_days) if sale_order.remaining_days < 0 else 0
+        sale_order.overdue_days = abs(sale_order.remaining_days) if sale_order.remaining_days and sale_order.remaining_days < 0 else 0
         # Calculate item count
         sale_order.item_count = sale_order.saleitem_set.count()
         # Calculate total quantity
@@ -3585,20 +4049,20 @@ def list_store_sales(request):
         'sale_orders': sale_orders,
         'total_sales': total_sales,
         'total_value': total_value,
-        'pending_sales': pending_sales,
-        'delivered_sales': delivered_sales,
-        'paid_sales': paid_sales,
+        'draft_sales': draft_sales,
+        'confirmed_sales': confirmed_sales,
+        'invoiced_sales': invoiced_sales,
         'overdue_sales': overdue_sales,
     }
     return render(request, 'list_store_sales.html', context)
 
 def edit_store_sale(request, sale_id):
-    """Edit a store sale - only allowed for orders that haven't been delivered"""
+    """Edit a store sale order - only allowed for draft orders"""
     sale = get_object_or_404(StoreSale, id=sale_id)
     
-    # Check if sale can be edited (only ordered status can be edited)
-    if sale.status != 'ordered':
-        messages.error(request, f"Cannot edit sale #{sale.id}. Only orders with 'Ordered' status can be edited.")
+    # Check if order can be edited (only draft status can be edited)
+    if sale.status != 'draft':
+        messages.error(request, f"Cannot edit order #{sale.order_number}. Only orders with 'Draft' status can be edited.")
         return redirect('listStoreSales')
     
     if request.method == 'POST':
@@ -3607,13 +4071,7 @@ def edit_store_sale(request, sale_id):
         
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
-                # Restore inventory from old items before updating
-                old_items = sale.saleitem_set.all()
-                for old_item in old_items:
-                    old_item.product.quantity += old_item.quantity
-                    old_item.product.save()
-                
-                # Check inventory for new items
+                # Check inventory for new items (no need to restore since we don't update inventory for draft orders)
                 sufficient_inventory = True
                 inventory_errors = []
                 
@@ -3628,9 +4086,9 @@ def edit_store_sale(request, sale_id):
                             item_form.add_error('quantity', f'Insufficient quantity. Available: {product.quantity}')
                 
                 if sufficient_inventory:
-                    # Save the sale
-                    store_sale = form.save(commit=False)
-                    store_sale.save()
+                    # Save the order
+                    store_order = form.save(commit=False)
+                    store_order.save()
                     
                     # Delete old items and save new ones
                     sale.saleitem_set.all().delete()
@@ -3640,31 +4098,21 @@ def edit_store_sale(request, sale_id):
                     for item_form in formset:
                         if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
                             sale_item = item_form.save(commit=False)
-                            sale_item.sale = store_sale
+                            sale_item.sale = store_order
                             sale_item.save()
                             actual_items_count += 1
                     
-                    # Update inventory
-                    for item_form in formset:
-                        if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
-                            product = item_form.cleaned_data.get('product')
-                            quantity = item_form.cleaned_data.get('quantity')
-                            if product and quantity:
-                                product.quantity -= quantity
-                                product.save()
-                    
-                    # Update total items count
-                    store_sale.total_items = actual_items_count
+                    # Note: We DON'T update inventory yet - that happens when order is confirmed/invoiced
                     
                     # Recalculate financial amounts after all items are saved
                     if actual_items_count > 0:
-                        store_sale.calculate_financial_amounts()
-                        store_sale.save()
-                        grand_total = store_sale.total_amount
+                        store_order.calculate_financial_amounts()
+                        store_order.save()
+                        grand_total = store_order.total_amount
                     else:
                         grand_total = Decimal('0.00')
                     
-                    messages.success(request, f"Sale #{sale.id} updated successfully! Total: UGX {grand_total:,.2f}")
+                    messages.success(request, f"Order #{sale.order_number} updated successfully! Total: UGX {grand_total:,.2f}")
                     return redirect('listStoreSales')
                 else:
                     # Add detailed inventory error messages
@@ -3675,7 +4123,7 @@ def edit_store_sale(request, sale_id):
             if form.errors:
                 messages.error(request, "Please correct the errors in the form.")
             if formset.errors:
-                messages.error(request, "Please correct the errors in the sale items.")
+                messages.error(request, "Please correct the errors in the order items.")
     else:
         form = TestForm(instance=sale)
         formset = TestItemFormset(instance=sale)
@@ -3693,19 +4141,19 @@ def edit_store_sale(request, sale_id):
 
 # finance view of all direct store sales
 def finance_list_store_sales(request):
-    sale_orders = StoreSale.objects.all().order_by('-sale_date')  # Order by creation date descending
+    sale_orders = StoreSale.objects.all().order_by('-order_date')  # Order by creation date descending
     today = date.today()
     for sale_order in sale_orders:
-        if sale_order.sale_date:
-            sale_order.due_date = sale_order.sale_date + timedelta(days=sale_order.PAYMENT_DURATION.days)
-            remaining_days = 0 # to be worked on to show countdown.
-            if remaining_days < 0:
-                remaining_days = 0  # Set remaining days to 0 if past due date
-            sale_order.remaining_days = remaining_days
+        # Check if order has been invoiced and get due date from invoice
+        if hasattr(sale_order, 'sales_invoice'):
+            sale_order.due_date = sale_order.sales_invoice.due_date
+            sale_order.remaining_days = (sale_order.sales_invoice.due_date - today).days
+        else:
+            sale_order.due_date = None
+            sale_order.remaining_days = None
     context = {'sale_orders': sale_orders}
     return render(request, 'finance_list_store_sales.html', context)
-
-##################### Create a new Store Sale Martinz side #################
+##################### Create a new Store Sale Order #################
 def create_store_test(request):
     if request.method == 'POST':
         form = TestForm(request.POST)
@@ -3729,40 +4177,32 @@ def create_store_test(request):
                             item_form.add_error('quantity', f'Insufficient quantity. Available: {product.quantity}')
                 
                 if sufficient_inventory:
-                    # Save the sale first
-                    store_sale = form.save(commit=False)
-                    store_sale.save()
+                    # Save the order first (status will be 'draft' by default)
+                    store_order = form.save(commit=False)
+                    store_order.created_by = request.user  # Set the user who created the order
+                    store_order.save()
                     
                     # Count actual items and save them
                     actual_items_count = 0
                     for item_form in formset:
                         if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
                             sale_item = item_form.save(commit=False)
-                            sale_item.sale = store_sale
+                            sale_item.sale = store_order
                             sale_item.save()
                             actual_items_count += 1
                     
-                    # Update inventory
-                    for item_form in formset:
-                        if item_form.cleaned_data and item_form.cleaned_data.get('product') and item_form.cleaned_data.get('quantity'):
-                            product = item_form.cleaned_data.get('product')
-                            quantity = item_form.cleaned_data.get('quantity')
-                            if product and quantity:
-                                product.quantity -= quantity
-                                product.save()
-                    
-                    # Update total items count
-                    store_sale.total_items = actual_items_count
+                    # Note: We DON'T update inventory yet - that happens when order is confirmed/invoiced
+                    # This allows for draft orders without affecting inventory
                     
                     # Recalculate financial amounts after all items are saved
                     if actual_items_count > 0:
-                        store_sale.calculate_financial_amounts()
-                        store_sale.save()
-                        grand_total = store_sale.total_amount
+                        store_order.calculate_financial_amounts()
+                        store_order.save()
+                        grand_total = store_order.total_amount
                     else:
                         grand_total = Decimal('0.00')
                     
-                    messages.success(request, f"Sale created successfully! Total: UGX {grand_total:,.2f}")
+                    messages.success(request, f"Order created successfully! Order #{store_order.order_number} - Total: UGX {grand_total:,.2f}")
                     return redirect('listStoreSales')
                 else:
                     # Add detailed inventory error messages
@@ -3773,7 +4213,7 @@ def create_store_test(request):
             if form.errors:
                 messages.error(request, "Please correct the errors in the form.")
             if formset.errors:
-                messages.error(request, "Please correct the errors in the sale items.")
+                messages.error(request, "Please correct the errors in the order items.")
             
     else:
         form = TestForm()
@@ -3784,8 +4224,8 @@ def create_store_test(request):
         'form': form, 
         'formset': formset, 
         'price_groups': price_groups,
-        'page_title': 'Create Store Sale',
-        'page_subtitle': 'Wholesale Customer Sales'
+        'page_title': 'Create Store Sale Order',
+        'page_subtitle': 'Create New Customer Order'
     }
     return render(request, 'testing.html', context)
 
@@ -3943,12 +4383,6 @@ def store_sale_order_details(request, pk):
     withholding_tax = sale_order.withholding_tax or Decimal('0.00')
     total_amount = sale_order.total_amount or Decimal('0.00')
     
-    # Calculate due date and remaining days
-    due_date = sale_order.due_date
-    remaining_days = sale_order.get_remaining_days() if due_date else None
-    is_overdue = remaining_days < 0 if remaining_days is not None else False
-    overdue_days = abs(remaining_days) if is_overdue else 0
-    
     # Get company info (you may need to adjust this based on your company model)
     company_info = {
         'name': 'THE VENTURES INC',
@@ -3968,10 +4402,6 @@ def store_sale_order_details(request, pk):
         'tax_amount': tax_amount,
         'withholding_tax': withholding_tax,
         'total_amount': total_amount,
-        'due_date': due_date,
-        'remaining_days': remaining_days,
-        'is_overdue': is_overdue,
-        'overdue_days': overdue_days,
         'company_info': company_info,
     }
     return render(request,'store_sale_details.html', context)
@@ -4358,7 +4788,6 @@ def search_staff(request):
     
     results = [{'id': s.id, 'text': f"{s.first_name} {s.last_name}"} for s in staff]
     return JsonResponse({'results': results})
-        
 @require_http_methods(["POST"])
 def new_create_service_sale(request):
     
@@ -4988,8 +5417,6 @@ def particular_store_inventory(request):
     else:
         # Handle the case where the user is not associated with a store
         return render(request, 'no_store_access.html')
-    
-    
 @login_required
 def create_internal_requests(request):
     # If the request is POST, process the form and formset
@@ -5626,7 +6053,6 @@ def lpo_list(request):
         'total_paid': total_paid,
     }
     return render(request, 'lpo_list.html', context)
-
 @allowed_users(allowed_roles=['Finance'])
 def lpo_verify(request, pk):
     lpo = get_object_or_404(LPO, pk=pk)
@@ -6268,7 +6694,6 @@ def process_replacements(request, replace_note_id):
         'formset': formset,
     }
     return render(request, 'process_replacement.html', context)
-
 def outstanding_payables(request):
     # Filter LPOs that are not paid (is_paid=False)
     unpaid_pos = LPO.objects.filter(is_paid=False)
@@ -6915,7 +7340,6 @@ def store_transfer_approve(request, pk):
         'transfer': transfer,
     }
     return render(request, 'store_transfer_approve.html', context)
-
 @login_required
 def store_transfer_complete(request, pk):
     """Mark a store transfer as completed"""
@@ -7556,8 +7980,6 @@ def store_sale_payment_detail(request, payment_id):
         'payment': payment,
     }
     return render(request, 'store_sale_payment_detail.html', context)
-
-
 def store_sale_receipts_list(request):
     """List all store sale receipts for payment tracking"""
     receipts = StoreSaleReceipt.objects.select_related(
@@ -7594,3 +8016,755 @@ def store_sale_receipts_list(request):
         'overdue_amount': overdue_amount,
     }
     return render(request, 'store_sale_receipts_list.html', context)
+
+def create_invoice_from_order(request, order_id):
+    """Create an invoice from a store sale order"""
+    order = get_object_or_404(StoreSale, id=order_id)
+    
+    # Check if order can be invoiced
+    if not order.can_create_invoice:
+        messages.error(request, f"Order #{order.order_number} cannot be invoiced. Status: {order.get_status_display()}")
+        return redirect('listStoreSales')
+    
+    if order.has_invoice:
+        messages.error(request, f"Order #{order.order_number} already has an invoice.")
+        return redirect('listStoreSales')
+    
+    try:
+        with transaction.atomic():
+            # Create the invoice
+            invoice = order.create_invoice()
+            
+            # Update inventory when invoice is created and create adjustment records
+            for item in order.saleitem_set.all():
+                if item.product.quantity >= item.quantity:
+                    # Update inventory
+                    item.product.quantity -= item.quantity
+                    item.product.save()
+                    
+                    # Create inventory adjustment record
+                    LivaraInventoryAdjustment.objects.create(
+                        store_inventory=item.product,
+                        adjusted_quantity=-item.quantity,  # Negative because it's a sale (reduction)
+                        adjustment_reason=f"Store Sale - Invoice #{invoice.invoice_number}",
+                        adjusted_by=request.user
+                    )
+                else:
+                    raise ValueError(f"Insufficient inventory for {item.product.product.product_name}")
+            
+            messages.success(request, f"Invoice #{invoice.invoice_number} created successfully for Order #{order.order_number}")
+            return redirect('listStoreSales')
+            
+    except ValueError as e:
+        messages.error(request, f"Error creating invoice: {str(e)}")
+        return redirect('listStoreSales')
+    except Exception as e:
+        messages.error(request, f"Unexpected error creating invoice: {str(e)}")
+        return redirect('listStoreSales')
+
+def main_store_invoices(request):
+    """List all sales invoices"""
+    invoices = SalesInvoice.objects.select_related('store_sale', 'customer', 'tax_code').all().order_by('-invoice_date')
+    
+    # Calculate summary statistics
+    total_invoices = invoices.count()
+    total_value = sum(invoice.total_amount for invoice in invoices)
+    paid_invoices = invoices.filter(status='paid').count()
+    overdue_invoices = invoices.filter(status='overdue').count()
+    pending_invoices = invoices.filter(status='sent').count()
+    
+    context = {
+        'invoices': invoices,
+        'total_invoices': total_invoices,
+        'total_value': total_value,
+        'paid_invoices': paid_invoices,
+        'overdue_invoices': overdue_invoices,
+        'pending_invoices': pending_invoices,
+    }
+    return render(request, 'list_invoices.html', context)
+
+def invoice_detail(request, invoice_id):
+    """View invoice details"""
+    invoice = get_object_or_404(SalesInvoice, id=invoice_id)
+    
+    context = {
+        'invoice': invoice,
+        'order': invoice.store_sale,
+        'receipts': invoice.receipts.all(),
+    }
+    return render(request, 'invoice_detail.html', context)
+
+# confirm martins store orders
+def confirm_order(request, order_id):
+    """Confirm a draft order to allow invoice creation"""
+    order = get_object_or_404(StoreSale, id=order_id)
+    
+    if order.status != 'draft':
+        messages.error(request, f"Order #{order.order_number} cannot be confirmed. Current status: {order.get_status_display()}")
+        return redirect('store_sale_order_details', pk=order.pk)
+    
+    try:
+        order.status = 'confirmed'
+        order.save()
+        messages.success(request, f"Order #{order.order_number} has been confirmed and is ready for invoicing.")
+    except Exception as e:
+        messages.error(request, f"Error confirming order: {str(e)}")
+    
+    return redirect('store_sale_order_details', pk=order.pk)
+
+def create_receipt_from_invoice(request, invoice_id):
+    """Create a receipt for payment on an invoice with Chart of Accounts integration"""
+    invoice = get_object_or_404(SalesInvoice, id=invoice_id)
+    
+    if not invoice.can_create_receipt:
+        messages.error(request, f"Invoice #{invoice.invoice_number} cannot have receipts created.")
+        return redirect('invoice_detail', invoice_id=invoice.pk)
+    
+    if request.method == 'POST':
+        form = ReceiptForm(request.POST)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Create the receipt
+                    receipt = form.save(commit=False)
+                    receipt.sales_invoice = invoice
+                    receipt.created_by = request.user
+                    
+                    # Validate Chart of Accounts are selected
+                    if not receipt.receiving_account:
+                        raise ValueError("Receiving account is required")
+                    if not receipt.accounts_receivable_account:
+                        raise ValueError("Accounts Receivable account is required")
+                    
+                    receipt.save()
+                    
+                    # Update invoice payment amount
+                    invoice.amount_paid += receipt.total_due
+                    invoice.save()
+                    
+                    # Create journal entry for the payment
+                    from accounts.models import JournalEntry, JournalEntryLine
+                    
+                    # Create journal entry
+                    journal_entry = JournalEntry.objects.create(
+                        date=receipt.receipt_date.date(),
+                        reference=f"Receipt-{receipt.receipt_number}",
+                        description=f"Payment received for Invoice {invoice.invoice_number}",
+                        entry_type='receipt',
+                        created_by=request.user,
+                        is_posted=True,
+                        posted_at=timezone.now()
+                    )
+                    
+                    # Create journal entry lines
+                    # Debit: Receiving Account (Cash/Bank)
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=receipt.receiving_account,
+                        entry_type='debit',
+                        amount=receipt.total_due,
+                        description=f"Payment received from {receipt.customer_name}"
+                    )
+                    
+                    # Credit: Accounts Receivable
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=receipt.accounts_receivable_account,
+                        entry_type='credit',
+                        amount=receipt.total_due,
+                        description=f"Payment for Invoice {invoice.invoice_number}"
+                    )
+                    
+                    messages.success(request, f'Receipt #{receipt.receipt_number} created successfully for UGX {receipt.total_due:,.0f}')
+                    return redirect('invoice_detail', invoice_id=invoice.pk)
+                    
+            except Exception as e:
+                messages.error(request, f'Error creating receipt: {str(e)}')
+    else:
+        # Pre-populate form with invoice data
+        initial_data = {
+            'customer_name': f"{invoice.customer.first_name} {invoice.customer.last_name}",
+            'customer_phone': invoice.customer.phone,
+            'customer_email': invoice.customer.email,
+            'total_due': min(invoice.balance_due, invoice.balance_due),  # Default to balance due
+        }
+        form = ReceiptForm(initial=initial_data)
+    
+    context = {
+        'form': form,
+        'invoice': invoice,
+        'max_amount': invoice.balance_due,
+    }
+    return render(request, 'create_receipt.html', context)
+
+def store_sale_list_receipts(request):
+    """List all sales receipts with summary statistics"""
+    receipts = StoreSaleReceipt.objects.select_related(
+        'sales_invoice', 'receiving_account', 'accounts_receivable_account', 'created_by'
+    ).all().order_by('-receipt_date')
+    
+    # Calculate summary statistics
+    total_receipts = receipts.count()
+    total_amount = sum(receipt.total_due for receipt in receipts)
+    
+    # Group by payment method
+    payment_methods = {}
+    for receipt in receipts:
+        method = receipt.payment_method or 'Unknown'
+        if method not in payment_methods:
+            payment_methods[method] = {'count': 0, 'amount': 0}
+        payment_methods[method]['count'] += 1
+        payment_methods[method]['amount'] += receipt.total_due
+    
+    # Get recent receipts (last 10)
+    recent_receipts = receipts[:10]
+    
+    context = {
+        'receipts': receipts,
+        'total_receipts': total_receipts,
+        'total_amount': total_amount,
+        'payment_methods': payment_methods,
+        'recent_receipts': recent_receipts,
+    }
+    return render(request, 'list_receipts.html', context)
+
+def create_credit_note_from_invoice(request, invoice_id):
+    """Create a credit note for an invoice"""
+    invoice = get_object_or_404(SalesInvoice, id=invoice_id)
+    
+    if request.method == 'POST':
+        form = CreditNoteForm(request.POST)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Create the credit note
+                    credit_note = form.save(commit=False)
+                    credit_note.sales_invoice = invoice
+                    credit_note.created_by = request.user
+                    credit_note.status = 'issued'  # Set to issued immediately
+                    
+                    # Validate Chart of Accounts are selected
+                    if not credit_note.accounts_receivable_account:
+                        raise ValueError("Accounts Receivable account is required")
+                    if not credit_note.sales_return_account:
+                        raise ValueError("Sales Return account is required")
+                    
+                    credit_note.save()
+                    
+                    # Create journal entry for the credit note
+                    from accounts.models import JournalEntry, JournalEntryLine
+                    
+                    # Create journal entry
+                    journal_entry = JournalEntry.objects.create(
+                        date=credit_note.credit_note_date.date(),
+                        reference=f"CN-{credit_note.credit_note_number}",
+                        description=f"Credit note issued for Invoice {invoice.invoice_number}",
+                        entry_type='credit_note',
+                        created_by=request.user,
+                        is_posted=True,
+                        posted_at=timezone.now()
+                    )
+                    
+                    # Create journal entry lines
+                    # Debit: Sales Returns (reduce revenue)
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=credit_note.sales_return_account,
+                        entry_type='debit',
+                        amount=credit_note.total_amount,
+                        description=f"Credit note for {credit_note.customer_name}"
+                    )
+                    
+                    # Credit: Accounts Receivable (reduce receivable)
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=credit_note.accounts_receivable_account,
+                        entry_type='credit',
+                        amount=credit_note.total_amount,
+                        description=f"Credit note for Invoice {invoice.invoice_number}"
+                    )
+                    
+                    messages.success(request, f'Credit Note #{credit_note.credit_note_number} created successfully for UGX {credit_note.total_amount:,.0f}')
+                    return redirect('credit_note_detail', credit_note_id=credit_note.pk)
+                    
+            except Exception as e:
+                messages.error(request, f'Error creating credit note: {str(e)}')
+    else:
+        # Pre-populate form with invoice data
+        initial_data = {
+            'customer_name': f"{invoice.customer.first_name} {invoice.customer.last_name}",
+            'customer_phone': invoice.customer.phone,
+            'customer_email': invoice.customer.email,
+            'subtotal': invoice.subtotal,  # Default to invoice subtotal
+            'tax_amount': invoice.tax_amount,  # Default to invoice tax
+        }
+        form = CreditNoteForm(initial=initial_data)
+    
+    context = {
+        'form': form,
+        'invoice': invoice,
+    }
+    return render(request, 'create_credit_note.html', context)
+
+def list_credit_notes(request):
+    """List all credit notes with summary statistics"""
+    credit_notes = CreditNote.objects.select_related(
+        'sales_invoice', 'accounts_receivable_account', 'sales_return_account', 'created_by'
+    ).all().order_by('-credit_note_date')
+    
+    # Calculate summary statistics
+    total_credit_notes = credit_notes.count()
+    total_amount = sum(cn.total_amount for cn in credit_notes)
+    
+    # Group by credit note type
+    credit_note_types = {}
+    for cn in credit_notes:
+        cn_type = cn.get_credit_note_type_display()
+        if cn_type not in credit_note_types:
+            credit_note_types[cn_type] = {'count': 0, 'amount': 0}
+        credit_note_types[cn_type]['count'] += 1
+        credit_note_types[cn_type]['amount'] += cn.total_amount
+    
+    # Get recent credit notes (last 10)
+    recent_credit_notes = credit_notes[:10]
+    
+    context = {
+        'credit_notes': credit_notes,
+        'total_credit_notes': total_credit_notes,
+        'total_amount': total_amount,
+        'credit_note_types': credit_note_types,
+        'recent_credit_notes': recent_credit_notes,
+    }
+    return render(request, 'list_credit_notes.html', context)
+
+def credit_note_detail(request, credit_note_id):
+    """View credit note details"""
+    credit_note = get_object_or_404(CreditNote, id=credit_note_id)
+    
+    context = {
+        'credit_note': credit_note,
+        'invoice': credit_note.sales_invoice,
+        'order': credit_note.sales_invoice.store_sale,
+    }
+    return render(request, 'credit_note_detail.html', context)
+
+def apply_credit_note(request, credit_note_id):
+    """Apply a credit note to reduce invoice balance"""
+    credit_note = get_object_or_404(CreditNote, id=credit_note_id)
+    
+    if not credit_note.can_be_applied:
+        messages.error(request, f"Credit Note #{credit_note.credit_note_number} cannot be applied.")
+        return redirect('credit_note_detail', credit_note_id=credit_note.pk)
+    
+    try:
+        amount_applied = credit_note.apply_to_invoice()
+        messages.success(request, f'Credit Note #{credit_note.credit_note_number} applied successfully. Amount applied: UGX {amount_applied:,.0f}')
+    except Exception as e:
+        messages.error(request, f'Error applying credit note: {str(e)}')
+    
+    return redirect('credit_note_detail', credit_note_id=credit_note.pk)
+
+
+################### Quality Control Views ###################
+
+@login_required(login_url='/login/')
+def quality_control_dashboard(request):
+    """Dashboard view for quality control overview"""
+    
+    # Get statistics
+    pending_tests = QualityControlTest.objects.filter(status='pending').count()
+    in_progress_tests = QualityControlTest.objects.filter(status='in_progress').count()
+    completed_tests = QualityControlTest.objects.filter(status='completed').count()
+    overdue_tests = QualityControlTest.objects.filter(
+        status__in=['pending', 'in_progress'],
+        scheduled_test_date__lt=timezone.now()
+    ).count()
+    
+    # Recent tests
+    recent_tests = QualityControlTest.objects.select_related(
+        'manufactured_product', 'manufactured_product__product', 'assigned_tester'
+    ).order_by('-created_at')[:10]
+    
+    # Tests by status for chart
+    test_stats = {
+        'pending': pending_tests,
+        'in_progress': in_progress_tests,
+        'completed': completed_tests,
+        'overdue': overdue_tests,
+    }
+    
+    # Pass/fail statistics for completed tests
+    completed_test_results = QualityControlTest.objects.filter(
+        status='completed'
+    ).values('overall_result').annotate(count=Count('id'))
+    
+    context = {
+        'pending_tests': pending_tests,
+        'in_progress_tests': in_progress_tests,
+        'completed_tests': completed_tests,
+        'overdue_tests': overdue_tests,
+        'recent_tests': recent_tests,
+        'test_stats': test_stats,
+        'completed_test_results': completed_test_results,
+    }
+    
+    return render(request, 'quality_control_dashboard.html', context)
+
+
+@login_required(login_url='/login/')
+def quality_control_test_list(request):
+    """List view for quality control tests with filtering"""
+    
+    # Get filter parameters
+    status_filter = request.GET.get('status', '')
+    result_filter = request.GET.get('result', '')
+    assigned_to_filter = request.GET.get('assigned_to', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Start with all tests
+    tests = QualityControlTest.objects.select_related(
+        'manufactured_product', 'manufactured_product__product', 'assigned_tester'
+    ).order_by('-created_at')
+    
+    # Apply filters
+    if status_filter:
+        tests = tests.filter(status=status_filter)
+    
+    if result_filter:
+        tests = tests.filter(overall_result=result_filter)
+    
+    if assigned_to_filter:
+        tests = tests.filter(assigned_tester_id=assigned_to_filter)
+    
+    if date_from:
+        tests = tests.filter(created_at__gte=date_from)
+    
+    if date_to:
+        tests = tests.filter(created_at__lte=date_to)
+    
+    # Pagination
+    paginator = Paginator(tests, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    from django.contrib.auth.models import User
+    testers = User.objects.filter(is_active=True, assigned_quality_tests__isnull=False).distinct()
+    
+    context = {
+        'page_obj': page_obj,
+        'testers': testers,
+        'status_filter': status_filter,
+        'result_filter': result_filter,
+        'assigned_to_filter': assigned_to_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': QualityControlTest.STATUS_CHOICES,
+        'result_choices': QualityControlTest.RESULT_CHOICES,
+    }
+    
+    return render(request, 'quality_control_test_list.html', context)
+
+
+@login_required(login_url='/login/')
+def quality_control_test_detail(request, test_id):
+    """Detail view for individual quality control test"""
+    
+    test = get_object_or_404(QualityControlTest, id=test_id)
+    
+    # Get test parameters
+    parameters = test.test_parameters.all()
+    
+    # Get QC actions
+    actions = test.qc_actions.all().order_by('-action_date')
+    
+    # Get sample allocations
+    sample_allocations = test.manufactured_product.sample_allocations.all()
+    
+    context = {
+        'test': test,
+        'parameters': parameters,
+        'actions': actions,
+        'sample_allocations': sample_allocations,
+    }
+    
+    return render(request, 'quality_control_test_detail.html', context)
+
+
+@login_required(login_url='/login/')
+def create_quality_control_test(request, manufactured_product_id):
+    """Create a new quality control test for a manufactured product"""
+    
+    manufactured_product = get_object_or_404(ManufactureProduct, id=manufactured_product_id)
+    
+    if request.method == 'POST':
+        form = QualityControlTestForm(request.POST)
+        if form.is_valid():
+            test = form.save(commit=False)
+            test.manufactured_product = manufactured_product
+            test.save()
+            
+            # Create sample allocation
+            SampleAllocation.objects.create(
+                manufactured_product=manufactured_product,
+                quantity_allocated=test.sample_quantity,
+                allocated_by=request.user,
+                sample_expiry_date=manufactured_product.expiry_date
+            )
+            
+            # Update manufactured product QC status
+            manufactured_product.qc_status = 'in_progress'
+            manufactured_product.save(update_fields=['qc_status'])
+            
+            messages.success(request, f'Quality control test {test.test_number} created successfully.')
+            return redirect('quality_control_test_detail', test_id=test.id)
+    else:
+        form = QualityControlTestForm(initial={
+            'sample_quantity': manufactured_product.qc_sample_quantity or 1,
+            'assigned_tester': request.user
+        })
+    
+    context = {
+        'form': form,
+        'manufactured_product': manufactured_product,
+    }
+    
+    return render(request, 'create_quality_control_test.html', context)
+
+
+@login_required(login_url='/login/')
+def edit_quality_control_test(request, test_id):
+    """Edit quality control test and record results"""
+    
+    test = get_object_or_404(QualityControlTest, id=test_id)
+    
+    if request.method == 'POST':
+        form = QualityTestResultForm(request.POST, instance=test)
+        parameter_formset = QualityTestParameterFormSet(request.POST, instance=test)
+        
+        if form.is_valid() and parameter_formset.is_valid():
+            # Save test results
+            test = form.save()
+            parameter_formset.save()
+            
+            # Update manufactured product QC status based on results
+            if test.status == 'completed':
+                if test.overall_result == 'pass':
+                    test.manufactured_product.qc_status = 'passed'
+                    test.manufactured_product.can_release_to_inventory = True
+                    
+                    # Automatically release to inventory if passed
+                    release_batch_to_inventory(test.manufactured_product)
+                    
+                elif test.overall_result == 'fail':
+                    test.manufactured_product.qc_status = 'failed'
+                    test.manufactured_product.can_release_to_inventory = False
+                
+                test.manufactured_product.save(update_fields=['qc_status', 'can_release_to_inventory'])
+            
+            messages.success(request, f'Quality control test {test.test_number} updated successfully.')
+            return redirect('quality_control_test_detail', test_id=test.id)
+    else:
+        form = QualityTestResultForm(instance=test)
+        parameter_formset = QualityTestParameterFormSet(instance=test)
+    
+    context = {
+        'form': form,
+        'parameter_formset': parameter_formset,
+        'test': test,
+    }
+    
+    return render(request, 'edit_quality_control_test.html', context)
+
+
+@login_required(login_url='/login/')
+def quality_control_action(request, test_id):
+    """Create QC action for a test (approve, reject, hold, etc.)"""
+    
+    test = get_object_or_404(QualityControlTest, id=test_id)
+    
+    if request.method == 'POST':
+        form = QualityControlActionForm(request.POST)
+        if form.is_valid():
+            action = form.save(commit=False)
+            action.quality_test = test
+            action.authorized_by = request.user
+            action.save()
+            
+            # Update test and manufactured product based on action
+            if action.action_type == 'release':
+                test.overall_result = 'pass'
+                test.status = 'completed'
+                test.manufactured_product.qc_status = 'passed'
+                test.manufactured_product.can_release_to_inventory = True
+                
+                # Release to inventory
+                release_batch_to_inventory(test.manufactured_product)
+                
+            elif action.action_type in ['discard', 'quarantine']:
+                test.overall_result = 'fail'
+                test.status = 'completed'
+                test.manufactured_product.qc_status = 'failed'
+                test.manufactured_product.can_release_to_inventory = False
+                
+            elif action.action_type == 'hold':
+                test.status = 'on_hold'
+                test.manufactured_product.qc_status = 'on_hold'
+            
+            test.save()
+            test.manufactured_product.save()
+            
+            messages.success(request, f'QC action "{action.action_type}" applied successfully.')
+            return redirect('quality_control_test_detail', test_id=test.id)
+    else:
+        form = QualityControlActionForm(initial={
+            'quantity_affected': test.manufactured_product.get_available_quantity_for_inventory()
+        })
+    
+    context = {
+        'form': form,
+        'test': test,
+    }
+    
+    return render(request, 'quality_control_action.html', context)
+
+
+@login_required(login_url='/login/')
+def pending_quality_tests(request):
+    """List of tests that need attention"""
+    
+    pending_tests = QualityControlTest.objects.select_related(
+        'manufactured_product', 'manufactured_product__product', 'assigned_tester'
+    ).filter(
+        status__in=['pending', 'in_progress']
+    ).order_by('scheduled_test_date', '-created_at')
+    
+    # Separate overdue tests
+    overdue_tests = [test for test in pending_tests if test.is_overdue]
+    regular_tests = [test for test in pending_tests if not test.is_overdue]
+    
+    context = {
+        'overdue_tests': overdue_tests,
+        'regular_tests': regular_tests,
+    }
+    
+    return render(request, 'pending_quality_tests.html', context)
+
+
+def release_batch_to_inventory(manufactured_product):
+    """Helper function to release QC-approved batch to inventory"""
+    
+    try:
+        # Calculate available quantity (excluding samples)
+        available_quantity = manufactured_product.get_available_quantity_for_inventory()
+        
+        if available_quantity > 0:
+            # Check if inventory already exists for this batch
+            inventory, created = ManufacturedProductInventory.objects.get_or_create(
+                product=manufactured_product.product,
+                batch_number=manufactured_product.batch_number,
+                defaults={
+                    'quantity': Decimal(str(available_quantity)),
+                    'expiry_date': manufactured_product.expiry_date
+                }
+            )
+            
+            # Only add quantity if this is a new inventory record
+            # If inventory already exists, it means it was added during manufacturing 
+            # when QC was not required, so we don't add again
+            if created:
+                logger.info(f"Created new inventory record for batch {manufactured_product.batch_number} with quantity {available_quantity}")
+            else:
+                logger.info(f"Inventory record already exists for batch {manufactured_product.batch_number}, not adding quantity again")
+                
+        return True
+    except Exception as e:
+        logger.error(f"Error releasing batch to inventory: {str(e)}")
+        return False
+
+
+@login_required(login_url='/login/')
+def my_quality_tests(request):
+    """Tests assigned to current user"""
+    
+    user_tests = QualityControlTest.objects.select_related(
+        'manufactured_product', 'manufactured_product__product'
+    ).prefetch_related('test_parameters').filter(
+        assigned_tester=request.user
+    ).order_by('-created_at')
+    
+    # Separate by status and add progress calculation
+    pending = user_tests.filter(status='pending')
+    in_progress = user_tests.filter(status='in_progress')
+    completed = user_tests.filter(status='completed')
+    
+    # Add progress data for in_progress tests
+    for test in in_progress:
+        total_params = test.test_parameters.count()
+        completed_params = test.test_parameters.exclude(measured_value='').count()
+        test.progress_percentage = (completed_params / total_params * 100) if total_params > 0 else 0
+        test.completed_params_count = completed_params
+        test.total_params_count = total_params
+    
+    context = {
+        'pending_tests': pending,
+        'in_progress_tests': in_progress,
+        'completed_tests': completed,
+    }
+    
+    return render(request, 'my_quality_tests.html', context)
+
+
+@login_required(login_url='/login/')
+def quality_control_reports(request):
+    """Quality control reports and analytics"""
+    
+    # Date range filter
+    date_from = request.GET.get('date_from', (timezone.now() - timedelta(days=30)).date())
+    date_to = request.GET.get('date_to', timezone.now().date())
+    
+    # Tests in date range
+    tests_in_range = QualityControlTest.objects.filter(
+        created_at__date__gte=date_from,
+        created_at__date__lte=date_to
+    )
+    
+    # Statistics
+    total_tests = tests_in_range.count()
+    passed_tests = tests_in_range.filter(overall_result='pass').count()
+    failed_tests = tests_in_range.filter(overall_result='fail').count()
+    
+    pass_rate = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+    
+    # Tests by product
+    tests_by_product = tests_in_range.values(
+        'manufactured_product__product__product_name'
+    ).annotate(
+        total=Count('id'),
+        passed=Count(Case(When(overall_result='pass', then=1))),
+        failed=Count(Case(When(overall_result='fail', then=1)))
+    ).order_by('-total')
+    
+    # Tests by tester
+    tests_by_tester = tests_in_range.values(
+        'assigned_tester__first_name',
+        'assigned_tester__last_name'
+    ).annotate(
+        total=Count('id'),
+        passed=Count(Case(When(overall_result='pass', then=1))),
+        failed=Count(Case(When(overall_result='fail', then=1)))
+    ).order_by('-total')
+    
+    context = {
+        'date_from': date_from,
+        'date_to': date_to,
+        'total_tests': total_tests,
+        'passed_tests': passed_tests,
+        'failed_tests': failed_tests,
+        'pass_rate': round(pass_rate, 1),
+        'tests_by_product': tests_by_product,
+        'tests_by_tester': tests_by_tester,
+    }
+    
+    return render(request, 'quality_control_reports.html', context)

@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Pending Quality Tests{% endblock %}
+
+{% block css %}
+<style>
+    .urgent-test {
+        border-left: 5px solid #dc3545;
+        background-color: #fff5f5;
+    }
+    .overdue-test {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+    }
+    .test-row:hover {
+        background-color: #f8f9fa;
+        cursor: pointer;
+    }
+    .priority-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    .days-indicator {
+        font-weight: bold;
+    }
+    .overdue {
+        color: #dc3545;
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+    .action-buttons {
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    .test-row:hover .action-buttons {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'productionPage' %}">PRODUCTION</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_dashboard' %}">QUALITY CONTROL</a></li>
+                <li class="breadcrumb-item active">PENDING TESTS</li>
+            </ul>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-header">
+                    <i class="fa fa-clock me-2"></i>Pending Quality Tests
+                    {% if overdue_tests %}
+                        <span class="badge bg-danger ms-2">{{ overdue_tests|length }} Overdue</span>
+                    {% endif %}
+                </h1>
+                <div>
+                    <a href="{% url 'quality_control_dashboard' %}" class="btn btn-outline-primary me-2">
+                        <i class="fa fa-dashboard"></i> Dashboard
+                    </a>
+                    <a href="{% url 'my_quality_tests' %}" class="btn btn-info">
+                        <i class="fa fa-user"></i> My Tests
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert for Overdue Tests -->
+    {% if overdue_tests %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-danger d-flex align-items-center" role="alert">
+                <i class="fa fa-exclamation-triangle fa-lg me-3"></i>
+                <div>
+                    <h6 class="mb-1">Urgent Attention Required!</h6>
+                    <p class="mb-0">{{ overdue_tests|length }} quality control test{{ overdue_tests|length|pluralize }} {{ overdue_tests|length|pluralize:"is,are" }} overdue and require immediate attention.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Overdue Tests Section -->
+    {% if overdue_tests %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fa fa-exclamation-triangle me-2"></i>Overdue Tests
+                        <span class="badge bg-dark ms-2">{{ overdue_tests|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Test #</th>
+                                    <th>Product</th>
+                                    <th>Batch</th>
+                                    <th>Priority</th>
+                                    <th>Assigned To</th>
+                                    <th>Scheduled</th>
+                                    <th>Days Overdue</th>
+                                    <th>Sample Qty</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in overdue_tests %}
+                                <tr class="test-row overdue-test{% if test.priority == 'urgent' %} urgent-test{% endif %}"
+                                    onclick="window.location.href='{% url 'quality_control_test_detail' test.id %}'">
+                                    <td>
+                                        <strong class="text-danger">{{ test.test_number }}</strong>
+                                        {% if test.priority == 'urgent' %}
+                                            <i class="fa fa-fire text-danger ms-1" title="Urgent Priority"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ test.manufactured_product.product.product_name }}</td>
+                                    <td><code>{{ test.manufactured_product.batch_number }}</code></td>
+                                    <td>
+                                        <span class="badge priority-badge
+                                            {% if test.priority == 'urgent' %}bg-danger
+                                            {% elif test.priority == 'high' %}bg-warning
+                                            {% elif test.priority == 'medium' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ test.get_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if test.assigned_tester %}
+                                            <small>{{ test.assigned_tester.get_full_name|default:test.assigned_tester.username }}</small>
+                                        {% else %}
+                                            <span class="text-danger">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.scheduled_test_date %}
+                                            <small class="text-danger">{{ test.scheduled_test_date|date:"M j, Y H:i" }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Not scheduled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="days-indicator overdue">
+                                            {{ test.days_since_sampling }} day{{ test.days_since_sampling|pluralize }}
+                                        </span>
+                                    </td>
+                                    <td>{{ test.sample_quantity }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm action-buttons" role="group">
+                                            <a href="{% url 'edit_quality_control_test' test.id %}" 
+                                               class="btn btn-danger btn-sm" 
+                                               onclick="event.stopPropagation();" title="Start Test">
+                                                <i class="fa fa-play"></i>
+                                            </a>
+                                            <a href="{% url 'quality_control_test_detail' test.id %}" 
+                                               class="btn btn-outline-danger btn-sm" 
+                                               onclick="event.stopPropagation();" title="View Details">
+                                                <i class="fa fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Regular Pending Tests -->
+    {% if regular_tests %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="mb-0">
+                        <i class="fa fa-clock me-2"></i>Pending Tests
+                        <span class="badge bg-dark ms-2">{{ regular_tests|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Test #</th>
+                                    <th>Product</th>
+                                    <th>Batch</th>
+                                    <th>Priority</th>
+                                    <th>Assigned To</th>
+                                    <th>Scheduled</th>
+                                    <th>Created</th>
+                                    <th>Sample Qty</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in regular_tests %}
+                                <tr class="test-row{% if test.priority == 'urgent' %} urgent-test{% endif %}"
+                                    onclick="window.location.href='{% url 'quality_control_test_detail' test.id %}'">
+                                    <td>
+                                        <strong>{{ test.test_number }}</strong>
+                                        {% if test.priority == 'urgent' %}
+                                            <i class="fa fa-fire text-danger ms-1" title="Urgent Priority"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ test.manufactured_product.product.product_name }}</td>
+                                    <td><code>{{ test.manufactured_product.batch_number }}</code></td>
+                                    <td>
+                                        <span class="badge priority-badge
+                                            {% if test.priority == 'urgent' %}bg-danger
+                                            {% elif test.priority == 'high' %}bg-warning
+                                            {% elif test.priority == 'medium' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ test.get_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if test.assigned_tester %}
+                                            <small>{{ test.assigned_tester.get_full_name|default:test.assigned_tester.username }}</small>
+                                        {% else %}
+                                            <span class="text-warning">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.scheduled_test_date %}
+                                            <small>{{ test.scheduled_test_date|date:"M j, Y H:i" }}</small>
+                                            {% if test.scheduled_test_date|date:"Y-m-d" == today|date:"Y-m-d" %}
+                                                <span class="badge bg-info ms-1">Today</span>
+                                            {% elif test.scheduled_test_date|date:"Y-m-d" == tomorrow|date:"Y-m-d" %}
+                                                <span class="badge bg-secondary ms-1">Tomorrow</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Not scheduled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ test.created_at|date:"M j, Y" }}</small>
+                                    </td>
+                                    <td>{{ test.sample_quantity }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm action-buttons" role="group">
+                                            <a href="{% url 'edit_quality_control_test' test.id %}" 
+                                               class="btn btn-warning btn-sm" 
+                                               onclick="event.stopPropagation();" title="Start Test">
+                                                <i class="fa fa-play"></i>
+                                            </a>
+                                            <a href="{% url 'quality_control_test_detail' test.id %}" 
+                                               class="btn btn-outline-warning btn-sm" 
+                                               onclick="event.stopPropagation();" title="View Details">
+                                                <i class="fa fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if not overdue_tests and not regular_tests %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fa fa-check-circle fa-4x text-success mb-4"></i>
+                    <h4 class="text-success">All Caught Up!</h4>
+                    <p class="text-muted mb-4">There are no pending quality control tests at the moment. Great work!</p>
+                    <div>
+                        <a href="{% url 'quality_control_dashboard' %}" class="btn btn-primary me-2">
+                            <i class="fa fa-dashboard"></i> Go to Dashboard
+                        </a>
+                        <a href="{% url 'quality_control_test_list' %}" class="btn btn-outline-secondary me-2">
+                            <i class="fa fa-list"></i> View All Tests
+                        </a>
+                        <a href="{% url 'manufacturedProductList' %}" class="btn btn-outline-info">
+                            <i class="fa fa-industry"></i> Manufacturing
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions Panel -->
+    {% if overdue_tests or regular_tests %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fa fa-bolt me-2"></i>Quick Actions
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <a href="{% url 'my_quality_tests' %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fa fa-user me-1"></i>My Tests Only
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <a href="{% url 'quality_control_test_list' %}?status=pending&priority=urgent" class="btn btn-outline-danger btn-sm">
+                                    <i class="fa fa-fire me-1"></i>Urgent Tests
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <a href="{% url 'quality_control_test_list' %}?status=pending&assigned_to=" class="btn btn-outline-warning btn-sm">
+                                    <i class="fa fa-user-times me-1"></i>Unassigned Tests
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-grid">
+                                <a href="{% url 'quality_control_reports' %}" class="btn btn-outline-info btn-sm">
+                                    <i class="fa fa-chart-bar me-1"></i>QC Reports
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    // Auto-refresh every 60 seconds if there are pending tests
+    {% if overdue_tests or regular_tests %}
+    setTimeout(function() {
+        location.reload();
+    }, 60000);
+    {% endif %}
+
+    // Highlight urgent and overdue tests
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add blinking effect to urgent overdue tests
+        const urgentOverdueTests = document.querySelectorAll('.overdue-test.urgent-test');
+        urgentOverdueTests.forEach(function(test) {
+            test.style.animation = 'pulse 1s infinite';
+        });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Press 'R' to refresh
+        if (e.key === 'r' || e.key === 'R') {
+            if (!e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                location.reload();
+            }
+        }
+        
+        // Press 'D' to go to dashboard
+        if (e.key === 'd' || e.key === 'D') {
+            if (!e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                window.location.href = '{% url "quality_control_dashboard" %}';
+            }
+        }
+    });
+</script>
+{% endblock %}

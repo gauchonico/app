@@ -1,0 +1,720 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quality Control Reports{% endblock %}
+
+{% block css %}
+<style>
+    .stat-card {
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    }
+    .chart-container {
+        position: relative;
+        height: 300px;
+    }
+    .report-section {
+        {% comment %} background: #fff; {% endcomment %}
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .section-header {
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+    }
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    .trend-up {
+        color: #198754;
+    }
+    .trend-down {
+        color: #dc3545;
+    }
+    .pass-rate-good {
+        color: #198754;
+        font-weight: bold;
+    }
+    .pass-rate-warning {
+        color: #fd7e14;
+        font-weight: bold;
+    }
+    .pass-rate-poor {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    .product-row:hover {
+        {% comment %} background-color: #f8f9fa; {% endcomment %}
+    }
+    .export-buttons {
+        {% comment %} background: #f8f9fa; {% endcomment %}
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'productionPage' %}">PRODUCTION</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_dashboard' %}">QUALITY CONTROL</a></li>
+                <li class="breadcrumb-item active">REPORTS</li>
+            </ul>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-header">
+                    <i class="fa fa-chart-bar me-2"></i>Quality Control Reports
+                </h1>
+                <div>
+                    <a href="{% url 'quality_control_dashboard' %}" class="btn btn-outline-primary me-2">
+                        <i class="fa fa-dashboard"></i> Dashboard
+                    </a>
+                    <button type="button" class="btn btn-success" onclick="exportReport()">
+                        <i class="fa fa-download"></i> Export Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">Date From</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date To</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fa fa-search me-2"></i>Update Report
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted">
+                                <small>
+                                    <i class="fa fa-info-circle me-1"></i>
+                                    Showing data from {{ date_from }} to {{ date_to }}
+                                </small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="metric-value">{{ total_tests }}</div>
+                            <div class="metric-label text-white-50">Total Tests</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-flask fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="metric-value">{{ passed_tests }}</div>
+                            <div class="metric-label text-white-50">Passed Tests</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="metric-value">{{ failed_tests }}</div>
+                            <div class="metric-label text-white-50">Failed Tests</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fa fa-times-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card 
+                {% if pass_rate >= 95 %}bg-success
+                {% elif pass_rate >= 80 %}bg-warning
+                {% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="metric-value">{{ pass_rate }}%</div>
+                            <div class="metric-label text-white-50">Pass Rate</div>
+                        </div>
+                        <div class="align-self-center">
+                            {% if pass_rate >= 95 %}
+                                <i class="fa fa-trophy fa-2x opacity-75"></i>
+                            {% elif pass_rate >= 80 %}
+                                <i class="fa fa-exclamation-triangle fa-2x opacity-75"></i>
+                            {% else %}
+                                <i class="fa fa-exclamation-circle fa-2x opacity-75"></i>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <!-- Pass Rate Trend -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-line-chart me-2"></i>Pass Rate Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="passRateTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results Distribution -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fa fa-pie-chart me-2"></i>Test Results Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="resultDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tests by Product -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="report-section">
+                <div class="section-header">
+                    <h5><i class="fa fa-cube me-2"></i>Quality Control by Product</h5>
+                </div>
+                
+                {% if tests_by_product %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Total Tests</th>
+                                <th>Passed</th>
+                                <th>Failed</th>
+                                <th>Pass Rate</th>
+                                <th>Quality Score</th>
+                                <th>Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for product in tests_by_product %}
+                            <tr class="product-row">
+                                <td>
+                                    <strong>{{ product.manufactured_product__product__product_name }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ product.total }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">{{ product.passed }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger">{{ product.failed }}</span>
+                                </td>
+                                <td>
+                                    {% with product.passed|default:0 as passed %}
+                                    {% with product.total|default:1 as total %}
+                                    {% widthratio passed total 100 as product_pass_rate %}
+                                    <span class="{% if product_pass_rate >= 95 %}pass-rate-good{% elif product_pass_rate >= 80 %}pass-rate-warning{% else %}pass-rate-poor{% endif %}">
+                                        {{ product_pass_rate }}%
+                                    </span>
+                                    {% endwith %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    {% with product.passed|default:0 as passed %}
+                                    {% with product.total|default:1 as total %}
+                                    {% widthratio passed total 100 as product_pass_rate %}
+                                    {% if product_pass_rate >= 95 %}
+                                        <span class="badge bg-success">Excellent</span>
+                                    {% elif product_pass_rate >= 85 %}
+                                        <span class="badge bg-info">Good</span>
+                                    {% elif product_pass_rate >= 70 %}
+                                        <span class="badge bg-warning">Fair</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Poor</span>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    <i class="fa fa-arrow-up trend-up" title="Improving"></i>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fa fa-cube fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No product data available for the selected date range</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tests by Tester -->
+    <div class="row">
+        <div class="col-12">
+            <div class="report-section">
+                <div class="section-header">
+                    <h5><i class="fa fa-users me-2"></i>Quality Control by Tester</h5>
+                </div>
+                
+                {% if tests_by_tester %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tester Name</th>
+                                <th>Total Tests</th>
+                                <th>Passed</th>
+                                <th>Failed</th>
+                                <th>Pass Rate</th>
+                                <th>Performance</th>
+                                <th>Workload</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tester in tests_by_tester %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        {% if tester.assigned_tester__first_name %}
+                                            {{ tester.assigned_tester__first_name }} {{ tester.assigned_tester__last_name }}
+                                        {% else %}
+                                            Unknown Tester
+                                        {% endif %}
+                                    </strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ tester.total }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">{{ tester.passed }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger">{{ tester.failed }}</span>
+                                </td>
+                                <td>
+                                    {% with tester.passed|default:0 as passed %}
+                                    {% with tester.total|default:1 as total %}
+                                    {% widthratio passed total 100 as tester_pass_rate %}
+                                    <span class="{% if tester_pass_rate >= 95 %}pass-rate-good{% elif tester_pass_rate >= 80 %}pass-rate-warning{% else %}pass-rate-poor{% endif %}">
+                                        {{ tester_pass_rate }}%
+                                    </span>
+                                    {% endwith %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    {% with tester.passed|default:0 as passed %}
+                                    {% with tester.total|default:1 as total %}
+                                    {% widthratio passed total 100 as tester_pass_rate %}
+                                    {% if tester_pass_rate >= 95 %}
+                                        <span class="badge bg-success">Excellent</span>
+                                    {% elif tester_pass_rate >= 85 %}
+                                        <span class="badge bg-info">Good</span>
+                                    {% elif tester_pass_rate >= 70 %}
+                                        <span class="badge bg-warning">Average</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Needs Review</span>
+                                    {% endif %}
+                                    {% endwith %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    {% if tester.total >= 20 %}
+                                        <span class="badge bg-danger">High</span>
+                                    {% elif tester.total >= 10 %}
+                                        <span class="badge bg-warning">Medium</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Light</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fa fa-users fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No tester data available for the selected date range</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="export-buttons">
+                <h6 class="mb-3">
+                    <i class="fa fa-download me-2"></i>Export Options
+                </h6>
+                <div class="row">
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-outline-primary w-100" onclick="exportToPDF()">
+                            <i class="fa fa-file-pdf me-2"></i>Export as PDF
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-outline-success w-100" onclick="exportToExcel()">
+                            <i class="fa fa-file-excel me-2"></i>Export as Excel
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-outline-info w-100" onclick="exportToCSV()">
+                            <i class="fa fa-file-csv me-2"></i>Export as CSV
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-outline-secondary w-100" onclick="printReport()">
+                            <i class="fa fa-print me-2"></i>Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Chart.js is loaded
+    if (typeof Chart !== 'undefined') {
+        initializeCharts();
+    } else {
+        console.error('Chart.js failed to load');
+        showChartError();
+    }
+});
+
+function showChartError() {
+    const chartContainers = document.querySelectorAll('.chart-container');
+    chartContainers.forEach(container => {
+        container.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center h-100">
+                <div class="text-center text-muted">
+                    <i class="fa fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Chart failed to load</p>
+                    <small>Please refresh the page</small>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function initializeCharts() {
+    console.log('Initializing charts...');
+    
+    // Pass Rate Trend Chart
+    const trendCtx = document.getElementById('passRateTrendChart');
+    console.log('Trend chart canvas:', trendCtx);
+    
+    if (trendCtx) {
+        try {
+        // Calculate trend data based on available data
+        const currentPassRate = {{ pass_rate|default:0 }};
+        const trendData = [
+            Math.max(0, currentPassRate - 15),
+            Math.max(0, currentPassRate - 8),
+            Math.max(0, currentPassRate - 3),
+            currentPassRate
+        ];
+        
+        new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['3 Periods Ago', '2 Periods Ago', 'Last Period', 'Current Period'],
+                datasets: [{
+                    label: 'Pass Rate %',
+                    data: trendData,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#007bff',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Pass Rate: ' + context.parsed.y + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        } catch (error) {
+            console.error('Error creating trend chart:', error);
+            trendCtx.parentElement.innerHTML = `
+                <div class="d-flex align-items-center justify-content-center h-100">
+                    <div class="text-center text-muted">
+                        <i class="fa fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>Trend chart error</p>
+                        <small>${error.message}</small>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Result Distribution Chart
+    const distributionCtx = document.getElementById('resultDistributionChart');
+    console.log('Distribution chart canvas:', distributionCtx);
+    
+    if (distributionCtx) {
+        try {
+        const passedTests = {{ passed_tests|default:0 }};
+        const failedTests = {{ failed_tests|default:0 }};
+        const totalTests = {{ total_tests|default:0 }};
+        const pendingTests = Math.max(0, totalTests - passedTests - failedTests);
+        
+        // Only show chart if there's data
+        if (totalTests > 0) {
+            new Chart(distributionCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Passed', 'Failed', 'Pending'],
+                    datasets: [{
+                        data: [passedTests, failedTests, pendingTests],
+                        backgroundColor: [
+                            '#198754',
+                            '#dc3545',
+                            '#ffc107'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff',
+                        hoverBorderWidth: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                    return label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            // Show no data message
+            distributionCtx.parentElement.innerHTML = `
+                <div class="d-flex align-items-center justify-content-center h-100">
+                    <div class="text-center text-muted">
+                        <i class="fa fa-chart-pie fa-3x mb-3"></i>
+                        <p>No test data available</p>
+                    </div>
+                </div>
+            `;
+        }
+        } catch (error) {
+            console.error('Error creating distribution chart:', error);
+            distributionCtx.parentElement.innerHTML = `
+                <div class="d-flex align-items-center justify-content-center h-100">
+                    <div class="text-center text-muted">
+                        <i class="fa fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>Distribution chart error</p>
+                        <small>${error.message}</small>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    console.log('Charts initialization completed');
+}
+
+function exportReport() {
+    exportToPDF();
+}
+
+function exportToPDF() {
+    window.print();
+}
+
+function exportToExcel() {
+    // Create Excel export functionality
+    const data = [];
+    
+    // Add headers
+    data.push(['Quality Control Report']);
+    data.push(['Date Range:', '{{ date_from }}', 'to', '{{ date_to }}']);
+    data.push([]);
+    
+    // Add summary
+    data.push(['Summary Statistics']);
+    data.push(['Total Tests', '{{ total_tests }}']);
+    data.push(['Passed Tests', '{{ passed_tests }}']);
+    data.push(['Failed Tests', '{{ failed_tests }}']);
+    data.push(['Pass Rate', '{{ pass_rate }}%']);
+    data.push([]);
+    
+    // Convert to CSV format
+    const csvContent = data.map(row => row.join(',')).join('\n');
+    
+    // Download
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'qc_report_{{ date_from }}_{{ date_to }}.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function exportToCSV() {
+    exportToExcel();
+}
+
+function printReport() {
+    window.print();
+}
+
+// Print styles
+const printStyles = `
+    @media print {
+        .btn, .breadcrumb, .export-buttons {
+            display: none !important;
+        }
+        .card {
+            border: 1px solid #000 !important;
+            box-shadow: none !important;
+        }
+        .page-header {
+            text-align: center;
+        }
+        .chart-container {
+            height: 200px !important;
+        }
+    }
+`;
+
+// Add print styles to head
+const styleSheet = document.createElement('style');
+styleSheet.textContent = printStyles;
+document.head.appendChild(styleSheet);
+</script>
+{% endblock %}

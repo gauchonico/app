@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quality Control Tests{% endblock %}
+
+{% block css %}
+<style>
+    .filter-card {
+        {% comment %} background: #f8f9fa; {% endcomment %}
+        border: 1px solid #dee2e6;
+    }
+    .status-badge {
+        font-size: 0.8rem;
+    }
+    .overdue {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col-12">
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'productionPage' %}">PRODUCTION</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'quality_control_dashboard' %}">QUALITY CONTROL</a></li>
+                <li class="breadcrumb-item active">ALL TESTS</li>
+            </ul>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="page-header">
+                    <i class="fa fa-list me-2"></i>Quality Control Tests
+                </h1>
+                <div>
+                    <a href="{% url 'quality_control_dashboard' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fa fa-dashboard"></i> Dashboard
+                    </a>
+                    <a href="{% url 'pending_quality_tests' %}" class="btn btn-warning">
+                        <i class="fa fa-clock"></i> Pending Tests
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-control">
+                                <option value="">All Statuses</option>
+                                {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Result</label>
+                            <select name="result" class="form-control">
+                                <option value="">All Results</option>
+                                {% for value, label in result_choices %}
+                                    <option value="{{ value }}" {% if value == result_filter %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Assigned To</label>
+                            <select name="assigned_to" class="form-control">
+                                <option value="">All Testers</option>
+                                {% for tester in testers %}
+                                    <option value="{{ tester.id }}" {% if tester.id|stringformat:"s" == assigned_to_filter %}selected{% endif %}>
+                                        {{ tester.get_full_name|default:tester.username }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Date From</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Date To</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa fa-search"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tests Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fa fa-flask me-2"></i>Quality Control Tests
+                        {% if page_obj.paginator.count %}
+                            <span class="badge bg-secondary">{{ page_obj.paginator.count }} total</span>
+                        {% endif %}
+                    </h5>
+                    {% if request.GET %}
+                        <a href="{% url 'quality_control_test_list' %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fa fa-times"></i> Clear Filters
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if page_obj.object_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Test #</th>
+                                    <th>Product</th>
+                                    <th>Batch #</th>
+                                    <th>Sample Qty</th>
+                                    <th>Status</th>
+                                    <th>Result</th>
+                                    <th>Assigned To</th>
+                                    <th>Priority</th>
+                                    <th>Scheduled</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in page_obj.object_list %}
+                                <tr class="{% if test.is_overdue %}table-warning{% endif %}">
+                                    <td>
+                                        <a href="{% url 'quality_control_test_detail' test.id %}" class="text-decoration-none fw-bold">
+                                            {{ test.test_number }}
+                                        </a>
+                                        {% if test.is_overdue %}
+                                            <i class="fa fa-exclamation-triangle text-danger ms-1" title="Overdue"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ test.manufactured_product.product.product_name }}</td>
+                                    <td>
+                                        <code>{{ test.manufactured_product.batch_number }}</code>
+                                    </td>
+                                    <td>{{ test.sample_quantity }}</td>
+                                    <td>
+                                        {% if test.status == 'pending' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif test.status == 'in_progress' %}
+                                            <span class="badge bg-info">In Progress</span>
+                                        {% elif test.status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif test.status == 'on_hold' %}
+                                            <span class="badge bg-secondary">On Hold</span>
+                                        {% elif test.status == 'cancelled' %}
+                                            <span class="badge bg-dark">Cancelled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.overall_result == 'pass' %}
+                                            <span class="badge bg-success">Pass</span>
+                                        {% elif test.overall_result == 'fail' %}
+                                            <span class="badge bg-danger">Fail</span>
+                                        {% elif test.overall_result == 'conditional_pass' %}
+                                            <span class="badge bg-warning">Conditional</span>
+                                        {% elif test.overall_result == 'pending' %}
+                                            <span class="badge bg-secondary">Pending</span>
+                                        {% endif %}
+                                        
+                                        {% if test.pass_percentage %}
+                                            <small class="text-muted d-block">{{ test.pass_percentage }}%</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.assigned_tester %}
+                                            <small>{{ test.assigned_tester.get_full_name|default:test.assigned_tester.username }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Unassigned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.priority == 'urgent' %}
+                                            <span class="badge bg-danger">Urgent</span>
+                                        {% elif test.priority == 'high' %}
+                                            <span class="badge bg-warning">High</span>
+                                        {% elif test.priority == 'medium' %}
+                                            <span class="badge bg-info">Medium</span>
+                                        {% elif test.priority == 'low' %}
+                                            <span class="badge bg-secondary">Low</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if test.scheduled_test_date %}
+                                            <small>{{ test.scheduled_test_date|date:"M j, Y H:i" }}</small>
+                                        {% else %}
+                                            <span class="text-muted">Not scheduled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ test.created_at|date:"M j, Y H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'quality_control_test_detail' test.id %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fa fa-eye"></i>
+                                            </a>
+                                            {% if test.status != 'completed' and test.status != 'cancelled' %}
+                                            <a href="{% url 'edit_quality_control_test' test.id %}" 
+                                               class="btn btn-outline-success" title="Edit Test">
+                                                <i class="fa fa-edit"></i>
+                                            </a>
+                                            {% endif %}
+                                            {% if test.status == 'completed' and test.overall_result != 'pass' %}
+                                            <a href="{% url 'quality_control_action' test.id %}" 
+                                               class="btn btn-outline-warning" title="Take Action">
+                                                <i class="fa fa-cog"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Quality tests pagination">
+                        <ul class="pagination justify-content-center mt-4">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fa fa-flask fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Quality Control Tests Found</h5>
+                        <p class="text-muted">No tests match your current filters.</p>
+                        {% if request.GET %}
+                            <a href="{% url 'quality_control_test_list' %}" class="btn btn-primary">
+                                <i class="fa fa-times"></i> Clear Filters
+                            </a>
+                        {% else %}
+                            <a href="{% url 'manufacturedProductList' %}" class="btn btn-primary">
+                                <i class="fa fa-plus"></i> Start Manufacturing
+                            </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+    // Auto-submit form when filters change
+    document.querySelectorAll('select[name]').forEach(function(select) {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+</script>
+{% endblock %}

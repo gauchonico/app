@@ -2,7 +2,7 @@
 {% load humanize %}
 {% load static %}
 
-{% block title %}Store Sales{% endblock %}
+{% block title %}Store Orders{% endblock %}
 
 {% block css %}
 	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -46,7 +46,10 @@
 					</ul>
 					
 					<div class="ms-auto">
-						<a href="{% url 'SaleTest' %}" class="btn btn-outline-theme me-2">Create New Store Sale</a>
+						<a href="{% url 'main_store_invoices' %}" class="btn btn-outline-info me-2">
+							<i class="fa fa-file-invoice me-1"></i>View Invoices
+						</a>
+						<a href="{% url 'SaleTest' %}" class="btn btn-outline-theme me-2">Create New Store Order</a>
 					</div>
 					
 					<hr class="mb-4">
@@ -57,31 +60,31 @@
 							<div class="card bg-primary text-white">
 								<div class="card-body text-center">
 									<h4 class="mb-0">{{ total_sales }}</h4>
-									<small>Total Sales</small>
+									<small>Total Orders</small>
 								</div>
 							</div>
 						</div>
 						<div class="col-md-2">
 							<div class="card bg-warning text-white">
 								<div class="card-body text-center">
-									<h4 class="mb-0">{{ pending_sales }}</h4>
-									<small>Pending</small>
+									<h4 class="mb-0">{{ draft_sales }}</h4>
+									<small>Draft</small>
 								</div>
 							</div>
 						</div>
 						<div class="col-md-2">
 							<div class="card bg-info text-white">
 								<div class="card-body text-center">
-									<h4 class="mb-0">{{ delivered_sales }}</h4>
-									<small>Delivered</small>
+									<h4 class="mb-0">{{ confirmed_sales }}</h4>
+									<small>Confirmed</small>
 								</div>
 							</div>
 						</div>
 						<div class="col-md-2">
 							<div class="card bg-success text-white">
 								<div class="card-body text-center">
-									<h4 class="mb-0">{{ paid_sales }}</h4>
-									<small>Paid</small>
+									<h4 class="mb-0">{{ invoiced_sales }}</h4>
+									<small>Invoiced</small>
 								</div>
 							</div>
 						</div>
@@ -128,9 +131,9 @@
 												<strong>{{ sale_order.customer.first_name }} {{ sale_order.customer.last_name }}</strong><br>
 												<small class="text-muted">{{ sale_order.customer.phone }}</small>
 											</td>
-											<td class="align-middle">{{ sale_order.sale_date|date:"M d, Y" }}</td>
+											<td class="align-middle">{{ sale_order.order_date|date:"M d, Y" }}</td>
 											<td class="align-middle">
-												<span class="badge {% if sale_order.status == 'ordered' %}bg-warning{% elif sale_order.status == 'delivered' %}bg-info{% elif sale_order.status == 'paid' %}bg-success{% else %}bg-secondary{% endif %} px-2 py-1 rounded">
+												<span class="badge {% if sale_order.status == 'invoiced' %}bg-success{% elif sale_order.status == 'confirmed' %}bg-info{% elif sale_order.status == 'cancelled' %}bg-danger{% else %}bg-secondary{% endif %} px-2 py-1 rounded">
 													{{ sale_order.get_status_display }}
 												</span>
 											</td>

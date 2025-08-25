@@ -242,6 +242,28 @@ class ManufactureProductForm(forms.Form):
     expiry_date = forms.DateField(required=True, label="Expiry Date", widget=forms.TextInput(attrs={'type':'date','class': 'form-control'}))
     production_order = forms.ModelChoiceField(queryset=ProductionOrder.objects.none(), required=False, label="Production Order", widget=forms.Select(attrs={'class': 'form-control'}))
     
+    # Quality Control Fields
+    qc_required = forms.BooleanField(
+        required=False, 
+        initial=True,
+        label="Quality Control Required", 
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    qc_sample_quantity = forms.IntegerField(
+        min_value=0, 
+        initial=1,
+        label="Sample Bottles for QC", 
+        widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'e.g. 2'}),
+        help_text="Number of sample bottles to allocate for quality control testing"
+    )
+    auto_create_qc_test = forms.BooleanField(
+        required=False, 
+        initial=True,
+        label="Auto-create QC Test", 
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        help_text="Automatically create quality control test after manufacturing"
+    )
+    
     def __init__(self, *args, **kwargs):
         product = kwargs.pop('product', None)
         super().__init__(*args, **kwargs)
@@ -256,17 +278,129 @@ class ManufactureProductForm(forms.Form):
         cleaned_data = super().clean()
         production_order = cleaned_data.get('production_order')
         quantity = cleaned_data.get('quantity')
+        qc_required = cleaned_data.get('qc_required')
+        qc_sample_quantity = cleaned_data.get('qc_sample_quantity')
         
         # If production order is selected, ensure quantity matches approved quantity
         if production_order and quantity:
             if quantity != production_order.approved_quantity:
                 raise forms.ValidationError(f"Quantity must match the approved quantity ({production_order.approved_quantity}) for this production order.")
         
+        # Validate QC sample quantity
+        if qc_required and qc_sample_quantity > quantity:
+            raise forms.ValidationError("Sample quantity for QC cannot exceed total manufacturing quantity.")
+            
+        if qc_required and qc_sample_quantity <= 0:
+            raise forms.ValidationError("Sample quantity must be greater than 0 when QC is required.")
+        
         return cleaned_data
 
 class WriteOffForm(forms.Form):
     quantity = forms.IntegerField(min_value=1, label="Quantity to Write Off", widget=forms.NumberInput(attrs={'class': 'form-control','placeholder': 'e.g. 3'}))
     reason = forms.CharField(required=True, label="Reason for Write Off", widget=forms.TextInput(attrs={'class': 'form-control','placeholder': 'e.g. Expired'}))
+
+
+################### Quality Control Forms ###################
+
+class QualityControlTestForm(forms.ModelForm):
+    class Meta:
+        model = QualityControlTest
+        fields = [
+            'test_name', 'sample_quantity', 'scheduled_test_date', 
+            'assigned_tester', 'priority', 'testing_notes'
+        ]
+        widgets = {
+            'test_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'sample_quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'scheduled_test_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'assigned_tester': forms.Select(attrs={'class': 'form-control'}),
+            'priority': forms.Select(attrs={'class': 'form-control'}),
+            'testing_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter assigned_tester to show only active users
+        from django.contrib.auth.models import User
+        self.fields['assigned_tester'].queryset = User.objects.filter(is_active=True)
+
+
+class QualityTestParameterForm(forms.ModelForm):
+    class Meta:
+        model = QualityTestParameter
+        fields = [
+            'parameter_name', 'parameter_type', 'measurement_unit',
+            'target_value', 'min_acceptable', 'max_acceptable',
+            'measured_value', 'result_status', 'test_method', 'notes'
+        ]
+        widgets = {
+            'parameter_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'parameter_type': forms.Select(attrs={'class': 'form-control'}),
+            'measurement_unit': forms.Select(attrs={'class': 'form-control'}),
+            'target_value': forms.TextInput(attrs={'class': 'form-control'}),
+            'min_acceptable': forms.TextInput(attrs={'class': 'form-control'}),
+            'max_acceptable': forms.TextInput(attrs={'class': 'form-control'}),
+            'measured_value': forms.TextInput(attrs={'class': 'form-control'}),
+            'result_status': forms.Select(attrs={'class': 'form-control'}),
+            'test_method': forms.TextInput(attrs={'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+
+class QualityControlActionForm(forms.ModelForm):
+    class Meta:
+        model = QualityControlAction
+        fields = [
+            'action_type', 'action_reason', 'quantity_affected',
+            'follow_up_required', 'follow_up_date', 'follow_up_notes'
+        ]
+        widgets = {
+            'action_type': forms.Select(attrs={'class': 'form-control'}),
+            'action_reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'quantity_affected': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'follow_up_required': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'follow_up_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'follow_up_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+
+class QualityTestResultForm(forms.ModelForm):
+    """Form for updating quality test results"""
+    class Meta:
+        model = QualityControlTest
+        fields = [
+            'status', 'overall_result', 'pass_percentage', 'actual_test_date',
+            'testing_duration_hours', 'testing_notes', 'failure_reasons', 
+            'recommendations'
+        ]
+        widgets = {
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'overall_result': forms.Select(attrs={'class': 'form-control'}),
+            'pass_percentage': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '100', 'step': '0.01'}),
+            'actual_test_date': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'testing_duration_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.25'}),
+            'testing_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'failure_reasons': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'recommendations': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set actual_test_date to now if not set
+        if not self.instance.actual_test_date:
+            from django.utils import timezone
+            self.fields['actual_test_date'].initial = timezone.now()
+
+
+# Formset for managing multiple test parameters
+QualityTestParameterFormSet = forms.inlineformset_factory(
+    QualityControlTest,
+    QualityTestParameter,
+    form=QualityTestParameterForm,
+    extra=3,
+    can_delete=True,
+    fields=['parameter_name', 'parameter_type', 'measurement_unit', 'target_value', 'min_acceptable', 'max_acceptable']
+)
     
 
 #######################################################
@@ -528,14 +662,13 @@ class TestForm(forms.ModelForm):
     
     class Meta:
         model = StoreSale
-        fields = ['customer', 'tax_code', 'description', 'billing_address', 'withhold_tax', 'due_date']
+        fields = ['customer', 'tax_code', 'description', 'billing_address', 'withhold_tax']
         widgets = {
             'customer': forms.Select(attrs={'class':'form-control'}),
             'tax_code': forms.Select(attrs={'class':'form-control'}),
             'description': forms.Textarea(attrs={'class':'form-control', 'rows': 3, 'placeholder': 'Sale description or special notes...'}),
             'billing_address': forms.Textarea(attrs={'class':'form-control', 'rows': 3, 'placeholder': 'Customer billing address...'}),
             'withhold_tax': forms.CheckboxInput(attrs={'class':'form-check-input'}),
-            'due_date': forms.DateInput(attrs={'class':'form-control','id':'datepicker', 'placeholder':"yy/mm/dd"}),
         }
         
     def __init__(self, *args, **kwargs):
@@ -1389,3 +1522,151 @@ class StoreSalePaymentForm(forms.ModelForm):
                 )
         
         return amount_paid
+
+class ReceiptForm(forms.ModelForm):
+    """Form for creating receipts from invoices with Chart of Accounts integration"""
+    
+    class Meta:
+        model = StoreSaleReceipt
+        fields = ['customer_name', 'customer_phone', 'customer_email', 'total_due', 'payment_method', 
+                 'receiving_account', 'accounts_receivable_account', 'notes']
+        widgets = {
+            'customer_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'customer_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'customer_email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'total_due': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'payment_method': forms.Select(attrs={'class': 'form-control'}),
+            'receiving_account': forms.Select(attrs={'class': 'form-control'}),
+            'accounts_receivable_account': forms.Select(attrs={'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set payment method choices from StoreSalePayment model
+        self.fields['payment_method'].choices = StoreSalePayment.PAYMENT_METHOD_CHOICES
+        
+        # Filter Chart of Accounts for appropriate accounts
+        try:
+            # Filter receiving accounts (asset accounts - cash, bank, etc.)
+            self.fields['receiving_account'].queryset = ChartOfAccounts.objects.filter(
+                account_type='asset'
+            ).order_by('account_name')
+            
+            # Filter accounts receivable accounts
+            self.fields['accounts_receivable_account'].queryset = ChartOfAccounts.objects.filter(
+                account_type='asset'
+            ).order_by('account_name')
+            
+            # Set default accounts if available
+            if not self.instance.pk:  # Only for new receipts
+                # Set default receiving account (Cash)
+                try:
+                    default_receiving = ChartOfAccounts.objects.filter(
+                        account_name__icontains='cash',
+                        account_type='asset'
+                    ).first()
+                    if default_receiving:
+                        self.fields['receiving_account'].initial = default_receiving
+                except:
+                    pass
+                
+                # Set default accounts receivable
+                try:
+                    default_receivable = ChartOfAccounts.objects.filter(
+                        account_name__icontains='receivable',
+                        account_type='asset'
+                    ).first()
+                    if default_receivable:
+                        self.fields['accounts_receivable_account'].initial = default_receivable
+                except:
+                    pass
+                    
+        except Exception as e:
+            # Fallback if ChartOfAccounts is not available
+            self.fields['receiving_account'].queryset = ChartOfAccounts.objects.all().order_by('account_name')
+            self.fields['accounts_receivable_account'].queryset = ChartOfAccounts.objects.all().order_by('account_name')
+    
+    def clean_total_due(self):
+        total_due = self.cleaned_data.get('total_due')
+        if total_due <= 0:
+            raise forms.ValidationError("Payment amount must be greater than zero.")
+        return total_due
+
+class CreditNoteForm(forms.ModelForm):
+    """Form for creating credit notes with Chart of Accounts integration"""
+    
+    class Meta:
+        model = CreditNote
+        fields = ['credit_note_type', 'customer_name', 'customer_phone', 'customer_email', 
+                 'subtotal', 'tax_amount', 'reason', 'accounts_receivable_account', 
+                 'sales_return_account', 'reference_number', 'notes']
+        widgets = {
+            'credit_note_type': forms.Select(attrs={'class': 'form-control'}),
+            'customer_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'customer_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'customer_email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'subtotal': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'tax_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'accounts_receivable_account': forms.Select(attrs={'class': 'form-control'}),
+            'sales_return_account': forms.Select(attrs={'class': 'form-control'}),
+            'reference_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter Chart of Accounts for appropriate accounts
+        try:
+            # Filter accounts receivable accounts (asset accounts)
+            self.fields['accounts_receivable_account'].queryset = ChartOfAccounts.objects.filter(
+                account_type='asset'
+            ).order_by('account_name')
+            
+            # Filter sales return accounts (revenue accounts)
+            self.fields['sales_return_account'].queryset = ChartOfAccounts.objects.filter(
+                account_type='revenue'
+            ).order_by('account_name')
+            
+            # Set default accounts if available
+            if not self.instance.pk:  # Only for new credit notes
+                # Set default accounts receivable
+                try:
+                    default_receivable = ChartOfAccounts.objects.filter(
+                        account_name__icontains='receivable',
+                        account_type='asset'
+                    ).first()
+                    if default_receivable:
+                        self.fields['accounts_receivable_account'].initial = default_receivable
+                except:
+                    pass
+                
+                # Set default sales return account
+                try:
+                    default_sales_return = ChartOfAccounts.objects.filter(
+                        account_name__icontains='return',
+                        account_type='revenue'
+                    ).first()
+                    if default_sales_return:
+                        self.fields['sales_return_account'].initial = default_sales_return
+                except:
+                    pass
+                    
+        except Exception as e:
+            # Fallback if ChartOfAccounts is not available
+            self.fields['accounts_receivable_account'].queryset = ChartOfAccounts.objects.all().order_by('account_name')
+            self.fields['sales_return_account'].queryset = ChartOfAccounts.objects.all().order_by('account_name')
+    
+    def clean_subtotal(self):
+        subtotal = self.cleaned_data.get('subtotal')
+        if subtotal <= 0:
+            raise forms.ValidationError("Subtotal must be greater than zero.")
+        return subtotal
+    
+    def clean_tax_amount(self):
+        tax_amount = self.cleaned_data.get('tax_amount')
+        if tax_amount < 0:
+            raise forms.ValidationError("Tax amount cannot be negative.")
+        return tax_amount

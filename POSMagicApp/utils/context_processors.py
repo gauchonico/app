@@ -518,11 +518,9 @@ def sidebar_menu(request):
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','view_pricing_groups','factoryInventory','pageCustomer']]  # Replace with your store manager menu names
             sidebar_menu.append({
-                'icon': 'bi bi-box-fill',
-                'text': mark_safe(f'Inventory<span class="badge rounded-circle bg-danger">{inventory_total}</span>'
-                                if inventory_total > 0 else 'Inventory'
-                                ),
-                'children': [
+                'icon':'bi bi-box-fill',
+                'text':'Production Orders',
+                'children':[
                     {
                     'url': '/production/production-production-orders/',
                     'icon': 'bi bi-node-plus-fill',
@@ -530,7 +528,37 @@ def sidebar_menu(request):
                         f'Product Orders <span class="badge rounded-circle bg-danger">{created_production_orders_count}</span>' 
                         if created_production_orders_count > 0 else 'Product Orders'),
                     'name': 'productionProduction'
-                },
+                }],
+                
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-box-fill',
+                'text': 'Inventory Transfers',
+                'children': [
+                    {
+                        'url': '/production/main_stock_transfers/',
+                        'icon': 'bi bi-truck',
+                        'text': mark_safe (
+                            f'Main Store Transfers <span class="badge rounded-circle bg-danger">{created_livara_store_orders}</span>'
+                            if created_livara_store_orders > 0 else 'Main Store Transfers'
+                        ),
+                        'name':'main_stock_transfers'
+                    },
+                    {
+                        'url':'/production/restock-requests/',
+                        'icon': 'bi bi-folder-fill',
+                        'text': 'Store Restock Requests',
+                        'name':'restockRequests'
+                    }
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-box-fill',
+                'text': mark_safe(f'Inventory<span class="badge rounded-circle bg-danger">{inventory_total}</span>'
+                                if inventory_total > 0 else 'Inventory'
+                                ),
+                'children': [
+                    
                     # {
                     #     'url': '/production/create_production_order/',
                     #     'icon': 'bi bi-node-plus-fill',
@@ -547,15 +575,8 @@ def sidebar_menu(request):
                         'icon': 'bi bi-box-fill',
                         'text': 'Inventory Write Offs',
                         'name': 'write_offs'
-                    },{
-                        'url': '/production/main_stock_transfers/',
-                        'icon': 'bi bi-truck',
-                        'text': mark_safe (
-                            f'Inventory Transfers <span class="badge rounded-circle bg-danger">{created_livara_store_orders}</span>'
-                            if created_livara_store_orders > 0 else 'Inventory Transfers'
-                        ),
-                        'name':'main_stock_transfers'
                     },
+                    
                         ]
             })
             sidebar_menu.append({
@@ -593,16 +614,49 @@ def sidebar_menu(request):
                     {
                     'url': '/production/list_store_sales',
                     'icon': 'bi bi-speedometer',
-                    'text': mark_safe(f'All Store Sales<span class="badge rounded-circle bg-danger">{store_sales_order_count}</span>'
-                                    if store_sales_order_count > 0 else 'All Store Sales'
+                    'text': mark_safe(f'Main Store Sales<span class="badge rounded-circle bg-danger">{store_sales_order_count}</span>'
+                                    if store_sales_order_count > 0 else 'Main Store Sales'
                                     ),
                     'name':'listStoreSales'
-                    },
+                    }
+                    ]
+            })
+            
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Sales Invoices',
+                'children': [
                     {
-                    'url': '/production/store_sale_list_receipts',
-                    'icon': 'bi bi-speedometer',
-                    'text': 'Receipts',
-                    'name':'store_sale_list_receipts'
+                        'url': '/production/main_store_invoices/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Main Store Invoices',
+                        'name': 'main_store_invoices',
+                    },
+
+                    
+                    ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Credit Notes',
+                'children': [
+                    {
+                        'url': '/production/credit_notes/',
+                        'icon': 'bi bi-arrow-return-left',
+                        'text': 'Credit Notes',
+                        'name': 'list_credit_notes',
+                    }
+                    ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Sales Receipts',
+                'children': [
+                    {
+                        'url': '/production/store_sale_list_receipts/',
+                        'icon': 'bi bi-receipt-cutoff',
+                        'text': 'Sales Receipts',
+                        'name': 'store_sale_list_receipts',
                     }
                     ]
             })
@@ -625,6 +679,16 @@ def sidebar_menu(request):
                     'text':'Main Store Offsets',
                     'name':'main_store_writeoff_list',
                     
+                },{
+                    'url':'/production/livara-main-store/inventory-report/',
+                    'icon': 'bi bi-box-fill',
+                    'text': 'Livara Main Store Inventory Report',
+                    'name': 'livara_main_store_inventory_report',
+                },{
+                    'url':'/production/livara-inventory-adjustments/',
+                    'icon': 'bi bi-box-fill',
+                    'text': 'Livara Inventory Adjustments',
+                    'name': 'livara_inventory_adjustments',
                 }]
             })
         elif 'Branch Manager' in group_names:
@@ -742,43 +806,94 @@ def sidebar_menu(request):
                 }],
                 
             })
+            # sidebar_menu.append({
+            #     'icon': 'bi bi-box-seam',
+            #     'text': mark_safe(f'Sales<span class="badge rounded-circle bg-danger">{sales_total}</span>'
+            #                     if sales_total > 0 else 'Sales'
+            #                     ),
+            #     'children': [{
+            #         'url': '/production/finance_list_store_sales/',
+            #         'icon': 'bi bi-bounding-box-circles',
+            #         'text': 'Main Store Sales',
+            #         'name': 'financeListStoreSales',
+            #     },{
+            #         'url': '/production/store_sale_list_receipts',
+            #         'icon': 'bi bi-speedometer',
+            #         'text': 'Direct Store Sale Receipts',
+            #         'name':'store_sale_list_receipts'
+            #         },
+            #     {
+            #         'url': '/production/finance_store_sale_list/',
+            #         'icon': 'bi bi-folder',
+            #         'text': 'Salon Sales',
+            #         'name':'finance_store_sale_list',
+            #     },{
+            #         'url':'/production/all_payment_receipts_view',
+            #         'icon':'bi bi-receipt',
+            #         'text':'Salon Sale Receipts',
+            #         'name':'all_payment_receipts_view',
+            #     },{
+            #             'url':'/production/payments/',
+            #             'icon':'bi bi-credit-card',
+            #             'text':'Receipt Payments',
+            #             'name':'payment_list'
+            #         },{
+            #             'url':'/accounts/process-pending-sales/',
+            #             'icon':'bi bi-receipt',
+            #             'text':'Process Pending Sales',
+            #             'name':'process_pending_sales'
+            #         }]
+            # })
             sidebar_menu.append({
-                'icon': 'bi bi-box-seam',
-                'text': mark_safe(f'Sales<span class="badge rounded-circle bg-danger">{sales_total}</span>'
-                                if sales_total > 0 else 'Sales'
-                                ),
-                'children': [{
-                    'url': '/production/finance_list_store_sales/',
-                    'icon': 'bi bi-bounding-box-circles',
-                    'text': 'Main Store Sales',
-                    'name': 'financeListStoreSales',
-                },{
-                    'url': '/production/store_sale_list_receipts',
+                'icon': 'bi bi-receipt',
+                'text': 'Sales Orders',
+                'children': [
+                    {
+                    'url': '/production/list_store_sales',
                     'icon': 'bi bi-speedometer',
-                    'text': 'Direct Store Sale Receipts',
-                    'name':'store_sale_list_receipts'
-                    },
-                {
-                    'url': '/production/finance_store_sale_list/',
-                    'icon': 'bi bi-folder',
-                    'text': 'Salon Sales',
-                    'name':'finance_store_sale_list',
-                },{
-                    'url':'/production/all_payment_receipts_view',
-                    'icon':'bi bi-receipt',
-                    'text':'Salon Sale Receipts',
-                    'name':'all_payment_receipts_view',
-                },{
-                        'url':'/production/payments/',
-                        'icon':'bi bi-credit-card',
-                        'text':'Receipt Payments',
-                        'name':'payment_list'
-                    },{
-                        'url':'/accounts/process-pending-sales/',
-                        'icon':'bi bi-receipt',
-                        'text':'Process Pending Sales',
-                        'name':'process_pending_sales'
-                    }]
+                    'text': mark_safe(f'Main Store Sales<span class="badge rounded-circle bg-danger">{store_sales_order_count}</span>'
+                                    if store_sales_order_count > 0 else 'Main Store Sales'
+                                    ),
+                    'name':'listStoreSales'
+                    }
+                    ]
+            })
+            
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Sales Invoices',
+                'children': [
+                    {
+                        'url': '/production/main_store_invoices/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Main Store Invoices',
+                        'name': 'main_store_invoices',
+                    }
+                    ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Sales Receipts',
+                'children': [
+                    {
+                        'url': '/production/store_sale_list_receipts/',
+                        'icon': 'bi bi-receipt-cutoff',
+                        'text': 'Sales Receipts',
+                        'name': 'store_sale_list_receipts',
+                    }
+                    ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Credit Notes',
+                'children': [
+                    {
+                        'url': '/production/credit_notes/',
+                        'icon': 'bi bi-arrow-return-left',
+                        'text': 'Credit Notes',
+                        'name': 'list_credit_notes',
+                    }
+                    ]
             })
             sidebar_menu.append({
                 'icon': 'bi bi-box-seam',
@@ -914,6 +1029,23 @@ def sidebar_menu(request):
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['productionPage', 'supplierList', 'productsList', 'productionProduction', 'manufacturedProductList', 'factoryInventory','storeRequests']]
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Quality Control',
+                'children': [{
+                    'url': '/production/quality-control/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Dashboard',
+                    'name': 'quality_control_dashboard',
+                },
+                {
+                    'url': '/production/quality-control/tests/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'All Tests',
+                    'name': 'quality_control_test_list',
+                },
+                ]
+            })
             sidebar_menu.append({
                 'icon': 'bi bi-inboxes-fill',
                 'text': mark_safe(f'Production Logistics<span class="badge rounded-circle bg-danger">{production_logistics_total}</span>'

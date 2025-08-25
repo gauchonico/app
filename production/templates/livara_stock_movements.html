@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Stock Movements - {{ product_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exchange-alt"></i>
+                        Stock Movements - {{ product_name }}
+                    </h4>
+                    <div>
+                        <a href="{% url 'livara_main_store_inventory_report' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Report
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Filter Summary -->
+                    <div class="alert alert-info">
+                        <strong>Showing:</strong> 
+                        {% if movement_type == 'in' %}
+                            <span class="badge bg-success me-2">Stock In Movements</span>
+                        {% elif movement_type == 'out' %}
+                            <span class="badge bg-danger me-2">Stock Out Movements</span>
+                        {% else %}
+                            <span class="badge bg-primary me-2">All Movements</span>
+                        {% endif %}
+                        
+                        for <strong>{{ product_name }}</strong>
+                        
+                        {% if from_date and to_date %}
+                            from <strong>{{ from_date }}</strong> to <strong>{{ to_date }}</strong>
+                        {% elif from_date %}
+                            from <strong>{{ from_date }}</strong>
+                        {% elif to_date %}
+                            up to <strong>{{ to_date }}</strong>
+                        {% endif %}
+                        
+                        <br>
+                        <small>Total movements: {{ total_movements }}</small>
+                    </div>
+
+                    <!-- Movements Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Source</th>
+                                    <th>User</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for movement in movements %}
+                                <tr>
+                                    <td>
+                                        <div>{{ movement.date|date:"M d, Y" }}</div>
+                                        <small class="text-muted">{{ movement.date|time:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if movement.quantity > 0 %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-arrow-up"></i> Stock In
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-arrow-down"></i> Stock Out
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if movement.quantity > 0 %}
+                                            <span class="text-success fw-bold">+{{ movement.quantity|intcomma }}</span>
+                                        {% else %}
+                                            <span class="text-danger fw-bold">{{ movement.quantity|intcomma }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if movement.source_type %}
+                                                <div class="me-2">
+                                                    <span class="badge bg-secondary">{{ movement.source_type }}</span>
+                                                    {% if movement.source_type == 'Store Sale' and movement.invoice_number %}
+                                                        <br><small class="text-muted">{{ movement.invoice_number }}</small>
+                                                        {% if movement.order_number %}
+                                                            <br><small class="text-muted">Order: {{ movement.order_number }}</small>
+                                                        {% endif %}
+                                                    {% elif movement.source_type == 'Stock Transfer' and movement.transfer_number %}
+                                                        <br><small class="text-muted">{{ movement.transfer_number }}</small>
+                                                    {% elif movement.source_type == 'Write Off' and movement.writeoff_reason %}
+                                                        <br><small class="text-muted">{{ movement.writeoff_reason }}</small>
+                                                    {% elif movement.source_type == 'Restock Request' and movement.store_name %}
+                                                        <br><small class="text-muted">To: {{ movement.store_name }}</small>
+                                                    {% elif movement.debug_info %}
+                                                        <br><small class="text-danger">{{ movement.debug_info }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                            
+                                            {% if movement.source_link %}
+                                                <a href="{{ movement.source_link }}" 
+                                                   class="btn btn-sm btn-outline-primary" 
+                                                   title="View original {{ movement.source_type|lower }} record">
+                                                    <i class="fas fa-external-link-alt"></i>
+                                                    {% if movement.source_type == 'Store Sale' %}
+                                                        View Sale
+                                                    {% elif movement.source_type == 'Stock Transfer' %}
+                                                        View Transfer
+                                                    {% elif movement.source_type == 'Write Off' %}
+                                                        View Write-off
+                                                    {% elif movement.source_type == 'Restock Request' %}
+                                                        View Restock Requests
+                                                    {% else %}
+                                                        View Record
+                                                    {% endif %}
+                                                </a>
+                                                {% if movement.source_note %}
+                                                    <br><small class="text-muted">{{ movement.source_note }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <small class="text-muted">{{ movement.reason|truncatechars:40 }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if movement.user %}
+                                            <i class="fas fa-user-circle me-1"></i>
+                                            {{ movement.user }}
+                                        {% else %}
+                                            <span class="text-muted">System</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'livara_inventory_adjustment_detail' movement.adjustment.id %}" 
+                                           class="btn btn-sm btn-outline-info" 
+                                           title="View adjustment details">
+                                            <i class="fas fa-info-circle"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                                            <p>No stock movements found for the selected criteria.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% comment %} <!-- Summary Cards -->
+                    {% if movements %}
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h5 class="text-success">
+                                        {% for movement in movements %}
+                                            {% if movement.quantity > 0 %}{{ movement.quantity|add:0 }}{% endif %}
+                                        {% endfor %}
+                                        {% widthratio movements|length movements|length 0 as total_in %}
+                                        {{ total_in|default:0 }}
+                                    </h5>
+                                    <small class="text-muted">Total Stock In</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-danger">
+                                <div class="card-body text-center">
+                                    <h5 class="text-danger">
+                                        {% for movement in movements %}
+                                            {% if movement.quantity < 0 %}{{ movement.quantity|add:0 }}{% endif %}
+                                        {% endfor %}
+                                        {% widthratio movements|length movements|length 0 as total_out %}
+                                        {{ total_out|default:0 }}
+                                    </h5>
+                                    <small class="text-muted">Total Stock Out</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h5 class="text-info">{{ total_movements }}</h5>
+                                    <small class="text-muted">Total Movements</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %} {% endcomment %}
+
+                    <!-- Legend -->
+                    <div class="mt-4">
+                        <div class="card border-light">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-info-circle"></i>
+                                    Movement Types
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="badge bg-success me-2">Stock In</span>
+                                            <small>Transfers, Adjustments (+)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="badge bg-danger me-2">Stock Out</span>
+                                            <small>Sales, Write-offs, Adjustments (-)</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="fas fa-external-link-alt text-primary me-2"></i>
+                                            <small>Click "View Record" to see original document</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .table th {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .card-header {
+        
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.025);
+    }
+</style>
+{% endblock %}

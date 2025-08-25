@@ -32,11 +32,11 @@
         }
         .sufficient {
             border-left: 3px solid #28a745;
-            background: #f8fff9;
+            {% comment %} background: #f8fff9; {% endcomment %}
         }
         .insufficient {
             border-left: 3px solid #dc3545;
-            background: #fff8f8;
+            {% comment %} background: #fff8f8; {% endcomment %}
         }
         .status-indicator {
             font-size: 0.8em;
@@ -251,6 +251,61 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- Quality Control Section -->
+                                    <div class="card mb-4">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fa fa-flask me-2"></i>Quality Control Settings</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            {{ form.qc_required }}
+                                                            <label class="form-check-label" for="{{ form.qc_required.id_for_label }}">
+                                                                Quality Control Required
+                                                            </label>
+                                                        </div>
+                                                        <small class="form-text text-muted">Enable quality control testing for this batch</small>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Sample Bottles for QC</label>
+                                                        {{ form.qc_sample_quantity }}
+                                                        {% if form.qc_sample_quantity.help_text %}
+                                                        <small class="form-text text-muted">{{ form.qc_sample_quantity.help_text }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        <div class="form-check">
+                                                            {{ form.auto_create_qc_test }}
+                                                            <label class="form-check-label" for="{{ form.auto_create_qc_test.id_for_label }}">
+                                                                Auto-create QC Test
+                                                            </label>
+                                                        </div>
+                                                        {% if form.auto_create_qc_test.help_text %}
+                                                        <small class="form-text text-muted">{{ form.auto_create_qc_test.help_text }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="alert alert-info">
+                                                <i class="fa fa-info-circle me-2"></i>
+                                                <strong>Quality Control Process:</strong>
+                                                <ul class="mb-0 mt-2">
+                                                    <li>Sample bottles will be allocated from the manufactured batch</li>
+                                                    <li>Remaining units will be held pending QC test results</li>
+                                                    <li>Only QC-approved batches will be released to inventory</li>
+                                                    <li>If QC is not required, the full batch is released immediately</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
          
                                     <div class="d-flex justify-content-between">
                                         <a href="{% url 'manufacturedProductList' %}" class="btn btn-secondary">
@@ -264,6 +319,47 @@
                             </div>
                             
                             <script>
+                                // Quality Control JavaScript
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const qcRequiredCheckbox = document.getElementById('{{ form.qc_required.id_for_label }}');
+                                    const qcSampleQuantityField = document.getElementById('{{ form.qc_sample_quantity.id_for_label }}');
+                                    const autoCreateQcTestCheckbox = document.getElementById('{{ form.auto_create_qc_test.id_for_label }}');
+                                    
+                                    function toggleQcFields() {
+                                        const isQcRequired = qcRequiredCheckbox.checked;
+                                        qcSampleQuantityField.disabled = !isQcRequired;
+                                        autoCreateQcTestCheckbox.disabled = !isQcRequired;
+                                        
+                                        if (!isQcRequired) {
+                                            qcSampleQuantityField.value = '0';
+                                            autoCreateQcTestCheckbox.checked = false;
+                                        } else {
+                                            if (qcSampleQuantityField.value === '0') {
+                                                qcSampleQuantityField.value = '1';
+                                            }
+                                            autoCreateQcTestCheckbox.checked = true;
+                                        }
+                                    }
+                                    
+                                    // Initial toggle
+                                    toggleQcFields();
+                                    
+                                    // Listen for changes
+                                    qcRequiredCheckbox.addEventListener('change', toggleQcFields);
+                                    
+                                    // Validate sample quantity doesn't exceed total quantity
+                                    const quantityField = document.getElementById('id_quantity');
+                                    qcSampleQuantityField.addEventListener('change', function() {
+                                        const totalQuantity = parseInt(quantityField.value) || 0;
+                                        const sampleQuantity = parseInt(qcSampleQuantityField.value) || 0;
+                                        
+                                        if (sampleQuantity > totalQuantity) {
+                                            alert('Sample quantity cannot exceed total manufacturing quantity');
+                                            qcSampleQuantityField.value = Math.min(sampleQuantity, totalQuantity);
+                                        }
+                                    });
+                                });
+
                                 function updateQuantity(productionOrderId) {
                                     const quantityField = document.getElementById('id_quantity');
                                     

@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Livara Inventory Adjustments{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-adjust"></i>
+                        Livara Inventory Adjustments
+                    </h4>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Summary Statistics -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h5 class="text-primary">{{ total_adjustments }}</h5>
+                                    <small class="text-muted">Total Adjustments</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <h5 class="text-success">{{ positive_adjustments }}</h5>
+                                    <small class="text-muted">Stock Increases</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body text-center">
+                                    <h5 class="text-danger">{{ negative_adjustments }}</h5>
+                                    <small class="text-muted">Stock Decreases</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <h5 class="text-info">{{ recent_adjustments }}</h5>
+                                    <small class="text-muted">Last 7 Days</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search and Filter Form -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <form method="get" class="row g-2" id="searchForm">
+                                <div class="col-md-3">
+                                    <label for="q" class="form-label">Search</label>
+                                    <input type="text" name="q" id="q" class="form-control" 
+                                           placeholder="Product, batch, reason, user..." 
+                                           value="{{ query }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="product" class="form-label">Product</label>
+                                    <input type="text" name="product" id="product" class="form-control" 
+                                           placeholder="Product name..." 
+                                           value="{{ product_filter }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="type" class="form-label">Type</label>
+                                    <select name="type" id="type" class="form-select">
+                                        <option value="">All Types</option>
+                                        <option value="positive" {% if type_filter == 'positive' %}selected{% endif %}>Stock In (+)</option>
+                                        <option value="negative" {% if type_filter == 'negative' %}selected{% endif %}>Stock Out (-)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="from_date" class="form-label">From</label>
+                                    <input type="date" name="from_date" id="from_date" class="form-control" 
+                                           value="{{ from_date }}">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="to_date" class="form-label">To</label>
+                                    <input type="date" name="to_date" id="to_date" class="form-control" 
+                                           value="{{ to_date }}">
+                                </div>
+                                <div class="col-md-12 mt-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-search"></i> Filter
+                                    </button></div>
+                            </form>
+                            <div class="mt-2">
+                                {% if query or product_filter or type_filter or from_date or to_date %}
+                                <a href="{% url 'livara_inventory_adjustments_list' %}" class="btn btn-outline-secondary ms-2">
+                                    <i class="fas fa-times"></i> Clear All Filters
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Filters Display -->
+                    {% if query or product_filter or type_filter or from_date or to_date %}
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <strong>Active Filters:</strong>
+                                {% if query %}
+                                    <span class="badge bg-primary me-1">Search: "{{ query }}"</span>
+                                {% endif %}
+                                {% if product_filter %}
+                                    <span class="badge bg-secondary me-1">Product: "{{ product_filter }}"</span>
+                                {% endif %}
+                                {% if type_filter == 'positive' %}
+                                    <span class="badge bg-success me-1">Type: Stock In (+)</span>
+                                {% elif type_filter == 'negative' %}
+                                    <span class="badge bg-danger me-1">Type: Stock Out (-)</span>
+                                {% endif %}
+                                {% if from_date %}
+                                    <span class="badge bg-info me-1">From: {{ from_date }}</span>
+                                {% endif %}
+                                {% if to_date %}
+                                    <span class="badge bg-info me-1">To: {{ to_date }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Adjustments Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Product</th>
+                                    <th>Batch Number</th>
+                                    <th>Quantity Adjusted</th>
+                                    <th>Reason</th>
+                                    <th>Adjusted By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for adjustment in adjustments %}
+                                <tr onclick="window.location='{% url 'livara_inventory_adjustment_detail' adjustment.id %}'" style="cursor: pointer;">
+                                    <td>
+                                        <div>{{ adjustment.adjustment_date|date:"M d, Y" }}</div>
+                                        <small class="text-muted">{{ adjustment.adjustment_date|time:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ adjustment.store_inventory.product.product.product_name }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if adjustment.store_inventory.batch_number %}
+                                            <span class="badge bg-secondary">{{ adjustment.store_inventory.batch_number }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if adjustment.adjusted_quantity > 0 %}
+                                            <span class="badge bg-success fs-6">
+                                                <i class="fas fa-arrow-up"></i>
+                                                +{{ adjustment.adjusted_quantity|intcomma }}
+                                            </span>
+                                        {% elif adjustment.adjusted_quantity < 0 %}
+                                            <span class="badge bg-danger fs-6">
+                                                <i class="fas fa-arrow-down"></i>
+                                                {{ adjustment.adjusted_quantity|intcomma }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary fs-6">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ adjustment.adjustment_reason }}</span>
+                                    </td>
+                                    <td>
+                                        {% if adjustment.adjusted_by %}
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-user-circle me-2 text-muted"></i>
+                                                {{ adjustment.adjusted_by.username }}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">System</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                                            <p>No inventory adjustments found.</p>
+                                            {% if query %}
+                                                <p>Try adjusting your search terms.</p>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Results Info -->
+                    {% if adjustments %}
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            Showing {{ adjustments.count }} adjustment{{ adjustments.count|pluralize }}
+                            {% if query %}matching "{{ query }}"{% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .table th {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.025);
+    }
+</style>
+{% endblock %}
