@@ -152,29 +152,39 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'POSMagicApp/static'),
 ]
-# Cloudinary Configuration
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
+# Cloudinary Configuration (Optional)
+try:
+    import cloudinary
+    import cloudinary.uploader
+    import cloudinary.api
+    
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', 'your-cloud-name'),
+        'API_KEY': os.environ.get('CLOUDINARY_API_KEY', 'your-api-key'),
+        'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'your-api-secret'),
+    }
+    
+    cloudinary.config(
+        cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+        api_key=CLOUDINARY_STORAGE['API_KEY'],
+        api_secret=CLOUDINARY_STORAGE['API_SECRET'],
+        secure=True
+    )
+    
+    CLOUDINARY_AVAILABLE = True
+except ImportError:
+    # Cloudinary not installed, use local storage
+    CLOUDINARY_AVAILABLE = False
 
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', 'your-cloud-name'),
-    'API_KEY': os.environ.get('CLOUDINARY_API_KEY', 'your-api-key'),
-    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'your-api-secret'),
-}
-
-cloudinary.config(
-    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
-    api_key=CLOUDINARY_STORAGE['API_KEY'],
-    api_secret=CLOUDINARY_STORAGE['API_SECRET'],
-    secure=True
-)
-
-# Use Cloudinary for media files in production only
-if not DEBUG and os.environ.get('CLOUDINARY_CLOUD_NAME'):
-    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# Use Cloudinary for media files in production only if available and configured
+if not DEBUG and CLOUDINARY_AVAILABLE and os.environ.get('CLOUDINARY_CLOUD_NAME') and os.environ.get('CLOUDINARY_CLOUD_NAME') != 'your-cloud-name':
+    try:
+        DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+    except ImportError:
+        # Fallback to local storage if cloudinary_storage is not available
+        DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 else:
-    # Use local file storage for development
+    # Use local file storage for development or when Cloudinary is not configured
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Local media settings for development
