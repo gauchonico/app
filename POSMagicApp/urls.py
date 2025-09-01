@@ -18,6 +18,18 @@ urlpatterns = [
     path('customer/<int:customer_id>/', views.customer_details, name='customer_details'),
     path('edit-customer/<int:customer_id>/', views.editCustomer, name='editCustomer'),
     path('delete-customer/<int:customer_id>/', views.deleteCustomer, name='deleteCustomer'),
+    path('customer/<int:customer_id>/add-dependent/', views.add_dependent, name='add_dependent'),
+    path('customer/<int:customer_id>/family/', views.customer_family_view, name='customer_family_view'),
+    path('search-customers/', views.search_customers, name='search_customers'),
+    path('debug-customer-image/<int:customer_id>/', views.debug_customer_image, name='debug_customer_image'),
+    
+    # Loyalty System URLs
+    path('loyalty_settings/', views.loyalty_settings_view, name='loyalty_settings'),
+    path('loyalty/reports/', views.loyalty_reports_view, name='loyalty_reports'),
+    path('loyalty/redeem/', views.points_redemption_view, name='points_redemption'),
+    path('loyalty/adjust/', views.manual_points_adjustment_view, name='manual_points_adjustment'),
+    path('loyalty/customer/<int:customer_id>/', views.customer_loyalty_details, name='customer_loyalty_details'),
+    path('ajax/customer-points/', views.get_customer_points_ajax, name='get_customer_points_ajax'),
     path('page/products', views.pageProduct, name='pageProduct'),
     path('page/create-product', views.createProduct, name='createProduct'),
     path('page/edit-product/<int:product_id>/', views.editProduct, name='editProduct'),

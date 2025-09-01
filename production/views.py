@@ -45,8 +45,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, ServiceCategoryForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, SavedCommissionReport, ServiceCategory, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -85,9 +85,190 @@ def productionPage(request):
 
 @login_required(login_url='/login/')
 def supplierList(request):
-    suppliers = Supplier.objects.all()
-    context ={
+    from django.db.models import Count, Sum, Avg, Q, Max, Min
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    
+    # Get filter parameters
+    quality_filter = request.GET.get('quality', '')
+    active_filter = request.GET.get('active', '')
+    payment_terms_filter = request.GET.get('payment_terms', '')
+    
+    # Base queryset
+    suppliers_queryset = Supplier.objects.select_related().prefetch_related(
+        'supplied_raw_materials', 'requisition_set', 'purchaseorder_set'
+    )
+    
+    # Apply filters
+    if quality_filter:
+        suppliers_queryset = suppliers_queryset.filter(quality_rating=quality_filter)
+    if active_filter:
+        is_active = active_filter == 'true'
+        suppliers_queryset = suppliers_queryset.filter(is_active=is_active)
+    if payment_terms_filter:
+        suppliers_queryset = suppliers_queryset.filter(payment_terms=payment_terms_filter)
+    
+    suppliers = suppliers_queryset.order_by('name')
+    
+    # Analytics for the last 30 and 90 days
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    ninety_days_ago = timezone.now() - timedelta(days=90)
+    
+    # Overall statistics
+    total_suppliers = Supplier.objects.count()
+    active_suppliers = Supplier.objects.filter(is_active=True).count()
+    inactive_suppliers = total_suppliers - active_suppliers
+    
+    # Average reliability score
+    avg_reliability = Supplier.objects.aggregate(
+        avg_score=Avg('reliability_score')
+    )['avg_score'] or 0
+    
+    # Suppliers with outstanding payments (unpaid LPOs)
+    suppliers_with_outstanding = LPO.objects.filter(
+        is_paid=False
+    ).values('requisition__supplier').distinct().count()
+    
+    # Quality distribution
+    quality_distribution = Supplier.objects.values('quality_rating').annotate(
+        count=Count('id')
+    ).order_by('quality_rating')
+    
+    # Recent activity (last 30 days)
+    recent_requisitions = Requisition.objects.filter(
+        created_at__gte=thirty_days_ago
+    ).count()
+    
+    recent_purchase_orders = PurchaseOrder.objects.filter(
+        created_at__gte=thirty_days_ago
+    ).count()
+    
+    # Enhanced supplier analytics
+    supplier_analytics = []
+    for supplier in suppliers:
+        # Requisitions data (last 30 days)
+        recent_reqs = Requisition.objects.filter(
+            supplier=supplier,
+            created_at__gte=thirty_days_ago
+        )
+        total_recent_reqs = recent_reqs.count()
+        total_req_value = recent_reqs.aggregate(
+            total=Sum('total_cost')
+        )['total'] or 0
+        
+        # Purchase orders data (last 30 days)
+        recent_pos = PurchaseOrder.objects.filter(
+            supplier=supplier,
+            created_at__gte=thirty_days_ago
+        )
+        total_recent_pos = recent_pos.count()
+        total_po_value = recent_pos.aggregate(
+            total=Sum('total_cost')
+        )['total'] or 0
+        
+        # Outstanding payments
+        outstanding_lpos = LPO.objects.filter(
+            requisition__supplier=supplier,
+            is_paid=False
+        )
+        outstanding_amount = outstanding_lpos.aggregate(
+            total=Sum('requisition__total_cost')
+        )['total'] or 0
+        
+        # Payment performance (last 90 days)
+        paid_lpos = LPO.objects.filter(
+            requisition__supplier=supplier,
+            is_paid=True,
+            payment_date__gte=ninety_days_ago
+        )
+        total_paid_amount = paid_lpos.aggregate(
+            total=Sum('amount_paid')
+        )['total'] or 0
+        
+        # Raw materials supplied
+        raw_materials_count = supplier.supplied_raw_materials.count()
+        
+        # Most recent order date
+        latest_requisition = Requisition.objects.filter(
+            supplier=supplier
+        ).order_by('-created_at').first()
+        
+        latest_po = PurchaseOrder.objects.filter(
+            supplier=supplier
+        ).order_by('-created_at').first()
+        
+        # Determine most recent activity
+        latest_activity = None
+        if latest_requisition and latest_po:
+            latest_activity = max(latest_requisition.created_at, latest_po.created_at)
+        elif latest_requisition:
+            latest_activity = latest_requisition.created_at
+        elif latest_po:
+            latest_activity = latest_po.created_at
+        
+        # Credit utilization (if applicable)
+        credit_utilization = 0
+        if supplier.credit_limit > 0:
+            credit_utilization = (outstanding_amount / supplier.credit_limit) * 100
+        
+        # Overall order value (last 30 days)
+        total_order_value = total_req_value + total_po_value
+        
+        # Performance score calculation
+        performance_score = supplier.reliability_score
+        if outstanding_amount > 0 and supplier.credit_limit > 0:
+            if credit_utilization > 80:
+                performance_score -= 1  # Reduce score for high credit utilization
+        
+        supplier_analytics.append({
+            'supplier': supplier,
+            'recent_requisitions': total_recent_reqs,
+            'recent_purchase_orders': total_recent_pos,
+            'total_order_value': total_order_value,
+            'outstanding_amount': outstanding_amount,
+            'paid_amount_90days': total_paid_amount,
+            'raw_materials_count': raw_materials_count,
+            'latest_activity': latest_activity,
+            'credit_utilization': credit_utilization,
+            'performance_score': performance_score,
+            'has_recent_activity': latest_activity and latest_activity >= thirty_days_ago if latest_activity else False,
+        })
+    
+    # Top suppliers by recent order value
+    top_suppliers_by_value = sorted(
+        supplier_analytics, 
+        key=lambda x: x['total_order_value'], 
+        reverse=True
+    )[:5]
+    
+    # Suppliers needing attention (high outstanding or low performance)
+    attention_suppliers = [
+        s for s in supplier_analytics 
+        if s['outstanding_amount'] > 0 or s['performance_score'] < 4.0
+    ]
+    
+    context = {
         'suppliers': suppliers,
+        'supplier_analytics': supplier_analytics,
+        'total_suppliers': total_suppliers,
+        'active_suppliers': active_suppliers,
+        'inactive_suppliers': inactive_suppliers,
+        'avg_reliability': avg_reliability,
+        'suppliers_with_outstanding': suppliers_with_outstanding,
+        'quality_distribution': quality_distribution,
+        'recent_requisitions': recent_requisitions,
+        'recent_purchase_orders': recent_purchase_orders,
+        'top_suppliers_by_value': top_suppliers_by_value,
+        'attention_suppliers': attention_suppliers,
+        'thirty_days_ago': thirty_days_ago,
+        'ninety_days_ago': ninety_days_ago,
+        
+        # Filter options
+        'quality_choices': Supplier.QUALITY_CHOICES,
+        'payment_terms_choices': Supplier.PAYMENT_TERMS_CHOICES,
+        'selected_quality': quality_filter,
+        'selected_active': active_filter,
+        'selected_payment_terms': payment_terms_filter,
     }
     return render(request, "suppliers_list.html", context)
 
@@ -973,8 +1154,166 @@ def download_service_template(request):
 
 @login_required
 def service_list(request):
-    services = ServiceName.objects.all().order_by('name')
-    return render(request, 'services/service_list.html', {'services': services})
+    from django.db.models import Count, Sum, Avg, Q
+    from django.utils import timezone
+    from datetime import datetime, timedelta
+    
+    # Get filter parameters
+    category_filter = request.GET.get('category', '')
+    
+    # Base queryset
+    services_queryset = ServiceName.objects.select_related('service_category')
+    
+    # Apply filters
+    if category_filter:
+        services_queryset = services_queryset.filter(service_category_id=category_filter)
+    
+    services = services_queryset.order_by('service_category__name', 'name')
+    
+    # Analytics for the last 30 days
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    
+    # Service analytics - count sales per service
+    service_analytics = []
+    for service in services:
+        # Count ServiceSales for this service through ServiceSaleItem -> StoreService relationship
+        sales_count = ServiceSale.objects.filter(
+            service_sale_items__service__service=service,
+            sale_date__gte=thirty_days_ago
+        ).distinct().count()
+        
+        revenue = ServiceSale.objects.filter(
+            service_sale_items__service__service=service,
+            sale_date__gte=thirty_days_ago,
+            paid_status='paid'
+        ).distinct().aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        service_analytics.append({
+            'service': service,
+            'sales_count': sales_count,
+            'revenue': revenue
+        })
+    
+    # Category analytics
+    categories = ServiceCategory.objects.annotate(
+        service_count=Count('service_categories'),
+        total_sales=Count('service_categories__store_services__servicesaleitem__sale', 
+                         filter=Q(service_categories__store_services__servicesaleitem__sale__sale_date__gte=thirty_days_ago), 
+                         distinct=True),
+        total_revenue=Sum('service_categories__store_services__servicesaleitem__sale__total_amount', 
+                         filter=Q(
+                             service_categories__store_services__servicesaleitem__sale__sale_date__gte=thirty_days_ago,
+                             service_categories__store_services__servicesaleitem__sale__paid_status='paid'
+                         ))
+    ).order_by('name')
+    
+    # Overall statistics
+    total_services = services.count()
+    total_categories = ServiceCategory.objects.count()
+    
+    # Calculate average price per category
+    category_stats = []
+    for category in categories:
+        avg_price = ServiceName.objects.filter(service_category=category).aggregate(
+            avg_price=Avg('price')
+        )['avg_price'] or 0
+        
+        category_stats.append({
+            'category': category,
+            'service_count': category.service_count,
+            'avg_price': avg_price,
+            'total_sales': category.total_sales or 0,
+            'total_revenue': category.total_revenue or 0
+        })
+    
+    # Top performing services (last 30 days)
+    top_services_by_sales = ServiceSale.objects.filter(
+        sale_date__gte=thirty_days_ago
+    ).values('service_sale_items__service__service__name', 'service_sale_items__service__service__service_category__name').annotate(
+        sales_count=Count('id', distinct=True),
+        total_revenue=Sum('total_amount', filter=Q(paid_status='paid'))
+    ).order_by('-sales_count')[:5]
+    
+    context = {
+        'services': services,
+        'service_analytics': service_analytics,
+        'category_stats': category_stats,
+        'top_services_by_sales': top_services_by_sales,
+        'categories': ServiceCategory.objects.all().order_by('name'),  # For filter dropdown
+        'selected_category': category_filter,
+        'total_services': total_services,
+        'total_categories': total_categories,
+        'thirty_days_ago': thirty_days_ago,
+    }
+    
+    return render(request, 'services/service_list.html', context)
+
+
+@login_required
+def create_service_category(request):
+    if request.method == 'POST':
+        form = ServiceCategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save()
+            messages.success(request, f'Service category "{category.name}" created successfully!')
+            return redirect('service_list')
+    else:
+        form = ServiceCategoryForm()
+    
+    context = {
+        'form': form,
+        'title': 'Create New Service Category',
+        'button_text': 'Create Category'
+    }
+    
+    return render(request, 'services/service_category_form.html', context)
+
+
+@login_required
+def edit_service_category(request, pk):
+    category = get_object_or_404(ServiceCategory, pk=pk)
+    if request.method == 'POST':
+        form = ServiceCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            category = form.save()
+            messages.success(request, f'Service category "{category.name}" updated successfully!')
+            return redirect('service_list')
+    else:
+        form = ServiceCategoryForm(instance=category)
+    
+    context = {
+        'form': form,
+        'title': f'Edit Category: {category.name}',
+        'button_text': 'Update Category'
+    }
+    
+    return render(request, 'services/service_category_form.html', context)
+
+
+@login_required
+def delete_service_category(request, pk):
+    category = get_object_or_404(ServiceCategory, pk=pk)
+    
+    if request.method == 'POST':
+        category_name = category.name
+        # Check if there are services in this category
+        services_count = ServiceName.objects.filter(service_category=category).count()
+        
+        if services_count > 0:
+            messages.error(request, f'Cannot delete category "{category_name}" because it contains {services_count} service(s). Please move or delete the services first.')
+        else:
+            category.delete()
+            messages.success(request, f'Service category "{category_name}" deleted successfully!')
+        
+        return redirect('service_list')
+    
+    context = {
+        'category': category,
+        'services_count': ServiceName.objects.filter(service_category=category).count()
+    }
+    
+    return render(request, 'services/delete_service_category.html', context)
+
 
 @login_required
 def assign_service_to_store(request):
@@ -1308,10 +1647,10 @@ def manufacture_product(request, product_id):
                             product=product,
                             batch_number=manufacture_product.batch_number,
                             defaults={'quantity': Decimal(str(quantity)), 'expiry_date': expiry_date}
-                        )
-                        if not created:
-                            manufactured_product_inventory.quantity += quantity
-                            manufactured_product_inventory.save()
+                    )
+                    if not created:
+                        manufactured_product_inventory.quantity += quantity
+                        manufactured_product_inventory.save()
                     
                     # Create quality control test if required and auto-create is enabled
                     qc_test = None
@@ -1325,6 +1664,11 @@ def manufacture_product(request, product_id):
                     # Calculate cost per ingredient
                     cost_per = cost_per_unit(product)
                     total_cost = sum(cost_data['cost_per_ingredient'] for cost_data in cost_per)
+                    total_production_cost = total_cost * quantity
+                    
+                    # Store the production cost in the manufactured product
+                    manufacture_product.total_production_cost = total_production_cost
+                    manufacture_product.save(update_fields=['total_production_cost'])
                     
                     # Log used ingredients if using ManufacturedProductIngredient model
                     for usage in ingredient_usage:
@@ -4788,8 +5132,35 @@ def search_staff(request):
     
     results = [{'id': s.id, 'text': f"{s.first_name} {s.last_name}"} for s in staff]
     return JsonResponse({'results': results})
+
+# Search for Customers
+def search_customers(request):
+    search_term = request.GET.get('term', '')
+    if len(search_term) < 2:
+        return JsonResponse({'results': []})
+        
+    customers = Customer.objects.filter(
+        Q(first_name__icontains=search_term) |
+        Q(last_name__icontains=search_term) |
+        Q(email__icontains=search_term) |
+        Q(phone__icontains=search_term)
+    )[:10]  # Limit to 10 results
+    
+    results = []
+    for customer in customers:
+        customer_text = f"{customer.first_name} {customer.last_name}"
+        if customer.phone:
+            customer_text += f" - {customer.phone}"
+        if customer.email:
+            customer_text += f" - {customer.email}"
+        results.append({'id': customer.id, 'text': customer_text})
+    
+    return JsonResponse({'results': results})
 @require_http_methods(["POST"])
 def new_create_service_sale(request):
+    # Start timing sale creation
+    from django.utils import timezone
+    sale_start_time = timezone.now()
     
     try:
         data = json.loads(request.body)
@@ -4812,6 +5183,15 @@ def new_create_service_sale(request):
                 paid_status=data['paid_status'],
                 payment_mode=data['payment_mode']
             )
+            
+            # Calculate sale creation time
+            sale_end_time = timezone.now()
+            sale.sale_creation_time = sale_end_time - sale_start_time
+            
+            # Automatically start queue timer when sale is created
+            sale.start_queue_timer()
+            
+            sale.save()
             
             # Handle service items first
             if 'service_items' in data and data['service_items']:
@@ -5050,8 +5430,17 @@ def update_service_sale(request, pk):
     })
     
 def store_sale_service_invoice_list(request):
-    invoices = ServiceSaleInvoice.objects.all()
-    return render(request,'store_service_invoice_list.html', {'invoices': invoices})
+    """
+    Legacy view - redirects to new comprehensive service invoice list
+    """
+    from django.shortcuts import redirect
+    from .service_invoice_views import is_admin_or_finance
+    
+    # Redirect to appropriate view based on user permissions
+    if is_admin_or_finance(request.user):
+        return redirect('global_service_invoice_list')
+    else:
+        return redirect('store_specific_service_invoice_list')
     
 @login_required
 def store_service_sales_view(request):
@@ -5071,19 +5460,55 @@ def service_sale_details(request, sale_id):
     service_items = sale.service_sale_items.all()
     accessory_items = sale.accessory_sale_items.all()
     product_items = sale.product_sale_items.all()
-    context ={
-        'sale':sale,
+    
+    # Add unit price calculation for product items
+    for item in product_items:
+        if item.quantity > 0:
+            item.unit_price = item.total_price / item.quantity
+        else:
+            item.unit_price = 0
+    
+    # Get all payments made for this sale
+    payments = sale.payments.all().order_by('payment_date')
+    
+    # Calculate totals
+    subtotal = sale.total_amount
+    balance_due = sale.balance
+    paid_amount = sale.paid_amount
+    
+    # Determine status badge
+    status_info = {
+        'status': sale.get_workflow_status(),
+        'badge_class': 'success' if sale.paid_status == 'paid' else 'warning' if sale.invoice_status == 'invoiced' else 'danger' if sale.invoice_status == 'cancelled' else 'secondary'
+    }
+    
+    context = {
+        'sale': sale,
         'service_items': service_items,
         'accessory_items': accessory_items,
         'product_items': product_items,
+        'payments': payments,
+        'subtotal': subtotal,
+        'balance_due': balance_due,
+        'paid_amount': paid_amount,
+        'status_info': status_info,
     }
-    return render (request, 'service_sale_details.html', context)
+    return render(request, 'service_sale_details.html', context)
 
-##Pay for the service given at a sa;pm branch
+##Pay for the service given at a salon branch
 def record_payment_view(request, sale_id):
     sale = get_object_or_404(ServiceSale, id=sale_id)
+    
+    # Check if payment can be processed
+    if not sale.can_process_payment():
+        messages.error(request, f'Cannot process payment. Sale status: {sale.get_workflow_status()}')
+        return redirect('service_sale_details', sale_id=sale.id)
 
     if request.method == 'POST':
+        # Start timing payment processing
+        from django.utils import timezone
+        payment_start_time = timezone.now()
+        
         form = PaymentForm(request.POST, sale_balance=sale.balance)
         if form.is_valid():
             payment_method = form.cleaned_data['payment_method']
@@ -5094,14 +5519,14 @@ def record_payment_view(request, sale_id):
                     # Record payments
                     if payment_method == 'mixed':
                         # Handle mixed payment methods
-                        for method in ['cash', 'mobile_money', 'airtel_money', 'visa']:
+                        for method in ['cash', 'mobile_money', 'airtel_money', 'visa', 'bank_transfer']:
                             amount_field = f'{method}_amount'
                             if form.cleaned_data.get(amount_field):
                                 Payment.objects.create(
                                     sale=sale,
                                     payment_method=method,
                                     amount=form.cleaned_data[amount_field],
-                                    remarks=f"{method.title()}: {remarks}"
+                                    remarks=f"{method.replace('_', ' ').title()}: {remarks}"
                                 )
                     else:
                         # Single payment method
@@ -5115,6 +5540,48 @@ def record_payment_view(request, sale_id):
                     # Recalculate totals and handle paid status
                     previous_status = sale.paid_status
                     sale.calculate_total()  # This will also create commissions if newly paid
+                    
+                    # Calculate payment processing time
+                    payment_end_time = timezone.now()
+                    sale.payment_processing_time = payment_end_time - payment_start_time
+                    
+                    # If sale is now fully paid, calculate total workflow time and end service timer
+                    if sale.paid_status == 'paid':
+                        sale.total_workflow_time = payment_end_time - sale.sale_date
+                        # Automatically end service timer when payment is completed
+                        sale.end_service_timer()
+                    
+                    # Create accounting journal entries for each payment
+                    from accounts.services import AccountingService
+                    
+                    if payment_method == 'mixed':
+                        # Create journal entries for each mixed payment
+                        for method in ['cash', 'mobile_money', 'airtel_money', 'visa', 'bank_transfer']:
+                            amount_field = f'{method}_amount'
+                            if form.cleaned_data.get(amount_field):
+                                # Find the payment record we just created
+                                payment_record = Payment.objects.filter(
+                                    sale=sale,
+                                    payment_method=method,
+                                    amount=form.cleaned_data[amount_field]
+                                ).latest('payment_date')
+                                
+                                # Create journal entry for this payment
+                                AccountingService.create_service_payment_journal_entry(
+                                    sale, payment_record, request.user
+                                )
+                    else:
+                        # Single payment method - find the payment record
+                        payment_record = Payment.objects.filter(
+                            sale=sale,
+                            payment_method=payment_method,
+                            amount=form.cleaned_data['amount']
+                        ).latest('payment_date')
+                        
+                        # Create journal entry for this payment
+                        AccountingService.create_service_payment_journal_entry(
+                            sale, payment_record, request.user
+                        )
                     
                     # Explicitly save the sale to trigger the signal for accounting
                     sale.save()
@@ -5141,6 +5608,561 @@ def all_payment_receipts_view(request):
     payments = Payment.objects.select_related('sale', 'sale__customer', 'sale__store').order_by('-payment_date')
 
     return render(request, 'salon_payment_receipts.html', {'payments': payments})
+
+@login_required
+def create_service_sale_invoice(request, sale_id):
+    """Create an invoice for a service sale"""
+    sale = get_object_or_404(ServiceSale, id=sale_id)
+    
+    try:
+        invoice = sale.create_invoice()
+        messages.success(request, f'Invoice created successfully for sale {sale.service_sale_number}')
+        return redirect('service_sale_details', sale_id=sale.id)
+    except ValueError as e:
+        messages.error(request, str(e))
+        return redirect('service_sale_details', sale_id=sale.id)
+
+@login_required 
+def cancel_service_sale(request, sale_id):
+    """Cancel a service sale"""
+    sale = get_object_or_404(ServiceSale, id=sale_id)
+    
+    if request.method == 'POST':
+        reason = request.POST.get('reason', '')
+        try:
+            sale.cancel_sale(reason)
+            messages.success(request, f'Sale {sale.service_sale_number} has been cancelled')
+            return redirect('store_service_sales_view')
+        except ValueError as e:
+            messages.error(request, str(e))
+            return redirect('service_sale_details', sale_id=sale.id)
+    
+    return render(request, 'cancel_service_sale.html', {'sale': sale})
+
+@login_required
+def service_sale_analytics(request):
+    """View for analyzing sale workflow timing and performance"""
+    from django.db.models import Avg, Count, Q
+    from datetime import timedelta
+    
+    # Get sales with timing data
+    sales_with_timing = ServiceSale.objects.exclude(
+        sale_creation_time__isnull=True
+    ).select_related('customer', 'store')
+    
+    # Calculate average times
+    avg_creation_time = sales_with_timing.aggregate(
+        avg_creation=Avg('sale_creation_time')
+    )['avg_creation']
+    
+    avg_payment_time = ServiceSale.objects.exclude(
+        payment_processing_time__isnull=True
+    ).aggregate(
+        avg_payment=Avg('payment_processing_time')
+    )['avg_payment']
+    
+    avg_total_time = ServiceSale.objects.exclude(
+        total_workflow_time__isnull=True
+    ).aggregate(
+        avg_total=Avg('total_workflow_time')
+    )['avg_total']
+    
+    # Status breakdown
+    status_breakdown = ServiceSale.objects.values('invoice_status', 'paid_status').annotate(
+        count=Count('id')
+    )
+    
+    # Recent sales for detailed view
+    recent_sales = ServiceSale.objects.select_related(
+        'customer', 'store'
+    ).order_by('-sale_date')[:20]
+    
+    context = {
+        'avg_creation_time': avg_creation_time,
+        'avg_payment_time': avg_payment_time, 
+        'avg_total_time': avg_total_time,
+        'status_breakdown': status_breakdown,
+        'recent_sales': recent_sales,
+        'total_sales': ServiceSale.objects.count(),
+    }
+    
+    return render(request, 'service_sale_analytics.html', context)
+
+@login_required
+def customer_analytics_dashboard(request):
+    """Comprehensive customer analytics dashboard"""
+    from django.db.models import Sum, Count, Avg, Max, Min, F, Q, Case, When, DecimalField
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+    
+    # Date range filter - default to include all sales in the database
+    from django.utils import timezone
+    
+    if request.GET.get('start_date') and request.GET.get('end_date'):
+        # Use user-provided dates
+        start_date = datetime.strptime(request.GET.get('start_date'), '%Y-%m-%d').date()
+        end_date = datetime.strptime(request.GET.get('end_date'), '%Y-%m-%d').date()
+    else:
+        # Auto-detect date range from actual sales data
+        all_sales = ServiceSale.objects.all()
+        if all_sales.exists():
+            first_sale = all_sales.order_by('sale_date').first()
+            last_sale = all_sales.order_by('-sale_date').first()
+            start_date = first_sale.sale_date.date()
+            end_date = last_sale.sale_date.date()
+        else:
+            # Fallback to last 12 months if no sales exist
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=365)
+    
+    # Convert dates to timezone-aware datetime objects for proper filtering
+    start_datetime = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_datetime = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
+    
+    # Customer search filter
+    customer_search = request.GET.get('customer_search', '').strip()
+    customer_filter = Q()
+    if customer_search:
+        customer_filter = Q(
+            Q(first_name__icontains=customer_search) |
+            Q(last_name__icontains=customer_search) |
+            Q(phone__icontains=customer_search)
+        )
+    
+    # Get customers who have sales in the date range first
+    customers_with_sales = Customer.objects.filter(
+        service_sales__sale_date__range=[start_datetime, end_datetime]
+    ).filter(customer_filter).distinct()
+    
+    # Customer ranking and metrics
+    customer_metrics = customers_with_sales.annotate(
+        # Total sales amount
+        total_spent=Sum(
+            'service_sales__total_amount',
+            filter=Q(service_sales__sale_date__range=[start_datetime, end_datetime])
+        ),
+        # Total number of orders (each sale = 1 order)
+        total_orders=Count(
+            'service_sales__id',
+            filter=Q(service_sales__sale_date__range=[start_datetime, end_datetime]),
+            distinct=True
+        ),
+        # Number of unique purchase days (for repeat customer analysis)
+        unique_purchase_days=Count(
+            'service_sales__sale_date__date',
+            distinct=True,
+            filter=Q(service_sales__sale_date__range=[start_datetime, end_datetime])
+        ),
+        # Average order value
+        avg_order_value=Avg(
+            'service_sales__total_amount',
+            filter=Q(service_sales__sale_date__range=[start_datetime, end_datetime])
+        ),
+        # Last purchase date
+        last_purchase=Max(
+            'service_sales__sale_date',
+            filter=Q(service_sales__sale_date__range=[start_datetime, end_datetime])
+        ),
+        # First purchase date
+        first_purchase=Min(
+            'service_sales__sale_date',
+            filter=Q(service_sales__sale_date__range=[start_datetime, end_datetime])
+        ),
+        # Paid sales only
+        paid_amount=Sum(
+            'service_sales__total_amount',
+            filter=Q(
+                service_sales__sale_date__range=[start_datetime, end_datetime],
+                service_sales__paid_status='paid'
+            )
+        ),
+        # Outstanding balance
+        outstanding_balance=Sum(
+            'service_sales__balance',
+            filter=Q(
+                service_sales__sale_date__range=[start_datetime, end_datetime],
+                service_sales__paid_status='not_paid'
+            )
+        )
+    ).order_by('-total_spent')
+    
+    # Calculate customer lifetime value and frequency scores
+    for customer in customer_metrics:
+        # Ensure we have default values
+        customer.total_spent = customer.total_spent or 0
+        customer.total_orders = customer.total_orders or 0
+        customer.unique_purchase_days = customer.unique_purchase_days or 0
+        
+        if customer.total_spent and customer.total_orders:
+            # Calculate purchase frequency based on unique shopping days
+            if customer.first_purchase and customer.last_purchase:
+                days_active = (customer.last_purchase.date() - customer.first_purchase.date()).days + 1
+                # Orders per month based on active period
+                customer.purchase_frequency = (customer.total_orders / max(days_active / 30, 1))
+                # Shopping frequency (how often they come to shop)
+                customer.visit_frequency = (customer.unique_purchase_days / max(days_active / 30, 1))
+            else:
+                customer.purchase_frequency = 0
+                customer.visit_frequency = 0
+                
+            # Mark as repeat customer if they have orders on different days
+            customer.is_repeat_customer = customer.unique_purchase_days > 1
+            
+            # Customer segment classification based on total spent and frequency
+            if customer.total_spent >= 1000000:  # 1M UGX
+                customer.segment = 'VIP'
+                customer.segment_class = 'success'
+            elif customer.total_spent >= 500000:  # 500K UGX
+                customer.segment = 'Premium'
+                customer.segment_class = 'warning'
+            elif customer.total_spent >= 100000:  # 100K UGX
+                customer.segment = 'Regular'
+                customer.segment_class = 'info'
+            elif customer.is_repeat_customer:
+                customer.segment = 'Loyal'
+                customer.segment_class = 'primary'
+            else:
+                customer.segment = 'New'
+                customer.segment_class = 'secondary'
+        else:
+            customer.purchase_frequency = 0
+            customer.visit_frequency = 0
+            customer.is_repeat_customer = False
+            customer.segment = 'Inactive'
+            customer.segment_class = 'light'
+    
+    # Calculate total revenue from all sales directly (not from customer aggregates)
+    total_revenue = ServiceSale.objects.filter(
+        sale_date__range=[start_datetime, end_datetime]
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Create a composite ranking score for customers
+    # Score = (total_spent * 0.7) + (total_orders * avg_order_value * 0.3)
+    # This gives 70% weight to spending and 30% weight to order frequency
+    for customer in customer_metrics:
+        if customer.total_spent and customer.total_orders:
+            # Convert to Decimal to avoid type mixing issues
+            total_spent = Decimal(str(customer.total_spent or 0))
+            total_orders = Decimal(str(customer.total_orders or 0))
+            
+            # Calculate average order value
+            avg_order_value = total_spent / total_orders if total_orders > 0 else Decimal('0')
+            
+            # Calculate scores using Decimal arithmetic
+            spending_score = total_spent * Decimal('0.7')
+            order_score = total_orders * avg_order_value * Decimal('0.3')
+            customer.ranking_score = float(spending_score + order_score)
+        else:
+            customer.ranking_score = 0
+    
+    # Sort customers by ranking score (spending + order frequency)
+    customer_metrics_sorted = sorted(
+        customer_metrics, 
+        key=lambda x: (x.ranking_score, x.total_orders, x.total_spent), 
+        reverse=True
+    )
+    
+    # Top customers (limit to top 20) - now ranked by composite score
+    top_customers = customer_metrics_sorted[:20]
+    
+    # Overall statistics
+    total_customers = len(customer_metrics_sorted)
+    avg_customer_value = total_revenue / max(total_customers, 1) if total_customers > 0 else 0
+    
+    # Customer segmentation summary
+    segment_summary = {}
+    for customer in customer_metrics_sorted:
+        segment = getattr(customer, 'segment', 'Unknown')
+        if segment not in segment_summary:
+            segment_summary[segment] = {'count': 0, 'revenue': 0}
+        segment_summary[segment]['count'] += 1
+        segment_summary[segment]['revenue'] += customer.total_spent or 0
+    
+    # Monthly sales trend for chart
+    monthly_sales = ServiceSale.objects.filter(
+        sale_date__range=[start_datetime, end_datetime]
+    ).extra(
+        select={'month': "strftime('%%Y-%%m', sale_date)"}
+    ).values('month').annotate(
+        total_sales=Sum('total_amount'),
+        customer_count=Count('customer', distinct=True)
+    ).order_by('month')
+    
+    # Service popularity among customers
+    popular_services = ServiceSaleItem.objects.filter(
+        sale__sale_date__range=[start_datetime, end_datetime]
+    ).values(
+        'service__service__name'
+    ).annotate(
+        customer_count=Count('sale__customer', distinct=True),
+        total_sales=Sum('total_price'),
+        purchase_count=Count('id')
+    ).order_by('-customer_count')[:10]
+    
+    # Customer retention analysis - customers with orders on multiple different days
+    repeat_customers_count = 0
+    actual_customers_with_sales = 0
+    
+    for customer in customer_metrics_sorted:
+        if customer.total_orders and customer.total_orders > 0:
+            actual_customers_with_sales += 1
+            # A repeat customer has either:
+            # 1. More than 1 order total, OR
+            # 2. Orders on different days (unique_purchase_days > 1)
+            if customer.total_orders > 1 or (hasattr(customer, 'unique_purchase_days') and customer.unique_purchase_days > 1):
+                repeat_customers_count += 1
+                customer.is_repeat_customer = True
+            else:
+                customer.is_repeat_customer = False
+    
+    # Retention rate based on customers who made repeat purchases
+    retention_rate = (repeat_customers_count / max(actual_customers_with_sales, 1)) * 100 if actual_customers_with_sales > 0 else 0
+    
+    # Recent customer activity (last 30 days from end_date)
+    recent_start = timezone.make_aware(datetime.combine(end_date - timedelta(days=30), datetime.min.time()))
+    recent_new_customers = Customer.objects.filter(
+        service_sales__sale_date__gte=recent_start
+    ).distinct().count()
+    
+    context = {
+        'top_customers': top_customers,
+        'total_customers': total_customers,
+        'total_revenue': total_revenue,
+        'avg_customer_value': avg_customer_value,
+        'segment_summary': segment_summary,
+        'monthly_sales': list(monthly_sales),
+        'popular_services': popular_services,
+        'retention_rate': retention_rate,
+        'repeat_customers': repeat_customers_count,
+        'customer_search': customer_search,
+        'recent_new_customers': recent_new_customers,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+    
+    return render(request, 'customer_analytics_dashboard.html', context)
+
+@login_required
+def commission_report_view(request):
+    """Generate commission reports grouped by staff with the specified format - Finance/Admin view"""
+    from django.db.models import Sum, Q
+    from datetime import datetime, timedelta
+    from itertools import chain
+    from django.utils import timezone
+    from django.shortcuts import redirect
+    from django.contrib import messages
+    
+    # Check if user has permission (admin, finance, or superuser)
+    if not (request.user.is_superuser or 
+            request.user.groups.filter(name__in=['Admin', 'Finance']).exists()):
+        messages.error(request, 'You do not have permission to access commission reports.')
+        return redirect('productionPage')
+    
+    # Get filter parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    staff_id = request.GET.get('staff_id')
+    report_name = request.GET.get('report_name', '')
+    
+    # Set default date range (current month if not specified)
+    if not start_date or not end_date:
+        today = timezone.now().date()
+        start_date = today.replace(day=1)
+        end_date = today
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Convert to timezone-aware datetime objects for filtering
+    start_datetime = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_datetime = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
+    
+    # Base query for service commissions
+    service_commissions = StaffCommission.objects.select_related(
+        'staff',
+        'service_sale_item__service__service',
+        'service_sale_item__sale',
+        'service_sale_item__sale__customer'
+    ).filter(
+        created_at__range=[start_datetime, end_datetime]
+    )
+    
+    # Base query for product commissions
+    product_commissions = StaffProductCommission.objects.select_related(
+        'staff',
+        'product_sale_item__product__product',
+        'product_sale_item__sale',
+        'product_sale_item__sale__customer'
+    ).filter(
+        created_at__range=[start_datetime, end_datetime]
+    )
+    
+    # Apply staff filter if specified
+    if staff_id:
+        service_commissions = service_commissions.filter(staff_id=staff_id)
+        product_commissions = product_commissions.filter(staff_id=staff_id)
+    
+    # Get all staff with commissions in the period
+    staff_with_commissions = set()
+    staff_with_commissions.update(service_commissions.values_list('staff_id', flat=True))
+    staff_with_commissions.update(product_commissions.values_list('staff_id', flat=True))
+    
+    from POSMagicApp.models import Staff
+    staff_members = Staff.objects.filter(id__in=staff_with_commissions).order_by('first_name', 'last_name')
+    
+    # Group commissions by staff
+    staff_commission_data = []
+    total_all_commissions = 0
+    
+    for staff_member in staff_members:
+        # Get service commissions for this staff
+        staff_service_commissions = service_commissions.filter(staff=staff_member).order_by('created_at')
+        
+        # Get product commissions for this staff
+        staff_product_commissions = product_commissions.filter(staff=staff_member).order_by('created_at')
+        
+        # Combine and format commission entries
+        commission_entries = []
+        staff_total = 0
+        
+        # Add service commissions
+        for comm in staff_service_commissions:
+            sale = comm.service_sale_item.sale
+            sale_ref = sale.service_sale_number if hasattr(sale, 'service_sale_number') and sale.service_sale_number else f"SS{sale.id}"
+            commission_entries.append({
+                'date': comm.created_at.date(),
+                'commission': comm.commission_amount,
+                'sale_ref': sale_ref,
+                'sale_id': sale.id,
+                'sale_type': 'service',
+                'type': 'Service',
+                'details': comm.service_sale_item.service.service.name if comm.service_sale_item.service.service else 'Service'
+            })
+            staff_total += comm.commission_amount
+        
+        # Add product commissions
+        for comm in staff_product_commissions:
+            sale = comm.product_sale_item.sale
+            # For product sales, check if it has a sale number field
+            sale_ref = getattr(sale, 'sale_number', None) or f"PS{sale.id}"
+            commission_entries.append({
+                'date': comm.created_at.date(),
+                'commission': comm.commission_amount,
+                'sale_ref': sale_ref,
+                'sale_id': sale.id,
+                'sale_type': 'product',
+                'type': 'Product',
+                'details': comm.product_sale_item.product.product.name if comm.product_sale_item.product.product else 'Product'
+            })
+            staff_total += comm.commission_amount
+        
+        # Sort by date
+        commission_entries.sort(key=lambda x: x['date'])
+        
+        if commission_entries:  # Only include staff with commissions
+            staff_commission_data.append({
+                'staff': staff_member,
+                'entries': commission_entries,
+                'total': staff_total
+            })
+            total_all_commissions += staff_total
+    
+    # Get all staff for the filter dropdown
+    all_staff = Staff.objects.all().order_by('first_name', 'last_name')
+    
+    context = {
+        'staff_commission_data': staff_commission_data,
+        'total_all_commissions': total_all_commissions,
+        'start_date': start_date,
+        'end_date': end_date,
+        'selected_staff_id': int(staff_id) if staff_id else None,
+        'all_staff': all_staff,
+        'report_name': report_name,
+        'period_name': f"{start_date.strftime('%B %Y')}" if start_date.month == end_date.month and start_date.year == end_date.year else f"{start_date} to {end_date}",
+    }
+    
+    return render(request, 'commission_report.html', context)
+
+@login_required
+def save_commission_report(request):
+    """Save a commission report for future reference - Finance/Admin only"""
+    # Check if user has permission (admin, finance, or superuser)
+    if not (request.user.is_superuser or 
+            request.user.groups.filter(name__in=['Admin', 'Finance']).exists()):
+        messages.error(request, 'You do not have permission to save commission reports.')
+        return redirect('productionPage')
+        
+    if request.method == 'POST':
+        from django.utils import timezone
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        from datetime import datetime
+        import json
+        
+        # Get form data
+        report_name = request.POST.get('report_name')
+        description = request.POST.get('description', '')
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        staff_id = request.POST.get('staff_id')
+        
+        # Recreate the report data (reuse the logic from commission_report_view)
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        start_datetime = timezone.make_aware(datetime.combine(start_date_obj, datetime.min.time()))
+        end_datetime = timezone.make_aware(datetime.combine(end_date_obj, datetime.max.time()))
+        
+        # Get commission data
+        service_commissions = StaffCommission.objects.select_related(
+            'staff', 'service_sale_item__service__service', 'service_sale_item__sale'
+        ).filter(created_at__range=[start_datetime, end_datetime])
+        
+        product_commissions = StaffProductCommission.objects.select_related(
+            'staff', 'product_sale_item__product__product', 'product_sale_item__sale'
+        ).filter(created_at__range=[start_datetime, end_datetime])
+        
+        if staff_id:
+            service_commissions = service_commissions.filter(staff_id=staff_id)
+            product_commissions = product_commissions.filter(staff_id=staff_id)
+        
+        # Calculate totals
+        service_total = sum(comm.commission_amount for comm in service_commissions)
+        product_total = sum(comm.commission_amount for comm in product_commissions)
+        grand_total = service_total + product_total
+        
+        # Prepare report data for storage
+        report_data = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'staff_id': staff_id,
+            'service_commission_total': float(service_total),
+            'product_commission_total': float(product_total),
+            'grand_total': float(grand_total),
+            'service_commission_count': service_commissions.count(),
+            'product_commission_count': product_commissions.count(),
+            'generated_by': request.user.username,
+            'generated_at': timezone.now().isoformat()
+        }
+        
+        # Create the saved report record
+        saved_report = SavedCommissionReport.objects.create(
+            name=report_name,
+            description=description,
+            start_date=start_date_obj,
+            end_date=end_date_obj,
+            staff_id=int(staff_id) if staff_id else None,
+            total_amount=grand_total,
+            report_data=json.dumps(report_data),
+            created_by=request.user
+        )
+        
+        messages.success(request, f'Commission report "{report_name}" has been saved successfully!')
+        
+        return redirect('commission_report_view')
+    
+    return redirect('commission_report_view')
+
+    
 
 def payment_list_view(request):
     # Query all payments grouped by payment method
@@ -5190,14 +6212,49 @@ def payment_list_view(request):
 def service_sale_receipt(request, sale_id):
     sale = get_object_or_404(ServiceSale, id=sale_id)
     
-    # Calculate subtotal (excluding accessories)
-    service_total = sum(item.total_price for item in sale.service_sale_items.all())
-    product_total = sum(item.total_price for item in sale.product_sale_items.all())
-    subtotal = service_total + product_total
+    # Get all related items
+    service_items = sale.service_sale_items.all()
+    product_items = sale.product_sale_items.all()
+    accessory_items = sale.accessory_sale_items.all()
+    
+    # Pre-calculate unit prices for product items to avoid template division
+    for item in product_items:
+        if item.quantity > 0:
+            item.unit_price = item.total_price / item.quantity
+        else:
+            item.unit_price = 0
+    
+    # Calculate totals
+    service_total = sum(item.total_price for item in service_items)
+    product_total = sum(item.total_price for item in product_items)
+    accessory_total = sum(item.total_price for item in accessory_items)
+    subtotal = service_total + product_total + accessory_total
+    
+    # Get payments
+    payments = sale.payments.all().order_by('payment_date')
+    total_paid = sum(payment.amount for payment in payments)
+    balance_due = sale.balance
+    
+    # Determine status for display
+    if sale.invoice_status == 'cancelled':
+        status_info = {'status': 'cancelled', 'badge_class': 'danger'}
+    elif sale.paid_status == 'paid':
+        status_info = {'status': 'paid', 'badge_class': 'success'}
+    elif sale.invoice_status == 'invoiced':
+        status_info = {'status': 'invoiced', 'badge_class': 'warning'}
+    else:
+        status_info = {'status': 'pending', 'badge_class': 'secondary'}
     
     context = {
         'sale': sale,
+        'service_items': service_items,
+        'product_items': product_items,
+        'accessory_items': accessory_items,
         'subtotal': subtotal,
+        'payments': payments,
+        'total_paid': total_paid,
+        'balance_due': balance_due,
+        'status_info': status_info,
         'MEDIA_URL': settings.MEDIA_URL,
     }
     return render(request, 'service_sale_receipt.html', context)
@@ -5235,20 +6292,24 @@ def monthly_commission_list(request):
     month = request.GET.get('month')
     staff_id = request.GET.get('staff_id')
     
-    # Get service commissions
+    # Get service commissions with related sale and customer data
     service_commissions = StaffCommission.objects.select_related(
         'staff',
         'service_sale_item__service__service',
-        'service_sale_item__sale'
+        'service_sale_item__sale',
+        'service_sale_item__sale__customer',
+        'service_sale_item__sale__store'
     ).annotate(
         commission_type=Value('service', CharField())
     ).order_by('-created_at')
     
-    # Get product commissions
+    # Get product commissions with related sale and customer data
     product_commissions = StaffProductCommission.objects.select_related(
         'staff',
         'product_sale_item__product__product',
-        'product_sale_item__sale'
+        'product_sale_item__sale',
+        'product_sale_item__sale__customer',
+        'product_sale_item__sale__store'
     ).annotate(
         commission_type=Value('product', CharField())
     ).order_by('-created_at')
@@ -8768,3 +9829,195 @@ def quality_control_reports(request):
     }
     
     return render(request, 'quality_control_reports.html', context)
+
+@login_required
+def saved_commission_reports_list(request):
+    """View to list all saved commission reports - Finance/Admin only"""
+    from django.db.models import Q
+    from django.core.paginator import Paginator
+    from django.contrib import messages
+    
+    # Check if user has permission (admin, finance, or superuser)
+    if not (request.user.is_superuser or 
+            request.user.groups.filter(name__in=['Admin', 'Finance']).exists()):
+        messages.error(request, 'You do not have permission to access saved commission reports.')
+        return redirect('productionPage')
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    staff_id = request.GET.get('staff_id')
+    
+    # Base query
+    reports = SavedCommissionReport.objects.select_related('staff', 'created_by').all()
+    
+    # Apply search filter
+    if search_query:
+        reports = reports.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(created_by__username__icontains=search_query)
+        )
+    
+    # Apply date range filter
+    if start_date:
+        reports = reports.filter(start_date__gte=start_date)
+    if end_date:
+        reports = reports.filter(end_date__lte=end_date)
+    
+    # Apply staff filter
+    if staff_id:
+        reports = reports.filter(staff_id=staff_id)
+    
+    # Order by creation date (newest first)
+    reports = reports.order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(reports, 20)  # Show 20 reports per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get all staff for filter dropdown
+    from POSMagicApp.models import Staff
+    all_staff = Staff.objects.all().order_by('first_name', 'last_name')
+    
+    context = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+        'start_date': start_date,
+        'end_date': end_date,
+        'selected_staff_id': int(staff_id) if staff_id else None,
+        'all_staff': all_staff,
+        'total_reports': reports.count(),
+    }
+    
+    return render(request, 'saved_commission_reports_list.html', context)
+
+@login_required
+def view_saved_commission_report(request, report_id):
+    """View a specific saved commission report - Finance/Admin only"""
+    from django.shortcuts import get_object_or_404
+    from django.utils import timezone
+    from datetime import datetime
+    from django.contrib import messages
+    import json
+    
+    # Check if user has permission (admin, finance, or superuser)
+    if not (request.user.is_superuser or 
+            request.user.groups.filter(name__in=['Admin', 'Finance']).exists()):
+        messages.error(request, 'You do not have permission to view commission reports.')
+        return redirect('productionPage')
+    
+    report = get_object_or_404(SavedCommissionReport, id=report_id)
+    
+    # Parse the stored report data
+    try:
+        report_data = json.loads(report.report_data)
+    except (json.JSONDecodeError, TypeError):
+        report_data = {}
+    
+    # Regenerate the detailed commission data for display
+    start_date_obj = report.start_date
+    end_date_obj = report.end_date
+    start_datetime = timezone.make_aware(datetime.combine(start_date_obj, datetime.min.time()))
+    end_datetime = timezone.make_aware(datetime.combine(end_date_obj, datetime.max.time()))
+    
+    # Get commission data for the saved report period
+    service_commissions = StaffCommission.objects.select_related(
+        'staff', 'service_sale_item__service__service', 'service_sale_item__sale'
+    ).filter(created_at__range=[start_datetime, end_datetime])
+    
+    product_commissions = StaffProductCommission.objects.select_related(
+        'staff', 'product_sale_item__product__product', 'product_sale_item__sale'
+    ).filter(created_at__range=[start_datetime, end_datetime])
+    
+    if report.staff:
+        service_commissions = service_commissions.filter(staff=report.staff)
+        product_commissions = product_commissions.filter(staff=report.staff)
+    
+    # Get staff with commissions
+    staff_with_commissions = set()
+    staff_with_commissions.update(service_commissions.values_list('staff_id', flat=True))
+    staff_with_commissions.update(product_commissions.values_list('staff_id', flat=True))
+    
+    from POSMagicApp.models import Staff
+    staff_members = Staff.objects.filter(id__in=staff_with_commissions).order_by('first_name', 'last_name')
+    
+    # Group commissions by staff (same logic as commission_report_view)
+    staff_commission_data = []
+    
+    for staff_member in staff_members:
+        staff_service_commissions = service_commissions.filter(staff=staff_member).order_by('created_at')
+        staff_product_commissions = product_commissions.filter(staff=staff_member).order_by('created_at')
+        
+        commission_entries = []
+        staff_total = 0
+        
+        # Add service commissions
+        for comm in staff_service_commissions:
+            sale = comm.service_sale_item.sale
+            sale_ref = sale.service_sale_number if hasattr(sale, 'service_sale_number') and sale.service_sale_number else f"SS{sale.id}"
+            commission_entries.append({
+                'date': comm.created_at.date(),
+                'commission': comm.commission_amount,
+                'sale_ref': sale_ref,
+                'sale_id': sale.id,
+                'sale_type': 'service',
+                'type': 'Service',
+                'details': comm.service_sale_item.service.service.name if comm.service_sale_item.service.service else 'Service'
+            })
+            staff_total += comm.commission_amount
+        
+        # Add product commissions
+        for comm in staff_product_commissions:
+            sale = comm.product_sale_item.sale
+            sale_ref = getattr(sale, 'sale_number', None) or f"PS{sale.id}"
+            commission_entries.append({
+                'date': comm.created_at.date(),
+                'commission': comm.commission_amount,
+                'sale_ref': sale_ref,
+                'sale_id': sale.id,
+                'sale_type': 'product',
+                'type': 'Product',
+                'details': comm.product_sale_item.product.product.name if comm.product_sale_item.product.product else 'Product'
+            })
+            staff_total += comm.commission_amount
+        
+        commission_entries.sort(key=lambda x: x['date'])
+        
+        if commission_entries:
+            staff_commission_data.append({
+                'staff': staff_member,
+                'entries': commission_entries,
+                'total': staff_total
+            })
+    
+    context = {
+        'report': report,
+        'staff_commission_data': staff_commission_data,
+        'total_all_commissions': report.total_amount,
+        'report_data': report_data,
+        'is_saved_report': True,
+        'period_name': report.period_name,
+        'start_date': report.start_date,
+        'end_date': report.end_date,
+        'report_name': report.name,
+    }
+    
+    return render(request, 'commission_report.html', context)
+
+@login_required
+def delete_saved_commission_report(request, report_id):
+    """Delete a saved commission report"""
+    from django.shortcuts import get_object_or_404, redirect
+    from django.contrib import messages
+    
+    if request.method == 'POST':
+        report = get_object_or_404(SavedCommissionReport, id=report_id)
+        report_name = report.name
+        report.delete()
+        
+        messages.success(request, f'Commission report "{report_name}" has been deleted successfully!')
+    
+    return redirect('saved_commission_reports_list')

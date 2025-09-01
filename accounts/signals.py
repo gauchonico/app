@@ -153,10 +153,10 @@ def create_payment_journal_entry_auto(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=ServiceSale)
 def create_service_sale_journal_entry_auto(sender, instance, **kwargs):
-    """Automatically create journal entry when a service sale becomes paid"""
+    """Automatically create journal entry when a service sale is invoiced (creates accounts receivable)"""
     try:
-        # Only create journal entry when the sale becomes paid
-        if instance.paid_status == 'paid' and instance.total_amount and instance.total_amount > 0:
+        # Only create journal entry when the sale is invoiced
+        if instance.invoice_status == 'invoiced' and instance.total_amount and instance.total_amount > 0:
             # Check for existing entry to prevent duplicates
             if check_existing_entry(instance, 'service_sale'):
                 logger.info(f"Service sale journal entry already exists for sale ID: {instance.id}")

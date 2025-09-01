@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manual Points Adjustment{% endblock %}
+
+{% block css %}
+<style>
+.adjustment-card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+.adjustment-form {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+.warning-box {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 1rem;
+}
+.transaction-type-add {
+    color: #28a745;
+}
+.transaction-type-subtract {
+    color: #dc3545;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div class="flex-grow-1">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:index' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:loyalty_settings' %}">Loyalty Settings</a></li>
+            <li class="breadcrumb-item active">Manual Adjustment</li>
+        </ol>
+        <h1 class="page-header mb-0">Manual Points Adjustment</h1>
+    </div>
+    <div class="d-flex">
+        <a href="{% url 'DjangoHUDApp:points_redemption' %}" class="btn btn-outline-success me-2">
+            <i class="fas fa-coins me-1"></i>Points Redemption
+        </a>
+        <a href="{% url 'DjangoHUDApp:loyalty_reports' %}" class="btn btn-outline-info">
+            <i class="fas fa-chart-line me-1"></i>Reports
+        </a>
+    </div>
+</div>
+
+<!-- Warning Message -->
+<div class="warning-box mb-4">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-exclamation-triangle text-warning fa-2x me-3"></i>
+        <div>
+            <h6 class="mb-1">Admin Only Feature</h6>
+            <p class="mb-0 small">This feature allows manual adjustment of customer loyalty points. Use with caution as these changes are permanent and will be logged for audit purposes.</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Adjustment Form -->
+    <div class="col-xl-8">
+        <div class="card adjustment-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-edit me-2"></i>Adjust Customer Points
+                    <span class="badge bg-warning ms-2">Admin Only</span>
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="adjustment-form">
+                    <form method="post" id="adjustmentForm">
+                        {% csrf_token %}
+                        
+                        <!-- Customer Selection -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label class="form-label" for="{{ form.customer.id_for_label }}">
+                                    <i class="fas fa-user me-1"></i>Select Customer
+                                </label>
+                                {{ form.customer }}
+                                {% if form.customer.errors %}
+                                <div class="text-danger small">{{ form.customer.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">{{ form.customer.help_text }}</small>
+                            </div>
+                        </div>
+
+                        <!-- Customer Info Display (Hidden initially) -->
+                        <div id="customerInfo" class="alert alert-info" style="display: none;">
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <div class="fs-24px fw-bold text-primary" id="customerPoints">0</div>
+                                    <small class="text-muted">Current Points</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="fs-18px fw-bold text-secondary" id="customerTier">Bronze</div>
+                                    <small class="text-muted">Loyalty Tier</small>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="fs-24px fw-bold text-success" id="newBalance">0</div>
+                                    <small class="text-muted">New Balance (Preview)</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Points Adjustment -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label" for="{{ form.points_adjustment.id_for_label }}">
+                                    <i class="fas fa-plus-minus me-1"></i>Points Adjustment
+                                </label>
+                                {{ form.points_adjustment }}
+                                {% if form.points_adjustment.errors %}
+                                <div class="text-danger small">{{ form.points_adjustment.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">{{ form.points_adjustment.help_text }}</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Adjustment Type</label>
+                                <div class="adjustment-preview mt-2">
+                                    <div id="adjustmentType" class="fs-18px fw-bold">
+                                        <span class="text-muted">Enter adjustment amount</span>
+                                    </div>
+                                    <small class="text-muted">Positive = Add, Negative = Subtract</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reason -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label class="form-label" for="{{ form.reason.id_for_label }}">
+                                    <i class="fas fa-clipboard me-1"></i>Reason for Adjustment
+                                </label>
+                                {{ form.reason }}
+                                {% if form.reason.errors %}
+                                <div class="text-danger small">{{ form.reason.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">{{ form.reason.help_text }}</small>
+                            </div>
+                        </div>
+
+                        <!-- Confirmation Checkbox -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="confirmAdjustment" required>
+                                    <label class="form-check-label" for="confirmAdjustment">
+                                        <strong>I confirm this adjustment is correct and authorized</strong>
+                                        <br><small class="text-muted">This action cannot be undone and will be logged for audit purposes</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                                    <i class="fas fa-undo me-1"></i>Reset Form
+                                </button>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-warning" id="submitBtn" disabled>
+                                    <i class="fas fa-edit me-1"></i>Apply Adjustment
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions & Info -->
+    <div class="col-xl-4">
+        <!-- Instructions -->
+        <div class="card adjustment-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>How to Use</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="text-primary">Adding Points:</h6>
+                    <ul class="small mb-0">
+                        <li>Enter a positive number (e.g., 100)</li>
+                        <li>Useful for compensating customers</li>
+                        <li>Birthday bonuses or promotions</li>
+                    </ul>
+                </div>
+                <div class="mb-3">
+                    <h6 class="text-danger">Subtracting Points:</h6>
+                    <ul class="small mb-0">
+                        <li>Enter a negative number (e.g., -50)</li>
+                        <li>Useful for corrections</li>
+                        <li>Cannot exceed current balance</li>
+                    </ul>
+                </div>
+                <div>
+                    <h6 class="text-warning">Important:</h6>
+                    <ul class="small mb-0">
+                        <li>All adjustments are permanent</li>
+                        <li>Always provide a clear reason</li>
+                        <li>Changes are logged for audit</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card adjustment-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setAdjustment(100)">
+                        <i class="fas fa-plus me-1"></i>Add 100 Points
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm" onclick="setAdjustment(500)">
+                        <i class="fas fa-plus me-1"></i>Add 500 Points
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="setAdjustment(-50)">
+                        <i class="fas fa-minus me-1"></i>Subtract 50 Points
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="setAdjustment(-100)">
+                        <i class="fas fa-minus me-1"></i>Subtract 100 Points
+                    </button>
+                </div>
+                <hr>
+                <small class="text-muted">Click to quickly set common adjustment amounts</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Adjustments -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card adjustment-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-history me-2"></i>Recent Adjustments</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_adjustments %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Customer</th>
+                                <th>Adjustment</th>
+                                <th>Reason</th>
+                                <th>Date</th>
+                                <th>Staff</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adjustment in recent_adjustments %}
+                            <tr>
+                                <td>
+                                    <div class="fw-medium">{{ adjustment.customer.name }}</div>
+                                    <small class="text-muted">{{ adjustment.customer.get_loyalty_tier_display }}</small>
+                                </td>
+                                <td>
+                                    <span class="fw-bold {% if adjustment.points > 0 %}transaction-type-add{% else %}transaction-type-subtract{% endif %}">
+                                        {% if adjustment.points > 0 %}+{% endif %}{{ adjustment.points }}
+                                    </span>
+                                    <small class="text-muted d-block">points</small>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ adjustment.description|truncatechars:50 }}</span>
+                                </td>
+                                <td>
+                                    <div>{{ adjustment.created_at|date:"M d, Y" }}</div>
+                                    <small class="text-muted">{{ adjustment.created_at|date:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    {% if adjustment.created_by %}
+                                        {{ adjustment.created_by.get_full_name|default:adjustment.created_by.username }}
+                                    {% else %}
+                                        <span class="text-muted">System</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-edit fa-3x mb-3"></i>
+                    <h5>No Adjustments Yet</h5>
+                    <p>Recent manual point adjustments will appear here.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    let currentCustomerPoints = 0;
+    
+    // Customer selection change handler
+    $('#id_customer').on('change', function() {
+        const customerId = $(this).val();
+        if (customerId) {
+            // Fetch customer points via AJAX
+            $.ajax({
+                url: '{% url "DjangoHUDApp:get_customer_points_ajax" %}',
+                method: 'GET',
+                data: { 'customer_id': customerId },
+                success: function(data) {
+                    if (data.success) {
+                        currentCustomerPoints = data.points;
+                        $('#customerPoints').text(data.points.toLocaleString());
+                        $('#customerTier').text(data.tier);
+                        $('#customerInfo').show();
+                        updatePreview();
+                    } else {
+                        $('#customerInfo').hide();
+                        alert('Error: ' + data.error);
+                    }
+                },
+                error: function() {
+                    $('#customerInfo').hide();
+                    alert('Error fetching customer information');
+                }
+            });
+        } else {
+            $('#customerInfo').hide();
+            currentCustomerPoints = 0;
+        }
+    });
+    
+    // Points adjustment input handler
+    $('#id_points_adjustment').on('input', function() {
+        updatePreview();
+        updateFormValidation();
+    });
+    
+    // Confirmation checkbox handler
+    $('#confirmAdjustment').on('change', function() {
+        updateFormValidation();
+    });
+    
+    function updatePreview() {
+        const adjustment = parseInt($('#id_points_adjustment').val()) || 0;
+        const newBalance = currentCustomerPoints + adjustment;
+        
+        $('#newBalance').text(newBalance.toLocaleString());
+        
+        // Update adjustment type display
+        if (adjustment > 0) {
+            $('#adjustmentType').html('<span class="transaction-type-add">+' + adjustment + ' points (Add)</span>');
+        } else if (adjustment < 0) {
+            $('#adjustmentType').html('<span class="transaction-type-subtract">' + adjustment + ' points (Subtract)</span>');
+        } else {
+            $('#adjustmentType').html('<span class="text-muted">Enter adjustment amount</span>');
+        }
+        
+        // Validation feedback
+        const input = $('#id_points_adjustment');
+        input.removeClass('is-valid is-invalid');
+        
+        if (adjustment !== 0) {
+            if (adjustment < 0 && Math.abs(adjustment) > currentCustomerPoints) {
+                input.addClass('is-invalid');
+                input.next('.invalid-feedback').remove();
+                input.after('<div class="invalid-feedback">Cannot subtract more than current balance (' + currentCustomerPoints + ' points)</div>');
+            } else {
+                input.addClass('is-valid');
+                input.next('.invalid-feedback').remove();
+            }
+        }
+    }
+    
+    function updateFormValidation() {
+        const adjustment = parseInt($('#id_points_adjustment').val()) || 0;
+        const confirmed = $('#confirmAdjustment').is(':checked');
+        const customer = $('#id_customer').val();
+        const reason = $('#id_reason').val().trim();
+        
+        const isValid = customer && adjustment !== 0 && reason.length > 0 && confirmed && 
+                       !(adjustment < 0 && Math.abs(adjustment) > currentCustomerPoints);
+        
+        $('#submitBtn').prop('disabled', !isValid);
+    }
+    
+    // Form validation on reason input
+    $('#id_reason').on('input', updateFormValidation);
+    
+    // Form submission
+    $('#adjustmentForm').on('submit', function(e) {
+        const adjustment = parseInt($('#id_points_adjustment').val()) || 0;
+        const customerName = $('#id_customer option:selected').text();
+        const newBalance = currentCustomerPoints + adjustment;
+        
+        if (!confirm(`Confirm adjustment of ${adjustment > 0 ? '+' : ''}${adjustment} points for ${customerName}?\nNew balance will be: ${newBalance} points`)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+
+function setAdjustment(points) {
+    $('#id_points_adjustment').val(points).trigger('input');
+}
+
+function resetForm() {
+    $('#adjustmentForm')[0].reset();
+    $('#customerInfo').hide();
+    $('#adjustmentType').html('<span class="text-muted">Enter adjustment amount</span>');
+    $('#id_points_adjustment').removeClass('is-valid is-invalid').next('.invalid-feedback').remove();
+    $('#submitBtn').prop('disabled', true);
+    currentCustomerPoints = 0;
+}
+</script>
+{% endblock %}

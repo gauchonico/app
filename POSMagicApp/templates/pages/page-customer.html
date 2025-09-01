@@ -1,102 +1,439 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}All Customers{% endblock %}
+{% block title %}Customer Management{% endblock %}
 
 {% block css %}
-	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
-{% endblock %}
-
-{% block js %}
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
-	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+<style>
+    /* Modern Color Palette */
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .metric-value {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    /* Table-specific styles */
+    .table > tbody > tr > td {
+        vertical-align: middle;
+        padding: 12px 8px;
+    }
+    
+    .table > thead > tr > th {
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        color: #495057;
+        padding: 12px 8px;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Badge styles */
+    .dependent-badge {
+        background: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffcc02;
+        font-size: 0.75em;
+        padding: 2px 6px;
+    }
+    
+    .guardian-badge {
+        background: #e8f5e8;
+        color: #2e7d32;
+        border: 1px solid #4caf50;
+        font-size: 0.75em;
+        padding: 2px 6px;
+    }
+    
+    /* Action buttons optimization */
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    /* Profile image styling */
+    .profile-img-sm {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+    }
+    
+    /* Status badges */
+    .badge {
+        font-size: 0.75em;
+    }
+    
+    /* Table responsiveness */
+    @media (max-width: 768px) {
+        .table-responsive table {
+            font-size: 0.875rem;
+        }
+        
+        .btn-group-sm > .btn {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.7rem;
+        }
+        
+        .profile-img-sm {
+            width: 30px;
+            height: 30px;
+        }
+    }
+    
+    /* Dropdown menu styling */
+    .dropdown-menu {
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .dropdown-item {
+        padding: 8px 16px;
+        font-size: 0.875rem;
+    }
+    
+    .dropdown-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    /* Customer count badge in header */
+    .card-title .badge {
+        font-size: 0.8em;
+        vertical-align: middle;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-    <!-- BEGIN page-header -->
 	<div class="d-flex align-items-center mb-3">
 		<div>
 			<ul class="breadcrumb">
-				<li class="breadcrumb-item"><a href="#">PAGES</a></li>
-				<li class="breadcrumb-item active">CUSTOMERS</li>
+            <li class="breadcrumb-item"><a href="#">CUSTOMERS</a></li>
+            <li class="breadcrumb-item active">CUSTOMER MANAGEMENT</li>
 			</ul>
-			<h1 class="page-header mb-0">Customer Base</h1>
+        <h5>Customer Management</h5>
 		</div>
-		
 		<div class="ms-auto">
-			<a href="{% url 'DjangoHUDApp:createCustomer' %}" class="btn btn-outline-theme me-2">Add New Customer</a>
+        <a href="{% url 'DjangoHUDApp:createCustomer' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add New Customer
+        </a>
 		</div>
 	</div>
 	
-	<div class="mb-md-4 mb-3 d-md-flex">
-		<div class="mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-download fa-fw me-1 text-theme"></i> Export</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2"><a href="#" class="text-inverse text-opacity-75 text-decoration-none"><i class="fa fa-upload fa-fw me-1 text-theme"></i> Bulk Import</a></div>
-		<div class="ms-md-4 mt-md-0 mt-2 dropdown-toggle">
-			<a href="#" data-bs-toggle="dropdown" class="text-inverse text-opacity-75 text-decoration-none">More Actions</a>
-			<div class="dropdown-menu">
-				<a class="dropdown-item" href="#">Action</a>
-				<a class="dropdown-item" href="#">Another action</a>
-				<a class="dropdown-item" href="#">Something else here</a>
-				<div role="separator" class="dropdown-divider"></div>
-				<a class="dropdown-item" href="#">Separated link</a>
+<!-- Customer Analytics -->
+<div class="customer-analytics">
+    <div class="row">
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.total_customers }}</div>
+                <small>Total Customers</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.total_clients }}</div>
+                <small>Clients</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.total_wholesalers }}</div>
+                <small>Wholesalers</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.kyc_verified }}</div>
+                <small>KYC Verified</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.minors }}</div>
+                <small>Minors</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.with_dependents }}</div>
+                <small>With Dependents</small>
+            </div>
 			</div>
 		</div>
 	</div>
-	<div id="datatable" class="mb-5">
-		
-		<p>In here you will find all our Livara Customer Base with all their details. You can search, Edit and Add new customers in-to the System.</p>
+
+<!-- Filters -->
+<div class="filter-section">
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-control" 
+                   placeholder="Search customers..." value="{{ search_query|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Customer Type</label>
+            <select name="type" class="form-control">
+                <option value="">All Types</option>
+                {% for type_code, type_name in customer_types %}
+                    <option value="{{ type_code }}" {% if customer_type == type_code %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Dependents</label>
+            <select name="dependents" class="form-control">
+                <option value="">All</option>
+                <option value="yes" {% if has_dependents == 'yes' %}selected{% endif %}>Has Dependents</option>
+                <option value="no" {% if has_dependents == 'no' %}selected{% endif %}>No Dependents</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">KYC Status</label>
+            <select name="kyc" class="form-control">
+                <option value="">All</option>
+                <option value="verified" {% if kyc_status == 'verified' %}selected{% endif %}>Verified</option>
+                <option value="pending" {% if kyc_status == 'pending' %}selected{% endif %}>Pending</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary me-2">
+                <i class="fas fa-search me-1"></i>Filter
+            </button>
+            <a href="{% url 'DjangoHUDApp:pageCustomer' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Customer Table -->
 		<div class="card">
-			<div class="card-body text-center">
-				<table id="datatableDefault" class="table text-nowrap w-100">
-					<thead>
-						<tr>
-							<th class="border-top-0 pt-0 pb-2">#</th>
-							<th class="border-top-0 pt-0 pb-2">Name</th>
-							<th class="border-top-0 pt-0 pb-2">Telephone</th>
-							<th class="border-top-0 pt-0 pb-2">Email</th>
-							<th class="border-top-0 pt-0 pb-2">Age</th>
-							<th class="border-top-0 pt-0 pb-2">Location</th>
-							<th class="border-top-0 pt-0 pb-2">Is Active</th>
-							<th class="border-top-0 pt-0 pb-2">Edit</th>
+    <div class="card-header">
+        <h6 class="card-title mb-0">
+            <i class="fas fa-users me-2"></i>Customer List
+            <span class="badge bg-secondary ms-2">{{ customers|length }} customer{{ customers|length|pluralize }}</span>
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        {% if customers %}
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 18%;">Customer</th>
+                        <th style="width: 12%;">Contact</th>
+                        <th style="width: 10%;">Type</th>
+                        <th style="width: 13%;">Status & Tags</th>
+                        <th style="width: 12%;">Family</th>
+                        <th style="width: 10%;">Loyalty</th>
+                        <th style="width: 8%;">Orders</th>
+                        <th style="width: 17%;" class="text-center">Actions</th>
 						</tr>
 					</thead>
 					<tbody>
 						{% for customer in customers %}
 						<tr>
-							<td class="align-middle">{{forloop.counter}}</td>
-							<td class="align-middle"><a href="{% url 'DjangoHUDApp:customer_details' customer.id %}">{{customer.first_name}} {{customer.last_name}}</a></td>
-							<td class="align-middle">+{{customer.phone}}</td>
-							<td class="align-middle">{{customer.email}}</td>
-							<td class="align-middle">{{customer.date_of_birth}}</td>
-							<td class="align-middle">{{customer.address}}</td>
-							<td class="align-middle">
-								<div class="form-check form-switch">
-									<input type="checkbox" class="form-check-input" checked id="customSwitch2">
+                        <!-- Customer Name & Basic Info -->
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0 me-3">
+                                    <div class="profile-image-container position-relative" style="width: 40px; height: 40px;">
+                                        {% if customer.profile_image %}
+                                            <img src="{{ customer.profile_image.url }}" alt="{{ customer.name }}" 
+                                                 class="rounded-circle profile-img-sm" width="40" height="40"
+                                                 style="object-fit: cover;"
+                                                 onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+												 {% else %}
+													<div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center default-avatar" 
+														style="width: 40px; height: 40px; {% if customer.profile_image %}display: none;{% else %}display: flex;{% endif %}">
+														<i class="fas fa-user text-white"></i>
+													</div>
+                                        {% endif %}
+                                        
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-medium">{{ customer.name }}</div>
+                                    {% if customer.age %}
+                                        <small class="text-muted">{{ customer.age }} years old</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Contact Information -->
+                        <td>
+                            <div class="small">
+                                <div class="mb-1">
+                                    <i class="fas fa-phone fa-xs me-1 text-muted"></i>{{ customer.phone }}
+                                </div>
+                                {% if customer.email %}
+                                <div>
+                                    <i class="fas fa-envelope fa-xs me-1 text-muted"></i>{{ customer.email|truncatechars:20 }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Customer Type -->
+                        <td>
+                            <span class="badge bg-{% if customer.type_of_customer == 'CLIENT' %}primary{% elif customer.type_of_customer == 'WHOLESALE' %}success{% else %}info{% endif %}">
+                                {{ customer.get_type_of_customer_display }}
+                            </span>
+                            {% if customer.sex %}
+                                <br><small class="text-muted mt-1">{{ customer.get_sex_display }}</small>
+                            {% endif %}
+                        </td>
+
+                        <!-- Status & Tags -->
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                <!-- KYC Status -->
+                                {% if customer.kyc_verified %}
+                                    <span class="badge bg-success" title="KYC Verified">
+                                        <i class="fas fa-check-circle fa-xs"></i> KYC
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-warning" title="KYC Pending">
+                                        <i class="fas fa-clock fa-xs"></i> Pending
+                                    </span>
+                                {% endif %}
+
+                                <!-- Minor Status -->
+                                {% if customer.is_minor %}
+                                    <span class="badge bg-info" title="Minor (Under 18)">
+                                        <i class="fas fa-child fa-xs"></i> Minor
+                                    </span>
+                                {% endif %}
+
+                                <!-- Can Make Purchases -->
+                                {% if customer.can_make_purchases %}
+                                    <span class="badge bg-success" title="Can Make Purchases">
+                                        <i class="fas fa-shopping-cart fa-xs"></i> Purchase
+                                    </span>
+                                {% endif %}
 								</div>
 							</td>
-							<td class="align-middle">
-								<div class="col-md-6 col-sm-6 col-xs-6 mb-1">
-									<a href="{% url 'DjangoHUDApp:editCustomer' customer.id %}"><i class="far fa-lg fa-fw me-2 fa-edit"></i></a>
-									<span></span>
-									<a href="{% url 'DjangoHUDApp:deleteCustomer' customer.id %}"><i class="far fa-lg fa-fw me-2 fa-trash-alt"></i></a>
-									<span></span>
+
+                        <!-- Family Information -->
+                        <td>
+                            {% if customer.guardian %}
+                                <div class="small">
+                                    <span class="badge dependent-badge mb-1">
+                                        {{ customer.get_relationship_to_guardian_display }}
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-arrow-up fa-xs me-1"></i>
+                                        <a href="{% url 'DjangoHUDApp:customer_details' customer.guardian.id %}" 
+                                           class="text-decoration-none">{{ customer.guardian.name|truncatechars:15 }}</a>
+                                    </small>
+                                </div>
+                            {% elif customer.dependents_count > 0 %}
+                                <div class="small">
+                                    <span class="badge guardian-badge mb-1">
+                                        Guardian
+                                    </span>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-arrow-down fa-xs me-1"></i>
+                                        {{ customer.dependents_count }} dependent{{ customer.dependents_count|pluralize }}
+                                    </small>
+                                </div>
+                            {% else %}
+                                <small class="text-muted">No family</small>
+                            {% endif %}
+                        </td>
+
+                        <!-- Loyalty Information -->
+                        <td class="text-center">
+                            <div class="loyalty-info">
+                                <span class="fw-medium text-primary">{{ customer.loyalty_points|default:0 }}</span>
+                                <br><small class="text-muted">points</small>
+                                <br>
+                                <span class="badge badge-{% if customer.loyalty_tier == 'VIP' %}danger{% elif customer.loyalty_tier == 'GOLD' %}warning{% elif customer.loyalty_tier == 'SILVER' %}secondary{% else %}primary{% endif %} badge-sm">
+                                    {% if customer.loyalty_tier == 'VIP' %}VIP{% elif customer.loyalty_tier == 'GOLD' %}Gold{% elif customer.loyalty_tier == 'SILVER' %}Silver{% else %}Bronze{% endif %}
+                                </span>
+                            </div>
+                        </td>
+
+                        <!-- Sales Count -->
+                        <td class="text-center">
+                            <span class="fw-medium">{{ customer.total_sales }}</span>
+                            <br><small class="text-muted">order{{ customer.total_sales|pluralize }}</small>
+                        </td>
+
+                        <!-- Actions -->
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'DjangoHUDApp:customer_details' customer.id %}" 
+                                   class="btn btn-outline-primary" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'DjangoHUDApp:editCustomer' customer.id %}" 
+                                   class="btn btn-outline-secondary" title="Edit Customer">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                
+                                <!-- Dropdown for additional actions -->
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-info dropdown-toggle" 
+                                            data-bs-toggle="dropdown" aria-expanded="false" title="More Actions">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        {% if not customer.is_minor and customer.kyc_verified %}
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'DjangoHUDApp:add_dependent' customer.id %}">
+                                                <i class="fas fa-plus me-2"></i>Add Dependent
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if customer.guardian or customer.dependents_count > 0 %}
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'DjangoHUDApp:customer_family_view' customer.id %}">
+                                                <i class="fas fa-users me-2"></i>View Family
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-danger" href="{% url 'DjangoHUDApp:deleteCustomer' customer.id %}"
+                                               onclick="return confirm('Are you sure you want to delete this customer?')">
+                                                <i class="fas fa-trash me-2"></i>Delete
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
 								</div>
 							</td>
 						</tr>
@@ -104,39 +441,36 @@
 					</tbody>
 				</table>
 			</div>
-			<div class="card-arrow">
-				<div class="card-arrow-top-left"></div>
-				<div class="card-arrow-top-right"></div>
-				<div class="card-arrow-bottom-left"></div>
-				<div class="card-arrow-bottom-right"></div>
+        {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h4>No Customers Found</h4>
+            <p class="text-muted">No customers match your search criteria.</p>
+            <a href="{% url 'DjangoHUDApp:createCustomer' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add First Customer
+            </a>
 			</div>
-			
+        {% endif %}
 		</div>
 	</div>
 	
-	<!-- BEGIN container -->
-	
-	<!-- END container -->
 {% endblock %}
-{% block outter_content %}
 
-{% if messages %}
-    <div class="toasts-container">
-        {% for message in messages %}
-            <div class="toast fade show">
-                <div class="toast-header">
-                    <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Customer Actions</strong>
-                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-                </div>
-                <div class="toast-body">
-                    <p>{{ message }}</p>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
+{% block js %}
+<script>
+// Auto-submit form when filters change
+document.querySelectorAll('select[name]').forEach(function(select) {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
 
-{% if form.errors %}  {% endif %}
-
-{% endblock outter_content %}
+// Enter key search
+document.querySelector('input[name="search"]').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        this.form.submit();
+    }
+});
+</script>
+{% endblock %}

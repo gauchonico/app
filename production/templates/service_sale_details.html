@@ -1,43 +1,407 @@
 {% extends 'base.html' %}
-{% load humanize %}
 {% load static %}
-{% block title %}{{ store.name }}Livara Store Sales Invoices{% endblock %}
+{% load humanize %}
+
+{% block title %}Service Sale Receipt{% endblock %}
 
 {% block css %}
-	<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
-	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        .card { border: none !important; box-shadow: none !important; }
+        body { font-size: 12px; }
+    }
+    
+    .receipt-header {
+        text-align: center;
+        border-bottom: 2px solid #000;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .company-name {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2c5aa0;
+        margin-bottom: 5px;
+    }
+    
+    .company-details {
+        font-size: 11px;
+        line-height: 1.4;
+        color: #666;
+    }
+    
+    .invoice-meta {
+        {% comment %} background-color: #f8f9fa; {% endcomment %}
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    
+    .invoice-items table {
+        font-size: 13px;
+    }
+    
+    .invoice-items th {
+        {% comment %} background-color: #e9ecef; {% endcomment %}
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .total-section {
+        {% comment %} background-color: #f8f9fa; {% endcomment %}
+        padding: 15px;
+        border-radius: 5px;
+        border-left: 4px solid #28a745;
+    }
+    
+    .amount-highlight {
+        font-size: 18px;
+        font-weight: bold;
+    }
+    
+    .status-badge {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+</style>
 {% endblock %}
 
-{% block js %}
-	<script src="{% static 'plugins/@highlightjs/cdn-assets/highlight.min.js' %}"></script>
-	<script src="{% static 'js/demo/highlightjs.demo.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.colVis.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.flash.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
-	<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
-	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
-	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
-	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
-{% endblock %}
 {% block content %}
+<div class="container-fluid">
+    <!-- Action Buttons -->
+    <div class="row no-print mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{% url 'branch_queue_management_dashboard' %}" class="btn btn-outline-info">
+                        <i class="fas fa-clock me-1"></i> Queue Management
+                    </a>
+                </div>
+                <div>
+                    <!-- Service Timing Controls -->
+                    {% if sale.get_service_status == 'in_queue' %}
+                        <button id="startServiceBtn" class="btn btn-success me-2" data-sale-id="{{ sale.id }}">
+                            <i class="fas fa-play me-1"></i> Start Service
+                        </button>
+                    {% elif sale.get_service_status == 'in_progress' %}
+                        <button id="endServiceBtn" class="btn btn-warning me-2" data-sale-id="{{ sale.id }}">
+                            <i class="fas fa-stop me-1"></i> Complete Service
+                        </button>
+                    {% endif %}
+                    
+                    {% if sale.invoice_status == 'not_invoiced' %}
+                        <a href="{% url 'create_service_sale_invoice' sale.id %}" class="btn btn-primary">
+                            <i class="bi bi-file-earmark-text"></i> Create Invoice
+                        </a>
+                    {% endif %}
+                    
+                    {% if sale.can_process_payment %}
+                        <a href="{% url 'record_payment_view' sale.id %}" class="btn btn-success">
+                            <i class="bi bi-credit-card"></i> Record Payment
+                        </a>
+                    {% endif %}
+                    
+                    {% if sale.invoice_status != 'cancelled' and sale.paid_status != 'paid' %}
+                        <a href="{% url 'cancel_service_sale' sale.id %}" class="btn btn-danger">
+                            <i class="bi bi-x-circle"></i> Cancel Sale
+                        </a>
+                    {% endif %}
+                    
+                    <button onclick="window.print()" class="btn btn-info">
+                        <i class="bi bi-printer"></i> Print
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<h2>Sale Details</h2>
+    <!-- Service Timing Information -->
+    <div class="no-print mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-stopwatch me-2"></i>Service Timing Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h6 text-muted">Service Status</div>
+                            <div id="serviceStatus">
+                                {% if sale.get_service_status == 'created' %}
+                                    <span class="badge bg-secondary fs-6">Created</span>
+                                {% elif sale.get_service_status == 'in_queue' %}
+                                    <span class="badge bg-warning fs-6">
+                                        <i class="fas fa-clock me-1"></i>In Queue
+                                    </span>
+                                {% elif sale.get_service_status == 'in_progress' %}
+                                    <span class="badge bg-info fs-6">
+                                        <i class="fas fa-cogs me-1"></i>In Progress
+                                    </span>
+                                {% elif sale.get_service_status == 'completed' %}
+                                    <span class="badge bg-success fs-6">
+                                        <i class="fas fa-check me-1"></i>Completed
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h6 text-muted">Queue Time</div>
+                            <div id="queueTime" class="h5">
+                                {% if sale.queue_waiting_time %}
+                                    <span class="text-warning">{% widthratio sale.queue_waiting_time.total_seconds 60 1 %} min</span>
+                                {% elif sale.get_current_waiting_time %}
+                                    <span class="text-warning live-timer" data-start-time="{{ sale.queue_start_time|date:'c' }}">
+                                        {% widthratio sale.get_current_waiting_time.total_seconds 60 1 %} min
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h6 text-muted">Service Time</div>
+                            <div id="serviceTime" class="h5">
+                                {% if sale.service_duration %}
+                                    <span class="text-info">{% widthratio sale.service_duration.total_seconds 60 1 %} min</span>
+                                {% elif sale.get_current_service_time %}
+                                    <span class="text-info live-timer" data-start-time="{{ sale.service_start_time|date:'c' }}">
+                                        {% widthratio sale.get_current_service_time.total_seconds 60 1 %} min
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h6 text-muted">Total Time</div>
+                            <div class="h5">
+                                {% if sale.queue_waiting_time and sale.service_duration %}
+                                    <span class="text-primary">
+                                        {% widthratio sale.queue_waiting_time.total_seconds|add:sale.service_duration.total_seconds 60 1 %}m
+                                    </span>
+                                {% elif sale.get_current_waiting_time and sale.get_current_service_time %}
+                                    <span class="text-primary">
+                                        {% widthratio sale.get_current_waiting_time.total_seconds|add:sale.get_current_service_time.total_seconds 60 1 %}m
+                                    </span>
+                                {% elif sale.get_current_waiting_time %}
+                                    <span class="text-warning">
+                                        {% widthratio sale.get_current_waiting_time.total_seconds 60 1 %}m
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Timing Details -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted">Sale Created:</small>
+                                <div>{{ sale.sale_date|date:"M d, Y H:i" }}</div>
+                            </div>
+                            {% if sale.queue_start_time %}
+                            <div class="col-md-4">
+                                <small class="text-muted">Queue Started:</small>
+                                <div>{{ sale.queue_start_time|date:"M d, Y H:i" }}</div>
+                            </div>
+                            {% endif %}
+                            {% if sale.service_start_time %}
+                            <div class="col-md-4">
+                                <small class="text-muted">Service Started:</small>
+                                <div>{{ sale.service_start_time|date:"M d, Y H:i" }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if sale.service_end_time %}
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <small class="text-muted">Service Completed:</small>
+                                <div>{{ sale.service_end_time|date:"M d, Y H:i" }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<h3>Sale Information</h3>
-<p><strong>Store:</strong> {{ sale.store.name }}</p>
-<p><strong>Customer:</strong> {{ sale.customer }}</p>
-<p><strong>Sale Date:</strong> {{ sale.sale_date }}</p>
-<p><strong>Total Amount:</strong> UGX {{ sale.total_amount|floatformat|intcomma }}</p>
-<p><strong>Paid Amount:</strong> UGX {{ sale.paid_amount|floatformat|intcomma }}</p>
-<p><strong>Balance:</strong> UGX {{ sale.balance|floatformat|intcomma }}</p>
+    <!-- Receipt Content -->
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Header -->
+                    <div class="receipt-header">
+                        <div class="company-name">LIVARA</div>
+                        <div class="company-details">
+                            Website: www.mylivara.com | Email: care@mylivara.com<br>
+                            <strong>Tel:</strong><br>
+                            Ntinda: 0756-964-656 | Kyanja: 0758-581-440 | Mutaasa Kafeero: 0751-944-635<br>
+                            Kansanga: 0751-944-564 | Bugolobi: 0759-034-151 | Mbarara: 0752-066-748<br>
+                            USA: +1-480-468-4543
+                        </div>
+                    </div>
+
+                    <!-- Invoice Meta Information -->
+                    <div class="invoice-meta">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong><br>
+                                {% if sale.customer.phone %}Phone: {{ sale.customer.phone }}<br>{% endif %}
+                                {% if sale.customer.email %}Email: {{ sale.customer.email }}<br>{% endif %}
+                                <small class="text-muted">{{ sale.store.name }}</small>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <div class="mb-2">
+                                    <span class="badge status-badge bg-{{ status_info.badge_class }}">
+                                        {{ status_info.status|upper }}
+                                    </span>
+                                </div>
+                                <strong>Invoice Date:</strong> {{ sale.sale_date|date:"d/m/Y" }}<br>
+                                {% if sale.invoiced_at %}
+                                <strong>Invoice Time:</strong> {{ sale.invoiced_at|date:"d/m/Y H:i" }}<br>
+                                {% endif %}
+                                <strong>Receipt Number:</strong> {{ sale.service_sale_number|default:sale.id }}<br>
+                                <strong>Staff:</strong> {{ sale.store.manager.first_name }} {{ sale.store.manager.last_name }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div class="invoice-items">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50%;">Item</th>
+                                    <th style="width: 10%;" class="text-center">Qty</th>
+                                    <th style="width: 20%;" class="text-end">Unit Price</th>
+                                    <th style="width: 20%;" class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Service Items -->
+                                {% for item in service_items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.service.service.name }}</strong>
+                                        <br><small class="text-muted">Service</small>
+                                        {% if item.staff.all %}
+                                            <br><small class="text-info">
+                                                Staff: {% for staff in item.staff.all %}{{ staff.first_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">UGX {{ item.service.service.price|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">UGX {{ item.total_price|floatformat:0|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+
+                                <!-- Product Items -->
+                                {% for item in product_items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.product.product.product_name }}</strong>
+                                        <br><small class="text-muted">Product</small>
+                                        {% if item.price_group %}
+                                            <br><small class="text-info">Price Group: {{ item.price_group.name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">UGX {{ item.total_price|floatformat:0|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+
+                                <!-- Accessory Items -->
+                                {% for item in accessory_items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.accessory.accessory.name }}</strong>
+                                        <br><small class="text-muted">Accessory</small>
+                                    </td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">UGX {{ item.price|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">UGX {{ item.total_price|floatformat:0|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
+
+                                <!-- Empty row for spacing -->
+                                <tr>
+                                    <td colspan="4" style="border: none; padding: 10px;"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Totals Section -->
+                    <div class="row">
+                        <div class="col-md-6"></div>
+                        <div class="col-md-6">
+                            <div class="total-section">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <strong>Total:</strong>
+                                    <span class="amount-highlight">UGX {{ subtotal|floatformat:0|intcomma }}</span>
+                                </div>
+                                
+                                {% if payments %}
+                                    {% for payment in payments %}
+                                    <div class="d-flex justify-content-between">
+                                        <small>Payment ({{ payment.payment_method|title }}) — {{ payment.payment_date|date:"d/m/Y" }}:</small>
+                                        <small>- UGX {{ payment.amount|floatformat:0|intcomma }}</small>
+                                    </div>
+                                    {% endfor %}
+                                    <hr>
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-between">
+                                    <strong>
+                                        {% if balance_due > 0 %}
+                                            Balance Due:
+                                        {% elif balance_due == 0 %}
+                                            PAID IN FULL:
+                                        {% else %}
+                                            Overpaid:
+                                        {% endif %}
+                                    </strong>
+                                    <span class="amount-highlight {% if balance_due > 0 %}text-danger{% elif balance_due == 0 %}text-success{% else %}text-warning{% endif %}">
+                                        UGX {{ balance_due|floatformat:0|intcomma }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="text-center mt-4 pt-3" style="border-top: 1px solid #dee2e6;">
+                        <small class="text-muted">
+                            Thank you for choosing LIVARA!<br>
+                            Follow us on social media for beauty tips and updates.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <p><strong>Payment Mode:</strong> {{ sale.get_payment_mode_display }}</p>
 <p><strong>Status:</strong> 
     {% if sale.paid_status == 'paid' %} 
@@ -117,4 +481,147 @@
         {% endfor %}
     </tbody>
 </table>
+
+{% csrf_token %}
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script>
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+$(document).ready(function() {
+    // Update live timers every second
+    setInterval(function() {
+        $('.live-timer').each(function() {
+            var startTime = new Date($(this).data('start-time'));
+            var now = new Date();
+            var diff = now - startTime;
+            
+            var hours = Math.floor(diff / (1000 * 60 * 60));
+            var minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            var timeString = '';
+            var totalMinutes = Math.floor(diff / (1000 * 60));
+            if (totalMinutes > 0) {
+                timeString = totalMinutes + ' min';
+            } else {
+                timeString = '< 1 min';
+            }
+            
+            $(this).text(timeString);
+        });
+    }, 1000);
+    
+    // Start service button handler
+    $('#startServiceBtn').on('click', function() {
+        var saleId = $(this).data('sale-id');
+        var button = $(this);
+        
+        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Starting...');
+        
+        $.ajax({
+            url: '{% url "start_service_timer" 0 %}'.replace('0', saleId),
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('Success', response.message, 'success');
+                    // Refresh the page after a short delay
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast('Error', response.error, 'error');
+                    button.prop('disabled', false).html('<i class="fas fa-play me-1"></i> Start Service');
+                }
+            },
+            error: function(xhr) {
+                var error = 'Failed to start service timer';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    error = xhr.responseJSON.error;
+                } else if (xhr.responseText) {
+                    try {
+                        var jsonResponse = JSON.parse(xhr.responseText);
+                        if (jsonResponse.error) {
+                            error = jsonResponse.error;
+                        }
+                    } catch (e) {
+                        error = 'Server error: ' + xhr.status + ' - ' + xhr.statusText;
+                    }
+                }
+                showToast('Error', error, 'error');
+                button.prop('disabled', false).html('<i class="fas fa-play me-1"></i> Start Service');
+            }
+        });
+    });
+    
+    // End service button handler
+    $('#endServiceBtn').on('click', function() {
+        var saleId = $(this).data('sale-id');
+        var button = $(this);
+        
+        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Completing...');
+        
+        $.ajax({
+            url: '{% url "end_service_timer" 0 %}'.replace('0', saleId),
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('Success', response.message, 'success');
+                    // Refresh the page after a short delay
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast('Error', response.error, 'error');
+                    button.prop('disabled', false).html('<i class="fas fa-stop me-1"></i> Complete Service');
+                }
+            },
+            error: function(xhr) {
+                var error = 'Failed to complete service timer';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    error = xhr.responseJSON.error;
+                }
+                showToast('Error', error, 'error');
+                button.prop('disabled', false).html('<i class="fas fa-stop me-1"></i> Complete Service');
+            }
+        });
+    });
+    
+    function showToast(title, message, type) {
+        // Simple toast notification
+        var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        var toast = $('<div class="alert ' + alertClass + ' alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;">' +
+                     '<strong>' + title + ':</strong> ' + message +
+                     '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                     '</div>');
+        $('body').append(toast);
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(function() {
+            toast.alert('close');
+        }, 3000);
+    }
+});
+</script>
 {% endblock content %}

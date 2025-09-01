@@ -1,0 +1,424 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Points Redemption{% endblock %}
+
+{% block css %}
+<style>
+.redemption-card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+.customer-info-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+}
+.redemption-form {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+.points-display {
+    font-size: 2rem;
+    font-weight: bold;
+}
+.value-display {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #28a745;
+}
+.settings-info {
+    background-color: #e9ecef;
+    border-radius: 6px;
+    padding: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div class="flex-grow-1">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:index' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:loyalty_settings' %}">Loyalty Settings</a></li>
+            <li class="breadcrumb-item active">Points Redemption</li>
+        </ol>
+        <h1 class="page-header mb-0">Customer Points Redemption</h1>
+    </div>
+    <div class="d-flex">
+        <a href="{% url 'DjangoHUDApp:loyalty_reports' %}" class="btn btn-outline-info me-2">
+            <i class="fas fa-chart-line me-1"></i>Reports
+        </a>
+        <a href="{% url 'DjangoHUDApp:manual_points_adjustment' %}" class="btn btn-outline-warning">
+            <i class="fas fa-edit me-1"></i>Manual Adjustment
+        </a>
+    </div>
+</div>
+
+<!-- System Status Alert -->
+{% if not loyalty_settings.is_active %}
+<div class="alert alert-warning" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>Loyalty System Disabled:</strong> The loyalty system is currently disabled. 
+    <a href="{% url 'DjangoHUDApp:loyalty_settings' %}" class="alert-link">Enable it in settings</a> to allow point redemptions.
+</div>
+{% elif not loyalty_settings.points_redemption_enabled %}
+<div class="alert alert-info" role="alert">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Redemption Disabled:</strong> Point redemption is currently disabled. 
+    <a href="{% url 'DjangoHUDApp:loyalty_settings' %}" class="alert-link">Enable it in settings</a> to allow customers to redeem points.
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Redemption Form -->
+    <div class="col-xl-8">
+        <div class="card redemption-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-coins me-2"></i>Redeem Customer Points
+                    {% if loyalty_settings.points_redemption_enabled %}
+                    <span class="badge bg-success ms-2">Active</span>
+                    {% else %}
+                    <span class="badge bg-warning ms-2">Disabled</span>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="redemption-form">
+                    <form method="post" id="redemptionForm">
+                        {% csrf_token %}
+                        
+                        <!-- Customer Selection -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label class="form-label" for="{{ form.customer.id_for_label }}">
+                                    <i class="fas fa-user me-1"></i>Select Customer
+                                </label>
+                                {{ form.customer }}
+                                {% if form.customer.errors %}
+                                <div class="text-danger small">{{ form.customer.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">{{ form.customer.help_text }}</small>
+                            </div>
+                        </div>
+
+                        <!-- Customer Info Display (Hidden initially) -->
+                        <div id="customerInfo" class="customer-info-card mb-4" style="display: none;">
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-md-4">
+                                        <div class="points-display" id="customerPoints">0</div>
+                                        <div class="text-white text-opacity-75">Available Points</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fs-20px fw-bold" id="customerTier">Bronze</div>
+                                        <div class="text-white text-opacity-75">Loyalty Tier</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="fs-20px fw-bold" id="maxRedemptionValue">0.00</div>
+                                        <div class="text-white text-opacity-75">Max Redemption Value (UGX)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Points to Redeem -->
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <label class="form-label" for="{{ form.points_to_redeem.id_for_label }}">
+                                    <i class="fas fa-minus-circle me-1"></i>Points to Redeem
+                                </label>
+                                {{ form.points_to_redeem }}
+                                {% if form.points_to_redeem.errors %}
+                                <div class="text-danger small">{{ form.points_to_redeem.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">{{ form.points_to_redeem.help_text }}</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Redemption Value</label>
+                                <div class="value-display" id="redemptionValue">0.00 UGX</div>
+                                <small class="text-muted">Currency equivalent</small>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label class="form-label" for="{{ form.notes.id_for_label }}">
+                                    <i class="fas fa-sticky-note me-1"></i>Notes (Optional)
+                                </label>
+                                {{ form.notes }}
+                                {% if form.notes.errors %}
+                                <div class="text-danger small">{{ form.notes.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">{{ form.notes.help_text }}</small>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                                    <i class="fas fa-undo me-1"></i>Reset Form
+                                </button>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-success" 
+                                        {% if not loyalty_settings.points_redemption_enabled %}disabled{% endif %}>
+                                    <i class="fas fa-coins me-1"></i>Redeem Points
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Info -->
+    <div class="col-xl-4">
+        <!-- Current Settings -->
+        <div class="card redemption-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-cogs me-2"></i>Redemption Settings</h6>
+            </div>
+            <div class="card-body">
+                <div class="settings-info">
+                    <div class="mb-3">
+                        <strong>Exchange Rate:</strong><br>
+                        <span class="text-primary">{{ loyalty_settings.points_to_currency_ratio|floatformat:0 }} points = 1 UGX</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Minimum Redemption:</strong><br>
+                        <span class="text-info">{{ loyalty_settings.minimum_points_redemption }} points</span>
+                    </div>
+                                                    <div class="mb-3">
+                                    <strong>Min Value:</strong><br>
+                                    <span class="text-success">{% widthratio loyalty_settings.minimum_points_redemption 1 loyalty_settings.points_to_currency_ratio %} UGX</span>
+                                </div>
+                    <div>
+                        <strong>System Status:</strong><br>
+                        <span class="badge bg-{% if loyalty_settings.is_active and loyalty_settings.points_redemption_enabled %}success{% else %}warning{% endif %}">
+                            {% if loyalty_settings.is_active and loyalty_settings.points_redemption_enabled %}
+                                Active
+                            {% else %}
+                                Disabled
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Calculator -->
+        <div class="card redemption-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-calculator me-2"></i>Quick Calculator</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Points</label>
+                    <input type="number" class="form-control" id="calcPoints" placeholder="Enter points" min="1">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Value</label>
+                    <div class="input-group">
+                        <span class="input-group-text">UGX</span>
+                        <input type="number" class="form-control" id="calcValue" placeholder="0.00" readonly>
+                    </div>
+                </div>
+                <small class="text-muted">Enter points to see currency value</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Redemptions -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card redemption-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-history me-2"></i>Recent Redemptions</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_redemptions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Customer</th>
+                                <th>Points Redeemed</th>
+                                <th>Value (UGX)</th>
+                                <th>Date</th>
+                                <th>Staff</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for redemption in recent_redemptions %}
+                            <tr>
+                                <td>
+                                    <div class="fw-medium">{{ redemption.customer.name }}</div>
+                                    <small class="text-muted">{{ redemption.customer.get_loyalty_tier_display }}</small>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-danger">{{ redemption.points|floatformat:0 }}</span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold text-success">
+                                        {% widthratio redemption.points 1 loyalty_settings.points_to_currency_ratio %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div>{{ redemption.created_at|date:"M d, Y" }}</div>
+                                    <small class="text-muted">{{ redemption.created_at|date:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    {% if redemption.created_by %}
+                                        {{ redemption.created_by.get_full_name|default:redemption.created_by.username }}
+                                    {% else %}
+                                        <span class="text-muted">System</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ redemption.description|truncatechars:50 }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-coins fa-3x mb-3"></i>
+                    <h5>No Redemptions Yet</h5>
+                    <p>Recent customer point redemptions will appear here.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    const pointsToCurrencyRatio = {{ loyalty_settings.points_to_currency_ratio|default:100 }};
+    const minimumRedemption = {{ loyalty_settings.minimum_points_redemption|default:0 }};
+    
+    // Customer selection change handler
+    $('#id_customer').on('change', function() {
+        const customerId = $(this).val();
+        if (customerId) {
+            // Fetch customer points via AJAX
+            $.ajax({
+                url: '{% url "DjangoHUDApp:get_customer_points_ajax" %}',
+                method: 'GET',
+                data: { 'customer_id': customerId },
+                success: function(data) {
+                    if (data.success) {
+                        $('#customerPoints').text(data.points.toLocaleString());
+                        $('#customerTier').text(data.tier);
+                        $('#maxRedemptionValue').text((data.points / pointsToCurrencyRatio).toFixed(2));
+                        $('#customerInfo').show();
+                        
+                        // Update form validation
+                        $('#id_points_to_redeem').attr('max', data.points);
+                        updateRedemptionValue();
+                    } else {
+                        $('#customerInfo').hide();
+                        alert('Error: ' + data.error);
+                    }
+                },
+                error: function() {
+                    $('#customerInfo').hide();
+                    alert('Error fetching customer information');
+                }
+            });
+        } else {
+            $('#customerInfo').hide();
+        }
+    });
+    
+    // Points input change handler
+    $('#id_points_to_redeem').on('input', updateRedemptionValue);
+    
+    function updateRedemptionValue() {
+        const points = parseInt($('#id_points_to_redeem').val()) || 0;
+        const value = (points / pointsToCurrencyRatio).toFixed(2);
+        $('#redemptionValue').text(value + ' UGX');
+        
+        // Validation feedback
+        const maxPoints = parseInt($('#id_points_to_redeem').attr('max')) || 0;
+        const input = $('#id_points_to_redeem');
+        
+        input.removeClass('is-valid is-invalid');
+        
+        if (points > 0) {
+            if (points > maxPoints) {
+                input.addClass('is-invalid');
+                input.next('.invalid-feedback').remove();
+                input.after('<div class="invalid-feedback">Customer only has ' + maxPoints + ' points</div>');
+            } else if (points < minimumRedemption) {
+                input.addClass('is-invalid');
+                input.next('.invalid-feedback').remove();
+                input.after('<div class="invalid-feedback">Minimum redemption is ' + minimumRedemption + ' points</div>');
+            } else {
+                input.addClass('is-valid');
+                input.next('.invalid-feedback').remove();
+            }
+        }
+    }
+    
+    // Quick calculator
+    $('#calcPoints').on('input', function() {
+        const points = parseInt($(this).val()) || 0;
+        const value = (points / pointsToCurrencyRatio).toFixed(2);
+        $('#calcValue').val(value);
+    });
+    
+    // Form validation
+    $('#redemptionForm').on('submit', function(e) {
+        const points = parseInt($('#id_points_to_redeem').val()) || 0;
+        const maxPoints = parseInt($('#id_points_to_redeem').attr('max')) || 0;
+        
+        if (points <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid number of points to redeem');
+            return false;
+        }
+        
+        if (points > maxPoints) {
+            e.preventDefault();
+            alert('Customer does not have enough points');
+            return false;
+        }
+        
+        if (points < minimumRedemption) {
+            e.preventDefault();
+            alert('Minimum redemption is ' + minimumRedemption + ' points');
+            return false;
+        }
+        
+        // Confirmation
+        const value = (points / pointsToCurrencyRatio).toFixed(2);
+        const customerName = $('#id_customer option:selected').text();
+        
+        if (!confirm(`Confirm redemption of ${points} points (${value} UGX) for ${customerName}?`)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+
+function resetForm() {
+    $('#redemptionForm')[0].reset();
+    $('#customerInfo').hide();
+    $('#redemptionValue').text('0.00 UGX');
+    $('#id_points_to_redeem').removeClass('is-valid is-invalid').next('.invalid-feedback').remove();
+}
+</script>
+{% endblock %}

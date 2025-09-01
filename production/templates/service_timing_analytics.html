@@ -1,0 +1,459 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Service Timing Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#">ANALYTICS</a></li>
+                        <li class="breadcrumb-item active">SERVICE TIMING</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Service Timing Analytics
+                        {% if user_store %}
+                            - {{ user_store.name }}
+                        {% endif %}
+                    </h1>
+                    <p class="text-muted">Analyze service performance and customer wait times</p>
+                </div>
+                <div class="ms-auto">
+                    <div class="btn-group">
+                        {% if user_store %}
+                            <a href="{% url 'branch_queue_management_dashboard' %}" class="btn btn-outline-info">
+                                <i class="fas fa-clock me-1"></i>Queue Management
+                            </a>
+                        {% else %}
+                            <a href="{% url 'global_queue_management_dashboard' %}" class="btn btn-outline-info">
+                                <i class="fas fa-clock me-1"></i>Global Queue
+                            </a>
+                        {% endif %}
+                        <button onclick="window.print()" class="btn btn-outline-secondary">
+                            <i class="fas fa-print me-1"></i>Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>Analysis Period
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                        </div>
+                        
+                        {% if all_stores %}
+                        <div class="col-md-3">
+                            <label for="store" class="form-label">Store</label>
+                            <select class="form-control" id="store" name="store">
+                                <option value="">All Stores</option>
+                                {% for store in all_stores %}
+                                    <option value="{{ store.id }}" {% if store_filter == store.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ store.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Analyze
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ analytics.total_sales|intcomma }}</h4>
+                            <div>Total Services</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-calendar me-1"></i>{{ start_date }} to {{ end_date }}
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-concierge-bell fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ analytics.completed_sales|intcomma }}</h4>
+                            <div>Completed Services</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-percentage me-1"></i>{{ analytics.completion_rate|floatformat:1 }}% completion rate
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">
+                                {% if analytics.avg_waiting_time %}
+                                    {{ analytics.avg_waiting_time|floatformat:0 }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </h4>
+                            <div>Avg Wait Time</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-clock me-1"></i>Minutes in queue
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-hourglass-half fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">
+                                {% if analytics.avg_service_time %}
+                                    {{ analytics.avg_service_time|floatformat:0 }}
+                                {% else %}
+                                    0
+                                {% endif %}
+                            </h4>
+                            <div>Avg Service Time</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-stopwatch me-1"></i>Minutes to complete
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-cogs fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Insights -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-tachometer-alt me-2"></i>Performance Insights
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6 class="text-muted">Longest Wait</h6>
+                                <h4 class="text-danger">
+                                    {% if analytics.max_waiting_time %}
+                                        {{ analytics.max_waiting_time|floatformat:0 }} min
+                                    {% else %}
+                                        0 min
+                                    {% endif %}
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <h6 class="text-muted">Longest Service</h6>
+                                <h4 class="text-danger">
+                                    {% if analytics.max_service_time %}
+                                        {{ analytics.max_service_time|floatformat:0 }} min
+                                    {% else %}
+                                        0 min
+                                    {% endif %}
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <!-- Performance Recommendations -->
+                    <div class="mt-3">
+                        <h6 class="text-primary">Recommendations:</h6>
+                        <ul class="list-unstyled mb-0">
+                            {% if analytics.avg_waiting_time and analytics.avg_waiting_time > 600 %}
+                                <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Consider adding more staff during peak hours</li>
+                            {% endif %}
+                            {% if analytics.completion_rate < 90 %}
+                                <li><i class="fas fa-info-circle text-info me-2"></i>Follow up on incomplete services</li>
+                            {% endif %}
+                            {% if analytics.avg_service_time and analytics.avg_service_time > 3600 %}
+                                <li><i class="fas fa-clock text-warning me-2"></i>Review service procedures for efficiency</li>
+                            {% endif %}
+                            {% if analytics.completion_rate >= 95 and analytics.avg_waiting_time and analytics.avg_waiting_time < 300 %}
+                                <li><i class="fas fa-thumbs-up text-success me-2"></i>Excellent service performance!</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Service Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="serviceDistributionChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Trends Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-line-chart me-2"></i>Daily Service Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyTrendsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Breakdown -->
+    {% if service_breakdown %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Service Type Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Service Type</th>
+                                    <th>Total Count</th>
+                                    <th>Avg Duration</th>
+                                    <th>Performance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for service in service_breakdown %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ service.service_sale_items__service__service__name|default:"Unknown Service" }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ service.count }}</span>
+                                    </td>
+                                    <td>
+                                        {% if service.avg_duration %}
+                                            {{ service.avg_duration|floatformat:0 }} minutes
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if service.avg_duration %}
+                                            {% if service.avg_duration < 1800 %}
+                                                <span class="badge bg-success">Fast</span>
+                                            {% elif service.avg_duration < 3600 %}
+                                                <span class="badge bg-warning">Normal</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Slow</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge bg-secondary">No Data</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+$(document).ready(function() {
+    // Service Distribution Chart
+    const distributionCtx = document.getElementById('serviceDistributionChart').getContext('2d');
+    new Chart(distributionCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'In Progress', 'Pending'],
+            datasets: [{
+                data: [
+                    {{ analytics.completed_sales }},
+                    {{ analytics.total_sales }} - {{ analytics.completed_sales }},
+                    0
+                ],
+                backgroundColor: [
+                    '#28a745',
+                    '#17a2b8',
+                    '#ffc107'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Daily Trends Chart
+    const trendsCtx = document.getElementById('dailyTrendsChart').getContext('2d');
+    
+    // Prepare daily data
+    const dailyLabels = [
+        {% for daily in analytics.daily_completed %}
+        '{{ daily.day|date:"M d" }}',
+        {% endfor %}
+    ];
+    
+    const dailyCounts = [
+        {% for daily in analytics.daily_completed %}
+        {{ daily.count }},
+        {% endfor %}
+    ];
+    
+    const dailyWaitTimes = [
+        {% for daily in analytics.daily_completed %}
+        {{ daily.avg_wait|default:0 }},
+        {% endfor %}
+    ];
+
+    new Chart(trendsCtx, {
+        type: 'line',
+        data: {
+            labels: dailyLabels,
+            datasets: [{
+                label: 'Completed Services',
+                data: dailyCounts,
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y'
+            }, {
+                label: 'Avg Wait Time (min)',
+                data: dailyWaitTimes,
+                borderColor: '#ffc107',
+                backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Number of Services'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Wait Time (minutes)'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

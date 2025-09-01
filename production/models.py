@@ -348,6 +348,9 @@ class ManufactureProduct(models.Model):
     qc_required = models.BooleanField(default=True, help_text="Whether this batch requires quality control testing")
     qc_sample_quantity = models.PositiveIntegerField(default=0, help_text="Number of sample bottles to allocate for QC")
     can_release_to_inventory = models.BooleanField(default=False, help_text="Whether this batch can be released to inventory")
+    
+    # Production Cost Tracking
+    total_production_cost = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, help_text="Total production cost for this batch")
 
     def __str__(self):
         return f"{self.quantity} units of {self.product.product_name} manufactured on {self.manufactured_at.strftime('%Y-%m-%d')}"
@@ -777,13 +780,23 @@ class Store(models.Model):
 
     def __str__(self):
         return self.name
-
+class ServiceCategory(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
 class ServiceName(models.Model):
     name = models.CharField(max_length=255)  # Service name (e.g., Hairdressing)
+    service_category = models.ForeignKey(ServiceCategory, on_delete=models.CASCADE, related_name='service_categories', null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)  # Price for the service (e.g., 20000)
     
     def __str__(self):
         return self.name
+
 
 
 class StoreService(models.Model):
@@ -1319,9 +1332,17 @@ class ServiceSale(models.Model):
         ('not_paid', 'Not Paid'),
         ('paid', 'Paid'),
     ]
+    
+    INVOICE_STATUS_CHOICES = [
+        ('not_invoiced', 'Not Invoiced'),
+        ('invoiced', 'Invoiced'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
     service_sale_number = models.CharField(max_length=20, unique=True,editable=False, null=True)
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='service_sales')
-    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='service_sales')
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='service_sales', help_text="Account holder/Payer")
+    service_recipient = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='services_received', null=True, blank=True, help_text="Who actually received the service (can be different from customer)")
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_date = models.DateTimeField(auto_now_add=True)
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -1335,9 +1356,52 @@ class ServiceSale(models.Model):
         ('mixed', 'Mixed'),
     ],default='cash')
     payment_remarks = models.CharField(max_length=150, null=True, blank=True)
+    
+    # Invoice and workflow tracking
+    invoice_status = models.CharField(max_length=20, choices=INVOICE_STATUS_CHOICES, default='not_invoiced')
+    invoiced_at = models.DateTimeField(null=True, blank=True, help_text="When the sale was invoiced")
+    cancelled_at = models.DateTimeField(null=True, blank=True, help_text="When the sale was cancelled")
+    
+    # Performance tracking fields
+    sale_creation_time = models.DurationField(null=True, blank=True, help_text="Time taken to create the sale")
+    payment_processing_time = models.DurationField(null=True, blank=True, help_text="Time taken to process payment")
+    total_workflow_time = models.DurationField(null=True, blank=True, help_text="Total time from sale creation to payment completion")
+    
+    # Queue and Service timing fields
+    queue_start_time = models.DateTimeField(null=True, blank=True, help_text="When customer entered the queue")
+    service_start_time = models.DateTimeField(null=True, blank=True, help_text="When service actually started")
+    service_end_time = models.DateTimeField(null=True, blank=True, help_text="When service was completed")
+    queue_waiting_time = models.DurationField(null=True, blank=True, help_text="Time spent waiting in queue")
+    service_duration = models.DurationField(null=True, blank=True, help_text="Total time spent on service")
 
+    @property
+    def actual_recipient(self):
+        """Get who actually received the service"""
+        return self.service_recipient if self.service_recipient else self.customer
+    
+    @property
+    def is_guardian_transaction(self):
+        """Check if this is a guardian paying for a dependent's service"""
+        return self.service_recipient and self.service_recipient != self.customer
+    
+    @property
+    def transaction_description(self):
+        """Get a clear description of the transaction"""
+        if self.is_guardian_transaction:
+            return f"Service for {self.service_recipient.name} (Paid by {self.customer.name})"
+        return f"Service for {self.customer.name}"
+    
+    def can_authorize_service(self):
+        """Check if the customer can authorize this service"""
+        if not self.service_recipient:
+            return self.customer.can_make_purchases
+        
+        return self.customer.can_authorize_for(self.service_recipient)
+    
     def __str__(self):
-        return f"Sale #{self.id} - {self.customer}"
+        if self.is_guardian_transaction:
+            return f"Sale #{self.id} - {self.service_recipient.name} (via {self.customer.name})"
+        return f"Sale #{self.id} - {self.customer.name}"
     
     def save(self, *args, **kwargs):
         # Automatically generate a unique number if not already set
@@ -1511,9 +1575,134 @@ class ServiceSale(models.Model):
     
         
     def create_invoice(self):
-        """Create an invoice for this sale."""
+        """Create an invoice for this sale and update invoice status."""
+        from django.utils import timezone
+        
+        if self.invoice_status == 'cancelled':
+            raise ValueError("Cannot create invoice for cancelled sale")
+            
+        if self.invoice_status == 'invoiced':
+            # Return existing invoice
+            return getattr(self, 'invoice', None)
+            
+        # Create new invoice
         invoice = ServiceSaleInvoice.objects.create(sale=self, total_amount=self.total_amount)
+        
+        # Update invoice status and timestamp
+        self.invoice_status = 'invoiced'
+        self.invoiced_at = timezone.now()
+        self.save()
+        
         return invoice
+    
+    def cancel_sale(self, reason=None):
+        """Cancel the sale and prevent further processing."""
+        from django.utils import timezone
+        
+        if self.paid_status == 'paid':
+            raise ValueError("Cannot cancel a paid sale")
+            
+        self.invoice_status = 'cancelled'
+        self.cancelled_at = timezone.now()
+        if reason:
+            self.payment_remarks = f"Cancelled: {reason}"
+        self.save()
+    
+    def can_process_payment(self):
+        """Check if payment can be processed for this sale."""
+        return self.invoice_status == 'invoiced' and self.paid_status != 'paid'
+    
+    def get_workflow_status(self):
+        """Get human-readable workflow status."""
+        if self.invoice_status == 'cancelled':
+            return 'Cancelled'
+        elif self.invoice_status == 'not_invoiced':
+            return 'Pending Invoice'
+        elif self.invoice_status == 'invoiced' and self.paid_status == 'not_paid':
+            return 'Awaiting Payment'
+        elif self.paid_status == 'paid':
+            return 'Completed'
+        else:
+            return 'Unknown'
+    
+    def get_timing_summary(self):
+        """Get a summary of timing metrics."""
+        return {
+            'sale_creation_time': self.sale_creation_time,
+            'payment_processing_time': self.payment_processing_time,
+            'total_workflow_time': self.total_workflow_time,
+            'queue_waiting_time': self.queue_waiting_time,
+            'service_duration': self.service_duration,
+            'sale_date': self.sale_date,
+            'queue_start_time': self.queue_start_time,
+            'service_start_time': self.service_start_time,
+            'service_end_time': self.service_end_time,
+            'invoiced_at': self.invoiced_at,
+            'cancelled_at': self.cancelled_at,
+        }
+    
+    def start_queue_timer(self):
+        """Start the queue timer when customer enters the queue"""
+        from django.utils import timezone
+        if not self.queue_start_time:
+            self.queue_start_time = timezone.now()
+            self.save(update_fields=['queue_start_time'])
+            return True
+        return False
+    
+    def start_service_timer(self):
+        """Start the service timer when work begins on the customer"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        # Calculate queue waiting time if not already calculated
+        if self.queue_start_time and not self.queue_waiting_time:
+            self.queue_waiting_time = now - self.queue_start_time
+        
+        # Set service start time
+        if not self.service_start_time:
+            self.service_start_time = now
+            self.save(update_fields=['service_start_time', 'queue_waiting_time'])
+            return True
+        return False
+    
+    def end_service_timer(self):
+        """End the service timer when service is completed (usually on payment)"""
+        from django.utils import timezone
+        now = timezone.now()
+        
+        # Set service end time and calculate duration
+        if self.service_start_time and not self.service_end_time:
+            self.service_end_time = now
+            self.service_duration = now - self.service_start_time
+            self.save(update_fields=['service_end_time', 'service_duration'])
+            return True
+        return False
+    
+    def get_service_status(self):
+        """Get the current service status based on timing"""
+        if not self.queue_start_time:
+            return 'created'
+        elif not self.service_start_time:
+            return 'in_queue'
+        elif not self.service_end_time:
+            return 'in_progress'
+        else:
+            return 'completed'
+    
+    def get_current_waiting_time(self):
+        """Get current waiting time if customer is still in queue"""
+        if self.queue_start_time and not self.service_start_time:
+            from django.utils import timezone
+            return timezone.now() - self.queue_start_time
+        return self.queue_waiting_time
+    
+    def get_current_service_time(self):
+        """Get current service time if service is in progress"""
+        if self.service_start_time and not self.service_end_time:
+            from django.utils import timezone
+            return timezone.now() - self.service_start_time
+        return self.service_duration
     
 class ServiceSaleItem(models.Model):
     sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='service_sale_items')
@@ -1667,7 +1856,9 @@ class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = [
         ('cash', 'Cash'),
         ('mobile_money', 'Mobile Money'),
+        ('airtel_money', 'Airtel Money'),
         ('visa', 'Visa'),
+        ('bank_transfer', 'Bank Transfer'),
     ]
 
     sale = models.ForeignKey('ServiceSale', on_delete=models.CASCADE, related_name='payments')
@@ -2806,6 +2997,30 @@ class StaffProductCommission(models.Model):
     
     def __str__(self):
         return f"Commission for {self.staff.first_name} - {self.product_sale_item}"
+
+class SavedCommissionReport(models.Model):
+    """Saved commission reports for future reference"""
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    staff = models.ForeignKey('POSMagicApp.Staff', on_delete=models.SET_NULL, null=True, blank=True)
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    report_data = models.JSONField()  # Store the detailed report data
+    created_by = models.ForeignKey('auth.User', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.start_date} to {self.end_date})"
+    
+    @property
+    def period_name(self):
+        if self.start_date.month == self.end_date.month and self.start_date.year == self.end_date.year:
+            return self.start_date.strftime('%B %Y')
+        return f"{self.start_date} to {self.end_date}"
 
 # Signal to update supplier prices when requisition is delivered
 @receiver(post_save, sender=Requisition)

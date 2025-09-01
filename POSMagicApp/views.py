@@ -4,6 +4,7 @@ from django.http import Http404, HttpResponseRedirect, JsonResponse, FileRespons
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.db.models import Q
+from django.conf import settings
 import io
 # from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, letter
@@ -11,6 +12,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from datetime import datetime
 
+# Import loyalty views
+from .loyalty_views import (
+    loyalty_settings_view, loyalty_reports_view, points_redemption_view,
+    manual_points_adjustment_view, customer_loyalty_details, get_customer_points_ajax
+)
 
 from django.views import generic
 from django.http import HttpResponse
@@ -135,20 +141,126 @@ def generate_pdf(request, transaction_id):
 @login_required(login_url='/login/')
 # @allowed_users(allowed_roles=['Finance','Cashier','Managers','Branch Manager','Store Managers'])
 def pageCustomer(request):
-	# get all customers
-	customers = Customer.objects.all()
+	"""Enhanced customer page with analytics and filtering"""
+	from django.db.models import Count, Q
+	
+	# Get filter parameters
+	customer_type = request.GET.get('type', '')
+	search_query = request.GET.get('search', '').strip()
+	has_dependents = request.GET.get('dependents', '')
+	kyc_status = request.GET.get('kyc', '')
+	
+	# Base queryset with related data
+	customers = Customer.objects.select_related('guardian').prefetch_related('dependents')
+	
+	# Apply filters
+	if customer_type:
+		customers = customers.filter(type_of_customer=customer_type)
+	
+	if search_query:
+		customers = customers.filter(
+			Q(first_name__icontains=search_query) |
+			Q(last_name__icontains=search_query) |
+			Q(phone__icontains=search_query) |
+			Q(email__icontains=search_query)
+		)
+	
+	if has_dependents == 'yes':
+		customers = customers.filter(dependents__isnull=False).distinct()
+	elif has_dependents == 'no':
+		customers = customers.filter(dependents__isnull=True)
+	
+	if kyc_status == 'verified':
+		customers = customers.filter(kyc_verified=True)
+	elif kyc_status == 'pending':
+		customers = customers.filter(kyc_verified=False)
+	
+	# Annotate with additional data
+	customers = customers.annotate(
+		dependents_count=Count('dependents'),
+		total_sales=Count('service_sales'),
+	).order_by('-id')
+	
+	# Customer analytics
+	analytics = {
+		'total_customers': Customer.objects.count(),
+		'total_clients': Customer.objects.filter(type_of_customer='CLIENT').count(),
+		'total_wholesalers': Customer.objects.filter(type_of_customer='WHOLESALE').count(),
+		'total_retailers': Customer.objects.filter(type_of_customer='RETAIL').count(),
+		'kyc_verified': Customer.objects.filter(kyc_verified=True).count(),
+		'minors': Customer.objects.filter(is_minor=True).count(),
+		'with_dependents': Customer.objects.filter(dependents__isnull=False).distinct().count(),
+	}
+	
 	context = {
 		'customers': customers,
+		'analytics': analytics,
+		'customer_type': customer_type,
+		'search_query': search_query,
+		'has_dependents': has_dependents,
+		'kyc_status': kyc_status,
+		'customer_types': Customer.TYPE_OF_CUSTOMER,
 	}
 	return render(request, "pages/page-customer.html", context)
 
 @login_required(login_url='/login/')
+def add_dependent(request, customer_id):
+	"""Add a dependent to an existing customer account"""
+	from .forms import AddDependentForm
+	from django.shortcuts import get_object_or_404, redirect
+	from django.contrib import messages
+	
+	guardian = get_object_or_404(Customer, id=customer_id)
+	
+	# Check if the customer can be a guardian
+	if guardian.is_minor or not guardian.kyc_verified:
+		messages.error(request, 'This customer cannot be a guardian. Must be an adult with verified KYC.')
+		return redirect('customerDetails', customer_id=customer_id)
+	
+	if request.method == 'POST':
+		form = AddDependentForm(guardian, request.POST)
+		if form.is_valid():
+			dependent = form.save()
+			messages.success(request, f'Successfully added {dependent.name} as a dependent.')
+			return redirect('customerDetails', customer_id=customer_id)
+	else:
+		form = AddDependentForm(guardian)
+	
+	context = {
+		'form': form,
+		'guardian': guardian,
+	}
+	return render(request, "pages/add-dependent.html", context)
+
+@login_required(login_url='/login/')
+def customer_family_view(request, customer_id):
+	"""View showing customer and all their dependents"""
+	from django.shortcuts import get_object_or_404
+	
+	customer = get_object_or_404(Customer, id=customer_id)
+	
+	# Get the main account holder
+	main_account = customer.account_holder
+	
+	# Get all family members (main account + dependents)
+	family_members = Customer.objects.filter(
+		Q(id=main_account.id) | Q(guardian=main_account)
+	).select_related('guardian').order_by('is_minor', 'first_name')
+	
+	context = {
+		'customer': customer,
+		'main_account': main_account,
+		'family_members': family_members,
+	}
+	return render(request, "pages/customer-family.html", context)
+
+@login_required(login_url='/login/')
 def createCustomer(request):
 	if request.method == 'POST':
-		form = AddCustomerForm(request.POST)
+		form = AddCustomerForm(request.POST, request.FILES)  # Include FILES for image uploads
 		if form.is_valid():
-			form.save()
-			messages.success(request, "New Customer Successfully added")
+			customer = form.save()
+			messages.success(request, f"New Customer {customer.name} Successfully added")
 			return redirect('DjangoHUDApp:pageCustomer')
 	else:
 		form = AddCustomerForm()
@@ -172,9 +284,10 @@ def editCustomer(request, customer_id):
     customer = get_object_or_404(Customer, pk=customer_id)  # Fetch customer by ID
 
     if request.method == 'POST':
-        form = EditCustomerForm(request.POST, instance=customer)  # Pre-populate form with existing data
+        form = EditCustomerForm(request.POST, request.FILES, instance=customer)  # Include FILES for image uploads
         if form.is_valid():
             form.save()
+            messages.success(request, f'Customer {customer.name} updated successfully!')
             return redirect('DjangoHUDApp:pageCustomer')  # Redirect to customer list after successful edit
     else:
         form = EditCustomerForm(instance=customer)  # Create form with existing customer data
@@ -469,6 +582,8 @@ def posCustomerOrder(request):
 	}
 	return render(request, "pages/pos_customer_order.html", context)
 
+
+
 @login_required(login_url='/login/')
 @allowed_users(allowed_roles=['Finance','Cashier'])
 def transactionList(request):
@@ -526,5 +641,150 @@ def customer_receipt(request,receipt_id):
     total_bill = sum(transaction.total_amount for transaction in receipt.transactions.all())
     context = {'receipt': receipt,'total_bill':total_bill}
     return render (request, 'pages/customer_receipt.html',context)
+
+@login_required(login_url='/login/')
+def search_customers(request):
+    """AJAX endpoint for searching customers"""
+    from django.db.models import Q
+    from datetime import date
+    
+    query = request.GET.get('q', '').strip()
+    guardian_only = request.GET.get('guardian_only', 'false').lower() == 'true'
+    exclude_id = request.GET.get('exclude_id', '')
+    
+    if len(query) < 2:
+        return JsonResponse({'customers': []})
+    
+    # Base queryset
+    customers = Customer.objects.all()
+    
+    # Exclude specific customer (for edit forms)
+    if exclude_id:
+        try:
+            exclude_id = int(exclude_id)
+            customers = customers.exclude(id=exclude_id)
+        except (ValueError, TypeError):
+            pass
+    
+    # Filter for guardian search
+    if guardian_only:
+        customers = customers.filter(is_minor=False)
+    
+    # Search by name or phone
+    customers = customers.filter(
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query) |
+        Q(phone__icontains=query)
+    )
+    
+    # Limit results
+    customers = customers[:10]
+    
+    # Prepare response data
+    customer_data = []
+    for customer in customers:
+        age = None
+        if customer.date_of_birth:
+            today = date.today()
+            age = today.year - customer.date_of_birth.year
+            if (today.month, today.day) < (customer.date_of_birth.month, customer.date_of_birth.day):
+                age -= 1
+        
+        customer_data.append({
+            'id': customer.id,
+            'name': f"{customer.first_name} {customer.last_name}",
+            'phone': customer.phone,
+            'email': customer.email or '',
+            'type_display': customer.get_type_of_customer_display(),
+            'kyc_verified': customer.kyc_verified,
+            'age': age,
+            'is_minor': customer.is_minor,
+            'can_make_purchases': customer.can_make_purchases,
+        })
+    
+    return JsonResponse({'customers': customer_data})
+
+@login_required(login_url='/login/')
+def debug_customer_image(request, customer_id):
+    """Debug view to check customer image details"""
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    debug_info = {
+        'customer_name': customer.name,
+        'profile_image_field': str(customer.profile_image),
+        'profile_image_url': customer.profile_image.url if customer.profile_image else 'No image',
+        'profile_image_bool': bool(customer.profile_image),
+        'profile_image_empty_check': customer.profile_image != '',
+        'settings_debug': settings.DEBUG,
+    }
+    
+    return JsonResponse(debug_info)
+
+@login_required(login_url='/login/')
+def customer_family_view(request, customer_id):
+    """View to display customer family relationships"""
+    from django.shortcuts import get_object_or_404
+    from django.db.models import Q
+    
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    # Get the main account holder (either the customer or their guardian)
+    main_account = customer.account_holder
+    
+    # Get all family members (main account + all dependents)
+    family_members = Customer.objects.filter(
+        Q(id=main_account.id) | Q(guardian=main_account)
+    ).select_related('guardian').order_by('is_minor', 'first_name')
+    
+    # Get family statistics
+    total_members = family_members.count()
+    adults = family_members.filter(is_minor=False).count()
+    minors = family_members.filter(is_minor=True).count()
+    verified_members = family_members.filter(kyc_verified=True).count()
+    
+    context = {
+        'customer': customer,
+        'main_account': main_account,
+        'family_members': family_members,
+        'family_stats': {
+            'total_members': total_members,
+            'adults': adults,
+            'minors': minors,
+            'verified_members': verified_members,
+        }
+    }
+    
+    return render(request, "pages/customer-family.html", context)
+
+@login_required(login_url='/login/')
+def add_dependent(request, customer_id):
+    """View to add a dependent to an existing customer account"""
+    from .forms import AddDependentForm
+    from django.shortcuts import get_object_or_404, redirect
+    from django.contrib import messages
+    
+    guardian = get_object_or_404(Customer, id=customer_id)
+    
+    # Validate that this customer can be a guardian
+    if guardian.is_minor or not guardian.kyc_verified:
+        messages.error(request, 'This customer cannot be a guardian. Must be an adult with verified KYC.')
+        return redirect('DjangoHUDApp:customer_details', customer_id=customer_id)
+    
+    if request.method == 'POST':
+        form = AddDependentForm(guardian, request.POST)
+        if form.is_valid():
+            dependent = form.save()
+            messages.success(request, f'Successfully added {dependent.name} as a dependent.')
+            return redirect('DjangoHUDApp:customer_details', customer_id=customer_id)
+    else:
+        form = AddDependentForm(guardian)
+    
+    context = {
+        'form': form,
+        'guardian': guardian,
+        'existing_dependents': guardian.get_all_dependents()
+    }
+    
+    return render(request, "pages/add-dependent.html", context)
 
 

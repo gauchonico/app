@@ -29,10 +29,28 @@ from .services import AccountingService
 def accounting_dashboard(request):
     """Beautiful accounting dashboard with financial overview"""
     # Calculate financial metrics
-    total_revenue = JournalEntryLine.objects.filter(
+    # Revenue from revenue accounts (credit balances)
+    revenue_from_sales = JournalEntryLine.objects.filter(
         account__account_type='revenue',
         entry_type='credit'
     ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # Revenue from accounts receivable (debit balances - money owed to us)
+    accounts_receivable = JournalEntryLine.objects.filter(
+        account__account_name__icontains='Accounts Receivable',
+        entry_type='debit'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # Subtract any credits to accounts receivable (payments received)
+    ar_credits = JournalEntryLine.objects.filter(
+        account__account_name__icontains='Accounts Receivable',
+        entry_type='credit'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    net_accounts_receivable = accounts_receivable - ar_credits
+    
+    # Total revenue = Revenue accounts + Outstanding Accounts Receivable
+    total_revenue = revenue_from_sales + net_accounts_receivable
     
     total_expenses = JournalEntryLine.objects.filter(
         account__account_type='expense',
@@ -72,6 +90,8 @@ def accounting_dashboard(request):
     
     context = {
         'total_revenue': total_revenue,
+        'revenue_from_sales': revenue_from_sales,
+        'net_accounts_receivable': net_accounts_receivable,
         'total_expenses': total_expenses,
         'net_profit': net_profit,
         'cash_balance': cash_balance,

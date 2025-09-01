@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Saved Commission Reports{% endblock %}
+
+{% block css %}
+<style>
+    .reports-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .report-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .report-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .report-header {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    .report-body {
+        padding: 15px 20px;
+    }
+    
+    .report-meta {
+        font-size: 0.9em;
+        color: #6c757d;
+    }
+    
+    .report-amount {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #28a745;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .pagination-info {
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+    
+    .no-reports {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .report-actions {
+        text-align: right;
+    }
+    
+    .badge-period {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">REPORTS</a></li>
+            <li class="breadcrumb-item active">SAVED COMMISSION REPORTS</li>
+        </ul>
+        <h5>Saved Commission Reports</h5>
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'commission_report_view' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Generate New Report
+        </a>
+    </div>
+</div>
+
+<!-- Reports Header -->
+<div class="reports-header">
+    <div class="row">
+        <div class="col-md-8">
+            <h4 class="mb-1">Commission Reports Archive</h4>
+            <p class="mb-0">
+                <i class="fas fa-archive me-2"></i>
+                Manage and view saved commission reports
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <h3 class="mb-0">{{ total_reports }}</h3>
+            <small>Total Reports</small>
+        </div>
+    </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filter-section">
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-control" 
+                   placeholder="Search reports..." value="{{ search_query|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="start_date" class="form-control" value="{{ start_date|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">End Date</label>
+            <input type="date" name="end_date" class="form-control" value="{{ end_date|default:'' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Staff Member</label>
+            <select name="staff_id" class="form-control">
+                <option value="">All Staff</option>
+                {% for staff in all_staff %}
+                    <option value="{{ staff.id }}" {% if staff.id == selected_staff_id %}selected{% endif %}>
+                        {{ staff.first_name }} {{ staff.last_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <div class="d-grid w-100">
+                <button type="submit" class="btn btn-primary mb-2">
+                    <i class="fas fa-search me-1"></i>Filter
+                </button>
+                <a href="{% url 'saved_commission_reports_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>Reset
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Results Info -->
+{% if page_obj %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="pagination-info">
+        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} reports
+    </div>
+    {% if search_query %}
+    <div class="alert alert-info py-2 px-3 mb-0">
+        <i class="fas fa-search me-2"></i>
+        Search results for "{{ search_query }}"
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Reports List -->
+{% if page_obj.object_list %}
+    {% for report in page_obj.object_list %}
+    <div class="report-card">
+        <div class="report-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-1">{{ report.name }}</h6>
+                    <div class="report-meta">
+                        <span class="badge badge-period me-2">{{ report.period_name }}</span>
+                        {% if report.staff %}
+                            <span class="badge bg-info me-2">{{ report.staff.first_name }} {{ report.staff.last_name }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary me-2">All Staff</span>
+                        {% endif %}
+                        <small>Created {{ report.created_at|naturaltime }} by {{ report.created_by.username }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="report-amount">UGX {{ report.total_amount|floatformat:2|intcomma }}</div>
+                    <small class="text-muted">Total Commission</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="report-body">
+            <div class="row">
+                <div class="col-md-8">
+                    {% if report.description %}
+                    <p class="mb-2 text-muted">{{ report.description|truncatechars:100 }}</p>
+                    {% endif %}
+                    <div class="report-meta">
+                        <i class="fas fa-calendar me-1"></i>
+                        Report Period: {{ report.start_date }} to {{ report.end_date }}
+                    </div>
+                </div>
+                <div class="col-md-4 report-actions">
+                    <a href="{% url 'view_saved_commission_report' report.id %}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i>View Report
+                    </a>
+                    <button class="btn btn-outline-danger btn-sm ms-1" 
+                            onclick="confirmDelete({{ report.id }}, '{{ report.name }}')">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Reports pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if start_date %}start_date={{ start_date }}&{% endif %}{% if end_date %}end_date={{ end_date }}&{% endif %}{% if selected_staff_id %}staff_id={{ selected_staff_id }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if start_date %}start_date={{ start_date }}&{% endif %}{% if end_date %}end_date={{ end_date }}&{% endif %}{% if selected_staff_id %}staff_id={{ selected_staff_id }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if start_date %}start_date={{ start_date }}&{% endif %}{% if end_date %}end_date={{ end_date }}&{% endif %}{% if selected_staff_id %}staff_id={{ selected_staff_id }}&{% endif %}page={{ page_obj.next_page_number }}">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+{% else %}
+    <div class="no-reports">
+        <i class="fas fa-file-alt fa-3x mb-3 text-muted"></i>
+        <h4>No Saved Reports Found</h4>
+        <p>No commission reports have been saved yet, or none match your search criteria.</p>
+        <a href="{% url 'commission_report_view' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Generate Your First Report
+        </a>
+    </div>
+{% endif %}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the report "<span id="reportName"></span>"?</p>
+                <p class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i> This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="#" id="deleteForm" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Delete Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+// Delete confirmation
+function confirmDelete(reportId, reportName) {
+    document.getElementById('reportName').textContent = reportName;
+    document.getElementById('deleteForm').action = '{% url "delete_saved_commission_report" 0 %}'.replace('0', reportId);
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+// Auto-submit form when filters change (for better UX)
+document.querySelector('select[name="staff_id"]').addEventListener('change', function() {
+    this.form.submit();
+});
+
+// Clear search when clicking reset
+document.querySelector('input[name="search"]').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        this.form.submit();
+    }
+});
+</script>
+{% endblock %}

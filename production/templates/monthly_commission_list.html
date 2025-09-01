@@ -136,8 +136,9 @@
                     <th>Staff</th>
                     <th>Type</th>
                     <th>Service/Product</th>
-                    <th>Sale #</th>
-                    <th>Amount</th>
+                    <th>Sale Details</th>
+                    <th>Item Price</th>
+                    <th>Commission</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -155,26 +156,63 @@
                     </td>
                     <td>
                         {% if commission.commission_type == 'service' %}
-                            {{ commission.service_sale_item.service.service.name }}
+                            <strong>{{ commission.service_sale_item.service.service.name }}</strong>
+                            <br><small class="text-muted">Qty: {{ commission.service_sale_item.quantity }}</small>
                         {% else %}
-                            {{ commission.product_sale_item.product.product.product_name }}
+                            <strong>{{ commission.product_sale_item.product.product.product_name }}</strong>
+                            <br><small class="text-muted">Qty: {{ commission.product_sale_item.quantity }}</small>
                         {% endif %}
                     </td>
                     <td>
-                        {% comment %} {% url 'service_sale_details' commission.service_sale_item.sale.id %} {% endcomment %}
-                        <a href="" 
-                            class="" 
-                            title="View Sale Details">
-                            <i class="fas fa-eye">
-                            {% if commission.commission_type == 'service' %}
-                                {{ commission.service_sale_item.sale.service_sale_number }}
-                            {% else %}
-                                {{ commission.product_sale_item.sale.service_sale_number }}
-                            {% endif %}
-                            </i>
-                        </a>
+                        {% if commission.commission_type == 'service' %}
+                            <a href="{% url 'service_sale_details' commission.service_sale_item.sale.id %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="View Sale Details">
+                                <i class="fas fa-eye me-1"></i>
+                                Sale #{{ commission.service_sale_item.sale.service_sale_number|default:commission.service_sale_item.sale.id }}
+                            </a>
+                            <br><small class="text-muted">
+                                Customer: {{ commission.service_sale_item.sale.customer.first_name }} {{ commission.service_sale_item.sale.customer.last_name }}
+                                <br>Total: UGX {{ commission.service_sale_item.sale.total_amount|floatformat:0|intcomma }}
+                                <br>Date: {{ commission.service_sale_item.sale.sale_date|date:"M d, Y" }}
+                            </small>
+                        {% else %}
+                            <a href="{% url 'service_sale_details' commission.product_sale_item.sale.id %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="View Sale Details">
+                                <i class="fas fa-eye me-1"></i>
+                                Sale #{{ commission.product_sale_item.sale.service_sale_number|default:commission.product_sale_item.sale.id }}
+                            </a>
+                            <br><small class="text-muted">
+                                Customer: {{ commission.product_sale_item.sale.customer.first_name }} {{ commission.product_sale_item.sale.customer.last_name }}
+                                <br>Total: UGX {{ commission.product_sale_item.sale.total_amount|floatformat:0|intcomma }}
+                                <br>Date: {{ commission.product_sale_item.sale.sale_date|date:"M d, Y" }}
+                            </small>
+                        {% endif %}
                     </td>
-                    <td>{{ commission.commission_amount|floatformat|intcomma }}</td>
+                    <td>
+                        {% if commission.commission_type == 'service' %}
+                            UGX {{ commission.service_sale_item.total_price|floatformat:0|intcomma }}
+                        {% else %}
+                            UGX {{ commission.product_sale_item.total_price|floatformat:0|intcomma }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>UGX {{ commission.commission_amount|floatformat:0|intcomma }}</strong>
+                        {% if commission.commission_type == 'service' %}
+                            {% if commission.service_sale_item.total_price %}
+                                <br><small class="text-muted">
+                                    {% widthratio commission.commission_amount commission.service_sale_item.total_price 100 %}% rate
+                                </small>
+                            {% endif %}
+                        {% else %}
+                            {% if commission.product_sale_item.total_price %}
+                                <br><small class="text-muted">
+                                    {% widthratio commission.commission_amount commission.product_sale_item.total_price 100 %}% rate
+                                </small>
+                            {% endif %}
+                        {% endif %}
+                    </td>
                     <td>
                         <span class="badge {% if commission.paid %}bg-success{% else %}bg-warning{% endif %}">
                             {{ commission.paid|yesno:"Paid,Pending" }}
@@ -183,7 +221,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center">No commissions found</td>
+                    <td colspan="8" class="text-center">No commissions found</td>
                 </tr>
                 {% endfor %}
             </tbody>

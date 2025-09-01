@@ -22,3 +22,13 @@ class TaxCodeAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).order_by('code')
+    
+class ServiceCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'description', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['name', 'description']
+    ordering = ['name']
+    
+    
+admin.site.register(ServiceCategory, ServiceCategoryAdmin)
+

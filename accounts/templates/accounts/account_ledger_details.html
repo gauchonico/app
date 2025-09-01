@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Account Ledger - {{ account.account_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:accounting_dashboard' %}">ACCOUNTING</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:chart_of_accounts_list' %}">CHART OF ACCOUNTS</a></li>
+                        <li class="breadcrumb-item active">LEDGER</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-book me-2"></i>Account Ledger
+                    </h1>
+                </div>
+                <div class="ms-auto">
+                    <div class="btn-group">
+                        <a href="{% url 'accounts:account_summary_report' account.id %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-bar me-1"></i>Summary Report
+                        </a>
+                        <a href="{% url 'accounts:chart_of_accounts_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Info Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h2 class="text-primary">{{ account.account_code }}</h2>
+                                <h5 class="mb-0">{{ account.account_name }}</h5>
+                                <span class="badge bg-secondary">{{ account.get_account_type_display }}</span>
+                                {% if account.department %}
+                                    <br><small class="text-muted">{{ account.department.name }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="card bg-info text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">Total Debits</h6>
+                                            <h4>UGX {{ total_debits|floatformat:0|intcomma }}</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-warning text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">Total Credits</h6>
+                                            <h4>UGX {{ total_credits|floatformat:0|intcomma }}</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card {% if account_balance >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">Balance</h6>
+                                            <h4>UGX {{ account_balance|floatformat:0|intcomma }}</h4>
+                                            <small>{{ normal_balance|title }} Balance</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-secondary text-white">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">Transactions</h6>
+                                            <h4>{{ entries_count }}</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>Filters
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="date_from" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="date_to" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="entry_type" class="form-label">Entry Type</label>
+                            <select class="form-control" id="entry_type" name="entry_type">
+                                <option value="">All Types</option>
+                                <option value="debit" {% if entry_type_filter == 'debit' %}selected{% endif %}>Debit</option>
+                                <option value="credit" {% if entry_type_filter == 'credit' %}selected{% endif %}>Credit</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Journal Entries Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Journal Entry Lines
+                        <span class="badge bg-primary ms-2">{{ entries_count }} entries</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="ledgerTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reference</th>
+                                    <th>Description</th>
+                                    <th>Debit</th>
+                                    <th>Credit</th>
+                                    <th>Running Balance</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in journal_lines %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ line.journal_entry.date|date:"M d, Y" }}</strong>
+                                        <br><small class="text-muted">{{ line.journal_entry.created_at|date:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <code>{{ line.journal_entry.reference }}</code>
+                                        {% if line.journal_entry.department %}
+                                            <br><small class="text-muted">{{ line.journal_entry.department.name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ line.description }}</strong>
+                                        <br><small class="text-muted">{{ line.journal_entry.description }}</small>
+                                    </td>
+                                    <td>
+                                        {% if line.entry_type == 'debit' %}
+                                            <span class="text-info fw-bold">UGX {{ line.amount|floatformat:0|intcomma }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if line.entry_type == 'credit' %}
+                                            <span class="text-success fw-bold">UGX {{ line.amount|floatformat:0|intcomma }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong class="{% if line.running_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            UGX {{ line.running_balance|floatformat:0|intcomma }}
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'accounts:journal_entry_detail' line.journal_entry.id %}" 
+                                               class="btn btn-outline-primary" title="View Journal Entry">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if line.journal_entry.reference|slice:":4" == "Sale" %}
+                                                <button class="btn btn-outline-info" title="View Sale Details">
+                                                    <i class="fas fa-shopping-cart"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No journal entries found</h5>
+                                        <p class="text-muted">This account has no recorded transactions.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if journal_lines.has_other_pages %}
+                    <nav aria-label="Ledger pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if journal_lines.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ journal_lines.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if entry_type_filter %}&entry_type={{ entry_type_filter }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in journal_lines.paginator.page_range %}
+                                {% if journal_lines.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > journal_lines.number|add:'-3' and num < journal_lines.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if entry_type_filter %}&entry_type={{ entry_type_filter }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if journal_lines.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ journal_lines.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if entry_type_filter %}&entry_type={{ entry_type_filter }}{% endif %}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Initialize DataTable if needed
+    // $('#ledgerTable').DataTable({
+    //     "pageLength": 25,
+    //     "order": [[ 0, "desc" ]],
+    //     "responsive": true
+    // });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Service Sale Analytics{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">SERVICE SALES</a></li>
+            <li class="breadcrumb-item active">ANALYTICS</li>
+        </ul>
+        <h5>Service Sale Performance Analytics</h5>
+    </div>
+</div>
+
+<!-- Performance Metrics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-0 text-truncate">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-7">
+                        <div class="d-flex fw-bold small mb-3">
+                            <span class="flex-grow-1">AVG SALE CREATION</span>
+                            <span class="text-success">
+                                <i class="bi bi-stopwatch me-1"></i>
+                            </span>
+                        </div>
+                        <div class="row align-items-center mb-2">
+                            <div class="col-7">
+                                <h3 class="mb-0">
+                                    {% if avg_creation_time %}
+                                        {{ avg_creation_time.total_seconds|floatformat:1 }}s
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </h3>
+                            </div>
+                        </div>
+                        <div class="small text-muted text-truncate">
+                            Time to create sales
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-0 text-truncate">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-7">
+                        <div class="d-flex fw-bold small mb-3">
+                            <span class="flex-grow-1">AVG PAYMENT TIME</span>
+                            <span class="text-warning">
+                                <i class="bi bi-credit-card me-1"></i>
+                            </span>
+                        </div>
+                        <div class="row align-items-center mb-2">
+                            <div class="col-7">
+                                <h3 class="mb-0">
+                                    {% if avg_payment_time %}
+                                        {{ avg_payment_time.total_seconds|floatformat:1 }}s
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </h3>
+                            </div>
+                        </div>
+                        <div class="small text-muted text-truncate">
+                            Time to process payments
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-0 text-truncate">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-7">
+                        <div class="d-flex fw-bold small mb-3">
+                            <span class="flex-grow-1">AVG TOTAL TIME</span>
+                            <span class="text-info">
+                                <i class="bi bi-clock me-1"></i>
+                            </span>
+                        </div>
+                        <div class="row align-items-center mb-2">
+                            <div class="col-7">
+                                <h3 class="mb-0">
+                                    {% if avg_total_time %}
+                                        {% if avg_total_time %}{{ avg_total_time.total_seconds|floatformat:0 }}s{% else %}N/A{% endif %}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </h3>
+                            </div>
+                        </div>
+                        <div class="small text-muted text-truncate">
+                            Total workflow time
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card border-0 text-truncate">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-7">
+                        <div class="d-flex fw-bold small mb-3">
+                            <span class="flex-grow-1">TOTAL SALES</span>
+                            <span class="text-primary">
+                                <i class="bi bi-receipt me-1"></i>
+                            </span>
+                        </div>
+                        <div class="row align-items-center mb-2">
+                            <div class="col-7">
+                                <h3 class="mb-0">{{ total_sales|intcomma }}</h3>
+                            </div>
+                        </div>
+                        <div class="small text-muted text-truncate">
+                            All service sales
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Breakdown -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Sale Status Breakdown</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Invoice Status</th>
+                                <th>Payment Status</th>
+                                <th>Count</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for status in status_breakdown %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{% if status.invoice_status == 'invoiced' %}success{% elif status.invoice_status == 'cancelled' %}danger{% else %}warning{% endif %}">
+                                        {{ status.invoice_status|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if status.paid_status == 'paid' %}success{% else %}secondary{% endif %}">
+                                        {{ status.paid_status|title }}
+                                    </span>
+                                </td>
+                                <td>{{ status.count }}</td>
+                                <td>{% widthratio status.count total_sales 100 %}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Sales with Timing -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Recent Sales with Timing Data</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Sale #</th>
+                                <th>Customer</th>
+                                <th>Store</th>
+                                <th>Status</th>
+                                <th>Creation Time</th>
+                                <th>Payment Time</th>
+                                <th>Total Time</th>
+                                <th>Sale Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sale in recent_sales %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'service_sale_details' sale.id %}">
+                                        {{ sale.service_sale_number|default:sale.id }}
+                                    </a>
+                                </td>
+                                <td>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</td>
+                                <td>{{ sale.store.name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if sale.get_workflow_status == 'Completed' %}success{% elif sale.get_workflow_status == 'Cancelled' %}danger{% else %}warning{% endif %}">
+                                        {{ sale.get_workflow_status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if sale.sale_creation_time %}
+                                        {{ sale.sale_creation_time.total_seconds|floatformat:1 }}s
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sale.payment_processing_time %}
+                                        {{ sale.payment_processing_time.total_seconds|floatformat:1 }}s
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sale.total_workflow_time %}
+                                        {{ sale.total_workflow_time.total_seconds|floatformat:0 }}s
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ sale.sale_date|date:"M d, H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -9,3 +9,5 @@ celery[redis]==5.3.4
 django-celery-beat==2.5.0
 redis==5.0.1
 django-auditlog==3.0.0
+cloudinary==1.36.0
+django-cloudinary-storage==0.3.0

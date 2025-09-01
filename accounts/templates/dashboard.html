@@ -26,8 +26,11 @@
                 <a href="{% url 'accounts:trial_balance' %}" class="btn btn-outline-theme me-2">
                     <i class="fas fa-balance-scale me-2"></i>Trial Balance
                 </a>
-                <a href="{% url 'accounts:profit_loss_report' %}" class="btn btn-outline-theme">
+                <a href="{% url 'accounts:profit_loss_report' %}" class="btn btn-outline-theme me-2">
                     <i class="fas fa-chart-line me-2"></i>P&L Report
+                </a>
+                <a href="{% url 'accounts:accounts_payable_details' %}" class="btn btn-outline-danger">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>Accounts Payable
                 </a>
             </div>
         </div>
@@ -42,6 +45,11 @@
                         <div class="flex-grow-1">
                             <h4 class="mb-1">UGX {{ total_revenue|floatformat:0|intcomma }}</h4>
                             <div>Total Revenue</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-credit-card me-1"></i>Sales: UGX {{ revenue_from_sales|floatformat:0|intcomma }}
+                                <br>
+                                <i class="fas fa-file-invoice me-1"></i>A/R: UGX {{ net_accounts_receivable|floatformat:0|intcomma }}
+                            </small>
                         </div>
                         <div class="ms-3">
                             <i class="fas fa-chart-line fa-2x opacity-50"></i>
@@ -245,6 +253,12 @@
                         </a>
                         <a href="{% url 'accounts:manufacturing_report' %}" class="btn btn-outline-secondary">
                             <i class="fas fa-industry me-2"></i>Manufacturing Report
+                        </a>
+                        <a href="{% url 'accounts:accounts_payable_details' %}" class="btn btn-outline-danger me-2">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>Accounts Payable
+                        </a>
+                        <a href="{% url 'accounts:unified_service_sales_dashboard' %}" class="btn btn-outline-info">
+                            <i class="fas fa-concierge-bell me-2"></i>Service Sales
                         </a>
                     </div>
                 </div>

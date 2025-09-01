@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Service Invoice Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#">STORE</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'global_service_invoice_list' %}">SERVICE INVOICES</a></li>
+                        <li class="breadcrumb-item active">DETAIL</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-file-invoice me-2"></i>Service Invoice Details
+                    </h1>
+                </div>
+                <div class="ms-auto">
+                    <div class="btn-group">
+                        <a href="{% url 'service_sale_details' sale.id %}" class="btn btn-outline-info">
+                            <i class="fas fa-receipt me-1"></i>View Receipt
+                        </a>
+                        {% if sale.can_process_payment %}
+                        <a href="{% url 'record_payment_view' sale.id %}" class="btn btn-outline-success">
+                            <i class="fas fa-credit-card me-1"></i>Record Payment
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'global_service_invoice_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error_message %}
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>{{ error_message }}
+        </div>
+    {% else %}
+
+    <!-- Invoice Summary -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Invoice Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-5">Invoice ID:</dt>
+                                <dd class="col-sm-7"><code>#{{ invoice.id }}</code></dd>
+                                
+                                <dt class="col-sm-5">Sale Number:</dt>
+                                <dd class="col-sm-7"><strong>{{ sale.service_sale_number|default:sale.id }}</strong></dd>
+                                
+                                <dt class="col-sm-5">Store:</dt>
+                                <dd class="col-sm-7"><span class="badge bg-info">{{ sale.store.name }}</span></dd>
+                                
+                                <dt class="col-sm-5">Customer:</dt>
+                                <dd class="col-sm-7">
+                                    <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong>
+                                    <br><small class="text-muted">{{ sale.customer.phone }}</small>
+                                    {% if sale.customer.email %}
+                                        <br><small class="text-muted">{{ sale.customer.email }}</small>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-5">Sale Date:</dt>
+                                <dd class="col-sm-7">{{ sale.sale_date|date:"M d, Y H:i" }}</dd>
+                                
+                                <dt class="col-sm-5">Invoice Date:</dt>
+                                <dd class="col-sm-7">{{ invoice.created_at|date:"M d, Y H:i" }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-5">Total Amount:</dt>
+                                <dd class="col-sm-7"><strong class="h4 text-primary">UGX {{ invoice.total_amount|floatformat:0|intcomma }}</strong></dd>
+                                
+                                <dt class="col-sm-5">Amount Paid:</dt>
+                                <dd class="col-sm-7">UGX {{ total_paid|floatformat:0|intcomma }}</dd>
+                                
+                                <dt class="col-sm-5">Balance Due:</dt>
+                                <dd class="col-sm-7">
+                                    {% if balance_due > 0 %}
+                                        <span class="text-warning h5">UGX {{ balance_due|floatformat:0|intcomma }}</span>
+                                    {% else %}
+                                        <span class="text-success h5">UGX 0</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-5">Payment Method:</dt>
+                                <dd class="col-sm-7">
+                                    {% if invoice.payment_method %}
+                                        {{ invoice.get_payment_method_display }}
+                                    {% else %}
+                                        <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                {% if invoice.remarks %}
+                                <dt class="col-sm-5">Remarks:</dt>
+                                <dd class="col-sm-7"><em>{{ invoice.remarks }}</em></dd>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Status Overview
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <h6>Payment Status</h6>
+                        {% if invoice.paid_status == 'paid' %}
+                            <span class="badge bg-success fs-6">Paid</span>
+                        {% elif invoice.paid_status == 'partially_paid' %}
+                            <span class="badge bg-warning fs-6">Partially Paid</span>
+                        {% else %}
+                            <span class="badge bg-danger fs-6">Unpaid</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Invoice Status</h6>
+                        {% if sale.invoice_status == 'invoiced' %}
+                            <span class="badge bg-info fs-6">Invoiced</span>
+                        {% elif sale.invoice_status == 'cancelled' %}
+                            <span class="badge bg-danger fs-6">Cancelled</span>
+                        {% else %}
+                            <span class="badge bg-warning fs-6">{{ sale.get_invoice_status_display }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <h6>Workflow Status</h6>
+                        <span class="badge bg-secondary fs-6">{{ sale.get_workflow_status|default:"Active" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Items -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Invoice Items
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Services -->
+                    {% if service_items %}
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-concierge-bell me-2"></i>Services
+                    </h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Service</th>
+                                    <th>Staff</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in service_items %}
+                                <tr>
+                                    <td>{{ item.service.service.name }}</td>
+                                    <td>{{ item.staff.user.first_name }} {{ item.staff.user.last_name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td><strong>UGX {{ item.total_price|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-primary">
+                                    <td colspan="4"><strong>Services Subtotal</strong></td>
+                                    <td><strong>UGX {{ service_total|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Products -->
+                    {% if product_items %}
+                    <h6 class="text-success mb-3">
+                        <i class="fas fa-box me-2"></i>Products
+                    </h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in product_items %}
+                                <tr>
+                                    <td>{{ item.product.product.product_name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td><strong>UGX {{ item.total_price|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-success">
+                                    <td colspan="3"><strong>Products Subtotal</strong></td>
+                                    <td><strong>UGX {{ product_total|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Accessories -->
+                    {% if accessory_items %}
+                    <h6 class="text-warning mb-3">
+                        <i class="fas fa-star me-2"></i>Accessories
+                    </h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Accessory</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in accessory_items %}
+                                <tr>
+                                    <td>{{ item.accessory.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td><strong>UGX {{ item.total_price|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-warning">
+                                    <td colspan="3"><strong>Accessories Subtotal</strong></td>
+                                    <td><strong>UGX {{ accessory_total|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Grand Total -->
+                    <div class="row">
+                        <div class="col-md-8"></div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Subtotal:</span>
+                                        <span>UGX {{ invoice.total_amount|floatformat:0|intcomma }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Tax:</span>
+                                        <span>UGX 0</span>
+                                    </div>
+                                    <hr>
+                                    <div class="d-flex justify-content-between">
+                                        <strong>Grand Total:</strong>
+                                        <strong class="h5 text-primary">UGX {{ invoice.total_amount|floatformat:0|intcomma }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    {% if payments %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Payment History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Reference</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"M d, Y H:i" }}</td>
+                                    <td><strong>UGX {{ payment.amount|floatformat:0|intcomma }}</strong></td>
+                                    <td>{{ payment.get_payment_method_display }}</td>
+                                    <td>{{ payment.reference_number|default:"-" }}</td>
+                                    <td>
+                                        <span class="badge bg-success">Completed</span>
+                                    </td>
+                                    <td>{{ payment.notes|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-info">
+                                    <td><strong>Total Paid</strong></td>
+                                    <td><strong>UGX {{ total_paid|floatformat:0|intcomma }}</strong></td>
+                                    <td colspan="4"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

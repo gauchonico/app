@@ -1,0 +1,474 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Global Queue Management Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#">STORE</a></li>
+                        <li class="breadcrumb-item active">QUEUE MANAGEMENT</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-clock me-2"></i>Global Queue Management Dashboard
+                    </h1>
+                    <p class="text-muted">Monitor service queues across all stores</p>
+                </div>
+                <div class="ms-auto">
+                    <div class="btn-group">
+                        <a href="{% url 'service_timing_analytics' %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-line me-1"></i>Analytics
+                        </a>
+                        <a href="{% url 'create_service_sale' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>New Sale
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.total_customers_today|intcomma }}</h4>
+                            <div>Total Customers Today</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-users me-1"></i>All customers
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-users fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.in_queue|intcomma }}</h4>
+                            <div>Waiting in Queue</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-clock me-1"></i>Currently waiting
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-hourglass-half fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.in_progress|intcomma }}</h4>
+                            <div>Service in Progress</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-cogs me-1"></i>Being served
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-cogs fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.completed_today|intcomma }}</h4>
+                            <div>Completed Today</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-check-circle me-1"></i>Finished services
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average Times -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-clock text-warning me-2"></i>Average Waiting Time
+                    </h5>
+                    <h3 class="text-warning">
+                        {% if queue_metrics.avg_waiting_time %}
+                            {{ queue_metrics.avg_waiting_time|floatformat:0 }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted">Time customers wait before service starts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-stopwatch text-info me-2"></i>Average Service Time
+                    </h5>
+                    <h3 class="text-info">
+                        {% if queue_metrics.avg_service_time %}
+                            {{ queue_metrics.avg_service_time|floatformat:0 }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted">Time to complete services</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>Filters
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="date" name="date" value="{{ date_filter }}">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">Service Status</label>
+                            <select class="form-control" id="status" name="status">
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                                <option value="created" {% if status_filter == 'created' %}selected{% endif %}>Created (Not in Queue)</option>
+                                <option value="in_queue" {% if status_filter == 'in_queue' %}selected{% endif %}>Waiting in Queue</option>
+                                <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>Service in Progress</option>
+                                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                        </div>
+                        
+                        {% if all_stores %}
+                        <div class="col-md-3">
+                            <label for="store" class="form-label">Store</label>
+                            <select class="form-control" id="store" name="store">
+                                <option value="">All Stores</option>
+                                {% for store in all_stores %}
+                                    <option value="{{ store.id }}" {% if store_filter == store.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ store.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Service Queue
+                        <span class="badge bg-primary ms-2">{{ sales|length }} customers</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="queueTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Customer</th>
+                                    {% if all_stores %}<th>Store</th>{% endif %}
+                                    <th>Services</th>
+                                    <th>Status</th>
+                                    <th>Queue Time</th>
+                                    <th>Service Time</th>
+                                    <th>Total Amount</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr data-sale-id="{{ sale.id }}" class="
+                                    {% if sale.get_service_status == 'in_queue' %}table-warning
+                                    {% elif sale.get_service_status == 'in_progress' %}table-info
+                                    {% elif sale.get_service_status == 'completed' %}table-success
+                                    {% endif %}">
+                                    
+                                    <td>
+                                        <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong>
+                                        <br><small class="text-muted">{{ sale.customer.phone }}</small>
+                                        <br><small class="text-muted">Sale #{{ sale.service_sale_number|default:sale.id }}</small>
+                                    </td>
+                                    
+                                    {% if all_stores %}
+                                    <td>
+                                        <span class="badge bg-info">{{ sale.store.name }}</span>
+                                    </td>
+                                    {% endif %}
+                                    
+                                    <td>
+                                        <small>
+                                            {% for item in sale.service_sale_items.all %}
+                                                {{ item.service.service.name }}{% if not forloop.last %},{% endif %}
+                                            {% endfor %}
+                                        </small>
+                                    </td>
+                                    
+                                    <td>
+                                        {% if sale.get_service_status == 'created' %}
+                                            <span class="badge bg-secondary">Created</span>
+                                        {% elif sale.get_service_status == 'in_queue' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>In Queue
+                                            </span>
+                                        {% elif sale.get_service_status == 'in_progress' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-cogs me-1"></i>In Progress
+                                            </span>
+                                        {% elif sale.get_service_status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>Completed
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="queue-time-cell">
+                                        {% if sale.queue_waiting_time %}
+                                            <strong>{{ sale.queue_waiting_time|floatformat:0 }}</strong>
+                                        {% elif sale.get_current_waiting_time %}
+                                            <span class="live-timer text-warning" data-start-time="{{ sale.queue_start_time|date:'c' }}">
+                                                {{ sale.get_current_waiting_time|floatformat:0 }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="service-time-cell">
+                                        {% if sale.service_duration %}
+                                            <strong>{{ sale.service_duration|floatformat:0 }}</strong>
+                                        {% elif sale.get_current_service_time %}
+                                            <span class="live-timer text-info" data-start-time="{{ sale.service_start_time|date:'c' }}">
+                                                {{ sale.get_current_service_time|floatformat:0 }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td>
+                                        <strong>UGX {{ sale.total_amount|floatformat:0|intcomma }}</strong>
+                                    </td>
+                                    
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if sale.get_service_status == 'in_queue' %}
+                                                <button class="btn btn-success start-service-btn" 
+                                                        data-sale-id="{{ sale.id }}" 
+                                                        title="Start Service">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            {% elif sale.get_service_status == 'in_progress' %}
+                                                <button class="btn btn-warning end-service-btn" 
+                                                        data-sale-id="{{ sale.id }}" 
+                                                        title="Complete Service">
+                                                    <i class="fas fa-stop"></i>
+                                                </button>
+                                            {% endif %}
+                                            
+                                            <a href="{% url 'service_sale_details' sale.id %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            {% if sale.can_process_payment %}
+                                            <a href="{% url 'record_payment_view' sale.id %}" 
+                                               class="btn btn-outline-success" title="Record Payment">
+                                                <i class="fas fa-credit-card"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="{% if all_stores %}8{% else %}7{% endif %}" class="text-center py-4">
+                                        <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No customers in queue</h5>
+                                        <p class="text-muted">All caught up! No pending services for this date.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // Auto-refresh every 30 seconds
+    setInterval(function() {
+        updateLiveTimers();
+    }, 30000);
+    
+    // Update live timers every second
+    setInterval(function() {
+        $('.live-timer').each(function() {
+            var startTime = new Date($(this).data('start-time'));
+            var now = new Date();
+            var diff = now - startTime;
+            
+            var hours = Math.floor(diff / (1000 * 60 * 60));
+            var minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            var timeString = '';
+            if (hours > 0) {
+                timeString = hours + 'h ' + minutes + 'm ' + seconds + 's';
+            } else if (minutes > 0) {
+                timeString = minutes + 'm ' + seconds + 's';
+            } else {
+                timeString = seconds + 's';
+            }
+            
+            $(this).text(timeString);
+        });
+    }, 1000);
+    
+    // Start service button handler
+    $('.start-service-btn').on('click', function() {
+        var saleId = $(this).data('sale-id');
+        var button = $(this);
+        
+        $.ajax({
+            url: '{% url "start_service_timer" 0 %}'.replace('0', saleId),
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('Success', response.message, 'success');
+                    // Refresh the page after a short delay
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast('Error', response.error, 'error');
+                }
+            },
+            error: function(xhr) {
+                var error = 'Failed to start service timer';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    error = xhr.responseJSON.error;
+                }
+                showToast('Error', error, 'error');
+            }
+        });
+    });
+    
+    // End service button handler
+    $('.end-service-btn').on('click', function() {
+        var saleId = $(this).data('sale-id');
+        var button = $(this);
+        
+        $.ajax({
+            url: '{% url "end_service_timer" 0 %}'.replace('0', saleId),
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('Success', response.message, 'success');
+                    // Refresh the page after a short delay
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast('Error', response.error, 'error');
+                }
+            },
+            error: function(xhr) {
+                var error = 'Failed to end service timer';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    error = xhr.responseJSON.error;
+                }
+                showToast('Error', error, 'error');
+            }
+        });
+    });
+    
+    function showToast(title, message, type) {
+        // Simple toast notification (you can replace with your preferred toast library)
+        var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        var toast = $('<div class="alert ' + alertClass + ' alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;">' +
+                     '<strong>' + title + ':</strong> ' + message +
+                     '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                     '</div>');
+        $('body').append(toast);
+        
+        // Auto-dismiss after 3 seconds
+        setTimeout(function() {
+            toast.alert('close');
+        }, 3000);
+    }
+    
+    function updateLiveTimers() {
+        // You can implement AJAX refresh here if needed
+    }
+});
+</script>
+{% endblock %}

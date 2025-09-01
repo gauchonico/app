@@ -1,0 +1,284 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete Service Category{% endblock %}
+
+{% block css %}
+<style>
+    .delete-container {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .delete-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        border: 2px solid #fef2f2;
+    }
+    
+    .delete-header {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+        position: relative;
+    }
+    
+    .delete-header::before {
+        content: '';
+        position: absolute;
+        top: -30px;
+        right: -30px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+    
+    .delete-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin: 0 auto 1rem;
+    }
+    
+    .delete-body {
+        padding: 2rem;
+    }
+    
+    .warning-box {
+        background: #fef3c7;
+        border: 1px solid #f59e0b;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .warning-title {
+        font-weight: 600;
+        color: #92400e;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .warning-text {
+        color: #92400e;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+    
+    .info-grid {
+        display: grid;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-item {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .info-label {
+        font-weight: 500;
+        color: #374151;
+    }
+    
+    .info-value {
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .btn-modern {
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+    }
+    
+    .btn-danger-modern {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        color: white;
+    }
+    
+    .btn-danger-modern:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+        color: white;
+    }
+    
+    .btn-secondary-modern {
+        background: #f3f4f6;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+    }
+    
+    .btn-secondary-modern:hover {
+        background: #e5e7eb;
+        color: #374151;
+    }
+    
+    .error-box {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .error-title {
+        font-weight: 600;
+        color: #991b1b;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .error-text {
+        color: #991b1b;
+        font-size: 0.875rem;
+        margin: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'service_list' %}">Services</a></li>
+                    <li class="breadcrumb-item active">Delete Category</li>
+                </ol>
+            </nav>
+
+            <div class="delete-container">
+                <div class="delete-card">
+                    <!-- Header -->
+                    <div class="delete-header">
+                        <div class="delete-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h2 class="mb-2">Delete Service Category</h2>
+                        <p class="mb-0 opacity-75">This action cannot be undone</p>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="delete-body">
+                        <!-- Category Information -->
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Category Name:</span>
+                                <span class="info-value fw-bold">{{ category.name }}</span>
+                            </div>
+                            {% if category.description %}
+                            <div class="info-item">
+                                <span class="info-label">Description:</span>
+                                <span class="info-value">{{ category.description|truncatechars:50 }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="info-item">
+                                <span class="info-label">Services in Category:</span>
+                                <span class="info-value fw-bold {% if services_count > 0 %}text-warning{% else %}text-success{% endif %}">
+                                    {{ services_count }} service{{ services_count|pluralize }}
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Created:</span>
+                                <span class="info-value">{{ category.created_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+
+                        {% if services_count > 0 %}
+                        <!-- Error: Cannot Delete -->
+                        <div class="error-box">
+                            <div class="error-title">
+                                <i class="fas fa-times-circle me-2"></i>Cannot Delete Category
+                            </div>
+                            <p class="error-text">
+                                This category contains <strong>{{ services_count }} service{{ services_count|pluralize }}</strong> 
+                                and cannot be deleted. Please either:
+                            </p>
+                            <ul class="error-text mb-0 mt-2">
+                                <li>Move the services to another category, or</li>
+                                <li>Delete the services first, then delete this category</li>
+                            </ul>
+                        </div>
+
+                        <!-- Actions for Error Case -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'service_list' %}" class="btn btn-secondary-modern">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Services
+                            </a>
+                            <a href="{% url 'service_list' %}?category={{ category.id }}" class="btn btn-primary">
+                                <i class="fas fa-list me-2"></i>View Services in Category
+                            </a>
+                        </div>
+
+                        {% else %}
+                        <!-- Warning: Safe to Delete -->
+                        <div class="warning-box">
+                            <div class="warning-title">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                            </div>
+                            <p class="warning-text">
+                                Are you sure you want to delete the category "<strong>{{ category.name }}</strong>"? 
+                                This action cannot be undone.
+                            </p>
+                        </div>
+
+                        <!-- Actions for Safe Delete -->
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{% url 'service_list' %}" class="btn btn-secondary-modern">
+                                    <i class="fas fa-times me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-danger-modern" id="deleteBtn">
+                                    <i class="fas fa-trash me-2"></i>Delete Category
+                                </button>
+                            </div>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    // Confirmation for delete button
+    $('#deleteBtn').on('click', function(e) {
+        e.preventDefault();
+        
+        const categoryName = '{{ category.name|escapejs }}';
+        
+        if (confirm(`Are you absolutely sure you want to delete the category "${categoryName}"?\n\nThis action cannot be undone.`)) {
+            $(this).closest('form').submit();
+        }
+    });
+    
+    // Add loading state to delete button
+    $('form').on('submit', function() {
+        $('#deleteBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Deleting...');
+    });
+});
+</script>
+{% endblock %}

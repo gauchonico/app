@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Service Sale Details - {{ sale.service_sale_number|default:sale.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:accounting_dashboard' %}">ACCOUNTING</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:unified_service_sales_dashboard' %}">SERVICE SALES</a></li>
+                        <li class="breadcrumb-item active">DETAIL</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-receipt me-2"></i>Service Sale Details
+                    </h1>
+                </div>
+                <div class="ms-auto">
+                    <div class="btn-group">
+                        <a href="{% url 'service_sale_details' sale.id %}" class="btn btn-outline-info">
+                            <i class="fas fa-receipt me-1"></i>View Receipt
+                        </a>
+                        <a href="{% url 'accounts:unified_service_sales_dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sale Summary -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Sale Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-5">Sale Number:</dt>
+                                <dd class="col-sm-7"><code>{{ sale.service_sale_number|default:sale.id }}</code></dd>
+                                
+                                <dt class="col-sm-5">Store:</dt>
+                                <dd class="col-sm-7"><span class="badge bg-info">{{ sale.store.name }}</span></dd>
+                                
+                                <dt class="col-sm-5">Customer:</dt>
+                                <dd class="col-sm-7">
+                                    <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong>
+                                    <br><small class="text-muted">{{ sale.customer.phone }}</small>
+                                </dd>
+                                
+                                <dt class="col-sm-5">Sale Date:</dt>
+                                <dd class="col-sm-7">{{ sale.sale_date|date:"M d, Y H:i" }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-5">Total Amount:</dt>
+                                <dd class="col-sm-7"><strong>UGX {{ sale.total_amount|floatformat:0|intcomma }}</strong></dd>
+                                
+                                <dt class="col-sm-5">Paid Amount:</dt>
+                                <dd class="col-sm-7">UGX {{ sale.paid_amount|floatformat:0|intcomma }}</dd>
+                                
+                                <dt class="col-sm-5">Balance:</dt>
+                                <dd class="col-sm-7">
+                                    {% if sale.balance > 0 %}
+                                        <span class="text-warning"><strong>UGX {{ sale.balance|floatformat:0|intcomma }}</strong></span>
+                                    {% else %}
+                                        <span class="text-success">UGX 0</span>
+                                    {% endif %}
+                                </dd>
+                                
+                                <dt class="col-sm-5">Payment Mode:</dt>
+                                <dd class="col-sm-7">{{ sale.get_payment_mode_display }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Status Overview
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <h6>Payment Status</h6>
+                        {% if sale.paid_status == 'paid' %}
+                            <span class="badge bg-success fs-6">Paid</span>
+                        {% else %}
+                            <span class="badge bg-warning fs-6">Not Paid</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>Invoice Status</h6>
+                        {% if sale.invoice_status == 'invoiced' %}
+                            <span class="badge bg-info fs-6">Invoiced</span>
+                        {% elif sale.invoice_status == 'cancelled' %}
+                            <span class="badge bg-danger fs-6">Cancelled</span>
+                        {% else %}
+                            <span class="badge bg-warning fs-6">Not Invoiced</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if sale.payment_remarks %}
+                    <div>
+                        <h6>Payment Remarks</h6>
+                        <p class="text-muted small">{{ sale.payment_remarks }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sale Items -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Sale Items
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Services -->
+                    {% if service_items %}
+                    <h6 class="text-primary mb-3">Services</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Service</th>
+                                    <th>Staff</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in service_items %}
+                                <tr>
+                                    <td>{{ item.service.service.name }}</td>
+                                    <td>{{ item.staff.user.first_name }} {{ item.staff.user.last_name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td><strong>UGX {{ item.total_price|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-info">
+                                    <td colspan="4"><strong>Services Subtotal</strong></td>
+                                    <td><strong>UGX {{ service_total|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Products -->
+                    {% if product_items %}
+                    <h6 class="text-success mb-3">Products</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in product_items %}
+                                <tr>
+                                    <td>{{ item.product.product.product_name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td><strong>UGX {{ item.total_price|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-success">
+                                    <td colspan="3"><strong>Products Subtotal</strong></td>
+                                    <td><strong>UGX {{ product_total|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Accessories -->
+                    {% if accessory_items %}
+                    <h6 class="text-warning mb-3">Accessories</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Accessory</th>
+                                    <th>Quantity</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in accessory_items %}
+                                <tr>
+                                    <td>{{ item.accessory.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td><strong>UGX {{ item.total_price|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-warning">
+                                    <td colspan="3"><strong>Accessories Subtotal</strong></td>
+                                    <td><strong>UGX {{ accessory_total|floatformat:0|intcomma }}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- Grand Total -->
+                    <div class="text-end">
+                        <h5 class="text-primary">
+                            Grand Total: UGX {{ sale.total_amount|floatformat:0|intcomma }}
+                        </h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    {% if payments %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Payment History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Reference</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"M d, Y H:i" }}</td>
+                                    <td><strong>UGX {{ payment.amount|floatformat:0|intcomma }}</strong></td>
+                                    <td>{{ payment.get_payment_method_display }}</td>
+                                    <td>{{ payment.reference_number|default:"-" }}</td>
+                                    <td>{{ payment.notes|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

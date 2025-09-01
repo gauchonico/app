@@ -198,10 +198,29 @@ class JournalEntry(models.Model):
     def generate_entry_number(self):
         """Generate unique journal entry number"""
         year = timezone.now().year
-        count = JournalEntry.objects.filter(
+        
+        # Start with the next number based on existing entries
+        existing_entries = JournalEntry.objects.filter(
             entry_number__startswith=f"JE-{year}"
-        ).count() + 1
-        return f"JE-{year}-{count:04d}"
+        ).order_by('-entry_number')
+        
+        if existing_entries.exists():
+            # Extract the number from the last entry and increment
+            last_entry = existing_entries.first()
+            try:
+                last_number = int(last_entry.entry_number.split('-')[-1])
+                next_number = last_number + 1
+            except (ValueError, IndexError):
+                next_number = 1
+        else:
+            next_number = 1
+        
+        # Keep incrementing until we find a unique number
+        while True:
+            entry_number = f"JE-{year}-{next_number:04d}"
+            if not JournalEntry.objects.filter(entry_number=entry_number).exists():
+                return entry_number
+            next_number += 1
     
     @property
     def total_debits(self):
@@ -466,8 +485,8 @@ class ProductionExpense(models.Model):
 
 class SalesRevenue(models.Model):
     """Link sales to accounting"""
-    service_sale = models.ForeignKey('production.ServiceSale', on_delete=models.CASCADE, related_name='accounting_entries', null=True, blank=True)
-    store_sale = models.ForeignKey('production.StoreSale', on_delete=models.CASCADE, related_name='accounting_entries', null=True, blank=True)
+    service_sale = models.ForeignKey('production.ServiceSale', on_delete=models.CASCADE, related_name='revenue_records', null=True, blank=True)
+    store_sale = models.ForeignKey('production.StoreSale', on_delete=models.CASCADE, related_name='revenue_records', null=True, blank=True)
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='sales_revenues')
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -511,17 +530,49 @@ class ManufacturingRecord(models.Model):
         return f"Manufacturing - {self.manufacture_product.batch_number if self.manufacture_product else 'N/A'} - {self.amount}"
 
 class PaymentRecord(models.Model):
-    """Link payment vouchers to accounting"""
+    """Link payment vouchers and service payments to accounting"""
     payment_voucher = models.ForeignKey('production.PaymentVoucher', on_delete=models.CASCADE, related_name='accounting_entries', null=True, blank=True)
+    service_sale = models.ForeignKey('production.ServiceSale', on_delete=models.CASCADE, related_name='payment_records', null=True, blank=True)
+    payment = models.ForeignKey('production.Payment', on_delete=models.CASCADE, related_name='accounting_records', null=True, blank=True)
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='payment_records')
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = ['payment_voucher', 'journal_entry']
+        # Remove the unique constraint to allow for multiple types
+        pass
     
     def __str__(self):
-        return f"Payment - {self.payment_voucher.voucher_number if self.payment_voucher else 'N/A'} - {self.amount}"
+        if self.payment_voucher:
+            return f"Payment Voucher - {self.payment_voucher.voucher_number} - {self.amount}"
+        elif self.service_sale and self.payment:
+            return f"Service Payment - {self.service_sale.service_sale_number} - {self.amount}"
+        else:
+            return f"Payment Record - {self.amount}"
+
+class CommissionExpense(models.Model):
+    """Link commission expenses to accounting"""
+    staff_commission = models.ForeignKey('production.StaffCommission', on_delete=models.CASCADE, related_name='accounting_records', null=True, blank=True)
+    product_commission = models.ForeignKey('production.StaffProductCommission', on_delete=models.CASCADE, related_name='accounting_records', null=True, blank=True)
+    monthly_commission = models.ForeignKey('production.MonthlyStaffCommission', on_delete=models.CASCADE, related_name='accounting_records', null=True, blank=True)
+    journal_entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='commission_expenses')
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    commission_type = models.CharField(max_length=20, choices=[
+        ('service', 'Service Commission'),
+        ('product', 'Product Commission'),
+        ('monthly', 'Monthly Commission Payment')
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        if self.staff_commission:
+            return f"Service Commission Expense - {self.staff_commission.staff.first_name} - {self.amount}"
+        elif self.product_commission:
+            return f"Product Commission Expense - {self.product_commission.staff.first_name} - {self.amount}"
+        elif self.monthly_commission:
+            return f"Monthly Commission Payment - {self.monthly_commission.staff.first_name} - {self.amount}"
+        else:
+            return f"Commission Expense - {self.amount}"
 
 class StoreBudget(models.Model):
     """Store-specific budget tracking"""

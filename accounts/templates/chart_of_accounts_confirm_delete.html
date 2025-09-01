@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Delete Chart of Account - {{ object.account_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:accounting_dashboard' %}">ACCOUNTING</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:chart_of_accounts_list' %}">CHART OF ACCOUNTS</a></li>
+                        <li class="breadcrumb-item active">DELETE</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-trash-alt me-2 text-danger"></i>Delete Chart of Account
+                    </h1>
+                </div>
+                <div class="ms-auto">
+                    <a href="{% url 'accounts:chart_of_accounts_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Warning Card -->
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning mb-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Warning: This action cannot be undone!
+                        </h6>
+                        <p class="mb-0">
+                            Deleting this chart of account may affect related journal entries, budgets, and financial reports. 
+                            Please ensure this account is no longer needed before proceeding.
+                        </p>
+                    </div>
+
+                    <!-- Account Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="bg-light p-3 rounded">
+                                <h6 class="mb-3">Account Details</h6>
+                                <dl class="row">
+                                    <dt class="col-sm-5">Account Code:</dt>
+                                    <dd class="col-sm-7"><code class="fs-6">{{ object.account_code }}</code></dd>
+                                    
+                                    <dt class="col-sm-5">Account Name:</dt>
+                                    <dd class="col-sm-7"><strong>{{ object.account_name }}</strong></dd>
+                                    
+                                    <dt class="col-sm-5">Account Type:</dt>
+                                    <dd class="col-sm-7">
+                                        <span class="badge bg-secondary">{{ object.get_account_type_display }}</span>
+                                    </dd>
+                                    
+                                    <dt class="col-sm-5">Department:</dt>
+                                    <dd class="col-sm-7">{{ object.department|default:"No department" }}</dd>
+                                    
+                                    <dt class="col-sm-5">Status:</dt>
+                                    <dd class="col-sm-7">
+                                        {% if object.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </dd>
+                                </dl>
+                                
+                                {% if object.description %}
+                                <hr>
+                                <h6>Description:</h6>
+                                <p class="text-muted mb-0">{{ object.description }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="bg-info bg-opacity-10 p-3 rounded">
+                                <h6 class="mb-3 text-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Impact Assessment
+                                </h6>
+                                
+                                <!-- Check for related records -->
+                                <div class="mb-3">
+                                    <h6 class="h7">Related Records:</h6>
+                                    <ul class="list-unstyled mb-0">
+                                        <li class="mb-1">
+                                            <i class="fas fa-journal-whills me-2 text-muted"></i>
+                                            <span class="text-muted">Journal Entry Lines: </span>
+                                            <span class="badge bg-primary">{{ object.journalentryline_set.count }}</span>
+                                        </li>
+                                        <li class="mb-1">
+                                            <i class="fas fa-chart-pie me-2 text-muted"></i>
+                                            <span class="text-muted">Budget Records: </span>
+                                            <span class="badge bg-warning">{{ object.budget_set.count }}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                                
+                                {% if object.journalentryline_set.count > 0 %}
+                                <div class="alert alert-danger alert-sm mb-0">
+                                    <small>
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        This account has {{ object.journalentryline_set.count }} journal entry line{{ object.journalentryline_set.count|pluralize }}. 
+                                        Deleting it may cause data integrity issues.
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confirmation Form -->
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                                    <label class="form-check-label" for="confirmDelete">
+                                        I understand that this action cannot be undone
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'accounts:chart_of_accounts_list' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            
+                            <button type="submit" class="btn btn-danger btn-lg" id="deleteButton" disabled>
+                                <i class="fas fa-trash-alt me-2"></i>
+                                Yes, Delete This Account
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmDelete');
+    const deleteButton = document.getElementById('deleteButton');
+    
+    confirmCheckbox.addEventListener('change', function() {
+        deleteButton.disabled = !this.checked;
+        
+        if (this.checked) {
+            deleteButton.classList.remove('btn-secondary');
+            deleteButton.classList.add('btn-danger');
+        } else {
+            deleteButton.classList.remove('btn-danger');
+            deleteButton.classList.add('btn-secondary');
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -108,6 +108,11 @@ def sidebar_menu(request):
             'text': 'Customers',
             'name': 'pageCustomer'
         },{
+            'url': '/loyalty_settings/',
+            'icon': 'bi bi-receipt',
+            'text': 'Loyalty Settings',
+            'name': 'loyalty_settings',
+        },{
             'url': '/page/reciepts',
             'icon': 'bi bi-app-indicator',
             'text': 'Reciepts',
@@ -694,7 +699,56 @@ def sidebar_menu(request):
         elif 'Branch Manager' in group_names:
             # Show branch manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','view_pricing_groups','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','store_sale_list','store_sale_service_invoice_list','pageCustomer']]  # Replace with your branch manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','view_pricing_groups','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','pageCustomer']]  # Replace with your branch manager menu names
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Salon Sales',
+                'children': [
+                    {
+                    'url': '/production/store_sale_list/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Salon Sales',
+                    'name': 'store_sale_list',
+                    },
+                    
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Sales Invoices',
+                'children': [
+                    {
+                        'url': '/production/store_sale_service_invoice_list',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Salon Service Invoices',
+                        'name': 'store_sale_service_invoice_list',
+                    }
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Sales Receipts',
+                'children': [
+                    {
+                        'url':'/production/payments/',
+                        'icon':'bi bi-credit-card',
+                        'text':'Receipt Payments',
+                        'name':'payment_list'
+                    }
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Customer Analytics',
+                'children': [
+                    {
+                        'url': '/production/customers/analytics/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Customer Analytics',
+                        'name': 'customer_analytics_dashboard',
+                    }
+                ]
+            })
             sidebar_menu.append({
                 'icon':'bi bi-boxex-fill',
                 'text': 'Inventory',
@@ -706,22 +760,22 @@ def sidebar_menu(request):
                     'name': 'manager_inventory_view'
                     }]
             })
-            sidebar_menu.append({
-                'icon':'bi bi-boxex-fill',
-                'text': 'Sales',
-                'children': [
-                    {
-                    'url': '/production/finance_store_sale_list/',
-                    'icon': 'bi bi-folder',
-                    'text': 'Salon Sales',
-                    'name':'finance_store_sale_list',
-                },{
-                        'url':'/production/payments/',
-                        'icon':'bi bi-credit-card',
-                        'text':'Receipt Payments',
-                        'name':'payment_list'
-                    }]
-            })
+            # sidebar_menu.append({
+            #     'icon':'bi bi-boxex-fill',
+            #     'text': 'Sales',
+            #     'children': [
+            #         {
+            #         'url': '/production/finance_store_sale_list/',
+            #         'icon': 'bi bi-folder',
+            #         'text': 'Salon Sales',
+            #         'name':'finance_store_sale_list',
+            #     },{
+            #             'url':'/production/payments/',
+            #             'icon':'bi bi-credit-card',
+            #             'text':'Receipt Payments',
+            #             'name':'payment_list'
+            #         }]
+            # })
             sidebar_menu.append({
                 'icon': 'bi bi-receipt',
                 'text': 'Staff Commissions',
@@ -730,8 +784,16 @@ def sidebar_menu(request):
                     'icon': 'bi bi-receipt',
                     'text': 'Monthly Commissions',
                     'name': 'monthly_commission_list',
-                }]
+                },
+                {
+                    'url': '/accounts/commission-expense-report/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Commission Expense Report',
+                    'name': 'commission_expense_report',
+                }
+                ]
             })
+            
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
@@ -885,6 +947,29 @@ def sidebar_menu(request):
             })
             sidebar_menu.append({
                 'icon': 'bi bi-receipt',
+                'text':'Saloon Sales Orders',
+                'children':[
+                    {
+                        'url':'/accounts/service-sales-dashboard/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Saloon Sales Orders',
+                        'name': 'service_sales_dashboard',
+                    },{
+                        'url': '/production/service-sales/analytics/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Performance Analytics',
+                        'name': 'service_sale_analytics',
+                    },{
+                        'url': '/production/queue-management/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Queue Management',
+                        'name': 'global_queue_management_dashboard',
+                    }
+                    
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
                 'text': 'Credit Notes',
                 'children': [
                     {
@@ -1024,6 +1109,40 @@ def sidebar_menu(request):
                     'text': 'Ledger Entries',
                     'name': 'ledger_entries',
                 }]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Staff Commissions',
+                'children': [{
+                    'url': '/production/monthly-commissions/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Monthly Commissions',
+                    'name': 'monthly_commission_list',
+                },
+                {
+                    'url': '/accounts/commission-expense-report/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Commission Expense Report',
+                    'name': 'commission_expense_report',
+                },{
+                    'url': '/production/commission-report/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Commission Report',
+                    'name': 'commission_report',
+                }
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Loyalty',
+                'children': [
+                    {
+                        'url': '/loyalty_settings/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Loyalty Settings',
+                        'name': 'loyalty_settings',
+                    }
+                ]
             })
         elif 'Production Manager' in group_names:
             # Show production manager menus

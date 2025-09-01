@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Commission Expense Report{% endblock %}
+
+{% block css %}
+<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .metric-card.expense {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .metric-card.payable {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .expense-breakdown {
+        {% comment %} background: #f8f9fa; {% endcomment %}
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">💰 Commission Expense Report</h2>
+            <p class="text-muted">Financial statement integration for staff commissions</p>
+        </div>
+    </div>
+
+    <!-- Date Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    {% comment %} <a href="{% url 'commission_expense_report' %}" class="btn btn-outline-secondary">Reset</a> {% endcomment %}
+                    {% comment %} <form method="post" action="{% url 'sync_commission_accounting' %}" style="display: inline;"> {% endcomment %}
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success" onclick="return confirm('Sync all existing commissions with accounting?')">
+                            <i class="bi bi-arrow-repeat"></i> Sync Accounting
+                        </button>
+                    </form>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <h3 class="mb-0">UGX {{ total_commission_expense|floatformat:0|intcomma }}</h3>
+                <p class="mb-0">Total Commission Expense</p>
+                <small>Period: {{ start_date|date:"M d" }} - {{ end_date|date:"M d, Y" }}</small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="metric-card expense">
+                <h3 class="mb-0">UGX {{ total_service_commission|floatformat:0|intcomma }}</h3>
+                <p class="mb-0">Service Commissions</p>
+                <small>Account: 6015</small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="metric-card expense">
+                <h3 class="mb-0">UGX {{ total_product_commission|floatformat:0|intcomma }}</h3>
+                <p class="mb-0">Product Commissions</p>
+                <small>Account: 6016</small>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="metric-card payable">
+                <h3 class="mb-0">UGX {{ outstanding_commission_payable|floatformat:0|intcomma }}</h3>
+                <p class="mb-0">Outstanding Payable</p>
+                <small>Account: 2110</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commission Breakdown by Account -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">📊 Expense Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="expense-breakdown">
+                        <div class="d-flex justify-content-between">
+                            <span><strong>6015 - Service Commission Expense</strong></span>
+                            <span><strong>UGX {{ total_service_commission|floatformat:0|intcomma }}</strong></span>
+                        </div>
+                        {% if total_commission_expense > 0 %}
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-primary" style="width: {% widthratio total_service_commission total_commission_expense 100 %}%"></div>
+                        </div>
+                        <small class="text-muted">{% widthratio total_service_commission total_commission_expense 100 %}% of total</small>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="expense-breakdown">
+                        <div class="d-flex justify-content-between">
+                            <span><strong>6016 - Product Commission Expense</strong></span>
+                            <span><strong>UGX {{ total_product_commission|floatformat:0|intcomma }}</strong></span>
+                        </div>
+                        {% if total_commission_expense > 0 %}
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-info" style="width: {% widthratio total_product_commission total_commission_expense 100 %}%"></div>
+                        </div>
+                        <small class="text-muted">{% widthratio total_product_commission total_commission_expense 100 %}% of total</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">🏦 Balance Sheet Impact</h5>
+                </div>
+                <div class="card-body">
+                    <div class="expense-breakdown">
+                        <div class="d-flex justify-content-between">
+                            <span><strong>Commission Expense (Income Statement)</strong></span>
+                            <span class="text-danger"><strong>UGX {{ total_commission_expense|floatformat:0|intcomma }}</strong></span>
+                        </div>
+                        <small class="text-muted">Reduces net income</small>
+                    </div>
+                    
+                    <div class="expense-breakdown">
+                        <div class="d-flex justify-content-between">
+                            <span><strong>Commission Payable (Balance Sheet)</strong></span>
+                            <span class="text-warning"><strong>UGX {{ outstanding_commission_payable|floatformat:0|intcomma }}</strong></span>
+                        </div>
+                        <small class="text-muted">Current liability</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Commission Summary -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">👥 Staff Commission Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Staff Member</th>
+                            <th>Service Commission</th>
+                            <th>Product Commission</th>
+                            <th>Total Commission</th>
+                            <th>Paid</th>
+                            <th>Outstanding</th>
+                            <th>Commission Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for summary in staff_commission_summary %}
+                        <tr>
+                            <td><strong>{{ summary.staff.first_name }} {{ summary.staff.last_name }}</strong></td>
+                            <td>UGX {{ summary.service_commission|floatformat:0|intcomma }}</td>
+                            <td>UGX {{ summary.product_commission|floatformat:0|intcomma }}</td>
+                            <td><strong>UGX {{ summary.total_commission|floatformat:0|intcomma }}</strong></td>
+                            <td>
+                                <span class="badge bg-success">UGX {{ summary.total_paid|floatformat:0|intcomma }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning">UGX {{ summary.total_unpaid|floatformat:0|intcomma }}</span>
+                            </td>
+                            <td>
+                                <small>
+                                    Services: {{ summary.service_count }}<br>
+                                    Products: {{ summary.product_count }}
+                                </small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No commission data for selected period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Commission Expenses (Journal Entries) -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">📋 Recent Commission Journal Entries</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Journal Entry</th>
+                            <th>Account</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for expense in commission_expenses %}
+                        <tr>
+                            <td>{{ expense.journal_entry.date|date:"M d, Y" }}</td>
+                            <td>
+                                <a href="#" class="text-decoration-none">
+                                    {{ expense.journal_entry.entry_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ expense.account.account_code }}</span>
+                                {{ expense.account.account_name }}
+                            </td>
+                            <td>{{ expense.description }}</td>
+                            <td><strong>UGX {{ expense.amount|floatformat:0|intcomma }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center">No commission expenses recorded for selected period</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .progress {
+        height: 8px;
+    }
+    
+    .badge {
+        font-size: 0.85em;
+    }
+    
+    .table th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block js %}
+<script src="{% static 'plugins/datatables.net/js/dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script>
+$(document).ready(function() {
+    $('.table').DataTable({
+        pageLength: 25,
+        order: [[0, 'desc']]
+    });
+});
+</script>
+{% endblock %}

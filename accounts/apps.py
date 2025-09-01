@@ -8,3 +8,4 @@ class AccountsConfig(AppConfig):
     
     def ready(self):
         import accounts.signals  # Import signals when app is ready
+        import accounts.commission_signals  # Import commission signals

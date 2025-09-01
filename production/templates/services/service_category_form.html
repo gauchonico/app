@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block css %}
+<style>
+    .form-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .form-card {
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .form-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        text-align: center;
+        position: relative;
+    }
+    
+    .form-header::before {
+        content: '';
+        position: absolute;
+        top: -30px;
+        right: -30px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+    
+    .form-icon {
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin: 0 auto 1rem;
+    }
+    
+    .form-body {
+        padding: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-control {
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .btn-modern {
+        padding: 0.75rem 2rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+    }
+    
+    .btn-primary-modern {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .btn-primary-modern:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+    
+    .btn-secondary-modern {
+        background: #f3f4f6;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+    }
+    
+    .btn-secondary-modern:hover {
+        background: #e5e7eb;
+        color: #374151;
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .examples-box {
+        background: #f0f9ff;
+        border: 1px solid #bae6fd;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .examples-title {
+        font-weight: 600;
+        color: #0c4a6e;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .examples-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .examples-list li {
+        color: #0c4a6e;
+        font-size: 0.875rem;
+        padding: 0.25rem 0;
+    }
+    
+    .examples-list li::before {
+        content: '•';
+        color: #0284c7;
+        margin-right: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'service_list' %}">Services</a></li>
+                    <li class="breadcrumb-item active">{{ title }}</li>
+                </ol>
+            </nav>
+
+            <div class="form-container">
+                <div class="form-card">
+                    <!-- Header -->
+                    <div class="form-header">
+                        <div class="form-icon">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <h2 class="mb-2">{{ title }}</h2>
+                        <p class="mb-0 opacity-75">Organize your services into meaningful categories</p>
+                    </div>
+
+                    <!-- Form -->
+                    <div class="form-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            
+                            <!-- Category Name -->
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.name.id_for_label }}">
+                                    <i class="fas fa-tag me-2"></i>Category Name
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger mt-1">
+                                        {{ form.name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                {% if form.name.help_text %}
+                                    <div class="help-text">{{ form.name.help_text }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Description -->
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.description.id_for_label }}">
+                                    <i class="fas fa-align-left me-2"></i>Description
+                                    <span class="text-muted">(Optional)</span>
+                                </label>
+                                {{ form.description }}
+                                {% if form.description.errors %}
+                                    <div class="text-danger mt-1">
+                                        {{ form.description.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                {% if form.description.help_text %}
+                                    <div class="help-text">{{ form.description.help_text }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Examples Box -->
+                            <div class="examples-box">
+                                <div class="examples-title">
+                                    <i class="fas fa-lightbulb me-2"></i>Category Examples
+                                </div>
+                                <ul class="examples-list">
+                                    <li><strong>Barber Shop</strong> - Hair cuts, beard trimming, shaving</li>
+                                    <li><strong>Nail Bar</strong> - Manicures, pedicures, nail art</li>
+                                    <li><strong>Hair Styling</strong> - Braiding, hair extensions, weaving</li>
+                                    <li><strong>Unplaiting</strong> - Hair unbraiding and takedown services</li>
+                                    <li><strong>Spa Services</strong> - Massages, facials, body treatments</li>
+                                    <li><strong>Makeup</strong> - Bridal makeup, event makeup, lessons</li>
+                                </ul>
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="d-flex justify-content-between align-items-center mt-4">
+                                <a href="{% url 'service_list' %}" class="btn btn-secondary-modern">
+                                    <i class="fas fa-arrow-left me-2"></i>Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary-modern">
+                                    <i class="fas fa-save me-2"></i>{{ button_text }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    // Focus on first input
+    $('#{{ form.name.id_for_label }}').focus();
+    
+    // Auto-resize textarea
+    $('textarea').on('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // Form validation
+    $('form').on('submit', function(e) {
+        const categoryName = $('#{{ form.name.id_for_label }}').val().trim();
+        
+        if (!categoryName) {
+            e.preventDefault();
+            alert('Please enter a category name.');
+            $('#{{ form.name.id_for_label }}').focus();
+            return false;
+        }
+        
+        if (categoryName.length < 2) {
+            e.preventDefault();
+            alert('Category name must be at least 2 characters long.');
+            $('#{{ form.name.id_for_label }}').focus();
+            return false;
+        }
+    });
+    
+    // Add character counter for description
+    const description = $('#{{ form.description.id_for_label }}');
+    const maxLength = 500;
+    
+    if (description.length) {
+        description.after('<div class="help-text" id="char-counter">0 / ' + maxLength + ' characters</div>');
+        
+        description.on('input', function() {
+            const length = $(this).val().length;
+            $('#char-counter').text(length + ' / ' + maxLength + ' characters');
+            
+            if (length > maxLength) {
+                $('#char-counter').addClass('text-danger');
+            } else {
+                $('#char-counter').removeClass('text-danger');
+            }
+        });
+        
+        // Trigger initial count
+        description.trigger('input');
+    }
+});
+</script>
+{% endblock %}

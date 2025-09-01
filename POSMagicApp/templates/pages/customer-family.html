@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% load static %}
+
+{% block title %}Customer Family - {{ customer.name }}{% endblock %}
+
+{% block css %}
+    <style>
+        .family-member-card {
+            transition: transform 0.2s;
+        }
+        .family-member-card:hover {
+            transform: translateY(-2px);
+        }
+        .main-account {
+            border-left: 4px solid #007bff;
+        }
+        .dependent-account {
+            border-left: 4px solid #28a745;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:pageCustomer' %}">CUSTOMERS</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:customer_details' customer.id %}">{{ customer.name }}</a></li>
+            <li class="breadcrumb-item active">FAMILY</li>
+        </ul>
+        <h5>Family: {{ main_account.name }}</h5>
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'DjangoHUDApp:customer_details' customer.id %}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left me-2"></i>Back to Customer
+        </a>
+        {% if not main_account.is_minor and main_account.kyc_verified %}
+        <a href="{% url 'DjangoHUDApp:add_dependent' main_account.id %}" class="btn btn-success">
+            <i class="fas fa-plus me-2"></i>Add Dependent
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Family Statistics -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title"><i class="fas fa-chart-bar me-2"></i>Family Overview</h6>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="h4 mb-1">{{ family_stats.total_members }}</div>
+                        <div class="text-muted">Total Members</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="h4 mb-1">{{ family_stats.adults }}</div>
+                        <div class="text-muted">Adults</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="h4 mb-1">{{ family_stats.minors }}</div>
+                        <div class="text-muted">Minors</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="h4 mb-1">{{ family_stats.verified_members }}</div>
+                        <div class="text-muted">KYC Verified</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Family Members -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-users me-2"></i>Family Members</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for member in family_members %}
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card family-member-card h-100 {% if member == main_account %}main-account{% else %}dependent-account{% endif %}">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="profile-image-container position-relative" style="width: 50px; height: 50px;">
+                                            {% if member.profile_image %}
+                                                <img src="{{ member.profile_image.url }}" alt="{{ member.name }}" 
+                                                     class="rounded-circle" width="50" height="50"
+                                                     style="object-fit: cover;"
+                                                     onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+                                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            {% endif %}
+                                            
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">{{ member.name }}</h6>
+                                        <small class="text-muted">
+                                            {% if member == main_account %}
+                                                <i class="fas fa-crown text-warning me-1"></i>Account Holder
+                                            {% else %}
+                                                <i class="fas fa-link text-success me-1"></i>{{ member.get_relationship_to_guardian_display }}
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+
+                                <!-- Member Details -->
+                                <div class="member-details">
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">Type:</small><br>
+                                            <span class="badge bg-primary">{{ member.get_type_of_customer_display }}</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Status:</small><br>
+                                            {% if member.is_minor %}
+                                                <span class="badge bg-info">Minor</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Adult</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">KYC:</small><br>
+                                            {% if member.kyc_verified %}
+                                                <span class="badge bg-success"><i class="fas fa-check"></i> Verified</span>
+                                            {% else %}
+                                                <span class="badge bg-warning"><i class="fas fa-clock"></i> Pending</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Age:</small><br>
+                                            {% if member.age %}
+                                                <span class="text-muted">{{ member.age }} years</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <!-- Contact Info -->
+                                    <div class="contact-info mt-2">
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-phone fa-xs me-1"></i>{{ member.phone }}
+                                        </small>
+                                        {% if member.email %}
+                                        <small class="text-muted d-block">
+                                            <i class="fas fa-envelope fa-xs me-1"></i>{{ member.email }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="mt-3 d-grid gap-2">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'DjangoHUDApp:customer_details' member.id %}" class="btn btn-outline-primary">
+                                            <i class="fas fa-eye fa-xs"></i> View
+                                        </a>
+                                        <a href="{% url 'DjangoHUDApp:editCustomer' member.id %}" class="btn btn-outline-secondary">
+                                            <i class="fas fa-edit fa-xs"></i> Edit
+                                        </a>
+                                        {% if member != main_account and not member.is_minor and member.kyc_verified %}
+                                        <a href="{% url 'DjangoHUDApp:add_dependent' member.id %}" class="btn btn-outline-success">
+                                            <i class="fas fa-plus fa-xs"></i> Add Dependent
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5>No Family Members Found</h5>
+                            <p class="text-muted">This customer doesn't have any family relationships set up.</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Family Management Info -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6><i class="fas fa-info-circle me-2"></i>Family Account Rules</h6>
+                <ul class="mb-0 small">
+                    <li>Account holders must be adults (18+) with KYC verification</li>
+                    <li>Minors must have a verified adult as their guardian</li>
+                    <li>Services can be purchased for dependents via guardian accounts</li>
+                    <li>Each family has one main account holder</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6><i class="fas fa-cog me-2"></i>Family Management</h6>
+                <ul class="mb-0 small">
+                    <li>Add dependents using the "Add Dependent" button</li>
+                    <li>Transfer guardianship by editing customer details</li>
+                    <li>View individual customer details by clicking "View"</li>
+                    <li>Manage KYC verification through customer edit forms</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    // Add hover effects for family member cards
+    $('.family-member-card').hover(
+        function() {
+            $(this).addClass('shadow');
+        },
+        function() {
+            $(this).removeClass('shadow');
+        }
+    );
+});
+</script>
+{% endblock %}

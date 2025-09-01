@@ -1,0 +1,293 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Dependent{% endblock %}
+
+{% block css %}
+<style>
+    .guardian-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .help-text {
+        font-size: 0.875em;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+    
+    .required-field {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:pageCustomer' %}">CUSTOMERS</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:customer_details' guardian.id %}">{{ guardian.name }}</a></li>
+            <li class="breadcrumb-item active">ADD DEPENDENT</li>
+        </ul>
+        <h5>Add Dependent</h5>
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'DjangoHUDApp:customer_details' guardian.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Customer
+        </a>
+    </div>
+</div>
+
+<!-- Guardian Information -->
+<div class="guardian-info">
+    <div class="row">
+        <div class="col-md-8">
+            <h4 class="mb-1">Adding Dependent to {{ guardian.name }}</h4>
+            <p class="mb-0">
+                <i class="fas fa-user-shield me-2"></i>
+                Guardian Account - {{ guardian.get_type_of_customer_display }}
+                {% if guardian.kyc_verified %}
+                    <span class="badge bg-success ms-2">KYC Verified</span>
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="mb-1"><strong>{{ guardian.phone }}</strong></div>
+            <div>{{ guardian.email }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Dependent Form -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="form-section">
+            <h6 class="mb-3">
+                <i class="fas fa-child me-2"></i>Dependent Information
+            </h6>
+            
+            <form method="post" id="dependentForm">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                First Name <span class="required-field">*</span>
+                            </label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <div class="text-danger">{{ form.first_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Last Name <span class="required-field">*</span>
+                            </label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <div class="text-danger">{{ form.last_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Date of Birth <span class="required-field">*</span>
+                            </label>
+                            {{ form.date_of_birth }}
+                            <div class="help-text">Used to determine age and services available</div>
+                            {% if form.date_of_birth.errors %}
+                                <div class="text-danger">{{ form.date_of_birth.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Sex <span class="required-field">*</span>
+                            </label>
+                            {{ form.sex }}
+                            <div class="help-text">Required for service categorization</div>
+                            {% if form.sex.errors %}
+                                <div class="text-danger">{{ form.sex.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                Relationship <span class="required-field">*</span>
+                            </label>
+                            {{ form.relationship_to_guardian }}
+                            <div class="help-text">Relationship to {{ guardian.name }}</div>
+                            {% if form.relationship_to_guardian.errors %}
+                                <div class="text-danger">{{ form.relationship_to_guardian.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Emergency Contact</label>
+                            {{ form.emergency_contact }}
+                            <div class="help-text">Alternative contact number (optional)</div>
+                            {% if form.emergency_contact.errors %}
+                                <div class="text-danger">{{ form.emergency_contact.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Notes</label>
+                    {{ form.notes }}
+                    <div class="help-text">Any additional information about the dependent</div>
+                    {% if form.notes.errors %}
+                        <div class="text-danger">{{ form.notes.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <!-- Non-field errors -->
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'DjangoHUDApp:customer_details' guardian.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>Add Dependent
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Existing Dependents -->
+        {% if guardian.dependents.all %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Existing Dependents
+                </h6>
+            </div>
+            <div class="card-body">
+                {% for dependent in guardian.dependents.all %}
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                    <div>
+                        <strong>{{ dependent.name }}</strong>
+                        <br><small class="text-muted">{{ dependent.get_relationship_to_guardian_display }}</small>
+                        {% if dependent.age %}
+                            <br><small class="text-muted">{{ dependent.age }} years old</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <a href="{% url 'DjangoHUDApp:customer_details' dependent.id %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Information Box -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Important Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Dependents will use {{ guardian.name }}'s contact information
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Services can be booked under the guardian's account
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        Payment authorization remains with {{ guardian.name }}
+                    </li>
+                    <li class="mb-0">
+                        <i class="fas fa-info text-info me-2"></i>
+                        Dependents cannot make independent purchases
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+// Auto-calculate age from date of birth
+document.getElementById('id_date_of_birth').addEventListener('change', function() {
+    const birthDate = new Date(this.value);
+    const today = new Date();
+    const age = Math.floor((today - birthDate) / (1000 * 60 * 60 * 24 * 365.25));
+    
+    // Show age information
+    const ageInfo = document.createElement('small');
+    ageInfo.className = 'text-info d-block mt-1';
+    ageInfo.textContent = `Age: ${age} years old`;
+    
+    // Remove existing age info
+    const existing = this.parentNode.querySelector('.age-info');
+    if (existing) existing.remove();
+    
+    ageInfo.className += ' age-info';
+    this.parentNode.appendChild(ageInfo);
+});
+
+// Form validation
+document.getElementById('dependentForm').addEventListener('submit', function(e) {
+    const requiredFields = ['first_name', 'last_name', 'date_of_birth', 'sex', 'relationship_to_guardian'];
+    let hasErrors = false;
+    
+    requiredFields.forEach(fieldName => {
+        const field = document.getElementById(`id_${fieldName}`);
+        if (!field.value.trim()) {
+            hasErrors = true;
+            field.classList.add('is-invalid');
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    if (hasErrors) {
+        e.preventDefault();
+        alert('Please fill in all required fields.');
+    }
+});
+</script>
+{% endblock %}

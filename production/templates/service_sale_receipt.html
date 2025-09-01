@@ -1,175 +1,354 @@
-{% extends 'base.html' %}
-{% load static %}
-{% load humanize %}
-
-{% block content %}
-<div class="container my-4">
-    <div class="card">
-        <div class="card-body">
-            <!-- Receipt Header -->
-            <div class="row mb-4">
-                <div class="col-6">
-                    <img src="{% static 'media/logo.png' %}" alt="Company Logo" style="max-height: 100px;">
-                    <img src="{{ MEDIA_URL }}4.png" alt="Company Logo" style="max-height: 100px;">
-                </div>
-                <div class="col-6 text-end">
-                    <h4 class="mb-0">SALES RECEIPT</h4>
-                    <p class="mb-1">#{{ sale.service_sale_number }}</p>
-                    <p class="mb-1">Date: {{ sale.sale_date|date:"d/m/Y H:i" }}</p>
-                </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt #{{ sale.service_sale_number|default:sale.id }}</title>
+    <style>
+        /* Thermal Receipt Printer Styles */
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.2;
+            margin: 0;
+            padding: 10px;
+            background: white;
+            color: black;
+            width: 58mm; /* Standard thermal receipt width */
+            max-width: 58mm;
+        }
+        
+        .receipt {
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .center {
+            text-align: center;
+        }
+        
+        .bold {
+            font-weight: bold;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 1px dashed black;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+        }
+        
+        .company-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .company-info {
+            font-size: 10px;
+            line-height: 1.1;
+        }
+        
+        .section {
+            margin: 8px 0;
+            padding: 3px 0;
+        }
+        
+        .dashed-line {
+            border-top: 1px dashed black;
+            margin: 5px 0;
+        }
+        
+        .customer-info {
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+        
+        .receipt-meta {
+            font-size: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .items-table {
+            width: 100%;
+            font-size: 11px;
+        }
+        
+        .item-row {
+            margin-bottom: 3px;
+        }
+        
+        .item-name {
+            font-weight: bold;
+        }
+        
+        .item-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1px;
+        }
+        
+        .item-qty-price {
+            font-size: 10px;
+        }
+        
+        .totals {
+            border-top: 1px dashed black;
+            padding-top: 5px;
+            margin-top: 8px;
+        }
+        
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        
+        .grand-total {
+            font-weight: bold;
+            font-size: 13px;
+            border-top: 1px solid black;
+            padding-top: 3px;
+            margin-top: 3px;
+        }
+        
+        .payment-section {
+            margin-top: 8px;
+            font-size: 10px;
+        }
+        
+        .status {
+            text-align: center;
+            font-weight: bold;
+            margin: 8px 0;
+            padding: 3px;
+            border: 1px solid black;
+        }
+        
+        .footer {
+            text-align: center;
+            font-size: 10px;
+            margin-top: 10px;
+            border-top: 1px dashed black;
+            padding-top: 5px;
+        }
+        
+        /* Print styles */
+        @media print {
+            body {
+                width: 58mm;
+                font-size: 11px;
+                margin: 0;
+                padding: 5px;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            @page {
+                size: 58mm auto;
+                margin: 0;
+            }
+        }
+        
+        /* Screen view adjustments */
+        @media screen {
+            body {
+                max-width: 300px;
+                margin: 20px auto;
+                padding: 20px;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .print-button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Button (hidden in print) -->
+    <button class="print-button no-print" onclick="window.print()">🖨️ Print</button>
+    
+    <div class="receipt">
+        <!-- Header -->
+        <div class="header">
+            <div class="company-name">LIVARA</div>
+            <div class="company-info">
+                www.mylivara.com<br>
+                care@mylivara.com<br>
+                Tel: 0756-964-656 (Ntinda)<br>
+                0758-581-440 (Kyanja)<br>
+                0751-944-635 (Mutaasa K.)<br>
+                0751-944-564 (Kansanga)<br>
+                0759-034-151 (Bugolobi)<br>
+                0752-066-748 (Mbarara)<br>
+                +1-480-468-4543 (USA)
             </div>
-
-            <!-- Customer Details -->
-            <div class="row mb-4">
-                <div class="col-6">
-                    <h6 class="mb-2">Customer Details:</h6>
-                    <p class="mb-1"><strong>Name:</strong> {{ sale.customer.name }}</p>
-                    <p class="mb-1"><strong>Phone:</strong> {{ sale.customer.phone_number }}</p>
-                </div>
-                <div class="col-6 text-end">
-                    <h6 class="mb-2">Store Details:</h6>
-                    <p class="mb-1">{{ sale.store.name }}</p>
-                    <p class="mb-1">{{ sale.store.address }}</p>
-                    <p class="mb-1">Tel: {{ sale.store.phone_number }}</p>
-                </div>
-            </div>
-
-            <!-- Services Table -->
-            {% if sale.service_sale_items.exists %}
-            <h6 class="mb-3">Services</h6>
-            <table class="table table-bordered mb-4">
-                <thead class="table-light">
-                    <tr>
-                        <th>Service</th>
-                        <th>Staff</th>
-                        <th class="text-end">Price</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in sale.service_sale_items.all %}
-                    <tr>
-                        <td>{{ item.service.service.name }}</td>
-                        <td>
-                            {% for staff in item.staff.all %}
-                                {{ staff.first_name }}{% if not forloop.last %}, {% endif %}
-                            {% endfor %}
-                        </td>
-                        <td class="text-end">{{ item.total_price|floatformat|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        </div>
+        
+        <!-- Customer Info -->
+        <div class="customer-info">
+            <div class="bold">Customer:</div>
+            <div>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</div>
+            {% if sale.customer.phone %}
+            <div>Phone: {{ sale.customer.phone }}</div>
             {% endif %}
-
-            <!-- Products Table -->
-            {% if sale.product_sale_items.exists %}
-            <h6 class="mb-3">Products Purchased</h6>
-            <table class="table table-bordered mb-4">
-                <thead class="table-light">
-                    <tr>
-                        <th>Product</th>
-                        <th class="text-center">Quantity</th>
-                        <th class="text-end">Unit Price</th>
-                        <th class="text-end">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in sale.product_sale_items.all %}
-                    <tr>
-                        <td>{{ item.product.product.product_name }}</td>
-                        <td class="text-center">{{ item.quantity }}</td>
-                        <td class="text-end">{{ item.calculate_price|floatformat|intcomma }}</td>
-                        <td class="text-end">{{ item.total_price|floatformat|intcomma }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            {% if sale.customer.email %}
+            <div>Email: {{ sale.customer.email }}</div>
             {% endif %}
-
-            <!-- Payment Summary -->
-            <div class="row justify-content-end">
-                <div class="col-md-5">
-                    <table class="table table-borderless">
-                        <tr>
-                            <td><strong>Subtotal:</strong></td>
-                            <td class="text-end">{{ subtotal|floatformat|intcomma }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Total Amount:</strong></td>
-                            <td class="text-end"><strong>{{ sale.total_amount|floatformat|intcomma }}</strong></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Amount Paid:</strong></td>
-                            <td class="text-end">{{ sale.paid_amount|floatformat|intcomma }}</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Balance:</strong></td>
-                            <td class="text-end">{{ sale.balance|floatformat|intcomma }}</td>
-                        </tr>
-                    </table>
+        </div>
+        
+        <!-- Receipt Meta -->
+        <div class="receipt-meta">
+            <div>Store: {{ sale.store.name }}</div>
+            <div>Receipt #: {{ sale.service_sale_number|default:sale.id }}</div>
+            <div>Date: {{ sale.sale_date|date:"d/m/Y H:i" }}</div>
+            {% if sale.invoiced_at %}
+            <div>Invoiced: {{ sale.invoiced_at|date:"d/m/Y H:i" }}</div>
+            {% endif %}
+            <div>Staff: {{ sale.store.manager.first_name }} {{ sale.store.manager.last_name }}</div>
+        </div>
+        
+        <div class="dashed-line"></div>
+        
+        <!-- Items -->
+        <div class="items-section">
+            {% if service_items %}
+                {% for item in service_items %}
+                <div class="item-row">
+                    <div class="item-name">{{ item.service.service.name }}</div>
+                    <div class="item-details">
+                        <span class="item-qty-price">{{ item.quantity }} x {{ item.service.service.price|floatformat:0 }}</span>
+                        <span class="bold">{{ item.total_price|floatformat:0 }}</span>
+                    </div>
+                    <div style="font-size: 9px; color: #666;">Service</div>
+                    {% if item.staff.all %}
+                    <div style="font-size: 9px; color: #666;">
+                        Staff: {% for staff in item.staff.all %}{{ staff.first_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if product_items %}
+                {% for item in product_items %}
+                <div class="item-row">
+                    <div class="item-name">{{ item.product.product.product_name }}</div>
+                    <div class="item-details">
+                        <span class="item-qty-price">{{ item.quantity }} x {{ item.unit_price|floatformat:0 }}</span>
+                        <span class="bold">{{ item.total_price|floatformat:0 }}</span>
+                    </div>
+                    <div style="font-size: 9px; color: #666;">Product</div>
+                    {% if item.price_group %}
+                    <div style="font-size: 9px; color: #666;">{{ item.price_group.name }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% endif %}
+            
+            {% if accessory_items %}
+                {% for item in accessory_items %}
+                <div class="item-row">
+                    <div class="item-name">{{ item.accessory.accessory.name }}</div>
+                    <div class="item-details">
+                        <span class="item-qty-price">{{ item.quantity }} x {{ item.price|floatformat:0 }}</span>
+                        <span class="bold">{{ item.total_price|floatformat:0 }}</span>
+                    </div>
+                    <div style="font-size: 9px; color: #666;">Accessory</div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        
+        <!-- Totals -->
+        <div class="totals">
+            <div class="total-line grand-total">
+                <span>TOTAL:</span>
+                <span>UGX {{ subtotal|floatformat:0 }}</span>
             </div>
-
-            <!-- Payment Methods -->
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <h6 class="mb-2">Payment Methods:</h6>
-                    {% for payment in sale.payments.all %}
-                    <p class="mb-1">
-                        {{ payment.get_payment_method_display }}: {{ payment.amount|floatformat|intcomma }}
-                        {% if payment.remarks %}
-                        <small class="text-muted">({{ payment.remarks }})</small>
+            
+            {% if payments %}
+            <div class="dashed-line"></div>
+            <div class="payment-section">
+                <div class="bold" style="margin-bottom: 3px;">PAYMENTS:</div>
+                {% for payment in payments %}
+                <div class="total-line">
+                    <span>{{ payment.payment_method|title }} ({{ payment.payment_date|date:"d/m/Y" }})</span>
+                    <span>{{ payment.amount|floatformat:0 }}</span>
+                </div>
+                {% endfor %}
+                
+                <div class="dashed-line"></div>
+                <div class="total-line bold">
+                    <span>
+                        {% if balance_due > 0 %}
+                            BALANCE DUE:
+                        {% elif balance_due == 0 %}
+                            PAID IN FULL
+                        {% else %}
+                            OVERPAID:
                         {% endif %}
-                    </p>
-                    {% endfor %}
+                    </span>
+                    <span>
+                        {% if balance_due != 0 %}
+                            UGX {{ balance_due|floatformat:0 }}
+                        {% endif %}
+                    </span>
                 </div>
             </div>
-
-            <!-- Footer -->
-            <div class="row mt-5">
-                <div class="col-12 text-center">
-                    <p class="mb-0">Thank you for your business!</p>
-                    <small class="text-muted">For any queries, please contact us at {{ sale.store.phone_number }}</small>
-                </div>
+            {% else %}
+            <div class="total-line bold">
+                <span>AMOUNT DUE:</span>
+                <span>UGX {{ subtotal|floatformat:0 }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Status -->
+        <div class="status">
+            {% if sale.invoice_status == 'cancelled' %}
+                *** CANCELLED ***
+            {% elif sale.paid_status == 'paid' %}
+                *** PAID ***
+            {% elif sale.invoice_status == 'invoiced' %}
+                *** AWAITING PAYMENT ***
+            {% else %}
+                *** PENDING ***
+            {% endif %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="bold">Thank you for choosing LIVARA!</div>
+            <div>Follow us on social media</div>
+            <div>for beauty tips and updates</div>
+            <br>
+            <div style="font-size: 9px;">
+                Generated: {{ "now"|date:"d/m/Y H:i:s" }}
             </div>
         </div>
     </div>
-
-    <!-- Print Button -->
-    <div class="text-center mt-3">
-        <button onclick="window.print()" class="btn btn-primary">
-            <i class="fas fa-print"></i> Print Receipt
-        </button>
-    </div>
-</div>
-
-<style>
-    @media print {
-        .btn, .navbar, footer {
-            display: none !important;
-        }
-        .card {
-            border: none !important;
-            box-shadow: none !important;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 100% !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 15px !important;
-        }
-    }
     
-    .table th {
-        background-color: #f8f9fa !important;
-    }
-    
-    .table-borderless td {
-        padding: 0.3rem;
-    }
-</style>
-{% endblock %} 
+    <script>
+        // Auto-focus for immediate printing if needed
+        // Uncomment the line below if you want to auto-print when page loads
+        // window.onload = function() { window.print(); };
+    </script>
+</body>
+</html>

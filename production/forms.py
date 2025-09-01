@@ -1285,15 +1285,17 @@ class PaymentForm(forms.Form):
         ('mobile_money', 'Mobile Money'),
         ('airtel_money', 'Airtel Money'),
         ('visa', 'Visa'),
+        ('bank_transfer', 'Bank Transfer'),
         ('mixed', 'Mixed'),
     ]
 
     payment_method = forms.ChoiceField(choices=PAYMENT_METHOD_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
     amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Total Amount'}), required=False)
     cash_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Cash Amount'}), required=False)
-    mobile_money_amount = forms.DecimalField(label='MTM MOMO',widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Momo Pay'}), required=False)
+    mobile_money_amount = forms.DecimalField(label='MTN MOMO',widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'MTN Mobile Money'}), required=False)
     airtel_money_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Airtel Money Amount'}), required=False)
-    visa_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Visa Amount'}), required=False)
+    visa_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Visa/Card Amount'}), required=False)
+    bank_transfer_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Bank Transfer Amount'}), required=False)
     remarks = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Remarks'}), required=False)
 
     def __init__(self, *args, sale_balance=None, **kwargs):
@@ -1318,12 +1320,13 @@ class PaymentForm(forms.Form):
         
         # Mixed payment validation
         if payment_method == 'mixed':
-            total_mixed = cash_amount + mobile_money_amount + airtel_money_amount + visa_amount
+            bank_transfer_amount = cleaned_data.get('bank_transfer_amount') or 0
+            total_mixed = cash_amount + mobile_money_amount + airtel_money_amount + visa_amount + bank_transfer_amount
             if total_mixed > self.sale_balance:
                 raise forms.ValidationError(
                     f"Total mixed payment ({total_mixed}) exceeds the remaining balance ({self.sale_balance})."
                 )
-        elif payment_method in ['cash', 'mobile_money', 'airtel_money', 'visa']:
+        elif payment_method in ['cash', 'mobile_money', 'airtel_money', 'visa', 'bank_transfer']:
             amount = cleaned_data.get('amount') or 0
             if amount > self.sale_balance:
                 raise forms.ValidationError(
@@ -1406,11 +1409,38 @@ class StoreWriteOffForm(forms.ModelForm):
 class ServiceNameForm(forms.ModelForm):
     class Meta:
         model = ServiceName
-        fields = ['name', 'price']
+        fields = ['name', 'service_category', 'price']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'price': forms.NumberInput(attrs={'class': 'form-control'})
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter service name'}),
+            'service_category': forms.Select(attrs={'class': 'form-control'}),
+            'price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'})
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['service_category'].queryset = ServiceCategory.objects.all().order_by('name')
+        self.fields['service_category'].empty_label = "Select Category"
+        
+        # Add help text
+        self.fields['name'].help_text = "Name of the service (e.g., Hair Cut, Manicure)"
+        self.fields['service_category'].help_text = "Category this service belongs to"
+        self.fields['price'].help_text = "Base price for this service"
+
+
+class ServiceCategoryForm(forms.ModelForm):
+    class Meta:
+        model = ServiceCategory
+        fields = ['name', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Barber Shop, Nail Bar, Hair Styling'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Brief description of this service category'})
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].help_text = "Category name (e.g., Barber Shop, Nail Bar, Unplaiting)"
+        self.fields['description'].help_text = "Optional description of what services this category includes"
+
 
 class StoreServiceForm(forms.ModelForm):
     class Meta:

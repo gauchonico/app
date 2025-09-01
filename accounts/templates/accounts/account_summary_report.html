@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Account Summary - {{ account.account_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:accounting_dashboard' %}">ACCOUNTING</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:chart_of_accounts_list' %}">CHART OF ACCOUNTS</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:account_ledger_details' account.id %}">{{ account.account_code }}</a></li>
+                        <li class="breadcrumb-item active">SUMMARY</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Account Summary Report
+                    </h1>
+                </div>
+                <div class="ms-auto">
+                    <div class="btn-group">
+                        <a href="{% url 'accounts:account_ledger_details' account.id %}" class="btn btn-outline-primary">
+                            <i class="fas fa-book me-1"></i>View Ledger
+                        </a>
+                        <a href="{% url 'accounts:chart_of_accounts_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Info -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h2 class="text-primary">{{ account.account_code }} - {{ account.account_name }}</h2>
+                    <p class="text-muted">Summary for period: {{ start_date|date:"M d, Y" }} to {{ end_date|date:"M d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Trend -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Monthly Activity Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if monthly_summary %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Total Debits</th>
+                                    <th>Total Credits</th>
+                                    <th>Net Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for month_data in monthly_summary %}
+                                <tr>
+                                    <td><strong>{{ month_data.month }}</strong></td>
+                                    <td class="text-info">UGX {{ month_data.total_debits|default:0|floatformat:0|intcomma }}</td>
+                                    <td class="text-success">UGX {{ month_data.total_credits|default:0|floatformat:0|intcomma }}</td>
+                                    <td>
+                                        {% with net=month_data.total_debits|default:0|sub:month_data.total_credits|default:0 %}
+                                            <span class="{% if net >= 0 %}text-info{% else %}text-success{% endif %}">
+                                                UGX {{ net|floatformat:0|intcomma }}
+                                            </span>
+                                        {% endwith %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No monthly data available</h5>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Large Transactions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Largest Transactions (Over UGX 100,000)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if large_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reference</th>
+                                    <th>Description</th>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in large_transactions %}
+                                <tr>
+                                    <td>{{ transaction.journal_entry.date|date:"M d, Y" }}</td>
+                                    <td><code>{{ transaction.journal_entry.reference }}</code></td>
+                                    <td>{{ transaction.description }}</td>
+                                    <td>
+                                        <span class="badge {% if transaction.entry_type == 'debit' %}bg-info{% else %}bg-success{% endif %}">
+                                            {{ transaction.entry_type|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong class="{% if transaction.entry_type == 'debit' %}text-info{% else %}text-success{% endif %}">
+                                            UGX {{ transaction.amount|floatformat:0|intcomma }}
+                                        </strong>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No large transactions found</h5>
+                        <p class="text-muted">All transactions are under UGX 100,000</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

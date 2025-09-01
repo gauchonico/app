@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Service Sales Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:accounting_dashboard' %}">ACCOUNTING</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'accounts:unified_service_sales_dashboard' %}">SERVICE SALES</a></li>
+                        <li class="breadcrumb-item active">ANALYTICS</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Service Sales Analytics
+                    </h1>
+                    <p class="text-muted">Period: {{ start_date|date:"M d, Y" }} to {{ end_date|date:"M d, Y" }}</p>
+                </div>
+                <div class="ms-auto">
+                    <a href="{% url 'accounts:unified_service_sales_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>Update Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue vs Collection -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Revenue vs Collection Analysis
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-primary">UGX {{ revenue_vs_collection.total_invoiced|floatformat:0|intcomma }}</h4>
+                                <p class="text-muted mb-0">Total Invoiced</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-success">UGX {{ revenue_vs_collection.total_collected|floatformat:0|intcomma }}</h4>
+                                <p class="text-muted mb-0">Total Collected</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-warning">UGX {{ revenue_vs_collection.pending_collection|floatformat:0|intcomma }}</h4>
+                                <p class="text-muted mb-0">Pending Collection</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <h4 class="text-info">{{ revenue_vs_collection.collection_rate|floatformat:1 }}%</h4>
+                                <p class="text-muted mb-0">Collection Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Progress bar for collection rate -->
+                    <div class="mt-3">
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ revenue_vs_collection.collection_rate }}%" 
+                                 aria-valuenow="{{ revenue_vs_collection.collection_rate }}" 
+                                 aria-valuemin="0" aria-valuemax="100">
+                                {{ revenue_vs_collection.collection_rate|floatformat:1 }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Performance & Daily Trends -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-store me-2"></i>Store Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Store</th>
+                                    <th>Sales</th>
+                                    <th>Revenue</th>
+                                    <th>Avg Sale</th>
+                                    <th>Conversion</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for store in store_performance %}
+                                <tr>
+                                    <td><strong>{{ store.store__name }}</strong></td>
+                                    <td>{{ store.total_sales }}</td>
+                                    <td>UGX {{ store.total_revenue|floatformat:0|intcomma }}</td>
+                                    <td>UGX {{ store.avg_sale_value|floatformat:0|intcomma }}</td>
+                                    <td>
+                                        <span class="badge {% if store.conversion_rate >= 80 %}bg-success{% elif store.conversion_rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ store.conversion_rate|floatformat:1 }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Payment Methods
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for method in payment_methods %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong>{{ method.payment_mode|default:"Not Specified"|title }}</strong>
+                            <br><small class="text-muted">{{ method.count }} transaction{{ method.count|pluralize }}</small>
+                        </div>
+                        <div class="text-end">
+                            <strong>UGX {{ method.revenue|floatformat:0|intcomma }}</strong>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Sales Trend -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Daily Sales Trend
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailySalesChart" width="400" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Customers -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>Top Repeat Customers
+                        <small class="text-muted">(Multiple visits in period)</small>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if customer_metrics %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Contact</th>
+                                    <th>Visits</th>
+                                    <th>Total Spent</th>
+                                    <th>Avg per Visit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for customer in customer_metrics %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ customer.customer__first_name }} {{ customer.customer__last_name }}</strong>
+                                    </td>
+                                    <td>{{ customer.customer__phone }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ customer.visits }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>UGX {{ customer.total_spent|floatformat:0|intcomma }}</strong>
+                                    </td>
+                                    <td>
+                                        UGX {{ customer.avg_spend|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No repeat customers found</h5>
+                        <p class="text-muted">No customers made multiple visits in this period.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Daily Sales Chart
+    const ctx = document.getElementById('dailySalesChart').getContext('2d');
+    
+    const dailyData = [
+        {% for day in daily_sales %}
+        {
+            date: '{{ day.day }}',
+            sales: {{ day.daily_count|default:0 }},
+            revenue: {{ day.daily_revenue|default:0 }}
+        },
+        {% endfor %}
+    ];
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dailyData.map(d => d.date),
+            datasets: [{
+                label: 'Sales Count',
+                data: dailyData.map(d => d.sales),
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y'
+            }, {
+                label: 'Revenue (UGX)',
+                data: dailyData.map(d => d.revenue),
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Sales Count'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Revenue (UGX)'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Commission Report{% endblock %}
+
+{% block css %}
+<style>
+    .commission-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .staff-section {
+        margin-bottom: 30px;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .staff-header {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #495057;
+    }
+    
+    .commission-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .commission-table th,
+    .commission-table td {
+        padding: 8px 15px;
+        text-align: left;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .commission-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .commission-table td {
+        color: #6c757d;
+    }
+    
+    .amount-cell {
+        text-align: right;
+        font-weight: 600;
+        color: #28a745;
+    }
+    
+    .staff-total {
+        background: #e9ecef;
+        font-weight: bold;
+        color: #495057;
+    }
+    
+    .staff-total .amount-cell {
+        color: #007bff;
+        font-size: 1.1em;
+    }
+    
+    .grand-total {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 1.3em;
+        font-weight: bold;
+        margin-top: 30px;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .no-commissions {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        
+        .staff-section {
+            page-break-inside: avoid;
+        }
+        
+        .commission-header {
+            background: #333 !important;
+            -webkit-print-color-adjust: exact;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3 no-print">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">REPORTS</a></li>
+            <li class="breadcrumb-item active">COMMISSION REPORT</li>
+        </ul>
+        <h5>Commission Report</h5>
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'saved_commission_reports_list' %}" class="btn btn-info me-2">
+            <i class="fas fa-archive me-2"></i>Saved Reports
+        </a>
+        <button onclick="window.print()" class="btn btn-success">
+            <i class="fas fa-print me-2"></i>Print Report
+        </button>
+    </div>
+</div>
+
+<!-- Report Header -->
+<div class="commission-header">
+    <div class="row">
+        <div class="col-md-8">
+            <h4 class="mb-1">
+                {% if report_name %}
+                    {{ report_name }}
+                {% else %}
+                    {{ period_name }} Commission Report
+                {% endif %}
+            </h4>
+            <p class="mb-0">
+                <i class="fas fa-calendar me-2"></i>
+                Period: {{ start_date }} to {{ end_date }}
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <h3 class="mb-0">UGX {{ total_all_commissions|floatformat:2|intcomma }}</h3>
+            <small>Total Commissions</small>
+        </div>
+    </div>
+</div>
+
+<!-- Filters Section -->
+<div class="filter-section no-print">
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">End Date</label>
+            <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Select Staff</label>
+            <select name="staff_id" class="form-control">
+                <option value="">All Staff</option>
+                {% for staff in all_staff %}
+                    <option value="{{ staff.id }}" {% if staff.id == selected_staff_id %}selected{% endif %}>
+                        {{ staff.first_name }} {{ staff.last_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Report Name (Optional)</label>
+            <input type="text" name="report_name" class="form-control" 
+                   placeholder="e.g., September Report" value="{{ report_name }}">
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search me-2"></i>Generate Report
+            </button>
+            <a href="{% url 'commission_report_view' %}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-refresh me-2"></i>Reset
+            </a>
+            <button type="button" class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#saveReportModal">
+                <i class="fas fa-save me-2"></i>Save Report
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Commission Data -->
+{% if staff_commission_data %}
+    {% for staff_data in staff_commission_data %}
+    <div class="staff-section">
+        <div class="staff-header">
+            {{ staff_data.staff.first_name }} {{ staff_data.staff.last_name }} Commission
+        </div>
+        
+        <table class="commission-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Date</th>
+                    <th style="width: 20%;">Commission</th>
+                    <th style="width: 15%;">Sale Ref</th>
+                    <th style="width: 15%;">Type</th>
+                    <th style="width: 35%;">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in staff_data.entries %}
+                <tr>
+                    <td>{{ entry.date|date:"d/m/Y" }}</td>
+                    <td class="amount-cell">{{ entry.commission|floatformat:2|intcomma }}</td>
+                    <td>
+                        {% if entry.sale_type == 'service' %}
+                            <a href="{% url 'service_sale_details' entry.sale_id %}" target="_blank" class="text-decoration-none">
+                                {{ entry.sale_ref }} <i class="fas fa-external-link-alt fa-xs"></i>
+                            </a>
+                        {% else %}
+                            <a href="#" class="text-decoration-none" onclick="alert('Product sale details not available')">
+                                {{ entry.sale_ref }}
+                            </a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-{% if entry.type == 'Service' %}primary{% else %}info{% endif %}">
+                            {{ entry.type }}
+                        </span>
+                    </td>
+                    <td>{{ entry.details }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="staff-total">
+                    <td><strong>TOTAL for {{ staff_data.staff.first_name }}</strong></td>
+                    <td class="amount-cell"><strong>{{ staff_data.total|floatformat:2|intcomma }}</strong></td>
+                    <td colspan="3"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+    
+    <!-- Grand Total -->
+    <div class="grand-total">
+        <i class="fas fa-calculator me-3"></i>
+        TOTAL AMOUNT TO PAY: UGX {{ total_all_commissions|floatformat:2|intcomma }}
+    </div>
+    
+{% else %}
+    <div class="no-commissions">
+        <i class="fas fa-info-circle fa-3x mb-3 text-muted"></i>
+        <h4>No Commissions Found</h4>
+        <p>No commission data found for the selected period and criteria.</p>
+        <p>Try adjusting the date range or selecting a different staff member.</p>
+    </div>
+{% endif %}
+
+<!-- Save Report Modal -->
+<div class="modal fade" id="saveReportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Save Commission Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'save_commission_report' %}">
+                {% csrf_token %}
+                <input type="hidden" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+                <input type="hidden" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+                <input type="hidden" name="staff_id" value="{{ selected_staff_id|default:'' }}">
+                
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Report Name</label>
+                        <input type="text" name="report_name" class="form-control" 
+                               placeholder="e.g., September 2025 Commission Report" required
+                               value="{{ report_name|default:period_name }} Commission Report">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea name="description" class="form-control" rows="3" 
+                                  placeholder="Additional notes about this report..."></textarea>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This will save the current report data for future reference.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-2"></i>Save Report
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+// Auto-submit form when staff selection changes (for better UX)
+document.querySelector('select[name="staff_id"]').addEventListener('change', function() {
+    if (this.value !== '') {
+        this.form.submit();
+    }
+});
+
+// Format the report name based on the period
+document.querySelector('input[name="report_name"]').addEventListener('focus', function() {
+    if (!this.value) {
+        const period = '{{ period_name }}';
+        this.value = period + ' Commission Report';
+    }
+});
+</script>
+{% endblock %}

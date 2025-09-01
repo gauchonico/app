@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Customer Analytics Dashboard{% endblock %}
+
+{% block css %}
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .metric-card.success {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .metric-card.warning {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    
+    .metric-card.info {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
+    }
+    
+    .segment-card {
+        border-left: 4px solid;
+        padding: 15px;
+        margin-bottom: 10px;
+        {% comment %} background: #f8f9fa; {% endcomment %}
+    }
+    
+    .segment-card.vip { border-left-color: #28a745; }
+    .segment-card.premium { border-left-color: #ffc107; }
+    .segment-card.regular { border-left-color: #17a2b8; }
+    .segment-card.new { border-left-color: #6c757d; }
+    
+    .customer-rank {
+        display: inline-block;
+        width: 30px;
+        height: 30px;
+        line-height: 30px;
+        text-align: center;
+        border-radius: 50%;
+        font-weight: bold;
+        margin-right: 10px;
+    }
+    
+    .rank-1 { background: #FFD700; color: #333; }
+    .rank-2 { background: #C0C0C0; color: #333; }
+    .rank-3 { background: #CD7F32; color: white; }
+    .rank-other { background: #e9ecef; color: #333; }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    
+    .search-info {
+        background: linear-gradient(45deg, #e3f2fd, #f3e5f5);
+        border-left: 4px solid #2196f3;
+    }
+    
+    .badge.bg-success {
+        font-size: 0.7em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">ANALYTICS</a></li>
+            <li class="breadcrumb-item active">CUSTOMER DASHBOARD</li>
+        </ul>
+        <h5>Customer Analytics Dashboard</h5>
+        <small class="text-muted">
+            <i class="fas fa-calendar me-1"></i>
+            Showing data from {{ start_date }} to {{ end_date }}
+        </small>
+    </div>
+</div>
+
+<!-- Date Range and Customer Search Filter -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-filter me-2"></i>Filters & Search</h6>
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Search Customer</label>
+                        <input type="text" name="customer_search" class="form-control" 
+                               placeholder="Search by name or phone..." 
+                               value="{{ customer_search|default:'' }}">
+                        <small class="text-muted">Search by first name, last name, or phone number</small>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="d-grid w-100">
+                            <button type="submit" class="btn btn-primary mb-2">
+                                <i class="fas fa-search me-1"></i>Filter
+                            </button>
+                            <a href="{% url 'customer_analytics_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-times me-1"></i>Reset
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="metric-card">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 class="mb-0">{{ total_customers }}</h3>
+                    <p class="mb-0">Total Customers</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="bi bi-people" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="metric-card success">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 class="mb-0">UGX {{ total_revenue|floatformat:0|intcomma }}</h3>
+                    <p class="mb-0">Total Revenue</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="bi bi-currency-exchange" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="metric-card warning">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 class="mb-0">UGX {{ avg_customer_value|floatformat:0|intcomma }}</h3>
+                    <p class="mb-0">Avg Customer Value</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="bi bi-graph-up" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="metric-card info">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <h3 class="mb-0">{{ retention_rate|floatformat:1 }}%</h3>
+                    <p class="mb-0">Customer Retention</p>
+                </div>
+                <div class="align-self-center">
+                    <i class="bi bi-arrow-repeat" style="font-size: 2rem;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Segmentation -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Customer Segments</h5>
+            </div>
+            <div class="">
+                {% for segment, data in segment_summary.items %}
+                <div class="segment-card {{ segment|lower }}">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong>{{ segment }}</strong>
+                            <br><small>{{ data.count }} customer{{ data.count|pluralize }}</small>
+                        </div>
+                        <div class="text-end">
+                            <strong>UGX {{ data.revenue|floatformat:0|intcomma }}</strong>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Customer Insights</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-success">{{ repeat_customers }}</h4>
+                        <small class="text-muted">Repeat Customers</small>
+                        <br><small class="text-muted">(2+ orders)</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-info">{{ recent_new_customers }}</h4>
+                        <small class="text-muted">New This Month</small>
+                    </div>
+                </div>
+                
+                {% if customer_search %}
+                <div class="alert search-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Search Results:</strong> Showing customers matching "{{ customer_search }}"
+                    <a href="{% url 'customer_analytics_dashboard' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}" class="ms-2 text-decoration-none">
+                        <i class="fas fa-times"></i> Clear search
+                    </a>
+                </div>
+                {% endif %}
+                
+                <hr>
+                
+                <div class="mb-3">
+                    <strong>Popular Services</strong>
+                    {% for service in popular_services|slice:":5" %}
+                    <div class="d-flex justify-content-between mt-2">
+                        <span>{{ service.service__service__name|truncatechars:30 }}</span>
+                        <span class="badge bg-primary">{{ service.customer_count }} customers</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Customers Table -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">🏆 Top Customers</h5>
+                <small class="text-muted">
+                    Ranked by composite score: 70% spending + 30% order frequency
+                </small>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Customer</th>
+                                <th>Segment</th>
+                                <th>Total Spent</th>
+                                <th>Orders</th>
+                                <th>Avg Order</th>
+                                <th>Score</th>
+                                <th>Last Purchase</th>
+                                <th>Outstanding</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in top_customers %}
+                            <tr>
+                                <td>
+                                    <span class="customer-rank {% if forloop.counter <= 3 %}rank-{{ forloop.counter }}{% else %}rank-other{% endif %}">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
+                                    {% if customer.phone %}
+                                        <br><small class="text-muted">{{ customer.phone }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ customer.segment_class }}">
+                                        {{ customer.segment }}
+                                    </span>
+                                </td>
+                                <td><strong>UGX {{ customer.total_spent|floatformat:0|intcomma }}</strong></td>
+                                <td>
+                                    {{ customer.total_orders }}
+                                    {% if customer.is_repeat_customer %}
+                                        <span class="badge bg-success ms-1">Repeat</span>
+                                    {% endif %}
+                                    {% if customer.unique_purchase_days > 1 %}
+                                        <br><small class="text-muted">({{ customer.unique_purchase_days }} days)</small>
+                                    {% endif %}
+                                </td>
+                                <td>UGX {{ customer.avg_order_value|floatformat:0|intcomma }}</td>
+                                <td>
+                                    <strong>{{ customer.ranking_score|floatformat:0|intcomma }}</strong>
+                                    <br><small class="text-muted">{{ customer.purchase_frequency|floatformat:1 }}/month</small>
+                                </td>
+                                <td>
+                                    {% if customer.last_purchase %}
+                                        {{ customer.last_purchase|date:"M d, Y" }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if customer.outstanding_balance %}
+                                        <span class="text-danger">UGX {{ customer.outstanding_balance|floatformat:0|intcomma }}</span>
+                                    {% else %}
+                                        <span class="text-success">Paid</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Trends Chart -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">📈 Monthly Sales Trends</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="monthlyTrendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Monthly trends chart
+    const monthlyData = {{ monthly_sales|safe }};
+    const ctx = document.getElementById('monthlyTrendsChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(item => item.month),
+            datasets: [{
+                label: 'Revenue (UGX)',
+                data: monthlyData.map(item => item.total_sales),
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Unique Customers',
+                data: monthlyData.map(item => item.customer_count),
+                borderColor: '#f093fb',
+                backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                tension: 0.4,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Revenue (UGX)'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Customers'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                return 'Revenue: UGX ' + context.parsed.y.toLocaleString();
+                            } else {
+                                return 'Customers: ' + context.parsed.y;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

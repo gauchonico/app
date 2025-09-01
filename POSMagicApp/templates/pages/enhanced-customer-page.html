@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Customer Management{% endblock %}
+
+{% block css %}
+<style>
+    .customer-analytics {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .metric-value {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .customer-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        transition: box-shadow 0.3s ease;
+    }
+    
+    .customer-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .customer-type-badge {
+        font-size: 0.8em;
+        padding: 4px 8px;
+    }
+    
+    .family-indicator {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 8px 12px;
+        margin: 5px 0;
+        border-radius: 4px;
+    }
+    
+    .dependent-badge {
+        background: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffcc02;
+    }
+    
+    .guardian-badge {
+        background: #e8f5e8;
+        color: #2e7d32;
+        border: 1px solid #4caf50;
+    }
+    
+    .filter-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">CUSTOMERS</a></li>
+            <li class="breadcrumb-item active">CUSTOMER MANAGEMENT</li>
+        </ul>
+        <h5>Customer Management</h5>
+    </div>
+    <div class="ms-auto">
+        <a href="{% url 'DjangoHUDApp:createCustomer' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add New Customer
+        </a>
+    </div>
+</div>
+
+<!-- Customer Analytics -->
+<div class="customer-analytics">
+    <div class="row">
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.total_customers }}</div>
+                <small>Total Customers</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.total_clients }}</div>
+                <small>Clients</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.total_wholesalers }}</div>
+                <small>Wholesalers</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.kyc_verified }}</div>
+                <small>KYC Verified</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.minors }}</div>
+                <small>Minors</small>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="metric-card">
+                <div class="metric-value">{{ analytics.with_dependents }}</div>
+                <small>With Dependents</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-section">
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Search</label>
+            <input type="text" name="search" class="form-control" 
+                   placeholder="Search customers..." value="{{ search_query|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Customer Type</label>
+            <select name="type" class="form-control">
+                <option value="">All Types</option>
+                {% for type_code, type_name in customer_types %}
+                    <option value="{{ type_code }}" {% if customer_type == type_code %}selected{% endif %}>
+                        {{ type_name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Dependents</label>
+            <select name="dependents" class="form-control">
+                <option value="">All</option>
+                <option value="yes" {% if has_dependents == 'yes' %}selected{% endif %}>Has Dependents</option>
+                <option value="no" {% if has_dependents == 'no' %}selected{% endif %}>No Dependents</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">KYC Status</label>
+            <select name="kyc" class="form-control">
+                <option value="">All</option>
+                <option value="verified" {% if kyc_status == 'verified' %}selected{% endif %}>Verified</option>
+                <option value="pending" {% if kyc_status == 'pending' %}selected{% endif %}>Pending</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary me-2">
+                <i class="fas fa-search me-1"></i>Filter
+            </button>
+            <a href="{% url 'DjangoHUDApp:pageCustomer' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Customer List -->
+<div class="row">
+    {% for customer in customers %}
+    <div class="col-md-6 mb-3">
+        <div class="customer-card">
+            <div class="card-header bg-light">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-1">
+                            {{ customer.name }}
+                            {% if customer.guardian %}
+                                <span class="badge dependent-badge ms-2">
+                                    {{ customer.get_relationship_to_guardian_display }}
+                                </span>
+                            {% elif customer.dependents_count > 0 %}
+                                <span class="badge guardian-badge ms-2">
+                                    Guardian ({{ customer.dependents_count }})
+                                </span>
+                            {% endif %}
+                        </h6>
+                        <div>
+                            <span class="badge bg-{% if customer.type_of_customer == 'CLIENT' %}primary{% elif customer.type_of_customer == 'WHOLESALE' %}success{% else %}info{% endif %} customer-type-badge">
+                                {{ customer.get_type_of_customer_display }}
+                            </span>
+                            {% if customer.sex %}
+                                <span class="badge bg-secondary customer-type-badge ms-1">
+                                    {{ customer.get_sex_display }}
+                                </span>
+                            {% endif %}
+                            {% if customer.kyc_verified %}
+                                <span class="badge bg-success customer-type-badge ms-1">
+                                    <i class="fas fa-check-circle me-1"></i>KYC Verified
+                                </span>
+                            {% else %}
+                                <span class="badge bg-warning customer-type-badge ms-1">
+                                    <i class="fas fa-clock me-1"></i>KYC Pending
+                                </span>
+                            {% endif %}
+                            {% if customer.is_minor %}
+                                <span class="badge bg-info customer-type-badge ms-1">
+                                    <i class="fas fa-child me-1"></i>Minor
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <small class="text-muted">
+                            {{ customer.total_sales }} sale{{ customer.total_sales|pluralize }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="mb-2">
+                            <i class="fas fa-phone me-2 text-muted"></i>{{ customer.phone }}
+                        </div>
+                        <div class="mb-2">
+                            <i class="fas fa-envelope me-2 text-muted"></i>{{ customer.email }}
+                        </div>
+                        {% if customer.age %}
+                        <div class="mb-2">
+                            <i class="fas fa-birthday-cake me-2 text-muted"></i>{{ customer.age }} years old
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Family Info -->
+                        {% if customer.guardian %}
+                        <div class="family-indicator">
+                            <small>
+                                <i class="fas fa-users me-1"></i>
+                                Account held by {{ customer.guardian.name }}
+                            </small>
+                        </div>
+                        {% elif customer.dependents_count > 0 %}
+                        <div class="family-indicator">
+                            <small>
+                                <i class="fas fa-users me-1"></i>
+                                Has {{ customer.dependents_count }} dependent{{ customer.dependents_count|pluralize }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-4 text-end">
+                        <div class="btn-group-vertical w-100">
+                            <a href="{% url 'DjangoHUDApp:customer_details' customer.id %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i>View
+                            </a>
+                            <a href="{% url 'DjangoHUDApp:editCustomer' customer.id %}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-edit me-1"></i>Edit
+                            </a>
+                            {% if not customer.is_minor and customer.kyc_verified %}
+                            <a href="{% url 'DjangoHUDApp:add_dependent' customer.id %}" class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-plus me-1"></i>Add Dependent
+                            </a>
+                            {% endif %}
+                            {% if customer.guardian or customer.dependents_count > 0 %}
+                            <a href="{% url 'DjangoHUDApp:customer_family_view' customer.id %}" class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-users me-1"></i>Family
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <h4>No Customers Found</h4>
+            <p class="text-muted">No customers match your search criteria.</p>
+            <a href="{% url 'createCustomer' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add First Customer
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block js %}
+<script>
+// Auto-submit form when filters change
+document.querySelectorAll('select[name]').forEach(function(select) {
+    select.addEventListener('change', function() {
+        this.form.submit();
+    });
+});
+
+// Enter key search
+document.querySelector('input[name="search"]').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        this.form.submit();
+    }
+});
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import  AccessoryRequisitonView, ApproveStoreTransferView, DeliverRestockRequestView, LpoDetailView, ProDeView, delete_rawmaterial, purhcaseOrderDetails
-from . import views
+from . import views, service_invoice_views, service_timing_views
 
 urlpatterns = [
     path('production-dashboard/', views.productionPage, name='productionPage'),
@@ -162,6 +162,11 @@ urlpatterns = [
     path('get_product_price_groups/<int:product_id>/', views.get_product_price_groups, name='get_product_price_groups'),
     path('new_create_service_sale/', views.new_create_service_sale, name='new_create_service_sale'),
     path('search-staff/', views.search_staff, name='search_staff'),
+    path('search-customers/', views.search_customers, name='search_customers'),
+    path('service-sales/<int:sale_id>/invoice/', views.create_service_sale_invoice, name='create_service_sale_invoice'),
+    path('service-sales/<int:sale_id>/cancel/', views.cancel_service_sale, name='cancel_service_sale'),
+    path('service-sales/analytics/', views.service_sale_analytics, name='service_sale_analytics'),
+    path('customers/analytics/', views.customer_analytics_dashboard, name='customer_analytics_dashboard'),
     # path('sale/<int:sale_id>/', views.sale_details, name='sale_details'),
     
     path('reject-request/<int:request_id>/', views.reject_restock_request, name="reject_request"),
@@ -222,6 +227,28 @@ urlpatterns = [
     path('store_manager/', views.managers_store_inventory_view, name='managers_store_inventory_view'),
     
     ##finance
+    # Service Invoice URLs
+    path('service-invoices/', service_invoice_views.global_service_invoice_list, name='global_service_invoice_list'),
+    path('service-invoices/store/', service_invoice_views.store_specific_service_invoice_list, name='store_specific_service_invoice_list'),
+    path('service-invoices/<int:invoice_id>/', service_invoice_views.service_invoice_detail, name='service_invoice_detail'),
+    path('service-invoices/analytics/', service_invoice_views.service_invoice_analytics, name='service_invoice_analytics'),
+    
+    # Service Timing URLs
+    path('queue-management/', service_timing_views.global_queue_management_dashboard, name='global_queue_management_dashboard'),
+    path('branch-queue-management/', service_timing_views.branch_queue_management_dashboard, name='branch_queue_management_dashboard'),
+    path('service-timing/analytics/', service_timing_views.service_timing_analytics, name='service_timing_analytics'),
+    path('service-timing/start/<int:sale_id>/', service_timing_views.start_service_timer, name='start_service_timer'),
+    path('service-timing/end/<int:sale_id>/', service_timing_views.end_service_timer, name='end_service_timer'),
+    path('service-timing/status/<int:sale_id>/', service_timing_views.get_sale_timing_status, name='get_sale_timing_status'),
+    
+    # Commission Report URLs
+    path('commission-report/', views.commission_report_view, name='commission_report_view'),
+    path('commission-report/save/', views.save_commission_report, name='save_commission_report'),
+    path('saved-commission-reports/', views.saved_commission_reports_list, name='saved_commission_reports_list'),
+    path('saved-commission-reports/<int:report_id>/', views.view_saved_commission_report, name='view_saved_commission_report'),
+    path('saved-commission-reports/<int:report_id>/delete/', views.delete_saved_commission_report, name='delete_saved_commission_report'),
+    
+    
     path('outstanding_payables/',  views.outstanding_payables, name='outstanding_payables'),
     path('create_incident_write_off/', views.create_incident_write_off, name="create_incident_write_off"),
     path('incident_write_off_list/', views.incident_write_off_list, name='incident_write_off_list'),
@@ -234,6 +261,11 @@ urlpatterns = [
     path('services/<int:pk>/delete/', views.delete_service, name='delete_service'),
     path('services-details/', views.store_service_list_detail, name='store_service_list_detail'),
     path('services/assign/', views.assign_service_to_store, name='assign_service_to_store'),
+    
+    # Service Category URLs
+    path('service-categories/create/', views.create_service_category, name='create_service_category'),
+    path('service-categories/<int:pk>/edit/', views.edit_service_category, name='edit_service_category'),
+    path('service-categories/<int:pk>/delete/', views.delete_service_category, name='delete_service_category'),
     
     path('update_reorder_point/<int:pk>/', views.update_reorder_point, name="update_reorder_point"),
     #Sale Receipt
@@ -294,5 +326,6 @@ urlpatterns = [
     path('quality-control/pending/', views.pending_quality_tests, name='pending_quality_tests'),
     path('quality-control/my-tests/', views.my_quality_tests, name='my_quality_tests'),
     path('quality-control/reports/', views.quality_control_reports, name='quality_control_reports'),
+    
    
 ]

@@ -1,0 +1,547 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Global Queue Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex align-items-center">
+                <div>
+                    <ul class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#">ADMIN</a></li>
+                        <li class="breadcrumb-item active">GLOBAL QUEUE MANAGEMENT</li>
+                    </ul>
+                    <h1 class="page-header mb-0">
+                        <i class="fas fa-globe me-2"></i>Global Queue Management
+                    </h1>
+                    <p class="text-muted">Monitor service queues across all LIVARA stores</p>
+                </div>
+                <div class="ms-auto">
+                    <div class="btn-group">
+                        <a href="{% url 'service_timing_analytics' %}" class="btn btn-outline-info">
+                            <i class="fas fa-chart-line me-1"></i>Analytics
+                        </a>
+                        <a href="{% url 'create_service_sale' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>New Sale
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Metrics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.total_customers_today|intcomma }}</h4>
+                            <div>Total Customers Today</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-users me-1"></i>All stores combined
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-users fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.in_queue|intcomma }}</h4>
+                            <div>Waiting in Queue</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-clock me-1"></i>Across all branches
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-hourglass-half fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.in_progress|intcomma }}</h4>
+                            <div>Service in Progress</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-cogs me-1"></i>Currently being served
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-cogs fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">{{ queue_metrics.completed_today|intcomma }}</h4>
+                            <div>Completed Today</div>
+                            <small class="text-white-50">
+                                <i class="fas fa-check-circle me-1"></i>All branches
+                            </small>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Store Performance Overview -->
+    {% if store_breakdown %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-store me-2"></i>Store Performance Overview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for store in store_breakdown %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">{{ store.store__name }}</h6>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="text-warning">
+                                                <i class="fas fa-clock"></i>
+                                                <div class="h6">{{ store.in_queue }}</div>
+                                                <small>In Queue</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="text-info">
+                                                <i class="fas fa-cogs"></i>
+                                                <div class="h6">{{ store.in_progress }}</div>
+                                                <small>In Progress</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <div class="text-success">
+                                        <div class="h5">{{ store.completed }}</div>
+                                        <small>Completed Today</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Average Performance Times -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-clock text-warning me-2"></i>Network Average Wait Time
+                    </h5>
+                    <h3 class="text-warning">
+                        {% if queue_metrics.avg_waiting_time %}
+                            {{ queue_metrics.avg_waiting_time|floatformat:0 }}
+                        {% else %}
+                            0 minutes
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted">Average waiting time across all stores</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-stopwatch text-info me-2"></i>Network Average Service Time
+                    </h5>
+                    <h3 class="text-info">
+                        {% if queue_metrics.avg_service_time %}
+                            {{ queue_metrics.avg_service_time|floatformat:0 }}
+                        {% else %}
+                            0 minutes
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted">Average service completion time</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>Filters
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="date" name="date" value="{{ date_filter }}">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="store" class="form-label">Store</label>
+                            <select class="form-control" id="store" name="store">
+                                <option value="">All Stores</option>
+                                {% for store in all_stores %}
+                                    <option value="{{ store.id }}" {% if store_filter == store.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ store.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="status" class="form-label">Service Status</label>
+                            <select class="form-control" id="status" name="status">
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                                <option value="created" {% if status_filter == 'created' %}selected{% endif %}>Created</option>
+                                <option value="in_queue" {% if status_filter == 'in_queue' %}selected{% endif %}>In Queue</option>
+                                <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <a href="{% url 'global_queue_management_dashboard' %}" class="btn btn-secondary">
+                                    <i class="fas fa-refresh me-1"></i>Reset
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Queue Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Global Service Queue
+                        <span class="badge bg-primary ms-2">{{ sales|length }} customers</span>
+                        {% if store_filter %}
+                            <span class="badge bg-info ms-2">Filtered store only</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="globalQueueTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Store</th>
+                                    <th>Customer</th>
+                                    <th>Services</th>
+                                    <th>Status</th>
+                                    <th>Queue Time</th>
+                                    <th>Service Time</th>
+                                    <th>Total Amount</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale in sales %}
+                                <tr data-sale-id="{{ sale.id }}" class="
+                                    {% if sale.get_service_status == 'in_queue' %}table-warning
+                                    {% elif sale.get_service_status == 'in_progress' %}table-info
+                                    {% elif sale.get_service_status == 'completed' %}table-success
+                                    {% endif %}">
+                                    
+                                    <td>
+                                        <span class="badge bg-secondary">{{ sale.store.name }}</span>
+                                        <br><small class="text-muted">{{ sale.store.location }}</small>
+                                    </td>
+                                    
+                                    <td>
+                                        <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong>
+                                        <br><small class="text-muted">{{ sale.customer.phone }}</small>
+                                        <br><small class="text-muted">Sale #{{ sale.service_sale_number|default:sale.id }}</small>
+                                    </td>
+                                    
+                                    <td>
+                                        <small>
+                                            {% for item in sale.service_sale_items.all %}
+                                                {{ item.service.service.name }}{% if not forloop.last %},{% endif %}
+                                            {% endfor %}
+                                        </small>
+                                    </td>
+                                    
+                                    <td>
+                                        {% if sale.get_service_status == 'created' %}
+                                            <span class="badge bg-secondary">Created</span>
+                                        {% elif sale.get_service_status == 'in_queue' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>In Queue
+                                            </span>
+                                        {% elif sale.get_service_status == 'in_progress' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-cogs me-1"></i>In Progress
+                                            </span>
+                                        {% elif sale.get_service_status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>Completed
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="queue-time-cell">
+                                        {% if sale.queue_waiting_time %}
+                                            <strong>{% widthratio sale.queue_waiting_time.total_seconds 60 1 %} min</strong>
+                                        {% elif sale.get_current_waiting_time %}
+                                            <span class="live-timer text-warning" data-start-time="{{ sale.queue_start_time|date:'c' }}">
+                                                {% widthratio sale.get_current_waiting_time.total_seconds 60 1 %} min
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="service-time-cell">
+                                        {% if sale.service_duration %}
+                                            <strong>{% widthratio sale.service_duration.total_seconds 60 1 %} min</strong>
+                                        {% elif sale.get_current_service_time %}
+                                            <span class="live-timer text-info" data-start-time="{{ sale.service_start_time|date:'c' }}">
+                                                {% widthratio sale.get_current_service_time.total_seconds 60 1 %} min
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td>
+                                        <strong>UGX {{ sale.total_amount|floatformat:0|intcomma }}</strong>
+                                    </td>
+                                    
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if sale.get_service_status == 'in_queue' %}
+                                                <button class="btn btn-success start-service-btn" 
+                                                        data-sale-id="{{ sale.id }}" 
+                                                        title="Start Service">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            {% elif sale.get_service_status == 'in_progress' %}
+                                                <button class="btn btn-warning end-service-btn" 
+                                                        data-sale-id="{{ sale.id }}" 
+                                                        title="Complete Service">
+                                                    <i class="fas fa-stop"></i>
+                                                </button>
+                                            {% endif %}
+                                            
+                                            <a href="{% url 'service_sale_details' sale.id %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            
+                                            {% if sale.can_process_payment %}
+                                            <a href="{% url 'record_payment_view' sale.id %}" 
+                                               class="btn btn-outline-success" title="Record Payment">
+                                                <i class="fas fa-credit-card"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <i class="fas fa-globe fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No customers in global queue</h5>
+                                        <p class="text-muted">
+                                            {% if store_filter %}
+                                                No customers found for the selected store and filters.
+                                            {% else %}
+                                                All stores are caught up! No pending services today.
+                                            {% endif %}
+                                        </p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/jquery.min.js' %}"></script>
+<script>
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+$(document).ready(function() {
+    // Auto-refresh every 45 seconds for global view
+    setInterval(function() {
+        updateLiveTimers();
+    }, 45000);
+    
+    // Update live timers every second
+    setInterval(function() {
+        $('.live-timer').each(function() {
+            var startTime = new Date($(this).data('start-time'));
+            var now = new Date();
+            var diff = now - startTime;
+            
+            var hours = Math.floor(diff / (1000 * 60 * 60));
+            var minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            var timeString = '';
+            var totalMinutes = Math.floor(diff / (1000 * 60));
+            if (totalMinutes > 0) {
+                timeString = totalMinutes + ' min';
+            } else {
+                timeString = '< 1 min';
+            }
+            
+            $(this).text(timeString);
+        });
+    }, 1000);
+    
+    // Start service button handler
+    $('.start-service-btn').on('click', function() {
+        var saleId = $(this).data('sale-id');
+        
+        $.ajax({
+            url: '{% url "start_service_timer" 0 %}'.replace('0', saleId),
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('Success', response.message, 'success');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast('Error', response.error, 'error');
+                }
+            },
+            error: function(xhr) {
+                var error = 'Failed to start service timer';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    error = xhr.responseJSON.error;
+                }
+                showToast('Error', error, 'error');
+            }
+        });
+    });
+    
+    // End service button handler
+    $('.end-service-btn').on('click', function() {
+        var saleId = $(this).data('sale-id');
+        
+        $.ajax({
+            url: '{% url "end_service_timer" 0 %}'.replace('0', saleId),
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Accept': 'application/json'
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('Success', response.message, 'success');
+                    setTimeout(function() {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    showToast('Error', response.error, 'error');
+                }
+            },
+            error: function(xhr) {
+                var error = 'Failed to end service timer';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    error = xhr.responseJSON.error;
+                }
+                showToast('Error', error, 'error');
+            }
+        });
+    });
+    
+    function showToast(title, message, type) {
+        var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        var toast = $('<div class="alert ' + alertClass + ' alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;">' +
+                     '<strong>' + title + ':</strong> ' + message +
+                     '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                     '</div>');
+        $('body').append(toast);
+        
+        setTimeout(function() {
+            toast.alert('close');
+        }, 3000);
+    }
+    
+    function updateLiveTimers() {
+        // Optional: Add AJAX refresh functionality here
+    }
+});
+</script>
+{% endblock %}

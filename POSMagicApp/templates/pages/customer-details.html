@@ -1,255 +1,942 @@
 {% extends 'base.html' %}
-
 {% load static %}
+{% load humanize %}
 
-{% block title %}Customer Profile{% endblock %}
+{% block title %}{{ customer.name }} - Customer Profile{% endblock %}
 
 {% block css %}
-	<link href="{% static 'plugins/lity/dist/lity.min.css' %}" rel="stylesheet" />
-{% endblock %}
+<style>
+    /* Modern Design Variables */
+    :root {
+        --primary-gradient: linear-gradient(135deg, #3F704D 50%, #00674F 100%);
+        --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        --danger-gradient: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --border-radius: 16px;
+        --border-radius-sm: 12px;
+    }
 
-{% block js %}
-	<script src="{% static 'plugins/lity/dist/lity.min.js' %}"></script>
+   
+
+    /* Header Section */
+    .profile-header {
+        background: var(--primary-gradient);
+        
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .profile-header::before {
+        content: '';
+        position: absolute;
+        top: -50px;
+        right: -50px;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .profile-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        overflow: hidden;
+        position: relative;
+        margin-bottom: 1rem;
+    }
+
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .profile-avatar .default-avatar {
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: bold;
+    }
+
+    .profile-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-subtitle {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 1rem;
+    }
+
+    .profile-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .badge-modern {
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    /* Card System */
+    .modern-card {
+        {% comment %} background: white; {% endcomment %}
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        border: 1px solid #f1f5f9;
+        margin-bottom: 1.5rem;
+    }
+
+    .modern-card:hover {
+        box-shadow: var(--card-shadow-hover);
+        transform: translateY(-2px);
+    }
+
+    .card-header-modern {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .card-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--border-radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+        background: var(--primary-gradient);
+    }
+
+    .card-icon.success { background: var(--success-gradient); }
+    .card-icon.warning { background: var(--warning-gradient); }
+    .card-icon.info { background: var(--info-gradient); }
+    .card-icon.danger { background: var(--danger-gradient); }
+
+    .card-title-modern {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 0.25rem;
+    }
+
+    .card-subtitle-modern {
+        color: #718096;
+        font-size: 0.875rem;
+    }
+
+    /* Loyalty Card */
+    .loyalty-card {
+        background: var(--primary-gradient);
+        color: white;
+        border-radius: var(--border-radius);
+        padding: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .loyalty-card::before {
+        content: '';
+        position: absolute;
+        top: -30px;
+        right: -30px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .loyalty-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .loyalty-stat {
+        text-align: center;
+    }
+
+    .loyalty-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .loyalty-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Info Grid */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: var(--border-radius-sm);
+        border: 1px solid #e2e8f0;
+    }
+
+    .info-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-gradient);
+        color: white;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+    }
+
+    .info-content h6 {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #718096;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    .info-content p {
+        font-size: 0.975rem;
+        font-weight: 500;
+        color: #1a202c;
+        margin-bottom: 0;
+    }
+
+    /* Action Buttons */
+    .action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .btn-modern {
+        padding: 1rem 1.5rem;
+        border-radius: var(--border-radius-sm);
+        border: none;
+        font-weight: 500;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .btn-modern::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .btn-modern:hover::before {
+        left: 100%;
+    }
+
+    .btn-primary-modern {
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    .btn-primary-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .btn-success-modern {
+        background: var(--success-gradient);
+        color: white;
+    }
+
+    .btn-success-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+        color: white;
+    }
+
+    .btn-warning-modern {
+        background: var(--warning-gradient);
+        color: white;
+    }
+
+    .btn-warning-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(250, 112, 154, 0.4);
+        color: white;
+    }
+
+    .btn-danger-modern {
+        background: var(--danger-gradient);
+        color: white;
+    }
+
+    .btn-danger-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+        color: white;
+    }
+
+    .btn-outline-modern {
+        background: white;
+        color: #667eea;
+        border: 2px solid #667eea;
+    }
+
+    .btn-outline-modern:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+    /* Family Tree */
+    .family-tree {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .family-member {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: var(--border-radius-sm);
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+
+    .family-member:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e0;
+    }
+
+    .family-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .family-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .family-avatar .default-avatar {
+        width: 100%;
+        height: 100%;
+        background: var(--primary-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+
+    .family-info h6 {
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    .family-info small {
+        color: #718096;
+    }
+
+    .family-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+
+    .family-tag {
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .tag-guardian { background: #e0e7ff; color: #3730a3; }
+    .tag-dependent { background: #fce7f3; color: #9d174d; }
+    .tag-kyc { background: #dcfdf7; color: #065f46; }
+    .tag-minor { background: #fef3c7; color: #92400e; }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .profile-header {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        
+        .profile-name {
+            font-size: 2rem;
+        }
+        
+        .modern-card {
+            padding: 1.5rem;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .action-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .loyalty-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .loyalty-stats {
+            grid-template-columns: 1fr;
+        }
+        
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
+<!-- Modern Profile Header -->
+<div class="profile-header">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="profile-avatar">
+                    {% if customer.profile_image %}
+                        <img src="{{ customer.profile_image.url }}" alt="{{ customer.name }}"
+                             onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    {% endif %}
+                    <div class="default-avatar" style="{% if customer.profile_image %}display: none;{% else %}display: flex;{% endif %}">
+                        {{ customer.first_name|slice:":1" }}{{ customer.last_name|slice:":1" }}
+                    </div>
+                </div>
+                <div>
+                    <h1 class="profile-name">{{ customer.name }}</h1>
+                    <div class="profile-subtitle">
+                        <i class="fas fa-phone me-2"></i>{{ customer.phone }}
+                        {% if customer.email %}
+                            <span class="mx-3">•</span>
+                            <i class="fas fa-envelope me-2"></i>{{ customer.email }}
+                        {% endif %}
+                        {% if customer.age %}
+                            <span class="mx-3">•</span>
+                            {{ customer.age }} years old
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-badges">
+                <span class="badge-modern">{{ customer.get_type_of_customer_display }}</span>
+                {% if customer.kyc_verified %}
+                    <span class="badge-modern">KYC Verified</span>
+                {% endif %}
+                {% if customer.is_minor %}
+                    <span class="badge-modern">Minor</span>
+                {% endif %}
+                {% if customer.guardian %}
+                    <span class="badge-modern">Dependent</span>
+                {% elif customer.dependents_count > 0 %}
+                    <span class="badge-modern">Guardian</span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <div class="d-flex flex-column gap-2">
+                <a href="{% url 'DjangoHUDApp:editCustomer' customer.id %}" class="btn btn-light">
+                    <i class="fas fa-edit me-2"></i>Edit Profile
+                </a>
+                <a href="{% url 'DjangoHUDApp:pageCustomer' %}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Customers
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 
-	<div class="card">
-		<div class="card-body p-0">
-			<!-- BEGIN profile -->
-			<div class="profile">
-				<!-- BEGIN profile-container -->
-				<div class="profile-container">
-					<!-- BEGIN profile-sidebar -->
-					<div class="profile-sidebar">
-						<div class="desktop-sticky-top">
-							<div class="profile-img">
-								<img src="{{ customer.profile_image }}" alt="">
-							</div>
-							<!-- profile info -->
-							<h4>{{ customer.first_name }}</h4>
-							<div class="mb-3 text-inverse text-opacity-50 fw-bold mt-n2">{{customer.phone}}</div>
-							<p>
-								
-							</p>
-							<div class="mb-1">
-								<i class="fa fa-map-marker-alt fa-fw text-inverse text-opacity-50"></i> {{customer.address}}
-							</div>
-							<div class="mb-3">
-								<i class="fa fa-link fa-fw text-inverse text-opacity-50"></i> {{customer.email}}
-							</div>
-					
-							<hr class="mt-4 mb-4">
-					
-							<!-- people-to-follow -->
-							<div class="fw-bold mb-3 fs-16px">Customer Account</div>
-							<div class="d-flex align-items-center mb-3">
-								<div class="flex-fill px-3">
-									
-									<div class="fs-12px text-inverse text-opacity-50">This is a Permanent Action</div>
-								</div>
-								<a href="{% url 'DjangoHUDApp:deleteCustomer' customer.id %}" class="btn btn-sm btn-outline-danger fs-11px">Delete</a>
-							</div>
-						</div>
-					</div>
-					<!-- END profile-sidebar -->
-			
-					<!-- BEGIN profile-content -->
-					<div class="profile-content">
-						<ul class="profile-tab nav nav-tabs nav-tabs-v2">
-							<li class="nav-item">
-								<a href="#all-orders" class="nav-link active" data-bs-toggle="tab">
-									<div class="nav-field">All Orders</div>
-									<div class="nav-value"><span>{{ transactions.count }}</span></div>
-								</a>
-							</li>
-							<li class="nav-item">
-								<a href="#unpaid-orders" class="nav-link" data-bs-toggle="tab">
-									<div class="nav-field">Unpaid Orders</div>
-									
-									<div class="nav-value"></div>
-								</a>
-							</li>
-							
-						</ul>
-						<div class="profile-content-container">
-							<div class="row gx-4">
-								<div class="col-xl-8">
-									<div class="tab-content p-0">
-										<!-- BEGIN tab-pane -->
-										<div class="tab-pane fade show active" id="all-orders">
-                                            <div class="card">
-                                                <div class="card-body text-center">
-                                                    <table id="datatableDefault" class="table text-nowrap w-100">
-                                                        <thead>
-                                                            <tr>
-                                                                <th class="border-top-0 pt-0 pb-2">#</th>
-                                                                <th class="border-top-0 pt-0 pb-2">Order No.</th>
-                                                                <th class="border-top-0 pt-0 pb-2">Order Date</th>
-                                                                <th class="border-top-0 pt-0 pb-2">Bill</th>
-                                                                
-                                                            </tr>
-                                                        </thead>
-														{% for transaction in transactions %}
-                                                        <tbody>
-                                                            <tr>
-                                                                <td class="align-middle">{{ forloop.counter }}</td>
-                                                                <td class="align-middle"><a href="{% url 'DjangoHUDApp:pageOrderDetails' transaction.id %}">{{ transaction.id}}</a></td>
-                                                                <td class="align-middle">{{ transaction.created_at}}</td>
-                                                                <td class="align-middle">UGX {{ transaction.total_amount}}</td>
-                                                            </tr>
-                                                        </tbody>
-														{% endfor %}
-                                                    </table>
-                                                </div>
-                                                <div class="card-arrow">
-                                                    <div class="card-arrow-top-left"></div>
-                                                    <div class="card-arrow-top-right"></div>
-                                                    <div class="card-arrow-bottom-left"></div>
-                                                    <div class="card-arrow-bottom-right"></div>
-                                                </div>
-                                                
-                                            </div>
-                                        </div>
-										<div class="tab-pane fade show active" id="unpaid-orders">
-                                            <div class="card">
-                                                <div class="card-body text-center">
-                                                    <table id="datatableDefault" class="table text-nowrap w-100">
-                                                        <thead>
-                                                            <tr>
-                                                                <th class="border-top-0 pt-0 pb-2">#</th>
-                                                                <th class="border-top-0 pt-0 pb-2">Order No.</th>
-                                                                <th class="border-top-0 pt-0 pb-2">Order Date</th>
-                                                                <th class="border-top-0 pt-0 pb-2">Bill</th>
-                                                                
-                                                            </tr>
-                                                        </thead>
-														{% for transaction in transactions %}
-														{% if transaction.status == 'pending' %}  <tbody>
-															<tr>
-																<td class="align-middle">{{ forloop.counter }}</td>
-																<td class="align-middle"><a href="{% url 'DjangoHUDApp:pageOrderDetails' transaction.id %}">{{ transaction.id }}</a></td>
-																<td class="align-middle">{{ transaction.created_at }}</td>
-																<td class="align-middle">UGX {{ transaction.total_amount }}</td>
-															</tr>
-															</tbody>
-														{% endif %}
-														{% endfor %}
+<!-- Loyalty Information Card -->
+<div class="loyalty-card">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h3 class="mb-1"><i class="fas fa-star me-2"></i>Loyalty Status</h3>
+            <p class="mb-0 opacity-75">{{ customer.get_loyalty_tier_display }} Member</p>
+        </div>
+        <div class="text-end">
+            <div class="fs-3 fw-bold">{{ customer.loyalty_points|default:0 }}</div>
+            <small class="opacity-75">Available Points</small>
+        </div>
+    </div>
+    
+    <div class="loyalty-stats">
+        <div class="loyalty-stat">
+            <div class="loyalty-value">{{ customer.total_points_earned|default:0 }}</div>
+            <div class="loyalty-label">Total Earned</div>
+        </div>
+        <div class="loyalty-stat">
+            <div class="loyalty-value">{{ customer.total_points_redeemed|default:0 }}</div>
+            <div class="loyalty-label">Redeemed</div>
+        </div>
+        <div class="loyalty-stat">
+            <div class="loyalty-value">{{ customer.get_total_orders }}</div>
+            <div class="loyalty-label">Total Orders</div>
+        </div>
+        {% if customer.joined_loyalty_date %}
+        <div class="loyalty-stat">
+            <div class="loyalty-value">{{ customer.joined_loyalty_date|date:"M Y" }}</div>
+            <div class="loyalty-label">Member Since</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
 
-                                                    </table>
-                                                </div>
-                                                <div class="card-arrow">
-                                                    <div class="card-arrow-top-left"></div>
-                                                    <div class="card-arrow-top-right"></div>
-                                                    <div class="card-arrow-bottom-left"></div>
-                                                    <div class="card-arrow-bottom-right"></div>
-                                                </div>
-                                                <a href="{% url 'DjangoHUDApp:generate_receipt' customer.id %}" class="btn btn-outline-theme">Generate Receipt</a>
-                                            </div>
-                                        </div>
-										<!-- END tab-pane -->
-							
-										<!-- BEGIN tab-pane -->
-										
-										<!-- END tab-pane -->
-							
-										<!-- BEGIN tab-pane -->
-										
-										<!-- END tab-pane -->
-							
+<div class="row">
+    <!-- Customer Information -->
+    <div class="col-xl-8">
+        <!-- Personal Information -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <h5 class="card-title-modern">Personal Information</h5>
+                    <p class="card-subtitle-modern">Basic customer details and contact information</p>
+                </div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-id-card"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Full Name</h6>
+                        <p>{{ customer.name }}</p>
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-phone"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Phone Number</h6>
+                        <p>{{ customer.phone }}</p>
+                    </div>
+                </div>
+                
+                {% if customer.email %}
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Email Address</h6>
+                        <p>{{ customer.email }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if customer.address %}
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Address</h6>
+                        <p>{{ customer.address }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if customer.date_of_birth %}
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-birthday-cake"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Date of Birth</h6>
+                        <p>{{ customer.date_of_birth|date:"F d, Y" }} ({{ customer.age }} years)</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if customer.sex %}
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-venus-mars"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Gender</h6>
+                        <p>{{ customer.get_sex_display }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if customer.emergency_contact %}
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-phone-alt"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Emergency Contact</h6>
+                        <p>{{ customer.emergency_contact }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
 
-									</div>
-								</div>
-								<div class="col-xl-4">
-									<div class="desktop-sticky-top d-none d-lg-block">
-										<div class="card mb-3">
-											<div class="list-group list-group-flush">
-												<div class="list-group-item fw-bold px-3 d-flex">
-													<span class="flex-fill">Trends for you</span> 
-													<a href="#" class="text-inverse text-opacity-50"><i class="fa fa-cog"></i></a>
-												</div>
-												<div class="list-group-item px-3">
-													<div class="text-inverse text-opacity-50"><small><strong>Trending Worldwide</strong></small></div>
-													<div class="fw-bold mb-2">#BreakingNews</div>
-													<a href="#" class="card text-inverse text-decoration-none mb-1">
-														<div class="card-body">
-															<div class="row no-gutters">
-																<div class="col-md-8">
-																	<div class="small text-inverse text-opacity-50 mb-1 mt-n1">Space</div>
-																	<div class="h-40px fs-13px overflow-hidden mb-n1">Distant star explosion is brightest ever seen, study finds</div>
-																</div>
-																
-															</div>
-														</div>
-														<div class="card-arrow">
-															<div class="card-arrow-top-left"></div>
-															<div class="card-arrow-top-right"></div>
-															<div class="card-arrow-bottom-left"></div>
-															<div class="card-arrow-bottom-right"></div>
-														</div>
-													</a>
-													<div><small class="text-inverse text-opacity-50">1.89m share</small></div>
-												</div>
-												<div class="list-group-item px-3">
-													<div class="fw-bold mb-2">#TrollingForGood</div>
-													<div class="fs-13px mb-1">Be a good Troll and spread some positivity on HUD today.</div>
-													<div><small class="text-inverse text-opacity-50"><i class="fa fa-external-link-square-alt"></i> Promoted by HUD Trolls</small></div>
-												</div>
-												<div class="list-group-item px-3">
-													<div class="text-inverse text-opacity-50"><small><strong>Trending Worldwide</strong></small></div>
-													<div class="fw-bold mb-2">#CronaOutbreak</div>
-													<div class="fs-13px mb-1">The coronavirus is affecting 210 countries around the world and 2 ...</div>
-													<div><small class="text-inverse text-opacity-50">49.3m share</small></div>
-												</div>
-												<div class="list-group-item px-3">
-													<div class="text-inverse text-opacity-50"><small><strong>Trending in New York</strong></small></div>
-													<div class="fw-bold mb-2">#CoronavirusPandemic</div>
-													<a href="#" class="card mb-1 text-inverse text-decoration-none">
-														<div class="card-body">
-															<div class="row no-gutters">
-																<div class="col-md-8">
-																	<div class="fs-12px text-inverse text-opacity-50 mt-n1">Coronavirus</div>
-																	<div class="h-40px fs-13px overflow-hidden mb-n1">Coronavirus: US suspends travel from Europe</div>
-																</div>
-																
-															</div>
-														</div>
-														<div class="card-arrow">
-															<div class="card-arrow-top-left"></div>
-															<div class="card-arrow-top-right"></div>
-															<div class="card-arrow-bottom-left"></div>
-															<div class="card-arrow-bottom-right"></div>
-														</div>
-													</a>
-													<div><small class="text-inverse text-opacity-50">821k share</small></div>
-												</div>
-												<a href="#" class="list-group-item list-group-action text-center">
-													Show more
-												</a>
-											</div>
-											<div class="card-arrow">
-												<div class="card-arrow-top-left"></div>
-												<div class="card-arrow-top-right"></div>
-												<div class="card-arrow-bottom-left"></div>
-												<div class="card-arrow-bottom-right"></div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-					<!-- END profile-content -->
-				</div>
-				<!-- END profile-container -->
-			</div>
-			<!-- END profile -->
-		</div>
-		<div class="card-arrow">
-			<div class="card-arrow-top-left"></div>
-			<div class="card-arrow-top-right"></div>
-			<div class="card-arrow-bottom-left"></div>
-			<div class="card-arrow-bottom-right"></div>
-		</div>
-	</div>
+        <!-- Family Information -->
+        {% if customer.guardian or customer.dependents_count > 0 %}
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-icon info">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <h5 class="card-title-modern">Family Information</h5>
+                    <p class="card-subtitle-modern">Family members and relationships</p>
+                </div>
+            </div>
+            
+            <div class="family-tree">
+                {% if customer.guardian %}
+                <!-- Guardian Information -->
+                <div class="family-member">
+                    <div class="family-avatar">
+                        {% if customer.guardian.profile_image %}
+                            <img src="{{ customer.guardian.profile_image.url }}" alt="{{ customer.guardian.name }}">
+                        {% else %}
+                            <div class="default-avatar">
+                                {{ customer.guardian.first_name|slice:":1" }}{{ customer.guardian.last_name|slice:":1" }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="family-info flex-grow-1">
+                        <h6>{{ customer.guardian.name }} <span class="text-muted">(Guardian)</span></h6>
+                        <small>{{ customer.get_relationship_to_guardian_display }} • {{ customer.guardian.phone }}</small>
+                        <div class="family-tags mt-1">
+                            <span class="family-tag tag-guardian">Guardian</span>
+                            {% if customer.guardian.kyc_verified %}
+                                <span class="family-tag tag-kyc">KYC Verified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <a href="{% url 'DjangoHUDApp:customer_details' customer.guardian.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </div>
+                {% endif %}
+                
+                {% if customer.dependents_count > 0 %}
+                <!-- Dependents -->
+                {% for dependent in customer.get_all_dependents %}
+                <div class="family-member">
+                    <div class="family-avatar">
+                        {% if dependent.profile_image %}
+                            <img src="{{ dependent.profile_image.url }}" alt="{{ dependent.name }}">
+                        {% else %}
+                            <div class="default-avatar">
+                                {{ dependent.first_name|slice:":1" }}{{ dependent.last_name|slice:":1" }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="family-info flex-grow-1">
+                        <h6>{{ dependent.name }}</h6>
+                        <small>{{ dependent.get_relationship_to_guardian_display }} • {{ dependent.phone|default:"No phone" }}</small>
+                        <div class="family-tags mt-1">
+                            <span class="family-tag tag-dependent">Dependent</span>
+                            {% if dependent.is_minor %}
+                                <span class="family-tag tag-minor">Minor</span>
+                            {% endif %}
+                            {% if dependent.kyc_verified %}
+                                <span class="family-tag tag-kyc">KYC Verified</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <a href="{% url 'DjangoHUDApp:customer_details' dependent.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Additional Notes -->
+        {% if customer.notes %}
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-icon warning">
+                    <i class="fas fa-sticky-note"></i>
+                </div>
+                <div>
+                    <h5 class="card-title-modern">Additional Notes</h5>
+                    <p class="card-subtitle-modern">Special information about this customer</p>
+                </div>
+            </div>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ customer.notes }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-xl-4">
+        <!-- Quick Actions -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-icon success">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div>
+                    <h5 class="card-title-modern">Quick Actions</h5>
+                    <p class="card-subtitle-modern">Manage this customer</p>
+                </div>
+            </div>
+            
+            <div class="action-grid">
+                <a href="{% url 'DjangoHUDApp:editCustomer' customer.id %}" class="btn-modern btn-primary-modern">
+                    <i class="fas fa-edit"></i>
+                    Edit Profile
+                </a>
+                
+                {% if not customer.is_minor and customer.kyc_verified %}
+                <a href="{% url 'DjangoHUDApp:add_dependent' customer.id %}" class="btn-modern btn-success-modern">
+                    <i class="fas fa-plus"></i>
+                    Add Dependent
+                </a>
+                {% endif %}
+                
+                {% if customer.guardian or customer.dependents_count > 0 %}
+                <a href="{% url 'DjangoHUDApp:customer_family_view' customer.id %}" class="btn-modern btn-warning-modern">
+                    <i class="fas fa-users"></i>
+                    View Family
+                </a>
+                {% endif %}
+                
+                <a href="{% url 'DjangoHUDApp:customer_loyalty_details' customer.id %}" class="btn-modern btn-outline-modern">
+                    <i class="fas fa-star"></i>
+                    Loyalty Details
+                </a>
+                
+                <a href="{% url 'DjangoHUDApp:deleteCustomer' customer.id %}" 
+                   class="btn-modern btn-danger-modern"
+                   onclick="return confirm('Are you sure you want to delete this customer? This action cannot be undone.')">
+                    <i class="fas fa-trash"></i>
+                    Delete Customer
+                </a>
+            </div>
+        </div>
+
+        <!-- Customer Statistics -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-icon info">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div>
+                    <h5 class="card-title-modern">Customer Statistics</h5>
+                    <p class="card-subtitle-modern">Activity overview</p>
+                </div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Total Orders</h6>
+                        <p>{{ customer.get_total_orders }}</p>
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Loyalty Tier</h6>
+                        <p>{{ customer.get_loyalty_tier_display }}</p>
+                    </div>
+                </div>
+                
+                {% if customer.guardian %}
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Account Type</h6>
+                        <p>Dependent Account</p>
+                    </div>
+                </div>
+                {% elif customer.dependents_count > 0 %}
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Dependents</h6>
+                        <p>{{ customer.dependents_count }} dependent{{ customer.dependents_count|pluralize }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="info-item">
+                    <div class="info-icon">
+                        <i class="fas fa-calendar-plus"></i>
+                    </div>
+                    <div class="info-content">
+                        <h6>Member Since</h6>
+                        <p>{{ customer.joined_loyalty_date|date:"M Y"|default:"N/A" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Status -->
+        <div class="modern-card">
+            <div class="card-header-modern">
+                <div class="card-icon {% if customer.kyc_verified %}success{% else %}warning{% endif %}">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div>
+                    <h5 class="card-title-modern">Account Status</h5>
+                    <p class="card-subtitle-modern">Verification and permissions</p>
+                </div>
+            </div>
+            
+            <div class="d-flex flex-column gap-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>KYC Verification</span>
+                    <span class="badge bg-{% if customer.kyc_verified %}success{% else %}warning{% endif %}">
+                        {% if customer.kyc_verified %}Verified{% else %}Pending{% endif %}
+                    </span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Purchase Authorization</span>
+                    <span class="badge bg-{% if customer.can_make_purchases %}success{% else %}danger{% endif %}">
+                        {% if customer.can_make_purchases %}Authorized{% else %}Restricted{% endif %}
+                    </span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Account Type</span>
+                    <span class="badge bg-info">
+                        {% if customer.is_minor %}Minor{% else %}Adult{% endif %}
+                    </span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Customer Type</span>
+                    <span class="badge bg-primary">
+                        {{ customer.get_type_of_customer_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    // Animate cards on load
+    $('.modern-card, .loyalty-card').each(function(index) {
+        $(this).css({
+            opacity: 0,
+            transform: 'translateY(20px)'
+        }).delay(index * 100).animate({
+            opacity: 1
+        }, 500, function() {
+            $(this).css('transform', 'translateY(0)');
+        });
+    });
+    
+    // Add hover effects to info items
+    $('.info-item').hover(
+        function() {
+            $(this).css({
+                'background': '#f1f5f9',
+                'border-color': '#cbd5e0'
+            });
+        },
+        function() {
+            $(this).css({
+                'background': '#f8fafc',
+                'border-color': '#e2e8f0'
+            });
+        }
+    );
+});
+</script>
 {% endblock %}

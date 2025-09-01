@@ -1,0 +1,762 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Customer Management{% endblock %}
+
+{% block css %}
+<style>
+    /* Modern Color Palette */
+    :root {
+        --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        --info-gradient: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Header Section */
+    .page-header-modern {
+        background: var(--primary-gradient);
+        color: white;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .page-header-modern::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(30px, -30px);
+    }
+
+    .page-header-modern h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .page-header-modern p {
+        font-size: 1.1rem;
+        opacity: 0.9;
+        margin-bottom: 0;
+    }
+
+    /* Analytics Cards */
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .analytics-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .analytics-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--card-shadow-hover);
+    }
+
+    .analytics-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--primary-gradient);
+    }
+
+    .analytics-card.success::before { background: var(--success-gradient); }
+    .analytics-card.warning::before { background: var(--warning-gradient); }
+    .analytics-card.info::before { background: var(--info-gradient); }
+
+    .analytics-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    .analytics-card.success .analytics-icon { background: var(--success-gradient); }
+    .analytics-card.warning .analytics-icon { background: var(--warning-gradient); }
+    .analytics-card.info .analytics-icon { background: var(--info-gradient); }
+
+    .analytics-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 0.25rem;
+    }
+
+    .analytics-label {
+        color: #718096;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .analytics-trend {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    /* Filter Section */
+    .filter-container {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 2rem;
+    }
+
+    .filter-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .filter-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--primary-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .form-group-modern {
+        position: relative;
+    }
+
+    .form-control-modern {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        background: #f8fafc;
+    }
+
+    .form-control-modern:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-label-modern {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #4a5568;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    /* Customer Cards */
+    .customers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .customer-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        position: relative;
+        border: 1px solid #f1f5f9;
+    }
+
+    .customer-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--card-shadow-hover);
+        border-color: #e2e8f0;
+    }
+
+    .customer-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .customer-avatar {
+        position: relative;
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .customer-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .customer-avatar .default-avatar {
+        width: 100%;
+        height: 100%;
+        background: var(--primary-gradient);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.25rem;
+    }
+
+    .customer-info h4 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1a202c;
+        margin-bottom: 0.25rem;
+    }
+
+    .customer-subtitle {
+        color: #718096;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .customer-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .tag {
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .tag-kyc { background: #dcfdf7; color: #065f46; }
+    .tag-minor { background: #fef3c7; color: #92400e; }
+    .tag-guardian { background: #e0e7ff; color: #3730a3; }
+    .tag-dependent { background: #fce7f3; color: #9d174d; }
+    .tag-vip { background: #fee2e2; color: #991b1b; }
+    .tag-gold { background: #fef3c7; color: #92400e; }
+    .tag-silver { background: #f1f5f9; color: #475569; }
+    .tag-bronze { background: #fef2f2; color: #b45309; }
+
+    .customer-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 12px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1a202c;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.25rem;
+    }
+
+    .customer-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-modern {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary-modern {
+        background: var(--primary-gradient);
+        color: white;
+    }
+
+    .btn-primary-modern:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .btn-secondary-modern {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .btn-secondary-modern:hover {
+        background: #e2e8f0;
+        color: #334155;
+    }
+
+    .btn-success-modern {
+        background: var(--success-gradient);
+        color: white;
+    }
+
+    .btn-success-modern:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(79, 172, 254, 0.4);
+        color: white;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: white;
+        border-radius: 16px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--info-gradient);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .analytics-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .customers-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .filter-form {
+            grid-template-columns: 1fr;
+        }
+        
+        .page-header-modern h1 {
+            font-size: 2rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .analytics-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .customer-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Modern Header -->
+<div class="page-header-modern">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1><i class="fas fa-users me-3"></i>Customer Management</h1>
+            <p>Manage your customers, track loyalty points, and analyze customer relationships</p>
+        </div>
+        <a href="{% url 'DjangoHUDApp:createCustomer' %}" class="btn btn-light btn-lg">
+            <i class="fas fa-plus me-2"></i>Add Customer
+        </a>
+    </div>
+</div>
+
+<!-- Analytics Dashboard -->
+<div class="analytics-grid">
+    <div class="analytics-card">
+        <div class="analytics-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="analytics-value">{{ total_customers|default:0 }}</div>
+        <div class="analytics-label">Total Customers</div>
+        <div class="analytics-trend">
+            <i class="fas fa-arrow-up text-success"></i>
+            <span class="text-success">Active</span>
+        </div>
+    </div>
+
+    <div class="analytics-card success">
+        <div class="analytics-icon">
+            <i class="fas fa-star"></i>
+        </div>
+        <div class="analytics-value">{{ customers_with_loyalty|default:0 }}</div>
+        <div class="analytics-label">Loyalty Members</div>
+        <div class="analytics-trend">
+            <i class="fas fa-percentage"></i>
+            <span>{% widthratio customers_with_loyalty total_customers 100 %}% enrolled</span>
+        </div>
+    </div>
+
+    <div class="analytics-card warning">
+        <div class="analytics-icon">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        <div class="analytics-value">{{ verified_customers|default:0 }}</div>
+        <div class="analytics-label">KYC Verified</div>
+        <div class="analytics-trend">
+            <i class="fas fa-check-circle text-success"></i>
+            <span>Secure</span>
+        </div>
+    </div>
+
+    <div class="analytics-card info">
+        <div class="analytics-icon">
+            <i class="fas fa-baby"></i>
+        </div>
+        <div class="analytics-value">{{ family_accounts|default:0 }}</div>
+        <div class="analytics-label">Family Accounts</div>
+        <div class="analytics-trend">
+            <i class="fas fa-home"></i>
+            <span>Families</span>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Filters -->
+<div class="filter-container">
+    <div class="filter-header">
+        <div class="filter-icon">
+            <i class="fas fa-filter"></i>
+        </div>
+        <div>
+            <h6 class="mb-0 fw-bold">Advanced Filters</h6>
+            <small class="text-muted">Filter and search customers</small>
+        </div>
+    </div>
+    
+    <form method="get" class="filter-form">
+        <div class="form-group-modern">
+            <label class="form-label-modern">Search Customer</label>
+            <input type="text" name="search" class="form-control-modern" 
+                   placeholder="Name, phone, email..." 
+                   value="{{ request.GET.search }}">
+        </div>
+        
+        <div class="form-group-modern">
+            <label class="form-label-modern">Customer Type</label>
+            <select name="type" class="form-control-modern">
+                <option value="">All Types</option>
+                <option value="CLIENT" {% if request.GET.type == 'CLIENT' %}selected{% endif %}>Client</option>
+                <option value="WHOLESALE" {% if request.GET.type == 'WHOLESALE' %}selected{% endif %}>Wholesale</option>
+                <option value="RETAILER" {% if request.GET.type == 'RETAILER' %}selected{% endif %}>Retailer</option>
+            </select>
+        </div>
+        
+        <div class="form-group-modern">
+            <label class="form-label-modern">Loyalty Tier</label>
+            <select name="tier" class="form-control-modern">
+                <option value="">All Tiers</option>
+                <option value="VIP" {% if request.GET.tier == 'VIP' %}selected{% endif %}>VIP</option>
+                <option value="GOLD" {% if request.GET.tier == 'GOLD' %}selected{% endif %}>Gold</option>
+                <option value="SILVER" {% if request.GET.tier == 'SILVER' %}selected{% endif %}>Silver</option>
+                <option value="BRONZE" {% if request.GET.tier == 'BRONZE' %}selected{% endif %}>Bronze</option>
+            </select>
+        </div>
+        
+        <div class="form-group-modern">
+            <label class="form-label-modern">Family Status</label>
+            <select name="family" class="form-control-modern">
+                <option value="">All</option>
+                <option value="guardian" {% if request.GET.family == 'guardian' %}selected{% endif %}>Guardians</option>
+                <option value="dependent" {% if request.GET.family == 'dependent' %}selected{% endif %}>Dependents</option>
+                <option value="individual" {% if request.GET.family == 'individual' %}selected{% endif %}>Individual</option>
+            </select>
+        </div>
+        
+        <div class="form-group-modern">
+            <label class="form-label-modern">KYC Status</label>
+            <select name="kyc" class="form-control-modern">
+                <option value="">All</option>
+                <option value="verified" {% if request.GET.kyc == 'verified' %}selected{% endif %}>Verified</option>
+                <option value="pending" {% if request.GET.kyc == 'pending' %}selected{% endif %}>Pending</option>
+            </select>
+        </div>
+        
+        <div class="form-group-modern">
+            <button type="submit" class="btn-modern btn-primary-modern w-100">
+                <i class="fas fa-search"></i>
+                Apply Filters
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Customer Cards -->
+{% if customers %}
+<div class="customers-grid">
+    {% for customer in customers %}
+    <div class="customer-card">
+        <!-- Customer Header -->
+        <div class="customer-header">
+            <div class="customer-avatar">
+                {% if customer.profile_image %}
+                    <img src="{{ customer.profile_image.url }}" alt="{{ customer.name }}"
+                         onload="this.style.display='block'; this.nextElementSibling.style.display='none';"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                {% endif %}
+                <div class="default-avatar" style="{% if customer.profile_image %}display: none;{% else %}display: flex;{% endif %}">
+                    {{ customer.first_name|slice:":1" }}{{ customer.last_name|slice:":1" }}
+                </div>
+            </div>
+            <div class="customer-info flex-grow-1">
+                <h4>{{ customer.name }}</h4>
+                <div class="customer-subtitle">
+                    <i class="fas fa-phone fa-xs"></i>
+                    <span>{{ customer.phone }}</span>
+                    {% if customer.age %}
+                        <span class="mx-2">•</span>
+                        <span>{{ customer.age }} years</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Tags -->
+        <div class="customer-tags">
+            {% if customer.kyc_verified %}
+                <span class="tag tag-kyc">KYC Verified</span>
+            {% endif %}
+            {% if customer.is_minor %}
+                <span class="tag tag-minor">Minor</span>
+            {% endif %}
+            {% if customer.guardian %}
+                <span class="tag tag-dependent">Dependent</span>
+            {% elif customer.dependents_count > 0 %}
+                <span class="tag tag-guardian">Guardian</span>
+            {% endif %}
+            {% if customer.loyalty_tier == 'VIP' %}
+                <span class="tag tag-vip">VIP</span>
+            {% elif customer.loyalty_tier == 'GOLD' %}
+                <span class="tag tag-gold">Gold</span>
+            {% elif customer.loyalty_tier == 'SILVER' %}
+                <span class="tag tag-silver">Silver</span>
+            {% else %}
+                <span class="tag tag-bronze">Bronze</span>
+            {% endif %}
+        </div>
+
+        <!-- Customer Stats -->
+        <div class="customer-stats">
+            <div class="stat-item">
+                <div class="stat-value">{{ customer.loyalty_points|default:0 }}</div>
+                <div class="stat-label">Points</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">{{ customer.total_sales|default:0 }}</div>
+                <div class="stat-label">Orders</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">
+                    {% if customer.guardian %}
+                        {{ customer.guardian.dependents_count|default:0 }}
+                    {% else %}
+                        {{ customer.dependents_count|default:0 }}
+                    {% endif %}
+                </div>
+                <div class="stat-label">Family</div>
+            </div>
+        </div>
+
+        <!-- Customer Actions -->
+        <div class="customer-actions">
+            <a href="{% url 'DjangoHUDApp:customer_details' customer.id %}" 
+               class="btn-modern btn-primary-modern">
+                <i class="fas fa-eye"></i>
+                View
+            </a>
+            <a href="{% url 'DjangoHUDApp:editCustomer' customer.id %}" 
+               class="btn-modern btn-secondary-modern">
+                <i class="fas fa-edit"></i>
+                Edit
+            </a>
+            {% if not customer.is_minor and customer.kyc_verified %}
+            <a href="{% url 'DjangoHUDApp:add_dependent' customer.id %}" 
+               class="btn-modern btn-success-modern">
+                <i class="fas fa-plus"></i>
+                Add Dependent
+            </a>
+            {% endif %}
+            {% if customer.guardian or customer.dependents_count > 0 %}
+            <a href="{% url 'DjangoHUDApp:customer_family_view' customer.id %}" 
+               class="btn-modern btn-secondary-modern">
+                <i class="fas fa-users"></i>
+                Family
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<!-- Empty State -->
+<div class="empty-state">
+    <div class="empty-icon">
+        <i class="fas fa-users"></i>
+    </div>
+    <h3 class="fw-bold mb-3">No Customers Found</h3>
+    <p class="text-muted mb-4">
+        {% if request.GET.search or request.GET.type or request.GET.tier or request.GET.family or request.GET.kyc %}
+            No customers match your current filters. Try adjusting your search criteria.
+        {% else %}
+            You haven't added any customers yet. Start by creating your first customer.
+        {% endif %}
+    </p>
+    {% if not request.GET.search and not request.GET.type and not request.GET.tier and not request.GET.family and not request.GET.kyc %}
+    <a href="{% url 'DjangoHUDApp:createCustomer' %}" class="btn-modern btn-primary-modern">
+        <i class="fas fa-plus"></i>
+        Add First Customer
+    </a>
+    {% else %}
+    <a href="{% url 'DjangoHUDApp:pageCustomer' %}" class="btn-modern btn-secondary-modern">
+        <i class="fas fa-times"></i>
+        Clear Filters
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Quick Actions Floating Button -->
+<div class="position-fixed bottom-0 end-0 p-4" style="z-index: 1000;">
+    <div class="dropup">
+        <button class="btn btn-lg rounded-circle" 
+                style="background: var(--primary-gradient); color: white; width: 60px; height: 60px; box-shadow: var(--card-shadow-hover);"
+                data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-bolt"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end mb-2">
+            <li><a class="dropdown-item" href="{% url 'DjangoHUDApp:createCustomer' %}">
+                <i class="fas fa-plus me-2"></i>Add Customer
+            </a></li>
+            <li><a class="dropdown-item" href="{% url 'DjangoHUDApp:loyalty_settings' %}">
+                <i class="fas fa-star me-2"></i>Loyalty Settings
+            </a></li>
+            <li><a class="dropdown-item" href="{% url 'DjangoHUDApp:points_redemption' %}">
+                <i class="fas fa-coins me-2"></i>Redeem Points
+            </a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'DjangoHUDApp:loyalty_reports' %}">
+                <i class="fas fa-chart-line me-2"></i>Loyalty Reports
+            </a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    // Auto-submit form when filters change
+    $('.filter-form select').on('change', function() {
+        $(this).closest('form').submit();
+    });
+    
+    // Search input with debounce
+    let searchTimeout;
+    $('input[name="search"]').on('input', function() {
+        clearTimeout(searchTimeout);
+        const form = $(this).closest('form');
+        searchTimeout = setTimeout(() => {
+            form.submit();
+        }, 500);
+    });
+    
+    // Clear search on escape key
+    $('input[name="search"]').on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            $(this).val('');
+            $(this).closest('form').submit();
+        }
+    });
+    
+    // Animate cards on load
+    $('.customer-card').each(function(index) {
+        $(this).css({
+            opacity: 0,
+            transform: 'translateY(20px)'
+        }).delay(index * 50).animate({
+            opacity: 1
+        }, 300).css({
+            transform: 'translateY(0)'
+        });
+    });
+});
+</script>
+{% endblock %}

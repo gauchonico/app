@@ -1,0 +1,368 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Loyalty Settings{% endblock %}
+
+{% block css %}
+<style>
+.settings-card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+}
+.tier-badge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+}
+.form-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'DjangoHUDApp:index' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active">Loyalty Settings</li>
+        </ol>
+        <h1 class="page-header mb-0">Loyalty System Settings</h1>
+    </div>
+</div>
+
+<!-- Statistics Overview -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-18px fw-bold">{{ stats.total_customers }}</div>
+                        <div class="text-white text-opacity-75">Total Customers</div>
+                        <div class="progress mt-2" style="height: 4px;">
+                            <div class="progress-bar bg-white" style="width: {% widthratio stats.customers_with_points stats.total_customers 100 %}%"></div>
+                        </div>
+                        <small class="text-white text-opacity-75">{{ stats.customers_with_points }} with points</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-star fa-2x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-18px fw-bold">{{ stats.total_points_in_circulation|floatformat:0 }}</div>
+                        <div class="text-white text-opacity-75">Points in Circulation</div>
+                        <small class="text-white text-opacity-75">Available for redemption</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-gift fa-2x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-18px fw-bold">{{ stats.total_points_earned|floatformat:0 }}</div>
+                        <div class="text-white text-opacity-75">Total Points Earned</div>
+                        <small class="text-white text-opacity-75">Lifetime total</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-coins fa-2x opacity-75"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="fs-18px fw-bold">{{ stats.total_points_redeemed|floatformat:0 }}</div>
+                        <div class="text-white text-opacity-75">Points Redeemed</div>
+                        <small class="text-white text-opacity-75">Total redeemed</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tier Distribution -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card settings-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Customer Tier Distribution</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for tier in stats.tier_stats %}
+                    <div class="col-md-3 text-center">
+                        <div class="tier-display mb-3">
+                            <span class="badge tier-badge bg-{% if tier.loyalty_tier == 'VIP' %}danger{% elif tier.loyalty_tier == 'GOLD' %}warning{% elif tier.loyalty_tier == 'SILVER' %}secondary{% else %}primary{% endif %} fs-14px">
+                                {{ tier.loyalty_tier|capfirst }}
+                            </span>
+                            <div class="fs-24px fw-bold text-primary mt-2">{{ tier.count }}</div>
+                            <small class="text-muted">customer{{ tier.count|pluralize }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Form -->
+<div class="row">
+    <div class="col-xl-8">
+        <div class="card settings-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-cogs me-2"></i>Loyalty System Configuration
+                    <span class="badge bg-{% if loyalty_settings.is_active %}success{% else %}danger{% endif %} ms-2">
+                        {% if loyalty_settings.is_active %}Active{% else %}Inactive{% endif %}
+                    </span>
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- System Status -->
+                    <div class="form-section">
+                        <h6 class="text-primary mb-3"><i class="fas fa-power-off me-2"></i>System Status</h6>
+                        <div class="form-check form-switch">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                <strong>Enable Loyalty System</strong>
+                                <br><small class="text-muted">Turn the entire loyalty system on or off</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Point Calculation -->
+                    <div class="form-section">
+                        <h6 class="text-primary mb-3"><i class="fas fa-calculator me-2"></i>Point Calculation</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="{{ form.calculation_method.id_for_label }}">Calculation Method</label>
+                                    {{ form.calculation_method }}
+                                    <small class="text-muted">{{ form.calculation_method.help_text }}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="{{ form.points_per_order.id_for_label }}">Points per Order</label>
+                                    {{ form.points_per_order }}
+                                    <small class="text-muted">{{ form.points_per_order.help_text }}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="{{ form.points_per_currency_unit.id_for_label }}">Points per Currency Unit</label>
+                                    {{ form.points_per_currency_unit }}
+                                    <small class="text-muted">{{ form.points_per_currency_unit.help_text }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bonus Multipliers -->
+                    <div class="form-section">
+                        <h6 class="text-primary mb-3"><i class="fas fa-gift me-2"></i>Bonus Multipliers</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="{{ form.birthday_bonus_multiplier.id_for_label }}">Birthday Bonus Multiplier</label>
+                                    {{ form.birthday_bonus_multiplier }}
+                                    <small class="text-muted">{{ form.birthday_bonus_multiplier.help_text }}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="{{ form.weekend_bonus_multiplier.id_for_label }}">Weekend Bonus Multiplier</label>
+                                    {{ form.weekend_bonus_multiplier }}
+                                    <small class="text-muted">{{ form.weekend_bonus_multiplier.help_text }}</small>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    {{ form.loyalty_tier_bonus }}
+                                    <label class="form-check-label" for="{{ form.loyalty_tier_bonus.id_for_label }}">
+                                        Enable Loyalty Tier Bonuses
+                                        <br><small class="text-muted">VIP: 2x points, Gold: 1.5x points, Silver: 1.2x points</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Redemption Settings -->
+                    <div class="form-section">
+                        <h6 class="text-primary mb-3"><i class="fas fa-coins me-2"></i>Redemption Settings</h6>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    {{ form.points_redemption_enabled }}
+                                    <label class="form-check-label" for="{{ form.points_redemption_enabled.id_for_label }}">
+                                        <strong>Enable Points Redemption</strong>
+                                        <br><small class="text-muted">Allow customers to redeem points for currency</small>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="{{ form.points_to_currency_ratio.id_for_label }}">Points to Currency Ratio</label>
+                                    {{ form.points_to_currency_ratio }}
+                                    <small class="text-muted">{{ form.points_to_currency_ratio.help_text }}</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label class="form-label" for="{{ form.minimum_points_redemption.id_for_label }}">Minimum Points for Redemption</label>
+                                    {{ form.minimum_points_redemption }}
+                                    <small class="text-muted">{{ form.minimum_points_redemption.help_text }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expiry Settings -->
+                    <div class="form-section">
+                        <h6 class="text-primary mb-3"><i class="fas fa-clock me-2"></i>Expiry Settings</h6>
+                        <div class="form-group mb-3">
+                            <label class="form-label" for="{{ form.points_expiry_months.id_for_label }}">Points Expiry (Months)</label>
+                            {{ form.points_expiry_months }}
+                            <small class="text-muted">{{ form.points_expiry_months.help_text }}</small>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'DjangoHUDApp:index' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-xl-4">
+        <div class="card settings-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'DjangoHUDApp:loyalty_reports' %}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-line me-2"></i>View Reports
+                    </a>
+                    <a href="{% url 'DjangoHUDApp:points_redemption' %}" class="btn btn-outline-success">
+                        <i class="fas fa-coins me-2"></i>Redeem Points
+                    </a>
+                    <a href="{% url 'DjangoHUDApp:manual_points_adjustment' %}" class="btn btn-outline-warning">
+                        <i class="fas fa-edit me-2"></i>Manual Adjustment
+                    </a>
+                    <a href="{% url 'DjangoHUDApp:pageCustomer' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-users me-2"></i>View Customers
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Preview -->
+        <div class="card settings-card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0"><i class="fas fa-eye me-2"></i>Current Settings Preview</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Method:</strong> {{ loyalty_settings.get_calculation_method_display }}
+                </div>
+                <div class="mb-3">
+                    <strong>Base Points:</strong> {{ loyalty_settings.points_per_order }} per order
+                </div>
+                <div class="mb-3">
+                    <strong>Currency Rate:</strong> {{ loyalty_settings.points_per_currency_unit }} points/UGX
+                </div>
+                <div class="mb-3">
+                    <strong>Birthday Bonus:</strong> {{ loyalty_settings.birthday_bonus_multiplier }}x
+                </div>
+                <div class="mb-3">
+                    <strong>Weekend Bonus:</strong> {{ loyalty_settings.weekend_bonus_multiplier }}x
+                </div>
+                <div class="mb-3">
+                    <strong>Redemption:</strong> {{ loyalty_settings.points_to_currency_ratio }} points = 1 UGX
+                </div>
+                <div>
+                    <strong>Min Redemption:</strong> {{ loyalty_settings.minimum_points_redemption }} points
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+$(document).ready(function() {
+    // Toggle calculation method specific fields
+    function toggleCalculationFields() {
+        const method = $('#id_calculation_method').val();
+        const pointsPerOrderField = $('#id_points_per_order').closest('.form-group');
+        const pointsPerCurrencyField = $('#id_points_per_currency_unit').closest('.form-group');
+        
+        if (method === 'FIXED') {
+            pointsPerOrderField.show();
+            pointsPerCurrencyField.hide();
+        } else {
+            pointsPerOrderField.hide();
+            pointsPerCurrencyField.show();
+        }
+    }
+    
+    $('#id_calculation_method').on('change', toggleCalculationFields);
+    toggleCalculationFields(); // Initial call
+    
+    // Preview redemption value calculation
+    function updateRedemptionPreview() {
+        const ratio = parseFloat($('#id_points_to_currency_ratio').val()) || 100;
+        const minPoints = parseInt($('#id_minimum_points_redemption').val()) || 0;
+        const minValue = (minPoints / ratio).toFixed(2);
+        
+        // You could add a preview element here if needed
+    }
+    
+    $('#id_points_to_currency_ratio, #id_minimum_points_redemption').on('input', updateRedemptionPreview);
+});
+</script>
+{% endblock %}

@@ -5,7 +5,7 @@ from datetime import date
 from .models import (
     JournalEntry, JournalEntryLine, SalesRevenue, ProductionExpense, 
     StoreTransfer as AccountingStoreTransfer, StoreBudget, StoreFinancialSummary,
-    ManufacturingRecord, PaymentRecord
+    ManufacturingRecord, PaymentRecord, CommissionExpense
 )
 from .models import ChartOfAccounts, Department
 from django.db.models import Sum
@@ -140,20 +140,16 @@ class AccountingService:
         """Create journal entry when products are manufactured"""
         try:
             with transaction.atomic():
-                # Calculate manufacturing cost from raw material usage
+                # Calculate manufacturing cost from raw material usage based on actual requisition costs
+                from production.utils import get_raw_material_price_with_fallback
                 total_cost = 0
+                
                 for ingredient in manufacture_product.used_ingredients.all():
-                    # Get the latest price for this raw material from any supplier
-                    from production.models import RawMaterialPrice
-                    latest_price = RawMaterialPrice.objects.filter(
-                        raw_material=ingredient.raw_material,
-                        is_current=True
-                    ).first()
+                    # Get the actual cost from the latest requisition (most accurate pricing)
+                    price_info = get_raw_material_price_with_fallback(ingredient.raw_material)
+                    unit_price = price_info.get('price', 0)
                     
-                    ingredient_cost = 0
-                    if latest_price:
-                        ingredient_cost = ingredient.quantity_used * latest_price.price
-                    
+                    ingredient_cost = ingredient.quantity_used * unit_price
                     total_cost += ingredient_cost
                 
                 # Create journal entry
@@ -386,7 +382,7 @@ class AccountingService:
     
     @staticmethod
     def create_service_sale_journal_entry(service_sale, user):
-        """Create journal entry for service sale when paid"""
+        """Create journal entry for service sale when invoiced (creates accounts receivable)"""
         try:
             with transaction.atomic():
                 # Check if journal entry already exists
@@ -441,12 +437,22 @@ class AccountingService:
                         is_active=True
                     )
                 
-                # Get cash account
-                cash_account = ChartOfAccounts.objects.filter(
-                    account_code='1000'  # Cash
+                # Get accounts receivable account
+                ar_account = ChartOfAccounts.objects.filter(
+                    account_code='1100'  # Accounts Receivable
                 ).first()
                 
-                if revenue_account and cash_account:
+                if not ar_account:
+                    # Create accounts receivable account if it doesn't exist
+                    ar_account = ChartOfAccounts.objects.create(
+                        account_code='1100',
+                        account_name='Accounts Receivable',
+                        account_type='asset',
+                        account_category='current_asset',
+                        is_active=True
+                    )
+                
+                if revenue_account and ar_account:
                     # Credit Revenue
                     JournalEntryLine.objects.create(
                         journal_entry=journal_entry,
@@ -456,13 +462,13 @@ class AccountingService:
                         description=f"Service revenue from {service_sale.service_sale_number}"
                     )
                     
-                    # Debit Cash
+                    # Debit Accounts Receivable
                     JournalEntryLine.objects.create(
                         journal_entry=journal_entry,
-                        account=cash_account,
+                        account=ar_account,
                         entry_type='debit',
                         amount=service_sale.total_amount,
-                        description=f"Cash received for service sale {service_sale.service_sale_number}"
+                        description=f"Service sale receivable from {service_sale.customer.first_name} {service_sale.customer.last_name}"
                     )
                     
                     # Create sales revenue record
@@ -482,6 +488,101 @@ class AccountingService:
                     
         except Exception as e:
             print(f"Error creating service sale journal entry: {e}")
+            return None
+    
+    @staticmethod
+    def create_service_payment_journal_entry(service_sale, payment, user):
+        """Create journal entry for service sale payment (reduces accounts receivable)"""
+        try:
+            with transaction.atomic():
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=payment.payment_date.date(),
+                    reference=f"Payment-{service_sale.service_sale_number}-{payment.id}",
+                    description=f"Payment received for service sale {service_sale.service_sale_number} via {payment.payment_method}",
+                    entry_type='payment',
+                    department=Department.objects.filter(code='SALON').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now()
+                )
+                
+                # Get accounts receivable account
+                ar_account = ChartOfAccounts.objects.filter(
+                    account_code='1100'  # Accounts Receivable
+                ).first()
+                
+                # Get appropriate cash account based on payment method
+                if payment.payment_method == 'cash':
+                    cash_account = ChartOfAccounts.objects.filter(
+                        account_code='1000'  # Cash
+                    ).first()
+                elif payment.payment_method in ['mobile_money', 'airtel_money']:
+                    cash_account = ChartOfAccounts.objects.filter(
+                        account_code='1010'  # Mobile Money
+                    ).first()
+                    if not cash_account:
+                        cash_account = ChartOfAccounts.objects.create(
+                            account_code='1010',
+                            account_name='Mobile Money',
+                            account_type='asset',
+                            account_category='current_asset',
+                            is_active=True
+                        )
+                elif payment.payment_method in ['visa', 'bank_transfer']:
+                    cash_account = ChartOfAccounts.objects.filter(
+                        account_code='1020'  # Bank Account
+                    ).first()
+                    if not cash_account:
+                        cash_account = ChartOfAccounts.objects.create(
+                            account_code='1020',
+                            account_name='Bank Account',
+                            account_type='asset',
+                            account_category='current_asset',
+                            is_active=True
+                        )
+                else:
+                    # Default to cash
+                    cash_account = ChartOfAccounts.objects.filter(
+                        account_code='1000'  # Cash
+                    ).first()
+                
+                if ar_account and cash_account:
+                    # Debit Cash/Bank (increase cash)
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=cash_account,
+                        entry_type='debit',
+                        amount=payment.amount,
+                        description=f"Payment received via {payment.payment_method} for {service_sale.service_sale_number}"
+                    )
+                    
+                    # Credit Accounts Receivable (reduce receivable)
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=ar_account,
+                        entry_type='credit',
+                        amount=payment.amount,
+                        description=f"Payment received from {service_sale.customer.first_name} {service_sale.customer.last_name}"
+                    )
+                    
+                    # Create payment record for tracking
+                    PaymentRecord.objects.create(
+                        service_sale=service_sale,
+                        payment=payment,
+                        journal_entry=journal_entry,
+                        amount=payment.amount
+                    )
+                    
+                    print(f"Created payment journal entry {journal_entry.entry_number} for service sale {service_sale.id}")
+                    return journal_entry
+                else:
+                    journal_entry.delete()
+                    print(f"Required accounts not found for payment {payment.id}")
+                    return None
+                    
+        except Exception as e:
+            print(f"Error creating service payment journal entry: {e}")
             return None
     
     @staticmethod
@@ -645,4 +746,230 @@ class AccountingService:
             
         except Exception as e:
             print(f"Error creating store budget: {e}")
+            return None
+    
+    @staticmethod
+    def create_service_commission_journal_entry(staff_commission, user):
+        """Create journal entry when service commission is earned"""
+        try:
+            with transaction.atomic():
+                # Check if journal entry already exists
+                existing_expense = CommissionExpense.objects.filter(
+                    staff_commission=staff_commission
+                ).first()
+                
+                if existing_expense:
+                    print(f"Commission journal entry already exists for {staff_commission.id}")
+                    return existing_expense.journal_entry
+                
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=staff_commission.created_at.date(),
+                    reference=f"ServiceCommission-{staff_commission.id}",
+                    description=f"Service commission for {staff_commission.staff.first_name} - {staff_commission.service_sale_item.service.service.name}",
+                    entry_type='system',
+                    department=Department.objects.filter(code='SALES').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now()
+                )
+                
+                # Get commission expense account
+                expense_account = ChartOfAccounts.objects.filter(
+                    account_code='6015'  # Service Commission Expense
+                ).first()
+                
+                # Get commission payable account
+                payable_account = ChartOfAccounts.objects.filter(
+                    account_code='2110'  # Commission Payable
+                ).first()
+                
+                if expense_account and payable_account:
+                    # Dr. Service Commission Expense
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=expense_account,
+                        entry_type='debit',
+                        amount=staff_commission.commission_amount,
+                        description=f"Service commission expense for {staff_commission.staff.first_name}"
+                    )
+                    
+                    # Cr. Commission Payable
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=payable_account,
+                        entry_type='credit',
+                        amount=staff_commission.commission_amount,
+                        description=f"Commission payable to {staff_commission.staff.first_name}"
+                    )
+                    
+                    # Create commission expense record
+                    CommissionExpense.objects.create(
+                        staff_commission=staff_commission,
+                        journal_entry=journal_entry,
+                        amount=staff_commission.commission_amount,
+                        commission_type='service'
+                    )
+                    
+                    print(f"Created service commission journal entry: {journal_entry.entry_number}")
+                    return journal_entry
+                else:
+                    print("Commission accounts not found. Please run setup_commission_accounts command.")
+                    return None
+                    
+        except Exception as e:
+            print(f"Error creating service commission journal entry: {e}")
+            return None
+    
+    @staticmethod
+    def create_product_commission_journal_entry(product_commission, user):
+        """Create journal entry when product commission is earned"""
+        try:
+            with transaction.atomic():
+                # Check if journal entry already exists
+                existing_expense = CommissionExpense.objects.filter(
+                    product_commission=product_commission
+                ).first()
+                
+                if existing_expense:
+                    print(f"Product commission journal entry already exists for {product_commission.id}")
+                    return existing_expense.journal_entry
+                
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=product_commission.created_at.date(),
+                    reference=f"ProductCommission-{product_commission.id}",
+                    description=f"Product commission for {product_commission.staff.first_name} - {product_commission.product_sale_item.product.product.product_name}",
+                    entry_type='system',
+                    department=Department.objects.filter(code='SALES').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now()
+                )
+                
+                # Get commission expense account
+                expense_account = ChartOfAccounts.objects.filter(
+                    account_code='6016'  # Product Commission Expense
+                ).first()
+                
+                # Get commission payable account
+                payable_account = ChartOfAccounts.objects.filter(
+                    account_code='2110'  # Commission Payable
+                ).first()
+                
+                if expense_account and payable_account:
+                    # Dr. Product Commission Expense
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=expense_account,
+                        entry_type='debit',
+                        amount=product_commission.commission_amount,
+                        description=f"Product commission expense for {product_commission.staff.first_name}"
+                    )
+                    
+                    # Cr. Commission Payable
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=payable_account,
+                        entry_type='credit',
+                        amount=product_commission.commission_amount,
+                        description=f"Commission payable to {product_commission.staff.first_name}"
+                    )
+                    
+                    # Create commission expense record
+                    CommissionExpense.objects.create(
+                        product_commission=product_commission,
+                        journal_entry=journal_entry,
+                        amount=product_commission.commission_amount,
+                        commission_type='product'
+                    )
+                    
+                    print(f"Created product commission journal entry: {journal_entry.entry_number}")
+                    return journal_entry
+                else:
+                    print("Commission accounts not found. Please run setup_commission_accounts command.")
+                    return None
+                    
+        except Exception as e:
+            print(f"Error creating product commission journal entry: {e}")
+            return None
+    
+    @staticmethod
+    def create_commission_payment_journal_entry(monthly_commission, user, payment_method='cash'):
+        """Create journal entry when commission is paid to staff"""
+        try:
+            with transaction.atomic():
+                # Check if journal entry already exists
+                existing_expense = CommissionExpense.objects.filter(
+                    monthly_commission=monthly_commission,
+                    commission_type='monthly'
+                ).first()
+                
+                if existing_expense:
+                    print(f"Commission payment journal entry already exists for {monthly_commission.id}")
+                    return existing_expense.journal_entry
+                
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=monthly_commission.paid_date.date() if monthly_commission.paid_date else date.today(),
+                    reference=f"CommissionPayment-{monthly_commission.id}",
+                    description=f"Commission payment to {monthly_commission.staff.first_name} for {monthly_commission.month_name}",
+                    entry_type='system',
+                    department=Department.objects.filter(code='SALES').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now()
+                )
+                
+                # Get commission payable account
+                payable_account = ChartOfAccounts.objects.filter(
+                    account_code='2110'  # Commission Payable
+                ).first()
+                
+                # Get appropriate cash account based on payment method
+                cash_account_code = '1000'  # Default to Cash
+                if payment_method == 'mobile_money':
+                    cash_account_code = '1010'  # Mobile Money
+                elif payment_method == 'bank_transfer':
+                    cash_account_code = '1020'  # Bank Account
+                
+                cash_account = ChartOfAccounts.objects.filter(
+                    account_code=cash_account_code
+                ).first()
+                
+                if payable_account and cash_account:
+                    # Dr. Commission Payable
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=payable_account,
+                        entry_type='debit',
+                        amount=monthly_commission.total_amount,
+                        description=f"Payment of commission to {monthly_commission.staff.first_name}"
+                    )
+                    
+                    # Cr. Cash/Bank
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=cash_account,
+                        entry_type='credit',
+                        amount=monthly_commission.total_amount,
+                        description=f"Commission payment via {payment_method} to {monthly_commission.staff.first_name}"
+                    )
+                    
+                    # Create commission expense record
+                    CommissionExpense.objects.create(
+                        monthly_commission=monthly_commission,
+                        journal_entry=journal_entry,
+                        amount=monthly_commission.total_amount,
+                        commission_type='monthly'
+                    )
+                    
+                    print(f"Created commission payment journal entry: {journal_entry.entry_number}")
+                    return journal_entry
+                else:
+                    print("Required accounts not found. Please run setup_commission_accounts command.")
+                    return None
+                    
+        except Exception as e:
+            print(f"Error creating commission payment journal entry: {e}")
             return None 

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cancel Service Sale{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'store_service_sales_view' %}">SERVICE SALES</a></li>
+            <li class="breadcrumb-item active">CANCEL SALE</li>
+        </ul>
+        <h5>Cancel Service Sale</h5>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Cancel Sale Confirmation
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> You are about to cancel this service sale. This action cannot be undone.
+                </div>
+                
+                <!-- Sale Details -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Sale Number:</strong> {{ sale.service_sale_number|default:sale.id }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Customer:</strong> {{ sale.customer.first_name }} {{ sale.customer.last_name }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Total Amount:</strong> UGX {{ sale.total_amount|floatformat:0 }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Current Status:</strong> 
+                        <span class="badge bg-{% if sale.get_workflow_status == 'Completed' %}success{% elif sale.get_workflow_status == 'Cancelled' %}danger{% else %}warning{% endif %}">
+                            {{ sale.get_workflow_status }}
+                        </span>
+                    </div>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Cancellation Reason</label>
+                        <textarea name="reason" id="reason" class="form-control" rows="3" 
+                                  placeholder="Please provide a reason for cancelling this sale..." required></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'service_sale_details' sale.id %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>
+                            Back to Sale
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-x-circle me-1"></i>
+                            Cancel Sale
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1009,9 +1009,12 @@
                 <div class="customer-row mb-3">
 					
                     <select class="form-select" id="customerSelect">
-                        <option value="">Select Customer</option>
+                        <option value="">Select or Search Customer</option>
                         {% for customer in customers %}
-                            <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }}</option>
+                            <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }}
+                                {% if customer.phone %} - {{ customer.phone }}{% endif %}
+                                {% if customer.email %} - {{ customer.email }}{% endif %}
+                            </option>
                         {% endfor %}
                     </select>
                     <button class="btn btn-sm btn-outline-theme mt-1" onclick="showNewCustomerModal()">
@@ -1167,6 +1170,34 @@
 	</div>
 	<script>
 		$(document).ready(function() {
+			// Initialize customer search
+			$('#customerSelect').select2({
+				placeholder: 'Select or Search Customer',
+				allowClear: true,
+				minimumInputLength: 2,
+				ajax: {
+					url: "/production/search-customers/",
+					dataType: 'json',
+					delay: 250,
+					data: function (params) {
+						return {
+							term: params.term,
+							page: params.page
+						};
+					},
+					processResults: function (data, params) {
+						return {
+							results: data.results
+						};
+					},
+					cache: true
+				},
+				escapeMarkup: function (markup) {
+					return markup;
+				}
+			});
+
+			// Initialize staff select2
 			$('.select2-staff').select2({
 				dropdownParent: $('#serviceModal'),
 				placeholder: 'Select Staff',

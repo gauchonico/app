@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Supplier Payable Summary{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-users me-2"></i>Supplier Payable Summary</h2>
+                <div class="btn-group">
+                    <a href="{% url 'accounts:accounts_payable_details' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-1"></i>Detailed View
+                    </a>
+                    <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Outstanding</h5>
+                    <h3>UGX {{ total_all_suppliers|floatformat:0|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Suppliers with Debt</h5>
+                    <h3>{{ supplier_count }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Average per Supplier</h5>
+                    <h3>UGX {{ average_per_supplier|floatformat:0|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suppliers Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-table me-2"></i>Suppliers We Owe Money To
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="supplierTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th>Contact Info</th>
+                                    <th>Total Owed</th>
+                                    <th>Requisitions</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for supplier_data in suppliers_with_debt %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ supplier_data.supplier.name }}</strong>
+                                        <br><small class="text-muted">{{ supplier_data.supplier.location|default:"No location" }}</small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {% if supplier_data.supplier.phone %}
+                                                <i class="fas fa-phone me-1"></i>{{ supplier_data.supplier.phone }}
+                                                <br>
+                                            {% endif %}
+                                            {% if supplier_data.supplier.email %}
+                                                <i class="fas fa-envelope me-1"></i>{{ supplier_data.supplier.email }}
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <strong class="text-danger h5">UGX {{ supplier_data.total_owed|floatformat:0|intcomma }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ supplier_data.requisition_count }} requisition{{ supplier_data.requisition_count|pluralize }}</span>
+                                        <br>
+                                        <button class="btn btn-sm btn-outline-info mt-1" type="button" 
+                                                data-bs-toggle="collapse" 
+                                                data-bs-target="#requisitions{{ forloop.counter }}" 
+                                                aria-expanded="false">
+                                            <i class="fas fa-eye me-1"></i>View Requisitions
+                                        </button>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-success" title="Record Payment">
+                                                <i class="fas fa-money-bill-wave"></i>
+                                            </button>
+                                            <button class="btn btn-primary" title="Contact Supplier">
+                                                <i class="fas fa-phone"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="collapse" id="requisitions{{ forloop.counter }}">
+                                    <td colspan="5">
+                                        <div class="bg-light p-3 rounded">
+                                            <h6>Unpaid Requisitions for {{ supplier_data.supplier.name }}</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Requisition #</th>
+                                                            <th>Date</th>
+                                                            <th>Amount</th>
+                                                            <th>Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for req_data in supplier_data.requisition_details %}
+                                                        <tr>
+                                                            <td>
+                                                                <strong>{{ req_data.requisition.requisition_no }}</strong>
+                                                            </td>
+                                                            <td>{{ req_data.requisition.created_at|date:"M d, Y" }}</td>
+                                                            <td>UGX {{ req_data.amount|floatformat:0|intcomma }}</td>
+                                                            <td>
+                                                                <span class="badge bg-warning">{{ req_data.requisition.status|title }}</span>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">
+                                        <i class="fas fa-check-circle fa-3x mb-3"></i>
+                                        <h5>All suppliers have been paid!</h5>
+                                        <p>No outstanding balances found.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#supplierTable').DataTable({
+        "order": [[ 2, "desc" ]], // Sort by amount owed
+        "pageLength": 25,
+        "responsive": true
+    });
+});
+</script>
+{% endblock %}

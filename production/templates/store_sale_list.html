@@ -39,6 +39,9 @@
     </div>
     
     <div class="btn-group ms-auto">
+      <a href="{% url 'branch_queue_management_dashboard' %}" type="button" class="btn btn-sm btn-outline-theme">
+        <i class="fas fa-clock"></i> Queue Management
+      </a>
         <a href="{% url 'saloon_sale' %}" type="button" class="btn btn-sm btn-outline-theme">
             <i class="fas fa-plus"></i> Make New Sale
         </a>
@@ -55,6 +58,7 @@
         <th>Customer</th>
         <th>Total Price (UGX)</th>
         <th>Paid Status</th>
+        <th>Invoiced</th>
         <th>Sale Date</th>
         <th>view</th>
         <th>Update</td>
@@ -79,6 +83,13 @@
             <span class="badge bg-danger">Not Paid</span>
           {% else %}
             <span class="badge bg-success">Paid</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if sale.invoice_status == 'invoiced' %}
+            <span class="badge bg-success">Invoiced</span>
+          {% else %}
+            <span class="badge bg-danger">Not Invoiced</span>
           {% endif %}
         </td>
         <td>{{ sale.sale_date|date:"M d, Y" }}</td>

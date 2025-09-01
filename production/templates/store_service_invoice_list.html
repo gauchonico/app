@@ -49,32 +49,62 @@
 <table class="table table-striped">
     <thead>
       <tr>
-        <th>Service Name</th>
-        <th>Customer</th>
-        <th>Staff</th>
-        <th>Total Price(UGX)</th>
-        <th>Process Payment</th>
+        <th>Sale Details</th>
+        <th>Status</th>
+        <th>Created Date</th>
+        <th>Total Amount (UGX)</th>
+        <th>Actions</th>
         
       </tr>
     </thead>
     <tbody>
       {% for invoice in invoices %}
       <tr>
-        <td>{{ invoice.sale }}</td>
-        <td>{{ invoice.paid_status }}</td>
+        <td>
+            <a href="{% url 'service_sale_details' invoice.sale.id %}" class="text-decoration-none">
+                <strong>{{ invoice.sale.service_sale_number|default:invoice.sale.id }}</strong>
+            </a>
+            <br>
+            <small class="text-muted">{{ invoice.sale.customer.first_name }} {{ invoice.sale.customer.last_name }}</small>
+        </td>
+        <td>
+            {% if invoice.sale.paid_status == 'paid' %}
+                <span class="badge bg-success">Paid</span>
+            {% elif invoice.sale.invoice_status == 'cancelled' %}
+                <span class="badge bg-danger">Cancelled</span>
+            {% elif invoice.sale.invoice_status == 'invoiced' %}
+                <span class="badge bg-warning">Awaiting Payment</span>
+            {% elif invoice.sale.invoice_status == 'not_invoiced' %}
+                <span class="badge bg-secondary">Not Invoiced</span>
+            {% else %}
+                <span class="badge bg-light text-dark">{{ invoice.sale.get_workflow_status }}</span>
+            {% endif %}
+        </td>
         <td>
           {{ invoice.created_at}}
         </td>
         <td>{{ invoice.total_amount }}</td>
         <td>
-            {% if invoice.paid_status == 'unpaid'%}
-            <a href="#">
-                <button type="button" class="btn btn-sm btn-outline-theme">Make Payment</button>
-            </a>
+            {% if invoice.sale.can_process_payment %}
+                <a href="{% url 'record_payment_view' invoice.sale.id %}" class="btn btn-success btn-sm">
+                    <i class="bi bi-credit-card"></i> Record Payment
+                </a>
+            {% elif invoice.sale.paid_status == 'paid' %}
+                <span class="badge bg-success">
+                    <i class="bi bi-check-circle"></i> Paid
+                </span>
+            {% elif invoice.sale.invoice_status == 'cancelled' %}
+                <span class="badge bg-danger">
+                    <i class="bi bi-x-circle"></i> Cancelled
+                </span>
+            {% elif invoice.sale.invoice_status == 'not_invoiced' %}
+                <a href="{% url 'create_service_sale_invoice' invoice.sale.id %}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-file-earmark-text"></i> Create Invoice
+                </a>
             {% else %}
-            <div class="text-theme">
-                <p>Payment Successful</p>
-            </div>
+                <span class="badge bg-warning">
+                    <i class="bi bi-clock"></i> {{ invoice.sale.get_workflow_status }}
+                </span>
             {% endif %}
         </td>
         
