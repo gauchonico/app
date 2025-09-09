@@ -1577,6 +1577,7 @@ def download_raw_material_price_template(request):
     writer.writerow(['Salt', 'ABC Suppliers', '25.00', '2024-01-15', 'false'])
     
     return response
+
 @login_required(login_url='/login/')
 def manufacture_product(request, product_id):
     product = Production.objects.get(pk=product_id)
@@ -1647,10 +1648,10 @@ def manufacture_product(request, product_id):
                             product=product,
                             batch_number=manufacture_product.batch_number,
                             defaults={'quantity': Decimal(str(quantity)), 'expiry_date': expiry_date}
-                    )
-                    if not created:
-                        manufactured_product_inventory.quantity += quantity
-                        manufactured_product_inventory.save()
+                        )
+                        if not created:
+                            manufactured_product_inventory.quantity += quantity
+                            manufactured_product_inventory.save()
                     
                     # Create quality control test if required and auto-create is enabled
                     qc_test = None
