@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Debug Price Groups{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bug me-2"></i>Price Groups & Products Debug
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Current Store -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-store me-2"></i>Current Store</h6>
+                        <p><strong>Store:</strong> {{ current_store.name }}</p>
+                        <p><strong>Location:</strong> {{ current_store.location }}</p>
+                    </div>
+
+                    <!-- Retail Price Group -->
+                    {% if retail_price_group %}
+                    <div class="alert alert-success">
+                        <h6><i class="fas fa-star me-2"></i>Default Retail Price Group</h6>
+                        <p><strong>Name:</strong> {{ retail_price_group.name }}</p>
+                        <p><strong>Description:</strong> {{ retail_price_group.description }}</p>
+                        <p><strong>Status:</strong> 
+                            {% if retail_price_group.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle me-2"></i>No Retail Price Group Found</h6>
+                        <p>No price group with "retail" in the name was found. The system will use default retail pricing.</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Price Groups -->
+                    <div class="mb-4">
+                        <h6><i class="fas fa-tags me-2"></i>Price Groups ({{ price_groups.count }})</h6>
+                        {% if price_groups %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Description</th>
+                                            <th>Active</th>
+                                            <th>Created</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for price_group in price_groups %}
+                                        <tr>
+                                            <td>{{ price_group.id }}</td>
+                                            <td><strong>{{ price_group.name }}</strong></td>
+                                            <td>{{ price_group.description }}</td>
+                                            <td>
+                                                {% if price_group.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ price_group.created_at|date:"M d, Y" }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                No price groups found. Create some price groups first.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Products with Prices -->
+                    <div class="mb-4">
+                        <h6><i class="fas fa-dollar-sign me-2"></i>Products with Prices</h6>
+                        {% for group_data in products_with_prices %}
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        {{ group_data.price_group.name }} 
+                                        <span class="badge bg-primary">{{ group_data.product_prices|length }} products</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if group_data.product_prices %}
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Product ID</th>
+                                                        <th>Product Name</th>
+                                                        <th>Price</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for product_price in group_data.product_prices %}
+                                                    <tr>
+                                                        <td><code>{{ product_price.product.id }}</code></td>
+                                                        <td>{{ product_price.product.product_name }}</td>
+                                                        <td><strong>UGX {{ product_price.price|floatformat:2 }}</strong></td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-warning">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            No products have prices set for this group.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Store Products -->
+                    <div class="mb-4">
+                        <h6><i class="fas fa-boxes me-2"></i>Store Products ({{ store_products.count }})</h6>
+                        {% if store_products %}
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>StoreInventory ID</th>
+                                            <th>Production ID</th>
+                                            <th>Product Name</th>
+                                            <th>Default Price</th>
+                                            <th>Stock</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for product in store_products %}
+                                        <tr>
+                                            <td><code>{{ product.id }}</code></td>
+                                            <td><code>{{ product.product.id }}</code></td>
+                                            <td><strong>{{ product.product.product_name }}</strong></td>
+                                            <td><strong>UGX{{ product.product.price|floatformat:2 }}</strong></td>
+                                            <td><span class="badge bg-success">{{ product.quantity }}</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                No products found in store inventory.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Mapping Analysis -->
+                    <div class="mb-4">
+                        <h6><i class="fas fa-search me-2"></i>Mapping Analysis</h6>
+                        <div class="alert alert-info">
+                            <h6>Key Points:</h6>
+                            <ul class="mb-0">
+                                <li><strong>StoreInventory ID:</strong> Used for product cards and cart operations</li>
+                                <li><strong>Production ID:</strong> Used for price group lookups</li>
+                                <li><strong>Price Groups:</strong> Must be active to appear in dropdown</li>
+                                <li><strong>Product Prices:</strong> Must exist in ProductPrice table for each group</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Test Product FD0026 -->
+                    <div class="mb-4">
+                        <h6><i class="fas fa-search me-2"></i>Test Product FD0026</h6>
+                        {% for product in store_products %}
+                            {% if 'FD0026' in product.product.product_name or 'Sapphire' in product.product.product_name %}
+                            <div class="alert alert-info">
+                                <h6>Found: {{ product.product.product_name }}</h6>
+                                <p><strong>StoreInventory ID:</strong> <code>{{ product.id }}</code></p>
+                                <p><strong>Production ID:</strong> <code>{{ product.product.id }}</code></p>
+                                <p><strong>Production Model Prices:</strong></p>
+                                <ul>
+                                    <li><strong>price:</strong> 
+                                        {% if product.product.price %}
+                                            ${{ product.product.price|floatformat:2 }}
+                                        {% else %}
+                                            <span class="text-danger">Not set</span>
+                                        {% endif %}
+                                    </li>
+                                    <li><strong>wholesale_price:</strong> 
+                                        {% if product.product.wholesale_price %}
+                                            ${{ product.product.wholesale_price|floatformat:2 }}
+                                        {% else %}
+                                            <span class="text-muted">Not set</span>
+                                        {% endif %}
+                                    </li>
+                                    <li><strong>carrefour_price:</strong> 
+                                        {% if product.product.carrefour_price %}
+                                            ${{ product.product.carrefour_price|floatformat:2 }}
+                                        {% else %}
+                                            <span class="text-muted">Not set</span>
+                                        {% endif %}
+                                    </li>
+                                </ul>
+                                <p><strong>Stock:</strong> {{ product.quantity }}</p>
+                                
+                                <!-- Check if this product has prices in any price group -->
+                                <h6>Price Group Prices:</h6>
+                                {% for group_data in products_with_prices %}
+                                    {% for product_price in group_data.product_prices %}
+                                        {% if product_price.product.id == product.product.id %}
+                                        <p><strong>{{ group_data.price_group.name }}:</strong> ${{ product_price.price|floatformat:2 }}</p>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'product_sale_pos' %}" class="btn btn-primary">
+                            <i class="fas fa-arrow-left me-1"></i> Back to POS
+                        </a>
+                        <a href="/admin/production/pricegroup/" class="btn btn-outline-primary" target="_blank">
+                            <i class="fas fa-cog me-1"></i> Manage Price Groups
+                        </a>
+                        <a href="/admin/production/productprice/" class="btn btn-outline-primary" target="_blank">
+                            <i class="fas fa-dollar-sign me-1"></i> Manage Product Prices
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

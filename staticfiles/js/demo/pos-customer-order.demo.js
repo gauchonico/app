@@ -451,7 +451,7 @@ function submitSale() {
             .filter(item => item.type === 'service')
             .map(item => ({
                 service_id: parseInt(item.id),
-                quantity: parseInt(item.quantity),
+                quantity: parseFloat(item.quantity),
                 staff_ids: item.selected_staff,
                 total_price: parseFloat(item.total)
             })),
@@ -459,7 +459,7 @@ function submitSale() {
             .filter(item => item.type === 'accessory')
             .map(item => ({
                 accessory_id: parseInt(item.id),
-                quantity: parseInt(item.quantity),
+                quantity: parseFloat(item.quantity),
                 price: parseFloat(item.unit_price).toFixed(2),
                 total_price: parseFloat(item.total).toFixed(2) 
             })),

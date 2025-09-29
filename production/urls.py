@@ -143,6 +143,9 @@ urlpatterns = [
     path('accessory_stock_adjustment_view/', views.accessory_stock_adjustment_view, name="accessory_stock_adjustment_view"),
     path('reports/manager_store_accessory_report/', views.manager_store_accessory_report, name="manager_store_accessory_report"),
     path('accessory_inventory_report/', views.accessory_inventory_report, name="accessory_inventory_report"),
+    path('reports/accessories/daily/', views.daily_accessory_report, name='daily_accessory_report'),
+    path('reports/accessories/daily/<int:inventory_id>/', views.accessory_sales_drilldown, name='accessory_sales_drilldown'),
+    path('reports/accessories/daily/<int:inventory_id>/restocks/', views.accessory_restock_drilldown, name='accessory_restock_drilldown'),
     
     ####Sales###
     path('create_service_sale/', views.create_service_sale, name="create_service_sale"),
@@ -256,6 +259,9 @@ urlpatterns = [
     path('approve_incident_write_off/<int:pk>/', views.approve_incident_write_off, name='approve_incident_write_off'),
     path('reject_incident_write_off/<int:pk>/', views.reject_incident_write_off, name='reject_incident_write_off'),
     path('services/', views.service_list, name='service_list'),
+    # POS Edit
+    path('salon/pos/<int:sale_id>/edit/', views.edit_saloon_sale, name='edit_saloon_sale'),
+    path('salon/pos/<int:sale_id>/update/', views.update_service_sale_ajax, name='update_service_sale_ajax'),
     path('services/create/', views.create_service, name='create_service'),
     path('services/<int:pk>/edit/', views.edit_store_service, name='edit_service'),
     path('services/<int:pk>/delete/', views.delete_service, name='delete_service'),
@@ -326,6 +332,17 @@ urlpatterns = [
     path('quality-control/pending/', views.pending_quality_tests, name='pending_quality_tests'),
     path('quality-control/my-tests/', views.my_quality_tests, name='my_quality_tests'),
     path('quality-control/reports/', views.quality_control_reports, name='quality_control_reports'),
+    
+    # Product Sale URLs
+    path('product-sale-pos/', views.product_sale_pos, name='product_sale_pos'),
+    path('product-sale/create/', views.create_product_sale, name='create_product_sale'),
+    path('product-sale/<int:sale_id>/', views.product_sale_details, name='product_sale_details'),
+    path('product-sale/<int:sale_id>/payment/', views.record_product_sale_payment, name='record_product_sale_payment'),
+    path('product-sale/<int:sale_id>/receipt/', views.product_sale_receipt, name='product_sale_receipt'),
+    path('product-sales-receipts-list/', views.product_sales_receipts_list, name='product_sales_receipts_list'),
+    path('api/product-prices/', views.get_product_prices, name='get_product_prices'),
+    path('debug/price-groups/', views.debug_price_groups, name='debug_price_groups'),
+    path('product-sales-list/', views.product_sales_list, name='product_sales_list'),
     
    
 ]

@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% load humanize %}
+{% block title %}Record Payment - Product Sale{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-credit-card me-2"></i>Record Payment
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Sale Information -->
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading">Sale Information</h6>
+                        <p class="mb-1"><strong>Sale Number:</strong> {{ sale.product_sale_number }}</p>
+                        <p class="mb-1"><strong>Customer:</strong> {{ sale.customer.first_name }} {{ sale.customer.last_name }}</p>
+                        <p class="mb-1"><strong>Total Amount:</strong> UGX {{ sale.total_amount|floatformat:0|intcomma }}</p>
+                        <p class="mb-1"><strong>Paid Amount:</strong> UGX {{ sale.paid_amount|floatformat:0|intcomma }}</p>
+                        <p class="mb-0"><strong>Balance:</strong> <span class="text-danger">UGX {{ sale.balance|floatformat:2 }}</span></p>
+                    </div>
+
+                    <!-- Payment Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.amount.id_for_label }}" class="form-label">Payment Amount *</label>
+                                    {{ form.amount }}
+                                    {% if form.amount.errors %}
+                                        <div class="text-danger">{{ form.amount.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Maximum: UGX {{ sale.balance|floatformat:0|intcomma }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.payment_method.id_for_label }}" class="form-label">Payment Method *</label>
+                                    {{ form.payment_method }}
+                                    {% if form.payment_method.errors %}
+                                        <div class="text-danger">{{ form.payment_method.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.remarks.id_for_label }}" class="form-label">Payment Remarks</label>
+                            {{ form.remarks }}
+                            {% if form.remarks.errors %}
+                                <div class="text-danger">{{ form.remarks.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'product_sale_details' sale.id %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> Back to Sale
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-credit-card me-1"></i> Record Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
+    const maxAmount = {{ sale.balance }};
+    
+    amountInput.addEventListener('input', function() {
+        const value = parseFloat(this.value);
+        if (value > maxAmount) {
+            this.value = maxAmount;
+        }
+    });
+    
+    // Set max amount as placeholder
+    amountInput.placeholder = `Maximum: UGX ${maxAmount.toFixed(0)}`;
+});
+</script>
+{% endblock %}

@@ -2,6 +2,7 @@
 
 {% load static %}
 {% load humanize %}
+{% load custom_filters %}
 
 {% block title %}POS - Customer Order System{% endblock %}
 {% block css %}
@@ -169,6 +170,21 @@
 			}
 		};
 
+		// Preload existing cart when editing
+		{% if existing_cart_json %}
+		try {
+			const existing = JSON.parse('{{ existing_cart_json|escapejs }}');
+			cart = existing;
+			setTimeout(() => {
+				if (existing.customer) {
+					document.getElementById('customerSelect').value = String(existing.customer);
+				}
+				updateCartDisplay();
+				calculateTotals();
+			}, 0);
+		} catch (e) { console.error('Failed to preload existing cart', e); }
+		{% endif %}
+
 		function addServiceToCart() {
 			const staffSelect = document.getElementById('serviceStaff');
 			const selectedStaff = Array.from(staffSelect.selectedOptions).map(option => ({
@@ -246,7 +262,7 @@
 
 		//add accessories to cart
 		function addAccessoryToCart() {
-			const quantity = parseInt(document.getElementById('accessoryQuantity').value);
+			const quantity = parseFloat(document.getElementById('accessoryQuantity').value);
 			const unitPrice = parseFloat(selectedAccessory.price);
 			
 			const accessoryItem = {
@@ -300,9 +316,10 @@
 			document.getElementById('productQuantity').max = stock;
 			document.getElementById('selectedPrice').textContent = 'Loading price...';
 
+			// Try to get retail price group first, then fallback to any available price group
 			const url = `/production/get_product_price_groups/${productId}/`;
 
-			// Fetch retail price
+			// Fetch price with retail price group preference
 			fetch(url)
 				.then(response => {
 					if (!response.ok) {
@@ -313,25 +330,30 @@
 				.then(data => {
 					console.log('Received price data:', data); // Debug log
             
-					if (data.success && data.price_groups && data.price_groups.length > 0) {
-						const retailPrice = parseFloat(data.price_groups[0].price);
+					if (data.success && data.price) {
+						const productPrice = parseFloat(data.price);
 						
-						if (isNaN(retailPrice)) {
+						if (isNaN(productPrice)) {
 							throw new Error('Invalid price received from server');
 						}
 						
-						selectedProduct.price = retailPrice;
+						selectedProduct.price = productPrice;
 						document.getElementById('selectedPrice').textContent = 
-							`UGX ${retailPrice.toLocaleString()}`;
-						document.getElementById('priceGroup').value = data.price_groups[0].id;
+							`UGX ${productPrice.toLocaleString()}`;
+						
+						// Set price group if available
+						if (data.price_group_name) {
+							document.getElementById('priceGroup').value = data.price_groups[0].id;
+						}
+						
 						document.querySelector('#productModal .btn-theme').disabled = false;
 					} else {
-						// Show message and disable Add Product button when no retail price is found
+						// Show message and disable Add Product button when no price is found
 						document.getElementById('selectedPrice').innerHTML = `
 							<div class="text-danger">
-								<i class="bi bi-exclamation-triangle"></i> No retail price set
+								<i class="bi bi-exclamation-triangle"></i> No price set in any price group
 							</div>
-							<small class="text-muted">Please add a retail price for this product first</small>
+							<small class="text-muted">Please add a price for this product in a price group first</small>
 						`;
 						// Disable the Add Product button
 						document.querySelector('#productModal .btn-theme').disabled = true;
@@ -343,7 +365,7 @@
 						<div class="text-danger">
 							<i class="bi bi-exclamation-triangle"></i> Error loading price
 						</div>
-						<small class="text-muted">Please ensure a retail price is set for this product</small>
+						<small class="text-muted">Please ensure a price is set for this product in a price group</small>
 					`;
 					// Disable the Add Product button
 					document.querySelector('#productModal .btn-theme').disabled = true;
@@ -630,7 +652,7 @@
 			const productItems = [];
 			const serviceItems = [];
 			const accessoryItems = [];
-			const url = `/production/new_create_service_sale/`;
+			const url = `{% if submit_url %}{{ submit_url }}{% else %}/production/new_create_service_sale/{% endif %}`;
 
 			// Filter and validate items before mapping
 			const saleData = {
@@ -649,7 +671,7 @@
 					.filter(item => item.type === 'service')
 					.map(item => ({
 						service_id: parseInt(item.id),
-						quantity: parseInt(item.quantity),
+						quantity: parseFloat(item.quantity),
 						staff_ids: item.selected_staff,
 						total_price: parseFloat(item.total)
 					})),
@@ -657,7 +679,7 @@
 					.filter(item => item.type === 'accessory')
 					.map(item => ({
 						accessory_id: parseInt(item.id),
-						quantity: parseInt(item.quantity),
+						quantity: parseFloat(item.quantity),
 						price: parseFloat(item.unit_price).toFixed(2),
 						total_price: parseFloat(item.total).toFixed(2) 
 					})),
@@ -945,22 +967,28 @@
                     <div class="card-body h-100 p-1">
 						<span class="item-badge badge-product">%0.05</span>
                         <a href="#" class="pos-product product-item" onclick="showProductModal(
-                            '{{ product.product.id }}', 
+                            '{{ product.id }}', 
                             '{{ product.product.product_name|escapejs }}',
-							'{{ product.product.price_group|escapejs }}',
-							'{{ product.quantity}}', 
-                    
+							'{{ product.quantity}}'
                         ); return false;">
                             <div class="info">
                                 <div class="item-title">{{ product.product.product_name }}</div>
                                 <div class="">Stock: {{ product.quantity }}</div>
 								
 								<div class="price">
-									{% for price in product.product.prices.all %}
-										{% if price.price_group.name|lower == 'retail price' %}
-											{{ price.price|floatformat|intcomma }}
-										{% endif %}
-									{% endfor %}
+									{% if selected_price_group %}
+										{% for price in product.product.prices.all %}
+											{% if price.price_group.id == selected_price_group.id %}
+												UGX {{ price.price|floatformat:0|intcomma }}
+											{% endif %}
+										{% endfor %}
+									{% else %}
+										{% for price in product.product.prices.all %}
+											{% if price.price_group.name|lower == 'retail' %}
+												UGX {{ price.price|floatformat:0|intcomma }}
+											{% endif %}
+										{% endfor %}
+									{% endif %}
 								</div>
                             </div>
                         </a>

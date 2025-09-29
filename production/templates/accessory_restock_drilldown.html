@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <div>
+    <ul class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'daily_accessory_report' %}?date={{ report_date|date:'Y-m-d' }}">Daily Accessories</a></li>
+      <li class="breadcrumb-item active">Restocks</li>
+    </ul>
+    <h5>Restocks for {{ inventory.accessory.name }} — {{ inventory.store.name }} ({{ report_date }})</h5>
+  </div>
+</div>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>Date/Time</th>
+      <th>Adjustment</th>
+      <th class="text-end">Quantity</th>
+      <th>Reason</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for adj in adjustments %}
+    <tr>
+      <td>{{ adj.created_at|date:'Y-m-d H:i' }}</td>
+      <td>{{ adj.get_adjustment_display }}</td>
+      <td class="text-end">{{ adj.quantity }}</td>
+      <td>{{ adj.reason }}</td>
+      <td class="text-end">
+        {# if reason contains request id like "request <id>" #}
+        {% with request_id=adj.reason|cut:'Delivered from main inventory via request ' %}
+          {% if request_id|add:'0' %}
+            <a href="{% url 'internal_request_detail' request_id %}" class="btn btn-sm btn-link">View Requisition</a>
+          {% endif %}
+        {% endwith %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="text-center text-muted">No restocks</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+

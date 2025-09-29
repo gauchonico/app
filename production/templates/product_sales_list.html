@@ -1,0 +1,392 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Product Sales List{% endblock %}
+
+{% block css %}
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .stats-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    .stats-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .stats-card.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    .filter-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .sale-item {
+        border-left: 4px solid #007bff;
+        transition: all 0.3s ease;
+    }
+    .sale-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+    }
+    .payment-method-badge {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-shopping-cart me-2"></i>Product Sales List
+                    </h2>
+                    <p class="text-muted mb-0">{{ current_store.name }} - {{ current_store.location }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'product_sale_pos' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> New Product Sale
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stats-card success">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Today's Sales</h6>
+                        <h3 class="mb-0">{{ daily_sales_count }}</h3>
+                        <small>Product sales today</small>
+                    </div>
+                    <div class="text-end">
+                        <i class="fas fa-shopping-bag fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card info">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Today's Revenue</h6>
+                        <h3 class="mb-0">UGX {{ daily_sales_amount|floatformat:0|intcomma }}</h3>
+                        <small>Total amount today</small>
+                    </div>
+                    <div class="text-end">
+                        <i class="fas fa-money-bill-wave fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card warning">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Pending Payments</h6>
+                        <h3 class="mb-0">{{ page_obj|length|add:"-1" }}</h3>
+                        <small>Unpaid sales</small>
+                    </div>
+                    <div class="text-end">
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">Payment Methods</h6>
+                        <h3 class="mb-0">{{ payment_methods|length }}</h3>
+                        <small>Different methods used</small>
+                    </div>
+                    <div class="text-end">
+                        <i class="fas fa-credit-card fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Methods Summary -->
+    {% if payment_methods_summary %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Today's Payment Methods Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for method in payment_methods_summary %}
+                        <div class="col-md-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center p-3 border rounded">
+                                <div>
+                                    <h6 class="mb-1 text-capitalize">{{ method.payment_mode|title }}</h6>
+                                    <small class="text-muted">{{ method.count }} sales</small>
+                                </div>
+                                <div class="text-end">
+                                    <h5 class="mb-0 text-primary">UGX {{ method.total_amount|floatformat:0|intcomma }}</h5>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="filter-card">
+                <form method="GET" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Product Filter</label>
+                        <select name="product" class="form-select">
+                            <option value="">All Products</option>
+                            {% for product in store_products %}
+                            <option value="{{ product.product.product_name }}" 
+                                {% if filters.product == product.product.product_name %}selected{% endif %}>
+                                {{ product.product.product_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Date Filter</label>
+                        <input type="date" name="date" class="form-control" value="{{ filters.date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Payment Status</label>
+                        <select name="paid_status" class="form-select">
+                            <option value="">All Status</option>
+                            <option value="paid" {% if filters.paid_status == 'paid' %}selected{% endif %}>Paid</option>
+                            <option value="not_paid" {% if filters.paid_status == 'not_paid' %}selected{% endif %}>Not Paid</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Payment Method</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="">All Methods</option>
+                            {% for method in payment_methods %}
+                            <option value="{{ method }}" {% if filters.payment_method == method %}selected{% endif %}>
+                                {{ method|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">&nbsp;</label>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i> Filter
+                            </button>
+                            <a href="{% url 'product_sales_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Product Sales
+                        <span class="badge bg-primary ms-2">{{ page_obj.paginator.count }} total</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Sale #</th>
+                                        <th>Customer</th>
+                                        <th>Products</th>
+                                        <th>Total Amount</th>
+                                        <th>Payment Status</th>
+                                        <th>Payment Method</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sale in page_obj %}
+                                    <tr class="sale-item">
+                                        <td>
+                                            <strong>{{ sale.product_sale_number|default:sale.id }}</strong>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ sale.customer.phone }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex flex-wrap gap-1">
+                                                {% for item in sale.product_sale_items.all %}
+                                                <span class="badge bg-light text-dark">
+                                                    {{ item.product.product_name }} x{{ item.quantity }}
+                                                </span>
+                                                {% endfor %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong>UGX {{ sale.total_amount|floatformat:0|intcomma }}</strong>
+                                            {% if sale.balance > 0 %}
+                                            <br>
+                                            <small class="text-danger">Balance: UGX {{ sale.balance|floatformat:0|intcomma }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if sale.paid_status == 'paid' %}
+                                                <span class="status-badge bg-success text-white">
+                                                    <i class="fas fa-check me-1"></i>Paid
+                                                </span>
+                                            {% else %}
+                                                <span class="status-badge bg-warning text-dark">
+                                                    <i class="fas fa-clock me-1"></i>Not Paid
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="payment-method-badge bg-info text-white">
+                                                {{ sale.payment_mode|title }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {{ sale.sale_date|date:"M d, Y" }}<br>
+                                            <small class="text-muted">{{ sale.sale_date|time:"H:i" }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'product_sale_details' sale.id %}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if sale.paid_status == 'not_paid' %}
+                                                <a href="{% url 'record_product_sale_payment' sale.id %}" 
+                                                   class="btn btn-sm btn-outline-success">
+                                                    <i class="fas fa-credit-card"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                        <div class="card-footer">
+                            <nav aria-label="Product sales pagination">
+                                <ul class="pagination justify-content-center mb-0">
+                                    {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if filters.product %}&product={{ filters.product }}{% endif %}{% if filters.date %}&date={{ filters.date }}{% endif %}{% if filters.paid_status %}&paid_status={{ filters.paid_status }}{% endif %}{% if filters.payment_method %}&payment_method={{ filters.payment_method }}{% endif %}">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filters.product %}&product={{ filters.product }}{% endif %}{% if filters.date %}&date={{ filters.date }}{% endif %}{% if filters.paid_status %}&paid_status={{ filters.paid_status }}{% endif %}{% if filters.payment_method %}&payment_method={{ filters.payment_method }}{% endif %}">
+                                            <i class="fas fa-angle-left"></i>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
+
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filters.product %}&product={{ filters.product }}{% endif %}{% if filters.date %}&date={{ filters.date }}{% endif %}{% if filters.paid_status %}&paid_status={{ filters.paid_status }}{% endif %}{% if filters.payment_method %}&payment_method={{ filters.payment_method }}{% endif %}">
+                                            <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filters.product %}&product={{ filters.product }}{% endif %}{% if filters.date %}&date={{ filters.date }}{% endif %}{% if filters.paid_status %}&paid_status={{ filters.paid_status }}{% endif %}{% if filters.payment_method %}&payment_method={{ filters.payment_method }}{% endif %}">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Product Sales Found</h5>
+                            <p class="text-muted">No product sales match your current filters.</p>
+                            <a href="{% url 'product_sale_pos' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i> Create First Sale
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+    // Auto-refresh statistics every 30 seconds
+    setInterval(function() {
+        // You can add AJAX call here to refresh statistics
+        console.log('Refreshing statistics...');
+    }, 30000);
+
+    // Add smooth scrolling for better UX
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+</script>
+{% endblock %}

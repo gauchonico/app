@@ -109,8 +109,14 @@
                         </a>
                     {% endif %}
                     
+                    {% if sale.slot_number %}
+                        <button onclick="printQueueTicket()" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-ticket-alt me-1"></i> Print Queue Ticket
+                        </button>
+                    {% endif %}
+                    
                     <button onclick="window.print()" class="btn btn-info">
-                        <i class="bi bi-printer"></i> Print
+                        <i class="bi bi-printer"></i> Print Receipt
                     </button>
                 </div>
             </div>
@@ -147,6 +153,13 @@
                                     </span>
                                 {% endif %}
                             </div>
+                            {% if sale.slot_number %}
+                                <div class="mt-2">
+                                    <span class="badge bg-primary fs-6">
+                                        <i class="fas fa-ticket-alt me-1"></i>Queue #{{ sale.slot_number }}
+                                    </span>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -401,7 +414,7 @@
             </div>
         </div>
     </div>
-</div>
+{% comment %} </div>
 <p><strong>Payment Mode:</strong> {{ sale.get_payment_mode_display }}</p>
 <p><strong>Status:</strong> 
     {% if sale.paid_status == 'paid' %} 
@@ -480,7 +493,7 @@
             <tr><td colspan="3"><span class="text-danger">No service items found.</span></td></tr>
         {% endfor %}
     </tbody>
-</table>
+</table> {% endcomment %}
 
 {% csrf_token %}
 <script src="{% static 'js/jquery.min.js' %}"></script>
@@ -621,6 +634,117 @@ $(document).ready(function() {
         setTimeout(function() {
             toast.alert('close');
         }, 3000);
+    }
+    
+    function printQueueTicket() {
+        // Create a new window for printing the queue ticket
+        var printWindow = window.open('', '_blank', 'width=400,height=600');
+        
+        var ticketContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Queue Ticket</title>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        padding: 20px;
+                        text-align: center;
+                        background: white;
+                    }
+                    .ticket {
+                        border: 2px solid #000;
+                        border-radius: 10px;
+                        padding: 20px;
+                        max-width: 300px;
+                        margin: 0 auto;
+                    }
+                    .company-name {
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #2c5aa0;
+                        margin-bottom: 10px;
+                    }
+                    .queue-number {
+                        font-size: 48px;
+                        font-weight: bold;
+                        color: #dc3545;
+                        margin: 20px 0;
+                        border: 3px solid #dc3545;
+                        border-radius: 50%;
+                        width: 100px;
+                        height: 100px;
+                        line-height: 94px;
+                        margin: 20px auto;
+                    }
+                    .customer-info {
+                        margin: 15px 0;
+                        font-size: 14px;
+                    }
+                    .services {
+                        margin: 15px 0;
+                        font-size: 12px;
+                        text-align: left;
+                    }
+                    .services ul {
+                        margin: 5px 0;
+                        padding-left: 20px;
+                    }
+                    .date-time {
+                        font-size: 12px;
+                        color: #666;
+                        margin-top: 15px;
+                    }
+                    .store-info {
+                        font-size: 12px;
+                        color: #666;
+                        margin-top: 10px;
+                    }
+                    @media print {
+                        body { margin: 0; padding: 10px; }
+                        .ticket { border: 2px solid #000; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="ticket">
+                    <div class="company-name">LIVARA SALON</div>
+                    <div class="queue-number">#{{ sale.slot_number }}</div>
+                    <div class="customer-info">
+                        <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong><br>
+                        {{ sale.customer.phone }}
+                    </div>
+                    <div class="services">
+                        <strong>Services:</strong>
+                        <ul>
+                            {% for item in sale.service_sale_items.all %}
+                                <li>{{ item.service.service.name }} - {{ item.quantity }}x</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="date-time">
+                        Date: {{ sale.sale_date|date:"M d, Y" }}<br>
+                        Time: {{ sale.sale_date|time:"H:i" }}
+                    </div>
+                    <div class="store-info">
+                        {{ sale.store.name }}<br>
+                        {{ sale.store.location }}
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(ticketContent);
+        printWindow.document.close();
+        
+        // Wait for content to load, then print
+        printWindow.onload = function() {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.close();
+        };
     }
 });
 </script>

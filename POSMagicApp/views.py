@@ -788,3 +788,69 @@ def add_dependent(request, customer_id):
     return render(request, "pages/add-dependent.html", context)
 
 
+@login_required(login_url='/login/')
+def create_customer_ajax(request):
+    """
+    AJAX endpoint for creating customers with minimal information for POS
+    Only requires: first_name, last_name, phone, email (optional)
+    """
+    if request.method == 'POST':
+        try:
+            import json
+            data = json.loads(request.body)
+            
+            # Extract required fields
+            first_name = data.get('first_name', '').strip()
+            last_name = data.get('last_name', '').strip()
+            phone = data.get('phone', '').strip()
+            email = data.get('email', '').strip()
+            
+            # Validate required fields
+            if not first_name:
+                return JsonResponse({'success': False, 'error': 'First name is required'})
+            if not last_name:
+                return JsonResponse({'success': False, 'error': 'Last name is required'})
+            if not phone:
+                return JsonResponse({'success': False, 'error': 'Phone number is required'})
+            
+            # Check for duplicate phone numbers
+            if Customer.objects.filter(phone=phone).exists():
+                return JsonResponse({'success': False, 'error': 'Customer with this phone number already exists'})
+            
+            # Check for duplicate email if provided
+            if email and Customer.objects.filter(email=email).exists():
+                return JsonResponse({'success': False, 'error': 'Customer with this email already exists'})
+            
+            # Create customer with minimal information
+            customer = Customer.objects.create(
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+                email=email if email else '',  # Empty string if no email provided
+                address='',  # Will be filled later
+                type_of_customer='CLIENT',  # Default to client
+                kyc_verified=False,  # Will be verified later
+                can_make_purchases=True,  # Allow purchases by default
+                relationship_to_guardian='SELF'  # Default relationship
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'customer': {
+                    'id': customer.id,
+                    'first_name': customer.first_name,
+                    'last_name': customer.last_name,
+                    'phone': customer.phone,
+                    'email': customer.email
+                },
+                'message': f'Customer {customer.first_name} {customer.last_name} created successfully'
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON data'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'Error creating customer: {str(e)}'})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+

@@ -702,8 +702,9 @@ def sidebar_menu(request):
             sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','view_pricing_groups','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','pageCustomer']]  # Replace with your branch manager menu names
             sidebar_menu.append({
                 'icon': 'bi bi-receipt',
-                'text': 'Salon Sales',
+                'text': 'Service Sales',
                 'children': [
+                    
                     {
                     'url': '/production/store_sale_list/',
                     'icon': 'bi bi-receipt',
@@ -711,6 +712,29 @@ def sidebar_menu(request):
                     'name': 'store_sale_list',
                     },
                     
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Products Sale',
+                'children': [
+                    {
+                        'url': '/production/product-sale-pos/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Walk-In POS',
+                        'name': 'product_sale_pos',
+                    },
+                    {
+                        'url': '/production/product-sales-list/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Product Sales',
+                        'name': 'product_sales_list',
+                    },{
+                        'url': '/production/product-sales-receipts-list/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Product Sales Receipts',
+                        'name': 'product_sales_receipts_list',
+                    }
                 ]
             })
             sidebar_menu.append({
@@ -791,6 +815,18 @@ def sidebar_menu(request):
                     'text': 'Commission Expense Report',
                     'name': 'commission_expense_report',
                 }
+                ]
+            })
+            sidebar_menu.append({
+                'icon': 'bi bi-receipt',
+                'text': 'Reports',
+                'children': [
+                    {
+                        'url': '/production/reports/accessories/daily/',
+                        'icon': 'bi bi-receipt',
+                        'text': 'Daily Accessory Report',
+                        'name': 'daily_accessory_report',
+                    }
                 ]
             })
             
@@ -1114,6 +1150,11 @@ def sidebar_menu(request):
                 'icon': 'bi bi-receipt',
                 'text': 'Staff Commissions',
                 'children': [{
+                    'url':'/staff',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Staff',
+                    'name': 'staff',
+                    },{
                     'url': '/production/monthly-commissions/',
                     'icon': 'bi bi-receipt',
                     'text': 'Monthly Commissions',

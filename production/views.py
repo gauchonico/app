@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Sum, F
 from django.utils import timezone
+from datetime import datetime
 from django.views.generic.edit import DeleteView
 from django.views.generic import DetailView, FormView, ListView
 import csv
@@ -43,10 +44,12 @@ from accounts.models import ChartOfAccounts
 from auditlog.models import LogEntry
 from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
+
+from production.service_timing_views import get_user_store
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, ServiceCategoryForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, SavedCommissionReport, ServiceCategory, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductSalePaymentForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, ServiceCategoryForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreTransferItemFormSet, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductSalePayment, ProductSaleReceipt, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, SavedCommissionReport, ServiceCategory, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreProductSale, StoreProductSaleItem, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -2796,7 +2799,7 @@ def mark_transfer_completed (request, transfer_id):
                     LivaraInventoryAdjustment.objects.create(
                         store_inventory=livara_inventory,
                         adjusted_quantity=delivered_quantity,  # Assuming a positive quantity indicates an increase
-                        adjustment_reason=f"Stock Transfer #{transfer_request.liv_main_transfer_number or transfer_request.id}",
+                        adjustment_reason=f"Stock Transfer #{transfer.liv_main_transfer_number or transfer.id}",
                         adjusted_by=request.user  # Assuming the logged-in user is responsible
                     )
 
@@ -3633,6 +3636,7 @@ def create_restock_request(request):
     
     return render(request, 'create-restock-requests.html', context)
 
+#Saloon Restock Requests for Products.
 @login_required(login_url='/login/')
 def restock_requests (request):
     # Get all restock requests with related data
@@ -5051,12 +5055,49 @@ def saloon_sale(request):
     available_staff = Staff.objects.filter(
         store=current_store,
     )
+    
+    # Get all active price groups, but prioritize retail
+    price_groups = PriceGroup.objects.filter(is_active=True).order_by('name')
+    
+    # Find retail price group for default pricing
+    retail_price_group = None
+    try:
+        retail_price_group = PriceGroup.objects.filter(
+            is_active=True,
+            name__icontains='retail'
+        ).first()
+    except:
+        pass
+    
+    # Get selected price group or default to retail
+    selected_price_group_id = request.GET.get('price_group', '')
+    selected_price_group = None
+    if selected_price_group_id:
+        try:
+            selected_price_group = PriceGroup.objects.get(id=selected_price_group_id)
+        except PriceGroup.DoesNotExist:
+            pass
+    elif retail_price_group:
+        # Default to retail if no specific group selected
+        selected_price_group = retail_price_group
+    
+    # Pre-calculate prices for the selected price group
+    product_prices_dict = {}
+    if selected_price_group:
+        product_prices = ProductPrice.objects.filter(price_group=selected_price_group).select_related('product')
+        for product_price in product_prices:
+            product_prices_dict[product_price.product.id] = product_price.price
+    
     context ={
         'available_staff': available_staff,
         'store_services':store_services,
         'store_products':store_products,
         'store_accessories':store_accessories,
         'customers': customers,
+        'price_groups': price_groups,
+        'selected_price_group': selected_price_group,
+        'retail_price_group': retail_price_group,
+        'product_prices_dict': product_prices_dict,
         'appSidebarHide':1,
         'current_store': current_store,
         'appHeaderHide':1,
@@ -5068,22 +5109,214 @@ def saloon_sale(request):
     return render(request, 'create_saloon_order.html', context)
 
 
+@login_required(login_url='/login/')
+def edit_saloon_sale(request, sale_id):
+    """POS-style editor for an existing ServiceSale so staff can add/remove items."""
+    current_store = Store.objects.get(manager=request.user)
+    sale = get_object_or_404(ServiceSale.objects.select_related('store', 'customer'), pk=sale_id)
+    if sale.store_id != current_store.id and not request.user.is_superuser:
+        return render(request, 'no_store_access.html', { 'message': 'You do not have access to this store.' })
+
+    search_query = request.GET.get('search', '')
+
+    # Catalog data (same as saloon_sale)
+    customers = Customer.objects.all()
+    store_services = StoreService.objects.filter(store=current_store).select_related('service')
+    if search_query:
+        store_services = store_services.filter(
+            Q(service__name__icontains=search_query) |
+            Q(service__price__icontains=search_query)
+        )
+
+    store_products = StoreInventory.objects.filter(store=current_store, quantity__gt=0).select_related('product')
+    if search_query:
+        store_products = store_products.filter(Q(product__product_name__icontains=search_query))
+
+    store_accessories = StoreAccessoryInventory.objects.filter(store=current_store).select_related('accessory')
+    if search_query:
+        store_accessories = store_accessories.filter(Q(accessory__name__icontains=search_query))
+
+    available_staff = Staff.objects.filter(store=current_store)
+
+    # Serialize existing sale items into the POS cart format used by the template JS
+    existing_items = []
+    # Services
+    for s_item in sale.service_sale_items.select_related('service__service').all():
+        existing_items.append({
+            'type': 'service',
+            'id': s_item.service.service.id,
+            'name': s_item.service.service.name,
+            'quantity': float(getattr(s_item, 'quantity', 1) or 1),
+            'price': float(s_item.total_price),
+            'total': float(s_item.total_price),
+            'selected_staff': list(s_item.staff.values_list('id', flat=True)),
+        })
+    # Products
+    for p_item in sale.product_sale_items.select_related('product__product').all():
+        unit_price = 0.0
+        try:
+            unit_price = float(p_item.total_price) / float(p_item.quantity or 1)
+        except Exception:
+            unit_price = float(p_item.total_price)
+        existing_items.append({
+            'type': 'product',
+            'id': p_item.product.id,
+            'name': p_item.product.product.product_name,
+            'quantity': float(p_item.quantity or 1),
+            'unit_price': float(unit_price),
+            'total': float(p_item.total_price),
+            'staff': ({ 'id': p_item.staff_id, 'name': str(p_item.staff) } if getattr(p_item, 'staff_id', None) else None),
+        })
+    # Accessories
+    for a_item in sale.accessory_sale_items.select_related('accessory__accessory').all():
+        unit_price = float(a_item.price)
+        existing_items.append({
+            'type': 'accessory',
+            'id': a_item.accessory.id,
+            'name': a_item.accessory.accessory.name,
+            'quantity': float(a_item.quantity or 1),
+            'unit_price': unit_price,
+            'total': float(a_item.total_price),
+        })
+
+    existing_cart = {
+        'customer': sale.customer_id,
+        'items': existing_items,
+        'totals': {
+            'subtotal': float(sale.total_amount),
+            'total': float(sale.total_amount),
+        }
+    }
+
+    context = {
+        'available_staff': available_staff,
+        'store_services': store_services,
+        'store_products': store_products,
+        'store_accessories': store_accessories,
+        'customers': customers,
+        'appSidebarHide': 1,
+        'current_store': current_store,
+        'appHeaderHide': 1,
+        'appContentFullHeight': 1,
+        'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+        'search_query': search_query,
+        'submit_url': reverse('update_service_sale_ajax', args=[sale.id]),
+        'existing_cart_json': json.dumps(existing_cart),
+    }
+    return render(request, 'create_saloon_order.html', context)
+
+
+@login_required(login_url='/login/')
+def update_service_sale_ajax(request, sale_id):
+    """Update an existing ServiceSale from POS payload (JSON)."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+
+    from django.utils import timezone
+    try:
+        data = json.loads(request.body)
+        with transaction.atomic():
+            sale = get_object_or_404(ServiceSale, pk=sale_id)
+
+            # Optional updates
+            if 'customer_id' in data:
+                sale.customer_id = int(data['customer_id'])
+            if 'paid_status' in data:
+                sale.paid_status = data['paid_status']
+            if 'payment_mode' in data:
+                sale.payment_mode = data['payment_mode']
+
+            # Clear previous items
+            sale.service_sale_items.all().delete()
+            sale.product_sale_items.all().delete()
+            sale.accessory_sale_items.all().delete()
+
+            # Recreate service items
+            for item in data.get('service_items', []):
+                store_service = StoreService.objects.filter(
+                    store_id=sale.store_id, service__id=item['service_id']
+                ).select_related('service').first()
+                if not store_service:
+                    continue
+                s_item = ServiceSaleItem.objects.create(
+                    sale=sale,
+                    service=store_service,
+                    quantity=Decimal(str(item.get('quantity') or 1)),
+                    total_price=Decimal(str(item.get('total_price') or 0)),
+                )
+                staff_ids = item.get('staff_ids') or []
+                if staff_ids:
+                    s_item.staff.set(Staff.objects.filter(id__in=staff_ids))
+
+            # Recreate product items
+            for item in data.get('product_items', []):
+                inv = StoreInventory.objects.filter(id=item['product_id'], store_id=sale.store_id).select_related('product').first()
+                if not inv:
+                    continue
+                p_item = ProductSaleItem.objects.create(
+                    sale=sale,
+                    product=inv,
+                    quantity=int(Decimal(str(item.get('quantity') or 1))),
+                    price_group_id=item.get('price_group_id'),
+                    total_price=Decimal(str(item.get('total_price') or 0)),
+                    staff_id=item.get('staff_id') or None,
+                )
+
+            # Recreate accessory items
+            for item in data.get('accessory_items', []):
+                acc = StoreAccessoryInventory.objects.filter(id=item['accessory_id'], store_id=sale.store_id).select_related('accessory').first()
+                if not acc:
+                    continue
+                a_item = AccessorySaleItem.objects.create(
+                    sale=sale,
+                    accessory=acc,
+                    quantity=Decimal(str(item.get('quantity') or 1)),
+                    price=Decimal(str(item.get('price') or 0)),
+                    total_price=Decimal(str(item.get('total_price') or 0)),
+                )
+
+            # Recalculate totals, paid amount and balance from items and payments
+            sale.calculate_total()
+
+            return JsonResponse({'success': True, 'redirect_url': reverse('service_sale_details', args=[sale.id])})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
 # Get price group for product
 def get_product_price_groups(request, product_id):
     print(f"Fetching price for product {product_id}")  # Debug log
     try:
-        # Get the LivaraMainStore instance
-        store_product = LivaraMainStore.objects.get(id=product_id)
+        # Try to get StoreInventory first (for salon sales)
+        try:
+            store_product = StoreInventory.objects.get(id=product_id)
+            product = store_product.product
+        except StoreInventory.DoesNotExist:
+            # Fallback to LivaraMainStore (for other sales)
+            store_product = LivaraMainStore.objects.get(id=product_id)
+            product = store_product.product.product
+        
         price_group_id = request.GET.get('price_group_id')
         
         if not price_group_id:
-            return JsonResponse({
-                'success': False,
-                'error': 'Price group ID is required'
-            }, status=400)
-        
-        # Get the actual product (Production instance)
-        product = store_product.product.product
+            # If no price group specified, try to find retail price group
+            try:
+                retail_price_group = PriceGroup.objects.filter(
+                    is_active=True,
+                    name__icontains='retail'
+                ).first()
+                if retail_price_group:
+                    price_group_id = retail_price_group.id
+                else:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'No price group specified and no retail group found'
+                    }, status=400)
+            except:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Price group ID is required'
+                }, status=400)
         
         # Get the price for the specific price group
         product_price = ProductPrice.objects.filter(
@@ -5096,18 +5329,39 @@ def get_product_price_groups(request, product_id):
                 'success': True,
                 'product_name': product.product_name,
                 'price': str(product_price.price),
-                'price_group_name': product_price.price_group.name
+                'price_group_name': product_price.price_group.name,
+                'price_groups': [{
+                    'id': product_price.price_group.id,
+                    'name': product_price.price_group.name,
+                    'price': str(product_price.price)
+                }]
             })
         else:
-            # Fallback to wholesale price if no price group price found
-            return JsonResponse({
-                'success': True,
-                'product_name': product.product_name,
-                'price': str(product.wholesale_price),
-                'price_group_name': 'Wholesale (Default)'
-            })
+            # Check if product has any prices in any price groups
+            all_product_prices = ProductPrice.objects.filter(product=product).select_related('price_group')
+            if all_product_prices.exists():
+                price_groups = []
+                for pp in all_product_prices:
+                    price_groups.append({
+                        'id': pp.price_group.id,
+                        'name': pp.price_group.name,
+                        'price': str(pp.price)
+                    })
+                return JsonResponse({
+                    'success': True,
+                    'product_name': product.product_name,
+                    'price': str(all_product_prices.first().price),
+                    'price_group_name': all_product_prices.first().price_group.name,
+                    'price_groups': price_groups
+                })
+            else:
+                # No price groups found, return error
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No prices found for {product.product_name} in any price group'
+                }, status=404)
         
-    except LivaraMainStore.DoesNotExist:
+    except (StoreInventory.DoesNotExist, LivaraMainStore.DoesNotExist):
         return JsonResponse({
             'success': False,
             'error': 'Product not found in store'
@@ -5122,15 +5376,28 @@ def get_product_price_groups(request, product_id):
         
 # Search for Staff       
 def search_staff(request):
+    from django.db.models import Q
     search_term = request.GET.get('term', '')
     if len(search_term) < 2:
         return JsonResponse({'results': []})
-        
-    staff = Staff.objects.filter(
+
+    # Determine store: prefer explicit store_id, fallback to manager's store
+    store_id = request.GET.get('store_id')
+    if store_id:
+        staff_qs = Staff.objects.filter(store_id=store_id)
+    else:
+        try:
+            current_store = Store.objects.get(manager=request.user)
+            staff_qs = Staff.objects.filter(store=current_store)
+        except Store.DoesNotExist:
+            # If no store found for user, return empty result
+            return JsonResponse({'results': []})
+
+    staff = staff_qs.filter(
         Q(first_name__icontains=search_term) |
         Q(last_name__icontains=search_term)
-    )[:10]  # Limit to 10 results
-    
+    ).order_by('first_name', 'last_name')[:10]
+
     results = [{'id': s.id, 'text': f"{s.first_name} {s.last_name}"} for s in staff]
     return JsonResponse({'results': results})
 
@@ -5157,6 +5424,7 @@ def search_customers(request):
         results.append({'id': customer.id, 'text': customer_text})
     
     return JsonResponse({'results': results})
+
 @require_http_methods(["POST"])
 def new_create_service_sale(request):
     # Start timing sale creation
@@ -5232,7 +5500,7 @@ def new_create_service_sale(request):
                     service_item = ServiceSaleItem.objects.create(
                         sale=sale,
                         service=store_service,
-                        quantity=int(item['quantity']),
+                        quantity=Decimal(str(item['quantity'])),
                         total_price=Decimal(str(item['total_price']))
                     )
                     
@@ -5285,7 +5553,8 @@ def new_create_service_sale(request):
                             accessory_id=item['accessory_id']
                         )
                         
-                        if store_accessory.quantity < item['quantity']:
+                        qty = Decimal(str(item['quantity']))
+                        if store_accessory.quantity < qty:
                             raise ValueError(f"Insufficient stock for accessory {store_accessory.accessory.name}")
                         
                         # Ensure proper decimal conversion
@@ -5301,7 +5570,7 @@ def new_create_service_sale(request):
                         AccessorySaleItem.objects.create(
                             sale=sale,
                             accessory=store_accessory,
-                            quantity=int(item['quantity']),
+                            quantity=qty,
                             price=price,
                             total_price=total_price
                         )
@@ -5540,17 +5809,18 @@ def record_payment_view(request, sale_id):
 
                     # Recalculate totals and handle paid status
                     previous_status = sale.paid_status
-                    sale.calculate_total()  # This will also create commissions if newly paid
-                    
+                    sale.calculate_total()
+
                     # Calculate payment processing time
                     payment_end_time = timezone.now()
                     sale.payment_processing_time = payment_end_time - payment_start_time
                     
-                    # If sale is now fully paid, calculate total workflow time and end service timer
-                    if sale.paid_status == 'paid':
+                    # If sale is now fully paid, finalize workflow and deduct inventories
+                    if sale.paid_status == 'paid' and previous_status != 'paid':
                         sale.total_workflow_time = payment_end_time - sale.sale_date
-                        # Automatically end service timer when payment is completed
-                        sale.end_service_timer()
+                        sale.end_service_timer()  # Automatically end service timer when payment is completed
+                        # Centralized handling (commissions + inventory deductions)
+                        sale.mark_as_paid()
                     
                     # Create accounting journal entries for each payment
                     from accounts.services import AccountingService
@@ -5586,13 +5856,8 @@ def record_payment_view(request, sale_id):
                     
                     # Explicitly save the sale to trigger the signal for accounting
                     sale.save()
-                    
-                    if previous_status != 'paid' and sale.paid_status == 'paid':
-                        sale.create_service_commissions()
-                        sale.create_product_commissions()
-                        messages.success(request, "Payment recorded, commissions calculated, and accounting entry created successfully.")
-                    else:
-                        messages.success(request, "Payment recorded successfully.")
+
+                    messages.success(request, "Payment recorded successfully.")
 
             except Exception as e:
                 print(f"ERROR: {str(e)}")
@@ -5633,7 +5898,7 @@ def cancel_service_sale(request, sale_id):
         try:
             sale.cancel_sale(reason)
             messages.success(request, f'Sale {sale.service_sale_number} has been cancelled')
-            return redirect('store_service_sales_view')
+            return redirect('store_sale_list')
         except ValueError as e:
             messages.error(request, str(e))
             return redirect('service_sale_details', sale_id=sale.id)
@@ -6262,12 +6527,91 @@ def service_sale_receipt(request, sale_id):
     
 def store_sale_list(request):
     # Assuming the logged-in user is the manager of the store
+    from django.utils import timezone
+    from django.db.models import Sum
     store = get_object_or_404(Store, manager=request.user)
-    # Fetch all service sales for this store
+
+    # Base queryset
     sales = ServiceSale.objects.filter(store=store)
 
-    # Pass the store sales to the template
-    return render(request,'store_sale_list.html', {'sales': sales,'store':store})
+    # Filters
+    paid_status = request.GET.get('paid_status', '').strip()  # 'paid' | 'not_paid'
+    invoice_status = request.GET.get('invoice_status', '').strip()  # 'invoiced' | 'not_invoiced' | 'cancelled'
+    staff_id = request.GET.get('staff_id', '').strip()  # filter by staff on services
+    payment_method = request.GET.get('payment_method', '').strip()  # filter by payment method
+    start_date = request.GET.get('start_date', '').strip()
+    end_date = request.GET.get('end_date', '').strip()
+
+    if paid_status in ['paid', 'not_paid']:
+        sales = sales.filter(paid_status=paid_status)
+
+    if invoice_status in ['invoiced', 'not_invoiced', 'cancelled']:
+        sales = sales.filter(invoice_status=invoice_status)
+
+    if staff_id and staff_id.isdigit():
+        sid = int(staff_id)
+        from django.db.models import Q
+        sales = sales.filter(
+            Q(service_sale_items__staff__id=sid) |
+            Q(product_sale_items__staff_id=sid)
+        )
+
+    if payment_method:
+        # Filter sales that have payments with this method
+        sales_with_payment_method = Payment.objects.filter(
+            payment_method=payment_method
+        ).values_list('sale_id', flat=True)
+        sales = sales.filter(id__in=sales_with_payment_method)
+
+    # Parse dates safely
+    from datetime import datetime
+    def _parse_date(val):
+        try:
+            return datetime.strptime(val, '%Y-%m-%d').date()
+        except Exception:
+            return None
+    start_date_obj = _parse_date(start_date) if start_date else None
+    end_date_obj = _parse_date(end_date) if end_date else None
+    if start_date_obj:
+        sales = sales.filter(sale_date__date__gte=start_date_obj)
+    if end_date_obj:
+        sales = sales.filter(sale_date__date__lte=end_date_obj)
+
+    # Metrics tiles
+    today = timezone.localdate()
+    today_money = sales.filter(sale_date__date=today, paid_status='paid').aggregate(total=Sum('total_amount'))['total'] or 0
+    today_orders = sales.filter(sale_date__date=today).count()
+
+    # Payment methods summary for today - use actual Payment records
+    today_sales = sales.filter(sale_date__date=today, paid_status='paid')
+    payment_methods_summary = Payment.objects.filter(
+        sale__in=today_sales
+    ).values('payment_method').annotate(
+        total_amount=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total_amount')
+    
+
+    # Staff options for filter (store staff only)
+    staff_options = Staff.objects.filter(store=store).order_by('first_name', 'last_name')
+
+    context = {
+        'store': store,
+        'sales': sales.distinct().order_by('-sale_date'),
+        'filter_paid_status': paid_status,
+        'filter_invoice_status': invoice_status,
+        'filter_staff_id': staff_id,
+        'filter_payment_method': payment_method,
+        'filter_start_date': start_date,
+        'filter_end_date': end_date,
+        'staff_options': staff_options,
+        'today_money': today_money,
+        'today_orders': today_orders,
+        'payment_methods_summary': payment_methods_summary,
+        'payment_method_choices': Payment.PAYMENT_METHOD_CHOICES,
+    }
+
+    return render(request,'store_sale_list.html', context)
 
 def finance_store_sale_list(request):
     
@@ -6479,6 +6823,138 @@ def particular_store_inventory(request):
     else:
         # Handle the case where the user is not associated with a store
         return render(request, 'no_store_access.html')
+
+@login_required
+def daily_accessory_report(request):
+    """Daily accessory report across all stores with opening, restock, sales, and closing for selected date."""
+    # Date filter: default to today
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    # Define day window
+    start_dt = datetime.combine(report_date, datetime.min.time(), tzinfo=timezone.get_current_timezone())
+    end_dt = datetime.combine(report_date, datetime.max.time(), tzinfo=timezone.get_current_timezone())
+
+    # Base queryset of all store-accessory pairs
+    inventory_qs = StoreAccessoryInventory.objects.select_related('store', 'accessory')
+
+    # Aggregations
+    from django.db.models import Sum, Q
+
+    # Opening = current quantity - all adjustments during the day (restock increases + sales decreases)
+    # Compute adjustments during the day
+    day_adjustments = StoreInventoryAdjustment.objects.filter(created_at__range=(start_dt, end_dt))
+
+    # Sales quantity for the day (negative adjustments recorded with reason containing ServiceSale #)
+    sales_by_inv = day_adjustments.filter(adjustment='sale').values('accessory_inventory_id').annotate(
+        sales_qty=Sum('quantity')  # negative values
+    )
+    sales_map = {row['accessory_inventory_id']: row['sales_qty'] or Decimal('0') for row in sales_by_inv}
+
+    # Restock quantity for the day (positive adjustments not 'sale')
+    restock_by_inv = day_adjustments.exclude(adjustment='sale').values('accessory_inventory_id').annotate(
+        restock_qty=Sum('quantity')
+    )
+    restock_map = {row['accessory_inventory_id']: row['restock_qty'] or Decimal('0') for row in restock_by_inv}
+
+    rows = []
+    for inv in inventory_qs:
+        sales_qty = sales_map.get(inv.id, Decimal('0'))
+        restock_qty = restock_map.get(inv.id, Decimal('0'))
+        # Closing is current inv.quantity
+        closing = inv.quantity
+        # Opening = closing - restock + sales (since sales are negative)
+        opening = closing - restock_qty - sales_qty
+
+        rows.append({
+            'store': inv.store,
+            'accessory': inv.accessory,
+            'opening': opening,
+            'restock': restock_qty,
+            'sales': -sales_qty,  # show sales as positive consumed quantity
+            'closing': closing,
+            'inventory_id': inv.id,
+        })
+
+    context = {
+        'report_date': report_date,
+        'rows': rows,
+    }
+    return render(request, 'daily_accessory_report.html', context)
+
+@login_required
+def accessory_sales_drilldown(request, inventory_id):
+    """List service sales that consumed this accessory on a date."""
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    start_dt = datetime.combine(report_date, datetime.min.time(), tzinfo=timezone.get_current_timezone())
+    end_dt = datetime.combine(report_date, datetime.max.time(), tzinfo=timezone.get_current_timezone())
+
+    inv = get_object_or_404(StoreAccessoryInventory.objects.select_related('store', 'accessory'), id=inventory_id)
+    # Find adjustments for sales for this inventory on the date
+    sale_adjustments = StoreInventoryAdjustment.objects.filter(
+        accessory_inventory=inv,
+        adjustment='sale',
+        created_at__range=(start_dt, end_dt)
+    )
+
+    # Extract sale IDs from reason like "Sold in a ServiceSale #<id>"
+    import re
+    sale_ids = []
+    for adj in sale_adjustments:
+        m = re.search(r"ServiceSale #(\d+)", adj.reason or '')
+        if m:
+            sale_ids.append(int(m.group(1)))
+
+    sales = ServiceSale.objects.filter(id__in=sale_ids).select_related('customer', 'store')
+
+    return render(request, 'accessory_sales_drilldown.html', {
+        'report_date': report_date,
+        'inventory': inv,
+        'sales': sales,
+    })
+
+@login_required
+def accessory_restock_drilldown(request, inventory_id):
+    """List restock adjustments for this accessory inventory on a date."""
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            report_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            report_date = timezone.localdate()
+    else:
+        report_date = timezone.localdate()
+
+    start_dt = datetime.combine(report_date, datetime.min.time(), tzinfo=timezone.get_current_timezone())
+    end_dt = datetime.combine(report_date, datetime.max.time(), tzinfo=timezone.get_current_timezone())
+
+    inv = get_object_or_404(StoreAccessoryInventory.objects.select_related('store', 'accessory'), id=inventory_id)
+
+    restock_adjustments = StoreInventoryAdjustment.objects.filter(
+        accessory_inventory=inv,
+        created_at__range=(start_dt, end_dt)
+    ).exclude(adjustment='sale').order_by('created_at')
+
+    return render(request, 'accessory_restock_drilldown.html', {
+        'report_date': report_date,
+        'inventory': inv,
+        'adjustments': restock_adjustments,
+    })
+    
 @login_required
 def create_internal_requests(request):
     # If the request is POST, process the form and formset
@@ -10022,3 +10498,551 @@ def delete_saved_commission_report(request, report_id):
         messages.success(request, f'Commission report "{report_name}" has been deleted successfully!')
     
     return redirect('saved_commission_reports_list')
+
+
+# Product Sale POS Views
+@login_required(login_url='/login/')
+def product_sale_pos(request):
+    """
+    POS view for walk-in customers who only buy products (no services)
+    """
+    current_store = Store.objects.get(manager=request.user)
+    search_query = request.GET.get('search', '')
+    selected_price_group_id = request.GET.get('price_group', '')
+    
+    # Customer Details
+    customers = Customer.objects.all()
+    
+    # Get all active price groups, but prioritize retail
+    price_groups = PriceGroup.objects.filter(is_active=True).order_by('name')
+    
+    # Find retail price group for default pricing
+    retail_price_group = None
+    try:
+        retail_price_group = PriceGroup.objects.filter(
+            is_active=True,
+            name__icontains='retail'
+        ).first()
+    except:
+        pass
+    
+    # Get store-specific products with search filter
+    store_products = StoreInventory.objects.filter(
+        store=current_store,
+        quantity__gt=0  # Only show products with stock
+    ).select_related('product')
+    
+    if search_query:
+        store_products = store_products.filter(
+            Q(product__product_name__icontains=search_query)
+        )
+    
+    # Get selected price group or default to retail
+    selected_price_group = None
+    if selected_price_group_id:
+        try:
+            selected_price_group = PriceGroup.objects.get(id=selected_price_group_id)
+        except PriceGroup.DoesNotExist:
+            pass
+    elif retail_price_group:
+        # Default to retail if no specific group selected
+        selected_price_group = retail_price_group
+    
+    # Pre-calculate prices for the selected price group
+    product_prices_dict = {}
+    if selected_price_group:
+        product_prices = ProductPrice.objects.filter(price_group=selected_price_group).select_related('product')
+        for product_price in product_prices:
+            product_prices_dict[product_price.product.id] = product_price.price
+    
+    context = {
+        'store_products': store_products,
+        'customers': customers,
+        'price_groups': price_groups,
+        'selected_price_group': selected_price_group,
+        'retail_price_group': retail_price_group,
+        'product_prices_dict': product_prices_dict,
+        'appSidebarHide': 1,
+        'current_store': current_store,
+        'appHeaderHide': 1,
+        'appContentFullHeight': 1,
+        'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+        'search_query': search_query,
+    }
+    
+    return render(request, 'product_sale_pos.html', context)
+
+
+@login_required(login_url='/login/')
+def create_product_sale(request):
+    """
+    Create a new product sale via AJAX
+    """
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            current_store = Store.objects.get(manager=request.user)
+            
+            # Get customer
+            customer_id = data.get('customer_id')
+            if not customer_id:
+                return JsonResponse({'success': False, 'error': 'Customer is required'})
+            
+            customer = Customer.objects.get(id=customer_id)
+            
+            # Create the sale
+            sale = StoreProductSale.objects.create(
+                store=current_store,
+                customer=customer,
+                total_amount=0,  # Will be calculated from items
+                balance=0
+            )
+            
+            # Add product items
+            product_items = data.get('product_items', [])
+            price_group_id = data.get('price_group_id')
+            total_amount = 0
+            
+            # Get price group if specified
+            price_group = None
+            if price_group_id:
+                try:
+                    price_group = PriceGroup.objects.get(id=price_group_id)
+                except PriceGroup.DoesNotExist:
+                    pass
+            
+            for item_data in product_items:
+                product_id = item_data.get('product_id')
+                quantity = int(item_data.get('quantity', 1))
+                unit_price = float(item_data.get('unit_price', 0))
+                
+                if not product_id or quantity <= 0:
+                    continue
+                
+                # Get store inventory item
+                store_inventory = StoreInventory.objects.get(
+                    id=product_id,
+                    store=current_store
+                )
+                
+                # Check stock availability
+                if store_inventory.quantity < quantity:
+                    sale.delete()  # Clean up
+                    return JsonResponse({
+                        'success': False, 
+                        'error': f'Insufficient stock for {store_inventory.product.product_name}. Available: {store_inventory.quantity}'
+                    })
+                
+                # Use provided unit price or fall back to default product price
+                if unit_price <= 0:
+                    unit_price = store_inventory.product.price
+                
+                # Create sale item
+                StoreProductSaleItem.objects.create(
+                    sale=sale,
+                    product=store_inventory,
+                    quantity=quantity,
+                    unit_price=unit_price
+                )
+                
+                total_amount += quantity * unit_price
+            
+            # Update sale total
+            sale.total_amount = total_amount
+            sale.balance = total_amount
+            sale.save()
+            
+            return JsonResponse({
+                'success': True,
+                'sale_id': sale.id,
+                'sale_number': sale.product_sale_number,
+                'total_amount': float(sale.total_amount),
+                'message': 'Product sale created successfully'
+            })
+            
+        except Customer.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Customer not found'})
+        except StoreInventory.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Product not found in store inventory'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+
+@login_required(login_url='/login/')
+def product_sale_details(request, sale_id):
+    """
+    View details of a product sale
+    """
+    sale = get_object_or_404(StoreProductSale, id=sale_id)
+    
+    # Check if user has permission to view this sale
+    user_store = get_user_store(request.user)
+    if not user_store or sale.store != user_store:
+        if not request.user.is_superuser:
+            messages.error(request, 'You do not have permission to view this sale.')
+            return redirect('product_sale_pos')
+    
+    context = {
+        'sale': sale,
+        'user_store': user_store,
+    }
+    
+    return render(request, 'product_sale_details.html', context)
+
+
+@login_required(login_url='/login/')
+def record_product_sale_payment(request, sale_id):
+    """
+    Record payment for a product sale
+    """
+    sale = get_object_or_404(StoreProductSale, id=sale_id)
+    
+    # Check if user has permission to manage this sale
+    user_store = get_user_store(request.user)
+    if not user_store or sale.store != user_store:
+        if not request.user.is_superuser:
+            messages.error(request, 'You do not have permission to manage this sale.')
+            return redirect('product_sale_pos')
+    
+    if request.method == 'POST':
+        form = ProductSalePaymentForm(request.POST, sale_balance=sale.balance or sale.total_amount)
+        if form.is_valid():
+            payment_amount = form.cleaned_data['amount']
+            payment_method = form.cleaned_data['payment_method']
+            payment_remarks = form.cleaned_data.get('remarks', '')
+            
+            # Create payment record
+            ProductSalePayment.objects.create(
+                sale=sale,
+                amount=payment_amount,
+                payment_method=payment_method,
+                remarks=payment_remarks
+            )
+            
+            # Update sale payment info
+            sale.paid_amount = (sale.paid_amount or 0) + payment_amount
+            sale.balance = sale.total_amount - sale.paid_amount
+            sale.payment_mode = payment_method
+            if payment_remarks:
+                sale.payment_remarks = payment_remarks
+            sale.save()
+            
+            # Mark as paid if fully paid
+            if sale.balance <= 0:
+                sale.mark_as_paid()
+                messages.success(request, f'Payment recorded and sale marked as paid for {sale.customer.first_name} {sale.customer.last_name}')
+                return redirect('product_sale_receipt', sale_id=sale.id)
+            else:
+                messages.success(request, f'Payment of UGX {payment_amount:,.0f} recorded. Balance: UGX {sale.balance:,.0f}')
+                return redirect('product_sale_details', sale_id=sale.id)
+    else:
+        form = ProductSalePaymentForm(sale_balance=sale.balance or sale.total_amount)
+    
+    context = {
+        'sale': sale,
+        'form': form,
+    }
+    
+    return render(request, 'record_product_sale_payment.html', context)
+
+
+@login_required(login_url='/login/')
+def product_sale_receipt(request, sale_id):
+    """
+    Product Sale Receipt - Printable receipt for product sales
+    """
+    sale = get_object_or_404(StoreProductSale, id=sale_id)
+    
+    # Get all related items
+    product_items = sale.product_sale_items.all()
+    
+    # Calculate totals
+    subtotal = sum(item.total_price for item in product_items)
+    
+    # Get payments
+    payments = sale.payments.all().order_by('payment_date')
+    total_paid = sum(payment.amount for payment in payments)
+    balance_due = sale.balance or 0
+    
+    # Determine status for display
+    if sale.paid_status == 'paid':
+        status_info = {'status': 'paid', 'badge_class': 'success'}
+    else:
+        status_info = {'status': 'not_paid', 'badge_class': 'warning'}
+    
+    context = {
+        'sale': sale,
+        'product_items': product_items,
+        'subtotal': subtotal,
+        'payments': payments,
+        'total_paid': total_paid,
+        'balance_due': balance_due,
+        'status_info': status_info,
+        'MEDIA_URL': settings.MEDIA_URL,
+    }
+    return render(request, 'product_sale_receipt.html', context)
+
+@login_required(login_url='/login/')
+def product_sales_receipts_list(request):
+    """
+    Product Sales Receipts List with filtering and statistics
+    """
+    # Get current user's store
+    current_store = get_user_store(request.user)
+    
+    # Base queryset
+    if current_store:
+        product_sales_receipts = ProductSaleReceipt.objects.filter(store=current_store).select_related(
+            'sale', 'store', 'sale__customer'
+        ).order_by('-receipt_date')
+    else:
+        # Superuser can see all receipts
+        product_sales_receipts = ProductSaleReceipt.objects.all().select_related(
+            'sale', 'store', 'sale__customer'
+        ).order_by('-receipt_date')
+    
+    # Get filter parameters
+    status_filter = request.GET.get('status', '')
+    store_filter = request.GET.get('store', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Apply filters
+    if status_filter:
+        if status_filter == 'paid':
+            product_sales_receipts = product_sales_receipts.filter(is_paid=True)
+        elif status_filter == 'pending':
+            product_sales_receipts = product_sales_receipts.filter(is_paid=False)
+    
+    if store_filter:
+        product_sales_receipts = product_sales_receipts.filter(store_id=store_filter)
+    
+    if date_from:
+        product_sales_receipts = product_sales_receipts.filter(receipt_date__date__gte=date_from)
+    
+    if date_to:
+        product_sales_receipts = product_sales_receipts.filter(receipt_date__date__lte=date_to)
+    
+    # Calculate statistics
+    total_receipts = product_sales_receipts.count()
+    paid_receipts = product_sales_receipts.filter(is_paid=True).count()
+    pending_receipts = product_sales_receipts.filter(is_paid=False).count()
+    
+    # Calculate total amounts
+    total_amount = sum(receipt.total_due for receipt in product_sales_receipts)
+    total_paid = sum(receipt.total_paid for receipt in product_sales_receipts)
+    total_balance = sum(receipt.balance_due for receipt in product_sales_receipts)
+    
+    # Get all stores for filter dropdown
+    stores = Store.objects.all().order_by('name')
+    
+    # Pagination
+    paginator = Paginator(product_sales_receipts, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'product_sales_receipts': page_obj,
+        'total_receipts': total_receipts,
+        'paid_receipts': paid_receipts,
+        'pending_receipts': pending_receipts,
+        'total_amount': total_amount,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
+        'stores': stores,
+        'filters': {
+            'status': status_filter,
+            'store': store_filter,
+            'date_from': date_from,
+            'date_to': date_to,
+        },
+        # 'appSidebarHide': 1,
+        # 'appHeaderHide': 1,
+        # 'appContentFullHeight': 1,
+        # 'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+    }
+    
+    return render(request, 'product_sales_receipts_list.html', context)
+
+
+@login_required(login_url='/login/')
+def get_product_prices(request):
+    """
+    API endpoint to get product prices for a specific price group
+    """
+    if request.method == 'GET':
+        price_group_id = request.GET.get('price_group_id')
+        
+        if not price_group_id:
+            return JsonResponse({'success': False, 'error': 'Price group ID is required'})
+        
+        try:
+            price_group = PriceGroup.objects.get(id=price_group_id)
+            
+            # Get all products with their prices for this price group
+            product_prices = ProductPrice.objects.filter(
+                price_group=price_group
+            ).select_related('product')
+            
+            prices_data = {}
+            for product_price in product_prices:
+                prices_data[product_price.product.id] = {
+                    'price': float(product_price.price),
+                    'product_name': product_price.product.product_name
+                }
+            
+            return JsonResponse({
+                'success': True,
+                'price_group': {
+                    'id': price_group.id,
+                    'name': price_group.name,
+                    'description': price_group.description
+                },
+                'prices': prices_data
+            })
+            
+        except PriceGroup.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Price group not found'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+
+@login_required(login_url='/login/')
+def debug_price_groups(request):
+    """
+    Debug view to check existing price groups and products
+    """
+    # Get all price groups
+    price_groups = PriceGroup.objects.all().order_by('name')
+    
+    # Get all products with their prices
+    products_with_prices = []
+    for price_group in price_groups:
+        product_prices = ProductPrice.objects.filter(price_group=price_group).select_related('product')
+        products_with_prices.append({
+            'price_group': price_group,
+            'product_prices': list(product_prices)
+        })
+    
+    # Find retail price group
+    retail_price_group = None
+    try:
+        retail_price_group = PriceGroup.objects.filter(
+            is_active=True,
+            name__icontains='retail'
+        ).first()
+    except:
+        pass
+    
+    # Get store products
+    current_store = Store.objects.get(manager=request.user)
+    store_products = StoreInventory.objects.filter(
+        store=current_store,
+        quantity__gt=0
+    ).select_related('product')
+    
+    context = {
+        'price_groups': price_groups,
+        'products_with_prices': products_with_prices,
+        'store_products': store_products,
+        'current_store': current_store,
+        'retail_price_group': retail_price_group,
+    }
+    
+    return render(request, 'debug_price_groups.html', context)
+
+
+@login_required(login_url='/login/')
+def product_sales_list(request):
+    """
+    Product Sales List with filters and daily statistics
+    """
+    current_store = Store.objects.get(manager=request.user)
+    
+    # Get filter parameters
+    product_filter = request.GET.get('product', '')
+    date_filter = request.GET.get('date', '')
+    paid_status_filter = request.GET.get('paid_status', '')
+    payment_method_filter = request.GET.get('payment_method', '')
+    
+    # Base queryset for product sales
+    product_sales = StoreProductSale.objects.filter(store=current_store).select_related(
+        'customer', 'store'
+    ).prefetch_related('product_sale_items__product')
+    
+    # Apply filters
+    if product_filter:
+        product_sales = product_sales.filter(
+            product_sale_items__product__product_name__icontains=product_filter
+        ).distinct()
+    
+    if date_filter:
+        product_sales = product_sales.filter(sale_date__date=date_filter)
+    
+    if paid_status_filter:
+        product_sales = product_sales.filter(paid_status=paid_status_filter)
+    
+    if payment_method_filter:
+        product_sales = product_sales.filter(payment_mode=payment_method_filter)
+    
+    # Get today's date for daily statistics
+    from django.utils import timezone
+    today = timezone.now().date()
+    
+    # Daily statistics
+    today_sales = StoreProductSale.objects.filter(
+        store=current_store,
+        sale_date__date=today
+    )
+    
+    # Daily sales counter
+    daily_sales_count = today_sales.count()
+    daily_sales_amount = today_sales.aggregate(
+        total_amount=models.Sum('total_amount')
+    )['total_amount'] or 0
+    
+    # Payment method statistics for today
+    payment_methods_summary = today_sales.values('payment_mode').annotate(
+        count=models.Count('id'),
+        total_amount=models.Sum('total_amount')
+    ).order_by('-total_amount')
+    
+    # Get all products for filter dropdown
+    store_products = StoreInventory.objects.filter(
+        store=current_store
+    ).select_related('product').distinct()
+    
+    # Get unique payment methods for filter
+    payment_methods = StoreProductSale.objects.filter(
+        store=current_store
+    ).values_list('payment_mode', flat=True).distinct()
+    
+    # Pagination
+    paginator = Paginator(product_sales.order_by('-sale_date'), 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'product_sales': page_obj,
+        'store_products': store_products,
+        'payment_methods': payment_methods,
+        'daily_sales_count': daily_sales_count,
+        'daily_sales_amount': daily_sales_amount,
+        'payment_methods_summary': payment_methods_summary,
+        'current_store': current_store,
+        'today': today,
+        'filters': {
+            'product': product_filter,
+            'date': date_filter,
+            'paid_status': paid_status_filter,
+            'payment_method': payment_method_filter,
+        },
+        
+    }
+    
+    return render(request, 'product_sales_list.html', context)

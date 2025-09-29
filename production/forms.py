@@ -1160,6 +1160,7 @@ class ServiceSaleItemForm(ModelForm):
     
 
 class AccessorySaleItemForm(ModelForm):
+    quantity = forms.DecimalField(max_digits=15, decimal_places=3, min_value=Decimal('0.001'))
     class Meta:
         model = AccessorySaleItem
         fields = ['accessory','quantity','price','sale']
@@ -1298,18 +1299,40 @@ class PaymentForm(forms.Form):
     bank_transfer_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Bank Transfer Amount'}), required=False)
     remarks = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Remarks'}), required=False)
 
+
+class ProductSalePaymentForm(forms.Form):
+    """Simplified payment form for product sales"""
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mobile_money', 'Mobile Money'),
+        ('airtel_money', 'Airtel Money'),
+        ('visa', 'Visa'),
+        ('bank_transfer', 'Bank Transfer'),
+    ]
+
+    payment_method = forms.ChoiceField(choices=PAYMENT_METHOD_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
+    amount = forms.DecimalField(
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Payment Amount', 'step': '0.01', 'min': '0.01'}),
+        required=True,
+        help_text="Enter the payment amount"
+    )
+    remarks = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Payment remarks (optional)', 'rows': 3}),
+        required=False
+    )
+
     def __init__(self, *args, sale_balance=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.sale_balance = sale_balance  # Pass the sale's balance for validation
-        
+    
     def clean(self):
         cleaned_data = super().clean()
-        payment_method = cleaned_data.get('payment_method')
         amount = cleaned_data.get('amount')
-        cash_amount = cleaned_data.get('cash_amount') or 0
-        mobile_money_amount = cleaned_data.get('mobile_money_amount') or 0
-        airtel_money_amount = cleaned_data.get('airtel_money_amount') or 0
-        visa_amount = cleaned_data.get('visa_amount') or 0
+        
+        if amount and self.sale_balance and amount > self.sale_balance:
+            raise forms.ValidationError(f"Payment amount ({amount}) exceeds the remaining balance ({self.sale_balance}).")
+        
+        return cleaned_data
 
         # Validate mixed payments
         # if payment_method == 'mixed':

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <div>
+    <ul class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'daily_accessory_report' %}?date={{ report_date|date:'Y-m-d' }}">Daily Accessories</a></li>
+      <li class="breadcrumb-item active">Sales Drilldown</li>
+    </ul>
+    <h5>Sales for {{ inventory.accessory.name }} — {{ inventory.store.name }} ({{ report_date }})</h5>
+  </div>
+</div>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th>Sale #</th>
+      <th>Customer</th>
+      <th>Store</th>
+      <th>Total Amount</th>
+      <th>Paid Status</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for sale in sales %}
+    <tr>
+      <td>{{ sale.service_sale_number }}</td>
+      <td>{{ sale.customer }}</td>
+      <td>{{ sale.store.name }}</td>
+      <td class="text-end">UGX {{ sale.total_amount|floatformat:0|intcomma }}</td>
+      <td>{{ sale.paid_status }}</td>
+      <td>{{ sale.sale_date|date:'Y-m-d H:i' }}</td>
+      <td><a class="btn btn-sm btn-link" href="{% url 'service_sale_details' sale.id %}">View</a></td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="text-center text-muted">No sales</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+

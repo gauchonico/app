@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Product Sales Receipts{% endblock %}
+
+{% block css %}
+<style>
+    .receipt-card {
+        border-left: 4px solid #007bff;
+        transition: all 0.3s ease;
+    }
+    .receipt-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .status-badge {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+    }
+    .receipt-number {
+        font-family: 'Courier New', monospace;
+        font-weight: bold;
+        color: #007bff;
+    }
+    .amount-display {
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+    .customer-info {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-receipt me-2"></i>Product Sales Receipts
+                    </h2>
+                    <p class="text-muted mb-0">All product sale receipts</p>
+                </div>
+                <div>
+                    <a href="{% url 'product_sale_pos' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> New Product Sale
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Receipts</h6>
+                            <h3 class="mb-0">{{ total_receipts }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-receipt fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Paid Receipts</h6>
+                            <h3 class="mb-0">{{ paid_receipts }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Pending Receipts</h6>
+                            <h3 class="mb-0">{{ pending_receipts }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Total Amount</h6>
+                            <h3 class="mb-0">UGX {{ total_amount|floatformat:0|intcomma }}</h3>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-money-bill-wave fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-filter me-2"></i>Filters
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="paid" {% if filters.status == 'paid' %}selected{% endif %}>Paid</option>
+                                <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Store</label>
+                            <select name="store" class="form-select">
+                                <option value="">All Stores</option>
+                                {% for store in stores %}
+                                <option value="{{ store.id }}" {% if filters.store == store.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ store.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Date From</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">Date To</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold">&nbsp;</label>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i> Filter
+                                </button>
+                                <a href="{% url 'product_sales_receipts_list' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipts List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>Receipts List
+                        <span class="badge bg-primary ms-2">{{ product_sales_receipts|length }} total</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if product_sales_receipts %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Receipt #</th>
+                                        <th>Customer</th>
+                                        <th>Store</th>
+                                        <th>Total Amount</th>
+                                        <th>Paid Amount</th>
+                                        <th>Balance</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for receipt in product_sales_receipts %}
+                                    <tr class="receipt-card">
+                                        <td>
+                                            <span class="receipt-number">{{ receipt.receipt_number }}</span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ receipt.customer_name }}</strong>
+                                                {% if receipt.customer_phone %}
+                                                <br>
+                                                <small class="customer-info">{{ receipt.customer_phone }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark">{{ receipt.store.name }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="amount-display text-primary">
+                                                UGX {{ receipt.total_due|floatformat:0|intcomma }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="amount-display text-success">
+                                                UGX {{ receipt.total_paid|floatformat:0|intcomma }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if receipt.balance_due > 0 %}
+                                                <span class="amount-display text-danger">
+                                                    UGX {{ receipt.balance_due|floatformat:0|intcomma }}
+                                                </span>
+                                            {% else %}
+                                                <span class="text-success">Paid in Full</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if receipt.is_paid %}
+                                                <span class="status-badge bg-success text-white">
+                                                    <i class="fas fa-check me-1"></i>Paid
+                                                </span>
+                                            {% else %}
+                                                <span class="status-badge bg-warning text-dark">
+                                                    <i class="fas fa-clock me-1"></i>Pending
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ receipt.receipt_date|date:"M d, Y" }}<br>
+                                            <small class="text-muted">{{ receipt.receipt_date|time:"H:i" }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'product_sale_receipt' receipt.sale.id %}" 
+                                                   class="btn btn-sm btn-outline-primary" 
+                                                   title="View Receipt">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'product_sale_details' receipt.sale.id %}" 
+                                                   class="btn btn-sm btn-outline-info" 
+                                                   title="View Sale Details">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </a>
+                                                {% if not receipt.is_paid %}
+                                                <a href="{% url 'record_product_sale_payment' receipt.sale.id %}" 
+                                                   class="btn btn-sm btn-outline-success" 
+                                                   title="Record Payment">
+                                                    <i class="fas fa-credit-card"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                        <div class="card-footer">
+                            <nav aria-label="Receipts pagination">
+                                <ul class="pagination justify-content-center mb-0">
+                                    {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.store %}&store={{ filters.store }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}">
+                                            <i class="fas fa-angle-double-left"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.store %}&store={{ filters.store }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}">
+                                            <i class="fas fa-angle-left"></i>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                        </span>
+                                    </li>
+
+                                    {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.store %}&store={{ filters.store }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}">
+                                            <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filters.status %}&status={{ filters.status }}{% endif %}{% if filters.store %}&store={{ filters.store }}{% endif %}{% if filters.date_from %}&date_from={{ filters.date_from }}{% endif %}{% if filters.date_to %}&date_to={{ filters.date_to }}{% endif %}">
+                                            <i class="fas fa-angle-double-right"></i>
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Receipts Found</h5>
+                            <p class="text-muted">No product sale receipts have been generated yet.</p>
+                            <a href="{% url 'product_sale_pos' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i> Create First Sale
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+    // Add smooth scrolling for better UX
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+
+    // Add hover effects to receipt cards
+    document.querySelectorAll('.receipt-card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+</script>
+{% endblock %}

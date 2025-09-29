@@ -7,7 +7,47 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.db import transaction
-from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory,RawMaterialPrice, PriceAlert, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale
+from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory,RawMaterialPrice, PriceAlert, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale, Payment, ServiceSaleInvoice, ServiceSale
+@receiver(post_save, sender=Payment)
+def update_invoice_and_sale_on_payment(sender, instance, created, **kwargs):
+    """When a payment is saved, recompute sale totals and update invoice/payment status."""
+    sale = instance.sale
+    # Capture previous status before recalculation
+    previous_status = sale.paid_status
+    # Recalculate sale totals (updates paid_amount, balance, paid_status)
+    sale.calculate_total()
+
+    # Ensure invoice exists
+    invoice = getattr(sale, 'invoice', None)
+    if not invoice:
+        # Create invoice if missing, align amount to sale total
+        invoice = ServiceSaleInvoice.objects.create(sale=sale, total_amount=sale.total_amount)
+
+    # Mirror paid status
+    if sale.balance <= 0:
+        invoice.paid_status = 'paid'
+    elif sale.paid_amount > 0:
+        invoice.paid_status = 'partially_paid'
+    else:
+        invoice.paid_status = 'unpaid'
+
+    # Set payment method from the latest payment
+    invoice.payment_method = instance.payment_method if hasattr(instance, 'payment_method') else invoice.payment_method
+    invoice.total_amount = sale.total_amount
+    invoice.save(update_fields=['paid_status', 'payment_method', 'total_amount', 'updated_at'])
+
+    # Optionally keep ServiceSale invoice_status in sync
+    if invoice.paid_status == 'paid' and sale.invoice_status != 'invoiced':
+        sale.invoice_status = 'invoiced'
+        sale.save(update_fields=['invoice_status'])
+
+    # If sale transitioned to fully paid here (via this payment), finalize it
+    if previous_status != 'paid' and sale.paid_status == 'paid':
+        try:
+            sale.mark_as_paid()
+        except Exception as e:
+            # Avoid breaking signal chain; log or print for now
+            print(f"Error finalizing sale on payment: {e}")
 
 @receiver(post_save, sender=RawMaterialInventory)
 def send_alert_for_rawmaterial(sender, instance, created, **kwargs):

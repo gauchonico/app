@@ -22,11 +22,12 @@
                 </div>
                 <div class="ms-auto">
                     <div class="btn-group">
-                        <a href="{% url 'service_timing_analytics' %}" class="btn btn-outline-info">
+                        <a href="{% url 'service_timing_analytics' %}" class="btn btn-sm btn-outline-theme">
                             <i class="fas fa-chart-line me-1"></i>Analytics
                         </a>
-                        <a href="{% url 'create_service_sale' %}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i>New Sale
+                        
+                        <a href="{% url 'saloon_sale' %}" type="button" class="btn btn-sm btn-outline-theme">
+                            <i class="fas fa-plus"></i> Make New Sale
                         </a>
                     </div>
                 </div>
@@ -240,6 +241,9 @@
                                     {% endif %}">
                                     
                                     <td>
+                                        {% if sale.slot_number %}
+                                            <span class="badge bg-primary me-2">#{{ sale.slot_number }}</span>
+                                        {% endif %}
                                         <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong>
                                         <br><small class="text-muted">{{ sale.customer.phone }}</small>
                                         <br><small class="text-muted">Sale #{{ sale.service_sale_number|default:sale.id }}</small>

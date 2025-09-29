@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Product Sale Receipt{% endblock %}
+
+{% block css %}
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        .card { border: none !important; box-shadow: none !important; }
+        body { font-size: 12px; }
+    }
+    
+    .receipt-header {
+        text-align: center;
+        border-bottom: 2px solid #000;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .company-name {
+        font-size: 24px;
+        font-weight: bold;
+        color: #2c5aa0;
+        margin-bottom: 5px;
+    }
+    
+    .company-details {
+        font-size: 11px;
+        line-height: 1.4;
+        color: #666;
+    }
+    
+    .invoice-meta {
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    
+    .invoice-items table {
+        font-size: 13px;
+    }
+    
+    .invoice-items th {
+        font-weight: 600;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .total-section {
+        padding: 15px;
+        border-radius: 5px;
+        border-left: 4px solid #28a745;
+    }
+    
+    .amount-highlight {
+        font-size: 18px;
+        font-weight: bold;
+    }
+    
+    .status-badge {
+        font-size: 14px;
+        padding: 8px 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Action Buttons -->
+    <div class="row no-print mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{% url 'product_sale_pos' %}" class="btn btn-outline-info">
+                        <i class="fas fa-arrow-left me-1"></i> Back to POS
+                    </a>
+                </div>
+                <div>
+                    {% if sale.can_process_payment %}
+                        <a href="{% url 'record_product_sale_payment' sale.id %}" class="btn btn-success">
+                            <i class="bi bi-credit-card"></i> Record Payment
+                        </a>
+                    {% endif %}
+                    
+                    <button onclick="window.print()" class="btn btn-info">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Content -->
+    <div class="card">
+        <div class="card-body">
+            <!-- Header -->
+            <div class="receipt-header">
+                <div class="company-name">LIVARA SALON</div>
+                <div class="company-details">
+                    {{ sale.store.name }}<br>
+                    {{ sale.store.location }}<br>
+                    Tel: {{ sale.store.phone|default:"N/A" }}
+                </div>
+            </div>
+
+            <!-- Sale Information -->
+            <div class="invoice-meta">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Sale Number:</strong> {{ sale.product_sale_number }}<br>
+                        <strong>Date:</strong> {{ sale.sale_date|date:"M d, Y H:i" }}<br>
+                        <strong>Store:</strong> {{ sale.store.name }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Customer:</strong> {{ sale.customer.first_name }} {{ sale.customer.last_name }}<br>
+                        <strong>Phone:</strong> {{ sale.customer.phone }}<br>
+                        <strong>Status:</strong> 
+                        {% if sale.paid_status == 'paid' %}
+                            <span class="badge bg-success status-badge">Paid</span>
+                        {% else %}
+                            <span class="badge bg-warning status-badge">Pending Payment</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div class="invoice-items">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in sale.product_sale_items.all %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.product.product.product_name }}</strong><br>
+                                <small class="text-muted">{{ item.product.product.description|truncatechars:50 }}</small>
+                            </td>
+                            <td>{{ item.quantity }}</td>
+                            <td>UGX {{ item.unit_price|floatformat:2 }}</td>
+                            <td>UGX {{ item.total_price|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals -->
+            <div class="total-section">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <strong>Subtotal:</strong> UGX{{ sale.total_amount|floatformat:2 }}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Paid Amount:</strong> UGX{{ sale.paid_amount|floatformat:2 }}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Balance:</strong> 
+                            <span class="amount-highlight {% if sale.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                UGX{{ sale.balance|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        {% if sale.payment_mode %}
+                        <div class="mb-2">
+                            <strong>Payment Method:</strong> {{ sale.get_payment_mode_display }}
+                        </div>
+                        {% endif %}
+                        {% if sale.payment_remarks %}
+                        <div class="mb-2">
+                            <strong>Payment Remarks:</strong> {{ sale.payment_remarks }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            {% if sale.payment_set.all %}
+            <div class="mt-4">
+                <h6>Payment History</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in sale.payment_set.all %}
+                        <tr>
+                            <td>{{ payment.payment_date|date:"M d, Y H:i" }}</td>
+                            <td>UGX{{ payment.amount|floatformat:2 }}</td>
+                            <td>{{ payment.get_payment_method_display }}</td>
+                            <td>{{ payment.payment_remarks|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+
+            <!-- Footer -->
+            <div class="text-center mt-4 pt-3 border-top">
+                <small class="text-muted">
+                    Thank you for your business!<br>
+                    This is a computer-generated receipt.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

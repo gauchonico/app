@@ -1105,7 +1105,7 @@ class Accessory(models.Model):
 # 2. Main Store Accessory Inventory (Livara Main Store)
 class AccessoryInventory(models.Model):
     accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE, related_name='main_inventory')
-    quantity = models.PositiveIntegerField(default=0)
+    quantity = models.DecimalField(max_digits=15, decimal_places=3, default=0)
     last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -1184,7 +1184,7 @@ class MainStoreAccessoryRequisition(models.Model):
 class MainStoreAccessoryRequisitionItem(models.Model):
     requisition = models.ForeignKey(MainStoreAccessoryRequisition, related_name='items', on_delete=models.CASCADE)
     accessory = models.ForeignKey('Accessory', on_delete=models.CASCADE)
-    quantity_requested = models.PositiveIntegerField()
+    quantity_requested = models.DecimalField(max_digits=15, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
@@ -1292,7 +1292,7 @@ class InventoryAdjustment(models.Model): ### for manufacture products ###
 class StoreAccessoryInventory(models.Model):#### For Accessories in each Store ##
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='accessory_inventory')
     accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
+    quantity = models.DecimalField(max_digits=15, decimal_places=3, default=0)
     last_updated = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -1321,7 +1321,7 @@ class InternalAccessoryRequest(models.Model):
 class InternalAccessoryRequestItem(models.Model):
     request = models.ForeignKey(InternalAccessoryRequest, on_delete=models.CASCADE, related_name='items',null=True,blank=True)
     accessory = models.ForeignKey(Accessory, on_delete=models.CASCADE)
-    quantity_requested = models.PositiveIntegerField()
+    quantity_requested = models.DecimalField(max_digits=15, decimal_places=3, default=0)
     # Other fields like price, notes, etc., if needed
 
     def __str__(self):
@@ -1373,6 +1373,7 @@ class ServiceSale(models.Model):
     service_end_time = models.DateTimeField(null=True, blank=True, help_text="When service was completed")
     queue_waiting_time = models.DurationField(null=True, blank=True, help_text="Time spent waiting in queue")
     service_duration = models.DurationField(null=True, blank=True, help_text="Total time spent on service")
+    slot_number = models.PositiveIntegerField(null=True, blank=True, help_text="Queue slot number for this customer")
 
     @property
     def actual_recipient(self):
@@ -1418,7 +1419,7 @@ class ServiceSale(models.Model):
 
     def calculate_total(self):
         total = sum(item.total_price for item in self.service_sale_items.all())
-        total += sum(item.total_price for item in self.accessory_sale_items.all())
+        # total += sum(item.total_price for item in self.accessory_sale_items.all())
         total += sum(item.total_price for item in self.product_sale_items.all())
         
         self.total_amount = total
@@ -1499,25 +1500,40 @@ class ServiceSale(models.Model):
                 else:
                     print(f"DEBUG: No staff assigned to this product item")
         
-    def mark_as_paid(self):
-        if self.paid_status != 'paid' and self.balance <= 0:
+    def mark_as_paid(self, reference=None):
+        """Finalize a sale that is fully paid: set status, create commissions, and deduct inventories.
+        Safe to call multiple times; inventory deductions are idempotent using adjustment existence checks.
+        """
+        if self.balance <= 0:
             with transaction.atomic():
-                self.paid_status = 'paid'
-                self.save()
-                
-                # Create service commissions
+                # Ensure status is paid
+                if self.paid_status != 'paid':
+                    self.paid_status = 'paid'
+                    self.save(update_fields=['paid_status'])
+
+                # Create commissions
                 self.create_service_commissions()
-                
-                # Create product commissions
                 self.create_product_commissions()
-                
+
                 try:
-                    # Adjust inventory for accessories
-                    self._deduct_accessory_inventory()
-                    
-                    # Adjust inventory for products
-                    self._deduct_product_inventory()
-                    
+                    # Prevent double-deduction by checking for prior adjustments referencing this sale
+                    accessory_already_deducted = StoreInventoryAdjustment.objects.filter(
+                        accessory_inventory__store=self.store,
+                        adjustment='sale',
+                        reason__icontains=f"ServiceSale #{self.id}"
+                    ).exists()
+
+                    product_already_deducted = InventoryAdjustment.objects.filter(
+                        store_inventory__store=self.store,
+                        adjustment_reason__icontains=f"ServiceSale #{self.id}"
+                    ).exists()
+
+                    if not accessory_already_deducted:
+                        self._deduct_accessory_inventory()
+
+                    if not product_already_deducted:
+                        self._deduct_product_inventory()
+
                 except ValueError as e:
                     raise ValueError(f"Inventory adjustment failed: {str(e)}")
 
@@ -1642,11 +1658,24 @@ class ServiceSale(models.Model):
         }
     
     def start_queue_timer(self):
-        """Start the queue timer when customer enters the queue"""
+        """Start the queue timer when customer enters the queue and assign slot number"""
         from django.utils import timezone
         if not self.queue_start_time:
             self.queue_start_time = timezone.now()
-            self.save(update_fields=['queue_start_time'])
+            
+            # Assign slot number if not already assigned
+            if not self.slot_number:
+                # Get the next slot number for this store today
+                today = timezone.now().date()
+                last_slot = ServiceSale.objects.filter(
+                    store=self.store,
+                    queue_start_time__date=today,
+                    slot_number__isnull=False
+                ).aggregate(max_slot=models.Max('slot_number'))['max_slot'] or 0
+                
+                self.slot_number = last_slot + 1
+            
+            self.save(update_fields=['queue_start_time', 'slot_number'])
             return True
         return False
     
@@ -1765,7 +1794,7 @@ class ServiceSaleItem(models.Model):
 class AccessorySaleItem(models.Model):
     sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='accessory_sale_items')
     accessory = models.ForeignKey(StoreAccessoryInventory, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField()
+    quantity = models.DecimalField(max_digits=15, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
@@ -1869,6 +1898,106 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.amount} via {self.payment_method} for Sale #{self.sale.id}"
+
+
+class ProductSalePayment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('mobile_money', 'Mobile Money'),
+        ('airtel_money', 'Airtel Money'),
+        ('visa', 'Visa'),
+        ('bank_transfer', 'Bank Transfer'),
+    ]
+
+    sale = models.ForeignKey('StoreProductSale', on_delete=models.CASCADE, related_name='payments')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now=True)
+    remarks = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.amount} via {self.payment_method} for Product Sale #{self.sale.id}"
+
+
+class ProductSaleReceipt(models.Model):
+    """
+    Receipt model for product sales - similar to StoreSaleReceipt but for product-only sales
+    """
+    receipt_number = models.CharField(max_length=20, unique=True, blank=True, help_text="Unique receipt number")
+    sale = models.OneToOneField('StoreProductSale', on_delete=models.CASCADE, related_name='receipt')
+    
+    # Customer information
+    customer_name = models.CharField(max_length=200, help_text="Customer name for receipt")
+    customer_phone = models.CharField(max_length=20, blank=True, null=True, help_text="Customer phone number")
+    customer_email = models.EmailField(blank=True, null=True, help_text="Customer email address")
+    
+    # Receipt details
+    receipt_date = models.DateTimeField(auto_now_add=True, help_text="Date and time receipt was generated")
+    total_due = models.DecimalField(max_digits=10, decimal_places=2, help_text="Total amount due for the sale")
+    total_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Total amount paid so far")
+    balance_due = models.DecimalField(max_digits=10, decimal_places=2, help_text="Remaining balance to be paid")
+    
+    # Receipt status
+    is_paid = models.BooleanField(default=False, help_text="Whether the receipt is fully paid")
+    is_cancelled = models.BooleanField(default=False, help_text="Whether the receipt is cancelled")
+    
+    # Store and staff information
+    store = models.ForeignKey('Store', on_delete=models.CASCADE, help_text="Store where the sale was made")
+    staff_name = models.CharField(max_length=200, help_text="Staff member who handled the sale")
+    
+    # Additional information
+    notes = models.TextField(blank=True, help_text="Additional notes for the receipt")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, help_text="User who created the receipt")
+    
+    class Meta:
+        ordering = ['-receipt_date']
+        verbose_name = "Product Sale Receipt"
+        verbose_name_plural = "Product Sale Receipts"
+    
+    def __str__(self):
+        return f"Receipt {self.receipt_number} - {self.customer_name} - UGX {self.total_due:,.0f}"
+    
+    def save(self, *args, **kwargs):
+        if not self.receipt_number:
+            self.receipt_number = self.generate_receipt_number()
+        
+        # Auto-populate fields from sale if not provided
+        if self.sale:
+            if not self.customer_name:
+                self.customer_name = f"{self.sale.customer.first_name} {self.sale.customer.last_name}"
+            if not self.customer_phone and self.sale.customer.phone:
+                self.customer_phone = self.sale.customer.phone
+            if not self.customer_email and self.sale.customer.email:
+                self.customer_email = self.sale.customer.email
+            if not self.store:
+                self.store = self.sale.store
+            if not self.staff_name:
+                self.staff_name = f"{self.sale.store.manager.first_name} {self.sale.store.manager.last_name}"
+            
+            # Calculate totals from sale
+            self.total_due = self.sale.total_amount
+            self.total_paid = self.sale.paid_amount or 0
+            self.balance_due = self.sale.balance or self.total_due
+            self.is_paid = self.sale.paid_status == 'paid'
+        
+        super().save(*args, **kwargs)
+    
+    def generate_receipt_number(self):
+        """Generate a unique receipt number"""
+        from datetime import datetime
+        import uuid
+        
+        current_date = datetime.now().strftime('%Y%m%d')
+        unique_id = str(uuid.uuid4()).replace('-', '').upper()[:6]
+        return f"PR{current_date}{unique_id}"
+    
+    def update_payment_status(self):
+        """Update payment status based on current payments"""
+        if self.sale:
+            self.total_paid = self.sale.paid_amount or 0
+            self.balance_due = self.sale.balance or self.total_due
+            self.is_paid = self.sale.paid_status == 'paid'
+            self.save(update_fields=['total_paid', 'balance_due', 'is_paid'])
 
 
 
@@ -3203,5 +3332,173 @@ class CreditNote(models.Model):
         )
         
         return amount_to_apply
+
+
+class StoreProductSale(models.Model):
+    """
+    Model for walk-in customers who only buy products (no services)
+    Separate from ServiceSale for product-only transactions
+    """
+    PAID_STATUS_CHOICES = [
+        ('not_paid', 'Not Paid'),
+        ('paid', 'Paid'),
+    ]
+    
+    PAYMENT_MODE_CHOICES = [
+        ('cash', 'Cash'),
+        ('mobile_money', 'Mobile Money'),
+        ('airtel_money', 'Airtel Money'),
+        ('visa', 'Visa'),
+        ('mixed', 'Mixed'),
+    ]
+    
+    product_sale_number = models.CharField(max_length=20, unique=True, editable=False, null=True)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='product_sales')
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='product_sales', help_text="Customer who purchased the products")
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sale_date = models.DateTimeField(auto_now_add=True)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    paid_status = models.CharField(max_length=20, choices=PAID_STATUS_CHOICES, default='not_paid')
+    payment_mode = models.CharField(max_length=255, choices=PAYMENT_MODE_CHOICES, default='cash')
+    payment_remarks = models.CharField(max_length=150, null=True, blank=True)
+    
+    # Performance tracking
+    sale_creation_time = models.DurationField(null=True, blank=True, help_text="Time taken to create the sale")
+    payment_processing_time = models.DurationField(null=True, blank=True, help_text="Time taken to process payment")
+    total_workflow_time = models.DurationField(null=True, blank=True, help_text="Total time from sale creation to payment completion")
+    
+    class Meta:
+        ordering = ['-sale_date']
+        verbose_name = 'Product Sale'
+        verbose_name_plural = 'Product Sales'
+    
+    def __str__(self):
+        return f"Product Sale #{self.product_sale_number or self.id} - {self.customer.first_name} {self.customer.last_name}"
+    
+    def save(self, *args, **kwargs):
+        if not self.product_sale_number:
+            self.product_sale_number = self.generate_sale_number()
+        super().save(*args, **kwargs)
+    
+    def generate_sale_number(self):
+        """Generate unique product sale number"""
+        from datetime import datetime
+        today = datetime.now().date()
+        prefix = f"PS{today.strftime('%Y%m%d')}"
+        
+        # Get the last sale number for today
+        last_sale = StoreProductSale.objects.filter(
+            product_sale_number__startswith=prefix
+        ).order_by('-product_sale_number').first()
+        
+        if last_sale:
+            try:
+                last_number = int(last_sale.product_sale_number[-4:])
+                new_number = last_number + 1
+            except (ValueError, IndexError):
+                new_number = 1
+        else:
+            new_number = 1
+        
+        return f"{prefix}{new_number:04d}"
+    
+    @property
+    def can_process_payment(self):
+        """Check if payment can be processed"""
+        return self.paid_status == 'not_paid' and self.balance > 0
+    
+    def mark_as_paid(self):
+        """Mark the sale as paid, deduct inventory, and create receipt"""
+        if self.balance <= 0:
+            with transaction.atomic():
+                # Check if inventory adjustments for this sale already exist
+                product_deductions_exist = InventoryAdjustment.objects.filter(
+                    adjustment_reason__icontains=f"ProductSale #{self.id}"
+                ).exists()
+                
+                self.paid_status = 'paid'
+                self.save(update_fields=['paid_status'])
+                
+                # Deduct product inventory if not already done
+                if not product_deductions_exist:
+                    self._deduct_product_inventory()
+                else:
+                    print(f"DEBUG: Product deductions for ProductSale #{self.id} already exist. Skipping.")
+                
+                # Create receipt if it doesn't exist
+                if not hasattr(self, 'receipt'):
+                    ProductSaleReceipt.objects.create(
+                        sale=self,
+                        store=self.store,
+                        created_by=self.store.manager
+                    )
+                
+                return True
+        return False
+    
+    def _deduct_product_inventory(self):
+        """Deduct products from store inventory"""
+        for item in self.product_sale_items.all():
+            try:
+                store_inventory = StoreInventory.objects.get(
+                    store=self.store,
+                    product=item.product.product
+                )
+                
+                if store_inventory.quantity >= item.quantity:
+                    # Create inventory adjustment record
+                    InventoryAdjustment.objects.create(
+                        store_inventory=store_inventory,
+                        adjusted_quantity=-item.quantity,  # Negative for deduction
+                        adjustment_reason=f"ProductSale #{self.id} - {item.product.product.product_name}",
+                        adjusted_by=None,  # System adjustment
+                    )
+                    
+                    # Update inventory quantity
+                    store_inventory.quantity -= item.quantity
+                    store_inventory.save()
+                else:
+                    raise ValueError(f"Insufficient stock for {item.product.product.product_name}. Available: {store_inventory.quantity}, Required: {item.quantity}")
+                    
+            except StoreInventory.DoesNotExist:
+                raise ValueError(f"Product {item.product.product.product_name} not found in store inventory")
+    
+    def get_timing_summary(self):
+        """Get a summary of timing metrics."""
+        return {
+            'sale_creation_time': self.sale_creation_time,
+            'payment_processing_time': self.payment_processing_time,
+            'total_workflow_time': self.total_workflow_time,
+            'sale_date': self.sale_date,
+        }
+
+
+class StoreProductSaleItem(models.Model):
+    """
+    Individual product items in a product sale
+    """
+    sale = models.ForeignKey(StoreProductSale, on_delete=models.CASCADE, related_name='product_sale_items')
+    product = models.ForeignKey(StoreInventory, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField(default=1)
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    class Meta:
+        verbose_name = 'Product Sale Item'
+        verbose_name_plural = 'Product Sale Items'
+    
+    def __str__(self):
+        return f"{self.product.product_name} x {self.quantity} - {self.sale}"
+    
+    def save(self, *args, **kwargs):
+        # Calculate total price
+        self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+        
+        # Update sale total
+        self.sale.total_amount = sum(item.total_price for item in self.sale.product_sale_items.all())
+        self.sale.balance = self.sale.total_amount - self.sale.paid_amount
+        self.sale.save(update_fields=['total_amount', 'balance'])
 
 

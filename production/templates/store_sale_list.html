@@ -8,6 +8,7 @@
 	<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
 	<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+  <link href="{% static 'plugins/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css' %}" rel="stylesheet">
 {% endblock %}
 
 {% block js %}
@@ -26,6 +27,8 @@
 	<script src="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.js' %}"></script>
 	<script src="{% static 'js/demo/table-plugins.demo.js' %}"></script>
 	<script src="{% static 'js/demo/sidebar-scrollspy.demo.js' %}"></script>
+  <script src="/assets/plugins/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js"></script>
+
 {% endblock %}
 {% block content %}
 
@@ -49,7 +52,124 @@
     </div>
 </div>
 
+<!-- Filters and Tiles -->
+<div class="row g-3 mb-3">
+  <div class="col-lg-9">
+    <form id="salesFilterForm" method="get" class="card card-body">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Paid Status</label>
+          <select name="paid_status" class="form-select">
+            <option value="">All</option>
+            <option value="paid" {% if filter_paid_status == 'paid' %}selected{% endif %}>Paid</option>
+            <option value="not_paid" {% if filter_paid_status == 'not_paid' %}selected{% endif %}>Not Paid</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Invoice Status</label>
+          <select name="invoice_status" class="form-select">
+            <option value="">All</option>
+            <option value="invoiced" {% if filter_invoice_status == 'invoiced' %}selected{% endif %}>Invoiced</option>
+            <option value="not_invoiced" {% if filter_invoice_status == 'not_invoiced' %}selected{% endif %}>Not Invoiced</option>
+            <option value="cancelled" {% if filter_invoice_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Staff</label>
+          <select name="staff_id" class="form-select">
+            <option value="">All Staff</option>
+            {% for s in staff_options %}
+              <option value="{{ s.id }}" {% if filter_staff_id|default:'' == s.id|stringformat:'s' %}selected{% endif %}>{{ s.first_name }} {{ s.last_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Payment Method</label>
+          <select name="payment_method" class="form-select">
+            <option value="">All Methods</option>
+            {% for value, label in payment_method_choices %}
+              <option value="{{ value }}" {% if filter_payment_method == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Start Date</label>
+          <input type="date" name="start_date" value="{{ filter_start_date }}" class="form-control"/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">End Date</label>
+          <input type="date" name="end_date" value="{{ filter_end_date }}" class="form-control"/>
+        </div>
+        <div class="col-md-6 text-end">
+          <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-filter me-1"></i>Filter</button>
+          <a href="{% url 'store_sale_list' %}" class="btn btn-light">Clear</a>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="col-lg-3">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="card h-100 border-success">
+          <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="text-muted small">Today Sales</div>
+                <div class="h5 mb-0">UGX {{ today_money|floatformat:0|intcomma }}</div>
+              </div>
+              <i class="fas fa-sack-dollar text-success"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card h-100 border-primary">
+          <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <div class="text-muted small">Today Orders</div>
+                <div class="h5 mb-0">{{ today_orders }}</div>
+              </div>
+              <i class="fas fa-receipt text-primary"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="card h-100 border-info">
+          <div class="card-body py-2">
+            <h6 class="card-title">Payment Methods (Today)</h6>
+            {% for method in payment_methods_summary %}
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <small class="text-muted">{{ method.payment_method|title }}</small>
+              <div class="text-end">
+                <small class="fw-bold">UGX {{ method.total_amount|floatformat:0|intcomma }}</small>
+                <br><small class="text-muted">({{ method.count }} payments)</small>
+              </div>
+            </div>
+            {% empty %}
+            <small class="text-muted">No payments today</small>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+</div>
 
+<script>
+  (function(){
+    const form = document.getElementById('salesFilterForm');
+    if (!form) return;
+    const autoFields = form.querySelectorAll('select,input[type="date"]');
+    autoFields.forEach(function(el){
+      el.addEventListener('change', function(){
+        form.submit();
+      });
+    });
+  })();
+  </script>
 <table id="datatableDefault" class="table text-nowrap table-striped">
     <thead>
       <tr>
@@ -99,7 +219,7 @@
           </a>
         </td>
         <td>
-          <a href="{% url 'update_service_sale' sale.id %}">
+          <a href="{% url 'edit_saloon_sale' sale.id %}">
             <i class="fas fa-edit"></i>
           </a>
         </td>
@@ -120,7 +240,7 @@
             <div class="toast fade show">
                 <div class="toast-header">
                     <i class="far fa-bell text-muted me-2"></i>
-                    <strong class="me-auto">Internal Requisition Actions</strong>
+                    <strong class="me-auto">Service Sales</strong>
                     <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                 </div>
                 <div class="toast-body">

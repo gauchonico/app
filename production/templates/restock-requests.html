@@ -69,7 +69,7 @@
     }
     
     .table thead th {
-        color: white;
+       
         border: none;
         font-weight: 600;
     }
@@ -90,22 +90,22 @@
     
     .status-pending {
         background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
-        color: white;
+       
     }
     
     .status-approved {
         background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        color: white;
+        
     }
     
     .status-delivered {
         background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
+        
     }
     
     .status-rejected {
         background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-        color: white;
+        
     }
     
     .chart-container {
@@ -123,7 +123,7 @@
     }
     
     .chart-container h5 {
-        color: white;
+        
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
     }
     
@@ -190,8 +190,8 @@ if (typeof $.fn.DataTable === 'undefined') {
             <li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
             <li class="breadcrumb-item active">SALON RESTOCK REQUESTS</li>
         </ul>
-        <h2 class="text-white mb-0">Restock Requests Dashboard</h2>
-        <p class="text-white-50 mb-0">Manage restock requests from salon branches to main store</p>
+        <h2 class="mb-0">Products Restock Requests Dashboard</h2>
+        <p class="mb-0">Manage restock requests from salon branches to main store</p>
     </div>
 </div>
 
@@ -201,16 +201,30 @@ if (typeof $.fn.DataTable === 'undefined') {
         <div class="col-md-6">
             <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Quick Start</h5>
         </div>
-        <div class="col-md-6 text-end">
-            <a href="{% url 'createRestockRequest' %}" class="btn btn-primary btn-action me-2">
-                <i class="fas fa-plus me-1"></i>New Request
-            </a>
-            <a href="{% url 'main_stock_transfer' %}" class="btn btn-info btn-action me-2">
-                <i class="fas fa-truck me-1"></i>Main Store Transfers
-            </a>
-            <a href="{% url 'detailed_inventory_report' %}" class="btn btn-success btn-action">
-                <i class="fas fa-chart-bar me-1"></i>Transfer Report
-            </a>
+        <div class="col-md-6 btn-group ms-auto">
+            
+                        <a href="{% url 'createRestockRequest' %}" class="btn btn-sm btn-outline-theme">
+                            <i class="fas fa-plus me-1"></i>New Product Request
+                        </a>
+                    
+            {% if request.user.groups.all %}
+                {% for group in request.user.groups.all %}
+                    {% if group.name == 'Store Manager' %}
+                        <a href="{% url 'main_stock_transfer' %}" class="btn btn-sm btn-outline-theme">
+                            <i class="fas fa-truck me-1"></i>Main Store Transfers
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            {% if request.user.groups.all %}
+                {% for group in request.user.groups.all %}
+                    {% if group.name == 'Store Manager' %}
+                        <a href="{% url 'detailed_inventory_report' %}" class="btn btn-sm btn-outline-theme">
+                            <i class="fas fa-chart-bar me-1"></i>Transfer Report
+                        </a>
+            {% endif %}
+                {% endfor %}
+            {% endif %}
         </div>
     </div>
 </div>
@@ -218,7 +232,7 @@ if (typeof $.fn.DataTable === 'undefined') {
 <!-- Statistics Cards -->
 <div class="row mb-4">
     <div class="col-xl-2 col-md-4 col-sm-6">
-        <div class="stats-card primary">
+        <div class="stats-card success">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <div class="stats-number">{{ total_requests }}</div>
@@ -229,7 +243,7 @@ if (typeof $.fn.DataTable === 'undefined') {
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-sm-6">
-        <div class="stats-card warning">
+        <div class="stats-card success">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <div class="stats-number">{{ pending_requests }}</div>
@@ -240,7 +254,7 @@ if (typeof $.fn.DataTable === 'undefined') {
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-sm-6">
-        <div class="stats-card info">
+        <div class="stats-card success">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <div class="stats-number">{{ approved_requests }}</div>
@@ -273,7 +287,7 @@ if (typeof $.fn.DataTable === 'undefined') {
         </div>
     </div>
     <div class="col-xl-2 col-md-4 col-sm-6">
-        <div class="stats-card info">
+        <div class="stats-card success">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <div class="stats-number">{{ total_items_requested|floatformat:0 }}</div>
@@ -291,7 +305,7 @@ if (typeof $.fn.DataTable === 'undefined') {
         <div class="chart-container">
             <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Monthly Request Trends</h5>
             <canvas id="monthlyTrendsChart" height="100"></canvas>
-            <div id="monthlyChartFallback" class="text-center text-white" style="display: none;">
+            <div id="monthlyChartFallback" class="text-center" style="display: none;">
                 <i class="fas fa-chart-line fa-3x mb-3"></i>
                 <p>Chart loading...</p>
             </div>

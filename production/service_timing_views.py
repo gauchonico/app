@@ -146,8 +146,8 @@ def branch_queue_management_dashboard(request):
     elif status_filter == 'created':
         sales = sales.filter(queue_start_time__isnull=True)
     
-    # Order by queue start time, then by sale date
-    sales = sales.select_related('customer', 'store').order_by('queue_start_time', 'sale_date')
+    # Order by slot number (latest first), then by queue start time, then by sale date
+    sales = sales.select_related('customer', 'store').order_by('-slot_number', 'queue_start_time', 'sale_date')
     
     # Calculate queue metrics for this store only
     today = timezone.now().date()
@@ -217,8 +217,8 @@ def global_queue_management_dashboard(request):
     elif status_filter == 'created':
         sales = sales.filter(queue_start_time__isnull=True)
     
-    # Order by queue start time, then by sale date
-    sales = sales.select_related('customer', 'store').order_by('queue_start_time', 'sale_date')
+    # Order by slot number (latest first), then by queue start time, then by sale date
+    sales = sales.select_related('customer', 'store').order_by('-slot_number', 'queue_start_time', 'sale_date')
     
     # Calculate global queue metrics
     today = timezone.now().date()

@@ -1,0 +1,915 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block title %}Product Sale POS{% endblock %}
+
+{% block css %}
+<style>
+    .product-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+    .product-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        border-color: #007bff;
+    }
+    .product-card.selected {
+        border-color: #28a745;
+        background-color: #f8fff9;
+    }
+    
+    .cart-item {
+        border-bottom: 1px solid #eee;
+        padding: 10px 0;
+    }
+    .cart-item:last-child {
+        border-bottom: none;
+    }
+    .quantity-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .quantity-btn {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    .quantity-btn:hover {
+        background: #f8f9fa;
+    }
+    .quantity-input {
+        width: 60px;
+        text-align: center;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 5px;
+    }
+    .customer-search {
+        position: relative;
+    }
+    .customer-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-top: none;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 1000;
+        display: none;
+    }
+    .customer-item {
+        padding: 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #eee;
+    }
+    .customer-item:hover {
+        background: #f8f9fa;
+    }
+    .customer-item:last-child {
+        border-bottom: none;
+    }
+    .total-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+    }
+    .btn-checkout {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        border: none;
+        color: white;
+        font-weight: bold;
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    .btn-checkout:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+    .btn-checkout:disabled {
+        background: #6c757d;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid h-100">
+    <div class="row h-100">
+        <!-- Left Side - Products -->
+        <div class="col-md-8">
+            <div class="card h-100">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-boxes me-2"></i>Available Products
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="productSearch" class="form-control" placeholder="Search products..." value="{{ search_query }}">
+                            <button class="btn btn-outline-primary" onclick="searchProducts()">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Price Group Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-tags me-2"></i>Pricing Group
+                            </label>
+                <select id="priceGroupSelect" class="form-select form-select-lg" onchange="changePriceGroup()">
+                    {% if retail_price_group %}
+                        <option value="{{ retail_price_group.id }}" {% if selected_price_group and selected_price_group.id == retail_price_group.id %}selected{% endif %}>
+                            🏪 {{ retail_price_group.name }} (Default)
+                        </option>
+                        {% for price_group in price_groups %}
+                            {% if price_group.id != retail_price_group.id %}
+                            <option value="{{ price_group.id }}" {% if selected_price_group and selected_price_group.id == price_group.id %}selected{% endif %}>
+                                💰 {{ price_group.name }} - {{ price_group.description }}
+                            </option>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <option value="retail" selected>🏪 Retail (Default)</option>
+                        {% for price_group in price_groups %}
+                        <option value="{{ price_group.id }}" {% if selected_price_group and selected_price_group.id == price_group.id %}selected{% endif %}>
+                            💰 {{ price_group.name }} - {{ price_group.description }}
+                        </option>
+                        {% endfor %}
+                    {% endif %}
+                </select>
+                            <div class="form-text">Select a pricing group to use different prices for products</div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="alert alert-success py-2 mb-0" id="priceGroupInfo">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <span id="priceGroupInfoText">Using retail pricing (default)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body" style="overflow-y: auto; max-height: calc(100vh - 200px);">
+                    <div class="row" id="productsContainer">
+                        {% for product in store_products %}
+                        <div class="col-md-4 col-lg-3 mb-3">
+                            <div class="card product-card h-100" data-product-id="{{ product.id }}" data-production-id="{{ product.product.id }}" onclick="selectProduct({{ product.id }})" style="cursor: pointer;">
+                                <div class="card-body text-center">
+                                    <div class="mb-2">
+                                        <i class="fas fa-box fa-2x text-primary"></i>
+                                    </div>
+                                    <h6 class="card-title">{{ product.product.product_name }}</h6>
+                                    <p class="text-muted small mb-2">{{ product.product.description|truncatechars:50 }}</p>
+                                    <div class="mb-2">
+                                        <span class="badge bg-success">Stock: {{ product.quantity }}</span>
+                                    </div>
+                                    <div class="h5 text-primary mb-0" id="price-{{ product.id }}">
+                                        <span class="default-price">
+                                            {% if product_prices_dict and product.product.id in product_prices_dict %}
+                                                UGX{{ product_prices_dict|get_item:product.product.id|floatformat:2 }}
+                                            {% else %}
+                                                <span class="text-danger">Price not set in {{ selected_price_group.name|default:"selected" }} group</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="small text-muted" id="price-info-{{ product.id }}" style="display: none;">
+                                        <i class="fas fa-tag me-1"></i>
+                                        <span class="price-group-name"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-5">
+                            <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No products available</h5>
+                            <p class="text-muted">All products are out of stock or no products have been added to this store.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Side - Cart & Customer -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shopping-cart me-2"></i>Shopping Cart
+                    </h5>
+                </div>
+                <div class="card-body d-flex flex-column">
+                    <!-- Customer Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Customer</label>
+                        <div class="customer-search">
+                            <input type="text" id="customerSearch" class="form-control" placeholder="Search or select customer..." autocomplete="off">
+                            <div class="customer-dropdown" id="customerDropdown"></div>
+                        </div>
+                        <input type="hidden" id="selectedCustomerId">
+                        <div id="selectedCustomerInfo" class="mt-2" style="display: none;">
+                            <div class="alert alert-info py-2">
+                                <i class="fas fa-user me-2"></i>
+                                <span id="selectedCustomerName"></span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearCustomer()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Cart Items -->
+                    <div class="flex-grow-1 mb-4" style="overflow-y: auto;">
+                        <div id="cartItems">
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                                <p>No items in cart</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Total & Checkout -->
+                    <div class="total-section">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="h5 mb-0">Total:</span>
+                            <span class="h4 text-primary mb-0" id="cartTotal">UGX0.00</span>
+                        </div>
+                        <button class="btn btn-checkout w-100" id="checkoutBtn" onclick="checkout()" disabled>
+                            <i class="fas fa-credit-card me-2"></i>Process Sale
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal fade" id="customerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>Create New Customer
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Quick Customer Setup:</strong> Only basic information is required. Additional details can be added later during KYC verification.
+                </div>
+                <form id="newCustomerForm">
+                    <div class="mb-3">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="newCustomerFirstName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="newCustomerLastName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="newCustomerPhone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email <small class="text-muted">(Optional)</small></label>
+                        <input type="email" class="form-control" id="newCustomerEmail" placeholder="email@example.com">
+                        <div class="form-text">Email can be added later during KYC verification</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createCustomer()">Create Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+let cart = [];
+let customers = [];
+let selectedCustomerId = null;
+let currentPriceGroup = null;
+let productPrices = {};
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Convert customers to JavaScript array
+    customers = [
+        {% for customer in customers %}
+        {
+            id: {{ customer.id }},
+            first_name: "{{ customer.first_name|escapejs }}",
+            last_name: "{{ customer.last_name|escapejs }}",
+            phone: "{{ customer.phone|escapejs }}",
+            email: "{{ customer.email|escapejs|default:'' }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    console.log('Customers loaded:', customers);
+    
+    // Debug: Check if products are loaded
+    const productCards = document.querySelectorAll('.product-card');
+    console.log('Product cards found:', productCards.length);
+    
+    // Setup customer search
+    setupCustomerSearch();
+    
+    // Setup product search
+    document.getElementById('productSearch').addEventListener('input', function() {
+        searchProducts();
+    });
+    
+    // Test product selection
+    console.log('Testing product selection...');
+    productCards.forEach((card, index) => {
+        const productId = card.getAttribute('data-product-id');
+        const priceElement = document.getElementById(`price-${productId}`);
+        const defaultPriceElement = priceElement?.querySelector('.default-price');
+        
+        console.log(`Product ${index + 1}:`, {
+            id: productId,
+            name: card.querySelector('.card-title')?.textContent,
+            priceElementHTML: priceElement?.innerHTML,
+            priceElementText: priceElement?.textContent,
+            defaultPriceElement: defaultPriceElement,
+            defaultPriceText: defaultPriceElement?.textContent,
+            stock: card.querySelector('.badge')?.textContent
+        });
+        
+        // Test price parsing for this product
+        if (defaultPriceElement) {
+            const priceText = defaultPriceElement.textContent.trim();
+            const cleanedPrice = priceText.replace('$', '').replace(/[^0-9.]/g, '');
+            const parsedPrice = parseFloat(cleanedPrice);
+            console.log(`Price parsing test for ${productId}:`, {
+                original: priceText,
+                cleaned: cleanedPrice,
+                parsed: parsedPrice,
+                isValid: !isNaN(parsedPrice) && parsedPrice > 0
+            });
+        }
+    });
+    
+    // Initialize price group info to show retail pricing
+    const priceGroupInfo = document.getElementById('priceGroupInfo');
+    const priceGroupInfoText = document.getElementById('priceGroupInfoText');
+    if (priceGroupInfo && priceGroupInfoText) {
+        priceGroupInfo.style.display = 'block';
+        // Check if we have a retail price group selected by default
+        const selectedOption = document.getElementById('priceGroupSelect').selectedOptions[0];
+        if (selectedOption && selectedOption.textContent.includes('(Default)')) {
+            priceGroupInfoText.textContent = `Using ${selectedOption.textContent.replace(' (Default)', '')} pricing`;
+        } else {
+            priceGroupInfoText.textContent = 'Using retail pricing (default)';
+        }
+        priceGroupInfo.className = 'alert alert-success py-2 mb-0';
+    }
+});
+
+function setupCustomerSearch() {
+    const customerSearch = document.getElementById('customerSearch');
+    const customerDropdown = document.getElementById('customerDropdown');
+    
+    customerSearch.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        console.log('Customer search query:', query);
+        console.log('Available customers:', customers);
+        
+        if (query.length < 1) {
+            customerDropdown.style.display = 'none';
+            return;
+        }
+        
+        const filteredCustomers = customers.filter(customer => 
+            customer.first_name.toLowerCase().includes(query) ||
+            customer.last_name.toLowerCase().includes(query) ||
+            customer.phone.includes(query)
+        );
+        
+        console.log('Filtered customers:', filteredCustomers);
+        
+        if (filteredCustomers.length > 0) {
+            customerDropdown.innerHTML = filteredCustomers.map(customer => 
+                `<div class="customer-item" onclick="selectCustomer(${customer.id}, '${customer.first_name} ${customer.last_name}')">
+                    <strong>${customer.first_name} ${customer.last_name}</strong><br>
+                    <small class="text-muted">${customer.phone}</small>
+                </div>`
+            ).join('');
+            customerDropdown.style.display = 'block';
+        } else {
+            customerDropdown.innerHTML = `
+                <div class="customer-item" onclick="showNewCustomerModal()">
+                    <i class="fas fa-plus me-2"></i>Create new customer: "${query}"
+                </div>
+            `;
+            customerDropdown.style.display = 'block';
+        }
+    });
+    
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!customerSearch.contains(e.target) && !customerDropdown.contains(e.target)) {
+            customerDropdown.style.display = 'none';
+        }
+    });
+}
+
+function selectCustomer(customerId, customerName) {
+    selectedCustomerId = customerId;
+    document.getElementById('selectedCustomerId').value = customerId;
+    document.getElementById('selectedCustomerName').textContent = customerName;
+    document.getElementById('selectedCustomerInfo').style.display = 'block';
+    document.getElementById('customerSearch').value = '';
+    document.getElementById('customerDropdown').style.display = 'none';
+    updateCheckoutButton();
+}
+
+function clearCustomer() {
+    selectedCustomerId = null;
+    document.getElementById('selectedCustomerId').value = '';
+    document.getElementById('selectedCustomerInfo').style.display = 'none';
+    updateCheckoutButton();
+}
+
+function showNewCustomerModal() {
+    document.getElementById('customerDropdown').style.display = 'none';
+    
+    // Pre-fill the form with the search query if it looks like a name
+    const searchQuery = document.getElementById('customerSearch').value.trim();
+    if (searchQuery) {
+        const nameParts = searchQuery.split(' ');
+        if (nameParts.length >= 2) {
+            document.getElementById('newCustomerFirstName').value = nameParts[0];
+            document.getElementById('newCustomerLastName').value = nameParts.slice(1).join(' ');
+        } else {
+            document.getElementById('newCustomerFirstName').value = searchQuery;
+        }
+    }
+    
+    new bootstrap.Modal(document.getElementById('customerModal')).show();
+}
+
+function createCustomer() {
+    const firstName = document.getElementById('newCustomerFirstName').value;
+    const lastName = document.getElementById('newCustomerLastName').value;
+    const phone = document.getElementById('newCustomerPhone').value;
+    const email = document.getElementById('newCustomerEmail').value;
+    
+    if (!firstName || !lastName || !phone) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    // Create customer via AJAX
+    fetch('{% url "DjangoHUDApp:create_customer_ajax" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            first_name: firstName,
+            last_name: lastName,
+            phone: phone,
+            email: email
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Add to customers array
+            customers.push(data.customer);
+            // Select the new customer
+            selectCustomer(data.customer.id, `${data.customer.first_name} ${data.customer.last_name}`);
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('customerModal')).hide();
+            // Clear form
+            document.getElementById('newCustomerForm').reset();
+        } else {
+            alert('Error creating customer: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating customer');
+    });
+}
+
+function selectProduct(productId) {
+    console.log('Selecting product:', productId);
+    
+    const productCard = document.querySelector(`[data-product-id="${productId}"]`);
+    if (!productCard) {
+        console.error('Product card not found for ID:', productId);
+        return;
+    }
+    
+    // Debug: Check if price element exists
+    const priceElement = document.getElementById(`price-${productId}`);
+    console.log('Price element for product', productId, ':', priceElement);
+    if (!priceElement) {
+        console.error('Price element not found for product ID:', productId);
+        alert(`Price element not found for product ${productId}. Please check the product card structure.`);
+        return;
+    }
+    
+    const productName = productCard.querySelector('.card-title').textContent.trim();
+    const stockText = productCard.querySelector('.badge').textContent.trim();
+    
+    // Get the production ID for price group lookups
+    const productionId = productCard.getAttribute('data-production-id');
+    console.log('Production ID for price lookup:', productionId);
+    
+    // Get price based on current price group
+    let productPrice;
+    
+    if (currentPriceGroup && productPrices[productionId]) {
+        // Use price group price
+        productPrice = productPrices[productionId].price;
+        console.log('Using price group price:', productPrice);
+    } else if (currentPriceGroup && !productPrices[productionId]) {
+        // Price not set in selected group
+        alert(`Price not set for ${productName} in ${currentPriceGroup.name} pricing group. Please set the price first.`);
+        return;
+    } else {
+        // Use default retail price
+        console.log('Getting default price for product:', productId);
+        console.log('Price element:', priceElement);
+        
+        let priceText = '';
+        
+        // Try to get price from default-price span
+        const defaultPriceElement = priceElement.querySelector('.default-price');
+        console.log('Default price element found:', defaultPriceElement);
+        
+        if (defaultPriceElement) {
+            priceText = defaultPriceElement.textContent.trim();
+            console.log('Found default-price span:', priceText);
+            
+            // Check if price is "Price not set" or "Price not set in group"
+            if (priceText.includes('Price not set') || priceText.includes('Not set') || priceText.includes('not set in')) {
+                console.error('Product price is not set in the selected price group');
+                alert(`Price not set for ${productName} in the selected price group. Please set the product price in the price group or select a different price group.`);
+                return;
+            }
+        } else {
+            // Fallback to any price text in the element
+            priceText = priceElement.textContent.trim();
+            console.log('Using fallback price text:', priceText);
+        }
+        
+        // Additional debugging
+        console.log('Price element children:', priceElement.children);
+        console.log('Price element innerHTML:', priceElement.innerHTML);
+        
+        // Clean the price text
+        priceText = priceText.replace('$', '').replace(/[^0-9.]/g, '');
+        console.log('Cleaned price text:', priceText);
+        
+        productPrice = parseFloat(priceText);
+        console.log('Parsed price:', productPrice);
+        
+        if (isNaN(productPrice) || productPrice <= 0) {
+            console.error('Invalid price detected:', {
+                originalText: priceElement.textContent,
+                cleanedText: priceText,
+                parsedPrice: productPrice,
+                priceElement: priceElement,
+                defaultPriceElement: priceElement.querySelector('.default-price')
+            });
+            
+            // Show more detailed error information
+            const errorMsg = `Invalid price for ${productName}.\n\nDebug Info:\n- Original text: "${priceElement.textContent}"\n- Cleaned text: "${priceText}"\n- Parsed price: ${productPrice}\n- Price element: ${priceElement.outerHTML}\n\nPlease check the product pricing.`;
+            alert(errorMsg);
+            return;
+        }
+        
+        console.log('Using default retail price:', productPrice);
+    }
+    
+    const stock = parseInt(stockText.replace('Stock: ', ''));
+    
+    console.log('Product details:', { productName, productPrice, stock });
+    
+    // Debug: Log the price element structure
+    console.log('Price element debug:', {
+        priceElement: priceElement,
+        innerHTML: priceElement.innerHTML,
+        textContent: priceElement.textContent,
+        defaultPriceSpan: priceElement.querySelector('.default-price'),
+        allSpans: priceElement.querySelectorAll('span')
+    });
+    
+    // Check if product is already in cart
+    const existingItem = cart.find(item => item.product_id === productId);
+    if (existingItem) {
+        if (existingItem.quantity < stock) {
+            existingItem.quantity++;
+            console.log('Increased quantity for existing item:', existingItem);
+        } else {
+            alert('Cannot add more items. Stock limit reached.');
+            return;
+        }
+    } else {
+        const newItem = {
+            product_id: productId,
+            name: productName,
+            price: productPrice,
+            quantity: 1,
+            stock: stock
+        };
+        cart.push(newItem);
+        console.log('Added new item to cart:', newItem);
+    }
+    
+    updateCartDisplay();
+    updateCheckoutButton();
+}
+
+function updateCartDisplay() {
+    const cartItems = document.getElementById('cartItems');
+    const cartTotal = document.getElementById('cartTotal');
+    
+    if (cart.length === 0) {
+        cartItems.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-shopping-cart fa-2x mb-2"></i>
+                <p>No items in cart</p>
+            </div>
+        `;
+        cartTotal.textContent = '$0.00';
+        return;
+    }
+    
+    let total = 0;
+    cartItems.innerHTML = cart.map(item => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        
+        return `
+            <div class="cart-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${item.name}</h6>
+                        <small class="text-muted">$${item.price.toFixed(2)} each</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.product_id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <div class="quantity-controls">
+                        <button class="quantity-btn" onclick="updateQuantity(${item.product_id}, ${item.quantity - 1})" ${item.quantity <= 1 ? 'disabled' : ''}>
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <input type="number" class="quantity-input" value="${item.quantity}" min="1" max="${item.stock}" onchange="updateQuantity(${item.product_id}, parseInt(this.value))">
+                        <button class="quantity-btn" onclick="updateQuantity(${item.product_id}, ${item.quantity + 1})" ${item.quantity >= item.stock ? 'disabled' : ''}>
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <div class="h6 text-primary mb-0">$${itemTotal.toFixed(2)}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    cartTotal.textContent = `$${total.toFixed(2)}`;
+}
+
+function updateQuantity(productId, newQuantity) {
+    const item = cart.find(item => item.product_id === productId);
+    if (item) {
+        if (newQuantity <= 0) {
+            removeFromCart(productId);
+        } else if (newQuantity <= item.stock) {
+            item.quantity = newQuantity;
+            updateCartDisplay();
+            updateCheckoutButton();
+        } else {
+            alert('Cannot add more items. Stock limit reached.');
+        }
+    }
+}
+
+function removeFromCart(productId) {
+    cart = cart.filter(item => item.product_id !== productId);
+    updateCartDisplay();
+    updateCheckoutButton();
+}
+
+function updateCheckoutButton() {
+    const checkoutBtn = document.getElementById('checkoutBtn');
+    checkoutBtn.disabled = cart.length === 0 || !selectedCustomerId;
+}
+
+function checkout() {
+    if (cart.length === 0) {
+        alert('Please add items to cart');
+        return;
+    }
+    
+    if (!selectedCustomerId) {
+        alert('Please select a customer');
+        return;
+    }
+    
+    // Prepare sale data
+    const saleData = {
+        customer_id: selectedCustomerId,
+        price_group_id: currentPriceGroup ? currentPriceGroup.id : null,
+        product_items: cart.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            unit_price: item.price
+        }))
+    };
+    
+    // Submit sale
+    fetch('{% url "create_product_sale" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(saleData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Redirect to sale details for payment
+            window.location.href = `/production/product-sale/${data.sale_id}/`;
+        } else {
+            alert('Error creating sale: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating sale');
+    });
+}
+
+function searchProducts() {
+    const query = document.getElementById('productSearch').value.toLowerCase().trim();
+    const productCards = document.querySelectorAll('.product-card');
+    
+    console.log('Product search query:', query);
+    console.log('Found product cards:', productCards.length);
+    
+    productCards.forEach(card => {
+        const productName = card.querySelector('.card-title').textContent.toLowerCase();
+        const productDesc = card.querySelector('.text-muted').textContent.toLowerCase();
+        
+        if (query === '' || productName.includes(query) || productDesc.includes(query)) {
+            card.closest('.col-md-4').style.display = 'block';
+        } else {
+            card.closest('.col-md-4').style.display = 'none';
+        }
+    });
+}
+
+function changePriceGroup() {
+    const priceGroupSelect = document.getElementById('priceGroupSelect');
+    const priceGroupId = priceGroupSelect.value;
+    const priceGroupInfo = document.getElementById('priceGroupInfo');
+    const priceGroupInfoText = document.getElementById('priceGroupInfoText');
+    
+    if (!priceGroupId || priceGroupId === 'retail') {
+        // Reset to default retail prices
+        resetToDefaultPrices();
+        priceGroupInfo.style.display = 'block';
+        priceGroupInfoText.textContent = 'Using retail pricing (default)';
+        priceGroupInfo.className = 'alert alert-success py-2 mb-0';
+        currentPriceGroup = null;
+        productPrices = {};
+        return;
+    }
+    
+    // Show loading
+    priceGroupInfo.style.display = 'block';
+    priceGroupInfoText.textContent = 'Loading prices...';
+    priceGroupInfo.className = 'alert alert-info py-2 mb-0';
+    
+    // Fetch prices for selected price group
+    fetch(`{% url 'get_product_prices' %}?price_group_id=${priceGroupId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentPriceGroup = data.price_group;
+                productPrices = data.prices;
+                
+                // Update product prices
+                updateProductPrices();
+                
+                // Show success message
+                priceGroupInfoText.textContent = `Using ${data.price_group.name} pricing`;
+                priceGroupInfo.className = 'alert alert-success py-2 mb-0';
+            } else {
+                priceGroupInfoText.textContent = `Error: ${data.error}`;
+                priceGroupInfo.className = 'alert alert-danger py-2 mb-0';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching prices:', error);
+            priceGroupInfoText.textContent = 'Error loading prices';
+            priceGroupInfo.className = 'alert alert-danger py-2 mb-0';
+        });
+}
+
+function resetToDefaultPrices() {
+    // Reset all product prices to default
+    document.querySelectorAll('[id^="price-"]').forEach(priceElement => {
+        const productId = priceElement.id.replace('price-', '');
+        const defaultPrice = priceElement.querySelector('.default-price');
+        if (defaultPrice) {
+            priceElement.innerHTML = `<span class="default-price">${defaultPrice.textContent}</span>`;
+        }
+        
+        // Hide price group info
+        const priceInfo = document.getElementById(`price-info-${productId}`);
+        if (priceInfo) {
+            priceInfo.style.display = 'none';
+        }
+    });
+}
+
+function updateProductPrices() {
+    document.querySelectorAll('[id^="price-"]').forEach(priceElement => {
+        const productId = priceElement.id.replace('price-', '');
+        const productCard = document.querySelector(`[data-product-id="${productId}"]`);
+        const productionId = productCard ? productCard.getAttribute('data-production-id') : null;
+        const priceInfo = document.getElementById(`price-info-${productId}`);
+        
+        console.log('Updating price for product:', productId, 'production:', productionId);
+        
+        if (productionId && productPrices[productionId]) {
+            // Product has price in selected group
+            const price = productPrices[productionId].price;
+            priceElement.innerHTML = `<span class="price-group-price">$${price.toFixed(2)}</span>`;
+            
+            // Show price group info
+            if (priceInfo) {
+                priceInfo.querySelector('.price-group-name').textContent = currentPriceGroup.name;
+                priceInfo.style.display = 'block';
+            }
+        } else {
+            // Product doesn't have price in selected group
+            priceElement.innerHTML = `
+                <span class="text-warning">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Price not set
+                </span>
+            `;
+            
+            // Show warning info
+            if (priceInfo) {
+                priceInfo.innerHTML = `
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    <span class="text-warning">Set price in ${currentPriceGroup.name}</span>
+                `;
+                priceInfo.style.display = 'block';
+            }
+        }
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

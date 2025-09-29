@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Sale Receipt #{{ sale.product_sale_number|default:sale.id }}</title>
+    <style>
+        /* Thermal Receipt Printer Styles */
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.2;
+            margin: 0;
+            padding: 10px;
+            background: white;
+            color: black;
+            width: 58mm; /* Standard thermal receipt width */
+            max-width: 58mm;
+        }
+        
+        .receipt {
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .center {
+            text-align: center;
+        }
+        
+        .bold {
+            font-weight: bold;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 1px dashed black;
+            padding-bottom: 5px;
+            margin-bottom: 8px;
+        }
+        
+        .company-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+        
+        .company-info {
+            font-size: 10px;
+            line-height: 1.1;
+        }
+        
+        .section {
+            margin: 8px 0;
+            padding: 3px 0;
+        }
+        
+        .dashed-line {
+            border-top: 1px dashed black;
+            margin: 5px 0;
+        }
+        
+        .customer-info {
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+        
+        .receipt-meta {
+            font-size: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .items-table {
+            width: 100%;
+            font-size: 11px;
+        }
+        
+        .item-row {
+            margin-bottom: 3px;
+        }
+        
+        .item-name {
+            font-weight: bold;
+        }
+        
+        .item-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1px;
+        }
+        
+        .item-qty-price {
+            font-size: 10px;
+        }
+        
+        .totals {
+            border-top: 1px dashed black;
+            padding-top: 5px;
+            margin-top: 8px;
+        }
+        
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        
+        .grand-total {
+            font-weight: bold;
+            font-size: 13px;
+            border-top: 1px solid black;
+            padding-top: 3px;
+            margin-top: 3px;
+        }
+        
+        .payment-section {
+            margin-top: 8px;
+            font-size: 10px;
+        }
+        
+        .status {
+            text-align: center;
+            font-weight: bold;
+            margin: 8px 0;
+            padding: 3px;
+            border: 1px solid black;
+        }
+        
+        .footer {
+            text-align: center;
+            font-size: 10px;
+            margin-top: 10px;
+            border-top: 1px dashed black;
+            padding-top: 5px;
+        }
+        
+        /* Print styles */
+        @media print {
+            body {
+                width: 58mm;
+                font-size: 11px;
+                margin: 0;
+                padding: 5px;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            @page {
+                size: 58mm auto;
+                margin: 0;
+            }
+        }
+        
+        /* Screen view adjustments */
+        @media screen {
+            body {
+                max-width: 300px;
+                margin: 20px auto;
+                padding: 20px;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            }
+        }
+        
+        .print-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .print-button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <!-- Print Button (hidden in print) -->
+    <button class="print-button no-print" onclick="window.print()">🖨️ Print</button>
+    
+    <div class="receipt">
+        <!-- Header -->
+        <div class="header">
+            <div class="company-name">LIVARA</div>
+            <div class="company-info">
+                www.mylivara.com<br>
+                care@mylivara.com<br>
+                Tel: 0756-964-656 (Ntinda)<br>
+                0758-581-440 (Kyanja)<br>
+                0751-944-635 (Mutaasa K.)<br>
+                0751-944-564 (Kansanga)<br>
+                0759-034-151 (Bugolobi)<br>
+                0752-066-748 (Mbarara)<br>
+                +1-480-468-4543 (USA)
+            </div>
+        </div>
+        
+        <!-- Customer Info -->
+        <div class="customer-info">
+            <div class="bold">Customer:</div>
+            <div>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</div>
+            {% if sale.customer.phone %}
+            <div>Phone: {{ sale.customer.phone }}</div>
+            {% endif %}
+            {% if sale.customer.email %}
+            <div>Email: {{ sale.customer.email }}</div>
+            {% endif %}
+        </div>
+        
+        <!-- Receipt Meta -->
+        <div class="receipt-meta">
+            <div>Store: {{ sale.store.name }}</div>
+            <div>Receipt #: {{ sale.product_sale_number|default:sale.id }}</div>
+            <div>Date: {{ sale.sale_date|date:"d/m/Y H:i" }}</div>
+            <div>Staff: {{ sale.store.manager.first_name }} {{ sale.store.manager.last_name }}</div>
+        </div>
+        
+        <div class="dashed-line"></div>
+        
+        <!-- Items -->
+        <div class="items-section">
+            <div class="bold" style="margin-bottom: 5px;">PRODUCTS PURCHASED:</div>
+            {% for item in product_items %}
+            <div class="item-row">
+                <div class="item-name">{{ item.product.product.product_name }}</div>
+                <div class="item-details">
+                    <span class="item-qty-price">{{ item.quantity }} x {{ item.unit_price|floatformat:0 }}</span>
+                    <span class="bold">UGX {{ item.total_price|floatformat:0 }}</span>
+                </div>
+                <div style="font-size: 9px; color: #666;">Product</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Totals -->
+        <div class="totals">
+            <div class="total-line grand-total">
+                <span>TOTAL:</span>
+                <span>UGX {{ subtotal|floatformat:0 }}</span>
+            </div>
+            
+            {% if payments %}
+            <div class="dashed-line"></div>
+            <div class="payment-section">
+                <div class="bold" style="margin-bottom: 3px;">PAYMENTS:</div>
+                {% for payment in payments %}
+                <div class="total-line">
+                    <span>{{ payment.payment_method|title }} ({{ payment.payment_date|date:"d/m/Y" }})</span>
+                    <span>UGX {{ payment.amount|floatformat:0 }}</span>
+                </div>
+                {% endfor %}
+                
+                <div class="dashed-line"></div>
+                <div class="total-line bold">
+                    <span>
+                        {% if balance_due > 0 %}
+                            BALANCE DUE:
+                        {% elif balance_due == 0 %}
+                            PAID IN FULL
+                        {% else %}
+                            OVERPAID:
+                        {% endif %}
+                    </span>
+                    <span>
+                        {% if balance_due != 0 %}
+                            UGX {{ balance_due|floatformat:0 }}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            {% else %}
+            <div class="total-line bold">
+                <span>AMOUNT DUE:</span>
+                <span>UGX {{ subtotal|floatformat:0 }}</span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Status -->
+        <div class="status">
+            {% if sale.paid_status == 'paid' %}
+                *** PAID ***
+            {% else %}
+                *** AWAITING PAYMENT ***
+            {% endif %}
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="bold">Thank you for choosing LIVARA!</div>
+            <div>Follow us on social media</div>
+            <div>for beauty tips and updates</div>
+            <br>
+            <div style="font-size: 9px;">
+                Generated: {{ "now"|date:"d/m/Y H:i:s" }}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-focus for immediate printing if needed
+        // Uncomment the line below if you want to auto-print when page loads
+        // window.onload = function() { window.print(); };
+    </script>
+</body>
+</html>

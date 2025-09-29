@@ -304,6 +304,9 @@
                                     </td>
                                     
                                     <td>
+                                        {% if sale.slot_number %}
+                                            <span class="badge bg-primary me-2">#{{ sale.slot_number }}</span>
+                                        {% endif %}
                                         <strong>{{ sale.customer.first_name }} {{ sale.customer.last_name }}</strong>
                                         <br><small class="text-muted">{{ sale.customer.phone }}</small>
                                         <br><small class="text-muted">Sale #{{ sale.service_sale_number|default:sale.id }}</small>

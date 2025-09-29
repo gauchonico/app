@@ -15,6 +15,7 @@ urlpatterns = [
     path('generate-reciept/<int:transaction_id>/', views.generate_pdf, name='generateReciept'),
     path('page/customers', views.pageCustomer, name='pageCustomer'),
     path('page/create-customer', views.createCustomer, name='createCustomer'),
+    path('create-customer-ajax/', views.create_customer_ajax, name='create_customer_ajax'),
     path('customer/<int:customer_id>/', views.customer_details, name='customer_details'),
     path('edit-customer/<int:customer_id>/', views.editCustomer, name='editCustomer'),
     path('delete-customer/<int:customer_id>/', views.deleteCustomer, name='deleteCustomer'),

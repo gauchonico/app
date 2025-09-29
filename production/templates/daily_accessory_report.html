@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+  <div>
+    <ul class="breadcrumb">
+      <li class="breadcrumb-item"><a href="#">Reports</a></li>
+      <li class="breadcrumb-item active">Daily Accessories</li>
+    </ul>
+    <h5>Daily Accessories Report ({{ report_date }})</h5>
+  </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <input type="date" class="form-control" name="date" value="{{ report_date|date:'Y-m-d' }}">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-primary">Apply</button>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Store</th>
+        <th>Accessory</th>
+        <th class="text-end">Opening</th>
+        <th class="text-end">Restock</th>
+        <th class="text-end">Sales</th>
+        <th class="text-end">Closing</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.store.name }}</td>
+        <td>{{ r.accessory.name }}</td>
+        <td class="text-end">{{ r.opening }}</td>
+        <td class="text-end"><a href="{% url 'accessory_restock_drilldown' r.inventory_id %}?date={{ report_date|date:'Y-m-d' }}">{{ r.restock }}</a></td>
+        <td class="text-end"><a href="{% url 'accessory_sales_drilldown' r.inventory_id %}?date={{ report_date|date:'Y-m-d' }}">{{ r.sales }}</a></td>
+        <td class="text-end">{{ r.closing }}</td>
+        <td class="text-end">
+          <a class="btn btn-link btn-sm" href="{% url 'accessory_sales_drilldown' r.inventory_id %}?date={{ report_date|date:'Y-m-d' }}">Sales details</a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="text-center text-muted">No data</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+ </div>
+{% endblock %}
+
+
