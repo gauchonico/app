@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 
 from . import views
 
@@ -48,4 +48,7 @@ urlpatterns = [
     path('page/reciepts/', views.view_receipt, name='view_receipt'),
     path('receipt/<int:receipt_id>/', views.customer_receipt, name='customer_receipt'),
     path('generate_staff_commissions_pdf/', views.generate_staff_commissions_pdf, name='generate_staff_commissions_pdf'),
+    
+    # Appointments URLs
+    path('appointments/', include('appointments.urls')),
 ]

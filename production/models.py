@@ -1774,8 +1774,9 @@ class ServiceSaleItem(models.Model):
 
     def save(self, *args, **kwargs):
         print(f"\nDEBUG: Saving ServiceSaleItem")
-        # Calculate total price
-        self.total_price = self.quantity * self.service.service.price
+        # Calculate total price - handle None price
+        service_price = self.service.service.price or 0
+        self.total_price = self.quantity * service_price
         print(f"DEBUG: Total Price calculated: {self.total_price}")
         
         # First save the service sale item
@@ -1833,7 +1834,8 @@ class ProductSaleItem(models.Model):
                 pass
         
         # If no specific price group or price not found, return default price
-        return self.product.product.price
+        # Handle None price
+        return self.product.product.price or 0
     
     def calculate_and_create_commission(self):
         """Calculate and create commission record for staff member if assigned"""
@@ -1853,6 +1855,9 @@ class ProductSaleItem(models.Model):
     def save(self, *args, **kwargs):
         # Calculate total price based on price group
         unit_price = self.calculate_price()
+        # Ensure unit_price is not None
+        if unit_price is None:
+            unit_price = 0
         self.total_price = self.quantity * unit_price
         super().save(*args, **kwargs)
         

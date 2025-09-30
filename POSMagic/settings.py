@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'production.apps.ProductionConfig',
     'salon.apps.SalonConfig',
     'accounts.apps.AccountsConfig',
+    'appointments.apps.AppointmentsConfig',
     'crispy_forms',
     'auditlog',  # Django audit logging - temporarily disabled
     'cloudinary_storage',

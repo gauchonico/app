@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Product Catalogue{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Product Catalogue</h2>
+                <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Search Products</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search_query }}" placeholder="Search by product name...">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="store" class="form-label">Filter by Store</label>
+                            <select class="form-select" id="store" name="store">
+                                <option value="">All Stores</option>
+                                {% for store in stores %}
+                                <option value="{{ store.id }}" {% if store_filter == store.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ store.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i>Search
+                            </button>
+                            <a href="{% url 'product_catalogue' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="row">
+        {% if products %}
+            {% for product in products %}
+            <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        {% if product.product.image %}
+                            <img src="{{ product.product.image.url }}" class="img-fluid" style="max-height: 180px; object-fit: cover;" alt="{{ product.product.product_name }}">
+                        {% else %}
+                            <i class="fas fa-box fa-3x text-muted"></i>
+                        {% endif %}
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h6 class="card-title">{{ product.product.product_name }}</h6>
+                        <p class="card-text text-muted small">
+                            {{ product.product.description|truncatechars:80 }}
+                        </p>
+                        
+                        <div class="mb-2">
+                            <span class="badge bg-primary">{{ product.store.name }}</span>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <strong class="text-success fs-5">UGX {{ product.product.price|floatformat:0 }}</strong>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-box me-1"></i>
+                                {% if product.quantity > 0 %}
+                                    {{ product.quantity }} in stock
+                                {% else %}
+                                    Out of stock
+                                {% endif %}
+                            </small>
+                        </div>
+                        
+                        <div class="mt-auto">
+                            {% if product.quantity > 0 %}
+                                <button class="btn btn-success w-100" onclick="showProductDetails({{ product.id }})">
+                                    <i class="fas fa-eye me-1"></i>View Details
+                                </button>
+                            {% else %}
+                                <button class="btn btn-secondary w-100" disabled>
+                                    <i class="fas fa-times me-1"></i>Out of Stock
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-box fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Products Found</h4>
+                    <p class="text-muted">Try adjusting your search criteria or browse all products.</p>
+                    <a href="{% url 'product_catalogue' %}" class="btn btn-primary">
+                        <i class="fas fa-refresh me-2"></i>View All Products
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if products.has_other_pages %}
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="Product pagination">
+                <ul class="pagination justify-content-center">
+                    {% if products.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if store_filter %}&store={{ store_filter }}{% endif %}">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ products.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if store_filter %}&store={{ store_filter }}{% endif %}">Previous</a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ products.number }} of {{ products.paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if products.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ products.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if store_filter %}&store={{ store_filter }}{% endif %}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ products.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if store_filter %}&store={{ store_filter }}{% endif %}">Last</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Product Details Modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-labelledby="productModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="productModalLabel">Product Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="productModalBody">
+                <!-- Product details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="bookAppointmentWithProduct()">
+                    <i class="fas fa-calendar-plus me-1"></i>Book Appointment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showProductDetails(productId) {
+    // This would typically make an AJAX call to get product details
+    // For now, we'll show a placeholder
+    document.getElementById('productModalBody').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+            <p>Loading product details...</p>
+        </div>
+    `;
+    
+    var modal = new bootstrap.Modal(document.getElementById('productModal'));
+    modal.show();
+}
+
+function bookAppointmentWithProduct() {
+    // Redirect to appointment booking with product context
+    window.location.href = "{% url 'book_appointment' %}";
+}
+</script>
+{% endblock %}

@@ -133,6 +133,11 @@ def sidebar_menu(request):
             'text': 'POS',
             'name': 'customerOrder'
         },{
+            'url': '/appointments/welcome/',
+            'icon': 'bi bi-person-plus',
+            'text': 'Customer Portal',
+            'name': 'customer_portal'
+        },{
             'text': 'PRODUCTION',
             'is_header': 1
         },{

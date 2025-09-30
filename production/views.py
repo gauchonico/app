@@ -5496,12 +5496,17 @@ def new_create_service_sale(request):
                     
                     print(f"Found store service: {store_service.service.name}")
                     
+                    # Ensure total_price is not None or invalid
+                    service_total_price = item.get('total_price', 0)
+                    if service_total_price is None or service_total_price == '':
+                        service_total_price = 0
+                    
                     # Create the service sale item
                     service_item = ServiceSaleItem.objects.create(
                         sale=sale,
                         service=store_service,
                         quantity=Decimal(str(item['quantity'])),
-                        total_price=Decimal(str(item['total_price']))
+                        total_price=Decimal(str(service_total_price))
                     )
                     
                     # Add staff if provided
@@ -5513,22 +5518,41 @@ def new_create_service_sale(request):
             # Create product sale items
             for item in data['product_items']:
                 try:
-                    # Get the store inventory instance
+                    # Get the store inventory instance using the ID directly
                     store_inventory = StoreInventory.objects.get(
-                        store_id=store_id,
-                        product_id=item['product_id']
+                        id=item['product_id'],
+                        store_id=store_id
                     )
                     
                     # Check if enough stock is available
                     if store_inventory.quantity < item['quantity']:
                         raise ValueError(f"Insufficient stock for product {store_inventory.product.product_name}")
                     
+                    # Ensure total_price is not None or invalid
+                    total_price = item.get('total_price', 0)
+                    if total_price is None or total_price == '':
+                        total_price = 0
+                    
+                    # Get price group - default to retail if not specified
+                    price_group_id = item.get('price_group_id')
+                    if not price_group_id:
+                        # Try to find retail price group
+                        try:
+                            retail_price_group = PriceGroup.objects.filter(
+                                is_active=True,
+                                name__icontains='retail'
+                            ).first()
+                            if retail_price_group:
+                                price_group_id = retail_price_group.id
+                        except:
+                            pass
+                    
                     product_sale_item = ProductSaleItem.objects.create(
                         sale=sale,
                         product=store_inventory,  # Use the store_inventory instance
                         quantity=item['quantity'],
-                        price_group_id=item.get('price_group_id'),
-                        total_price=Decimal(str(item['total_price']))
+                        price_group_id=price_group_id,
+                        total_price=Decimal(str(total_price))
                     )
                     # Assign staff if provided
                     if item.get('staff_id'):
@@ -10635,7 +10659,11 @@ def create_product_sale(request):
                 
                 # Use provided unit price or fall back to default product price
                 if unit_price <= 0:
-                    unit_price = store_inventory.product.price
+                    unit_price = store_inventory.product.price or 0
+                
+                # Ensure unit_price is not None
+                if unit_price is None:
+                    unit_price = 0
                 
                 # Create sale item
                 StoreProductSaleItem.objects.create(

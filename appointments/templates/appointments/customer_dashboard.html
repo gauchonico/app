@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Customer Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-1">Welcome back, {{ customer.first_name }}!</h2>
+                            <p class="mb-0">Manage your appointments, browse our services, and explore our products.</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-flex align-items-center justify-content-end">
+                                <div class="me-3">
+                                    <a href="{% url 'customer_profile' %}" class="btn btn-outline-light btn-sm me-2">
+                                        <i class="fas fa-user me-1"></i>Profile
+                                    </a>
+                                    <a href="{% url 'customer_logout' %}" class="btn btn-outline-light btn-sm">
+                                        <i class="fas fa-sign-out-alt me-1"></i>Logout
+                                    </a>
+                                </div>
+                                <i class="fas fa-user-circle fa-4x opacity-75"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">Quick Actions</h4>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-calendar-plus fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Book Appointment</h5>
+                    <p class="card-text">Schedule your next beauty service with us.</p>
+                    <a href="{% url 'book_appointment' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Book Now
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-shopping-bag fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">Product Catalogue</h5>
+                    <p class="card-text">Browse our range of beauty products.</p>
+                    <a href="{% url 'product_catalogue' %}" class="btn btn-success">
+                        <i class="fas fa-eye me-2"></i>View Products
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-spa fa-3x text-info"></i>
+                    </div>
+                    <h5 class="card-title">Service Catalogue</h5>
+                    <p class="card-text">Explore our beauty and wellness services.</p>
+                    <a href="{% url 'service_catalogue' %}" class="btn btn-info">
+                        <i class="fas fa-list me-2"></i>View Services
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ total_appointments }}</h4>
+                            <p class="mb-0">Total Appointments</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-alt fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ upcoming_count }}</h4>
+                            <p class="mb-0">Upcoming</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stores.count }}</h4>
+                            <p class="mb-0">Available Stores</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-store fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ services.count }}</h4>
+                            <p class="mb-0">Services Available</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-spa fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Upcoming Appointments -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Upcoming Appointments</h5>
+                    <a href="{% url 'my_appointments' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_appointments %}
+                        {% for appointment in upcoming_appointments %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
+                            <div>
+                                <h6 class="mb-1">{{ appointment.get_services_display }}</h6>
+                                <p class="mb-1 text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {{ appointment.appointment_date|date:"M d, Y" }} at {{ appointment.appointment_time|time:"g:i A" }}
+                                </p>
+                                <p class="mb-0 text-muted">
+                                    <i class="fas fa-map-marker-alt me-1"></i>
+                                    {% if appointment.is_out_of_salon %}
+                                        Out of Salon
+                                    {% else %}
+                                        {{ appointment.store.name }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div>
+                                <span class="badge bg-{% if appointment.status == 'confirmed' %}success{% else %}warning{% endif %}">
+                                    {{ appointment.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No upcoming appointments</p>
+                            <a href="{% url 'book_appointment' %}" class="btn btn-primary">Book Your First Appointment</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Featured Products -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Featured Products</h5>
+                    <a href="{% url 'product_catalogue' %}" class="btn btn-sm btn-outline-success">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if featured_products %}
+                        <div class="row">
+                            {% for product in featured_products %}
+                            <div class="col-6 mb-3">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title mb-2">{{ product.product.product_name|truncatechars:20 }}</h6>
+                                        <p class="card-text text-muted small mb-2">
+                                            <i class="fas fa-store me-1"></i>{{ product.store.name }}
+                                        </p>
+                                        <p class="card-text">
+                                            <strong class="text-success">UGX {{ product.product.price|floatformat:0 }}</strong>
+                                        </p>
+                                        <small class="text-muted">
+                                            <i class="fas fa-box me-1"></i>{{ product.quantity }} in stock
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-box fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No products available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Appointments -->
+    {% if recent_appointments %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Appointments</h5>
+                    <a href="{% url 'my_appointments' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Services</th>
+                                    <th>Date & Time</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in recent_appointments %}
+                                <tr>
+                                    <td>
+                                        <code>{{ appointment.appointment_id }}</code>
+                                    </td>
+                                    <td>{{ appointment.get_services_display|truncatechars:30 }}</td>
+                                    <td>
+                                        {{ appointment.appointment_date|date:"M d, Y" }}<br>
+                                        <small class="text-muted">{{ appointment.appointment_time|time:"g:i A" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if appointment.is_out_of_salon %}
+                                            <i class="fas fa-home text-info"></i> Out of Salon
+                                        {% else %}
+                                            <i class="fas fa-store text-primary"></i> {{ appointment.store.name }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{% if appointment.status == 'completed' %}success{% elif appointment.status == 'confirmed' %}primary{% elif appointment.status == 'cancelled' %}danger{% else %}warning{% endif %}">
+                                            {{ appointment.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'appointment_details' appointment.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

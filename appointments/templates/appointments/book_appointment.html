@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Book Appointment{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Book New Appointment</h2>
+                <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Appointment Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="appointmentForm">
+                        {% csrf_token %}
+                        
+                        <!-- Store Selection -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.store.id_for_label }}" class="form-label">Location *</label>
+                                {{ form.store }}
+                                {% if form.store.errors %}
+                                    <div class="text-danger">{{ form.store.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6" id="addressField" style="display: none;">
+                                <label for="{{ form.out_of_salon_address.id_for_label }}" class="form-label">Service Address *</label>
+                                {{ form.out_of_salon_address }}
+                                {% if form.out_of_salon_address.errors %}
+                                    <div class="text-danger">{{ form.out_of_salon_address.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Services Selection -->
+                        <div class="mb-3">
+                            <label class="form-label">Services *</label>
+                            <div class="row">
+                                {% for service in form.services %}
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        {{ service.tag }}
+                                        <label class="form-check-label" for="{{ service.id_for_label }}">
+                                            {{ service.choice_label }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% if form.services.errors %}
+                                <div class="text-danger">{{ form.services.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Date and Time -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.appointment_date.id_for_label }}" class="form-label">Appointment Date *</label>
+                                {{ form.appointment_date }}
+                                {% if form.appointment_date.errors %}
+                                    <div class="text-danger">{{ form.appointment_date.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.appointment_time.id_for_label }}" class="form-label">Appointment Time *</label>
+                                {{ form.appointment_time }}
+                                {% if form.appointment_time.errors %}
+                                    <div class="text-danger">{{ form.appointment_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.duration_minutes.id_for_label }}" class="form-label">Duration (minutes)</label>
+                                {{ form.duration_minutes }}
+                                {% if form.duration_minutes.errors %}
+                                    <div class="text-danger">{{ form.duration_minutes.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Customer Information -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.customer_name.id_for_label }}" class="form-label">Full Name *</label>
+                                {{ form.customer_name }}
+                                {% if form.customer_name.errors %}
+                                    <div class="text-danger">{{ form.customer_name.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.customer_phone.id_for_label }}" class="form-label">Phone Number *</label>
+                                {{ form.customer_phone }}
+                                {% if form.customer_phone.errors %}
+                                    <div class="text-danger">{{ form.customer_phone.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.customer_email.id_for_label }}" class="form-label">Email Address</label>
+                                {{ form.customer_email }}
+                                {% if form.customer_email.errors %}
+                                    <div class="text-danger">{{ form.customer_email.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Special Requests -->
+                        <div class="mb-3">
+                            <label for="{{ form.special_requests.id_for_label }}" class="form-label">Special Requests or Notes</label>
+                            {{ form.special_requests }}
+                            {% if form.special_requests.errors %}
+                                <div class="text-danger">{{ form.special_requests.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-calendar-plus me-2"></i>Book Appointment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Information Panel -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Booking Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6><i class="fas fa-clock text-primary me-2"></i>Business Hours</h6>
+                        <p class="mb-0">Monday - Sunday: 9:00 AM - 6:00 PM</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6><i class="fas fa-calendar text-success me-2"></i>Booking Policy</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li>• Appointments can be booked up to 30 days in advance</li>
+                            <li>• Minimum 24 hours notice required for cancellations</li>
+                            <li>• Out-of-salon services available with additional charges</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6><i class="fas fa-phone text-info me-2"></i>Need Help?</h6>
+                        <p class="mb-0">Contact us at <strong>+256 123 456 789</strong> for assistance with booking.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Services -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Popular Services</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Hair Styling</h6>
+                                <small class="text-muted">Professional hair styling services</small>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">Popular</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Facial Treatment</h6>
+                                <small class="text-muted">Rejuvenating facial treatments</small>
+                            </div>
+                            <span class="badge bg-success rounded-pill">Available</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Manicure & Pedicure</h6>
+                                <small class="text-muted">Complete nail care services</small>
+                            </div>
+                            <span class="badge bg-info rounded-pill">Featured</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const storeSelect = document.getElementById('{{ form.store.id_for_label }}');
+    const addressField = document.getElementById('addressField');
+    const addressInput = document.getElementById('{{ form.out_of_salon_address.id_for_label }}');
+    
+    function toggleAddressField() {
+        if (storeSelect.value === 'out_of_salon') {
+            addressField.style.display = 'block';
+            addressInput.required = true;
+        } else {
+            addressField.style.display = 'none';
+            addressInput.required = false;
+        }
+    }
+    
+    storeSelect.addEventListener('change', toggleAddressField);
+    toggleAddressField(); // Initial check
+});
+</script>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Welcome to Our Salon{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Hero Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card bg-gradient-primary text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-center py-5">
+                    <h1 class="display-4 mb-3">
+                        <i class="fas fa-spa me-3"></i>
+                        Welcome to Our Beauty Salon
+                    </h1>
+                    <p class="lead mb-4">
+                        Book appointments, browse our services, and discover our premium beauty products.
+                        Your beauty journey starts here.
+                    </p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{% url 'customer_register' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </a>
+                        <a href="{% url 'customer_login' %}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </a>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-white-50">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Creating an account automatically gives you access to book appointments, browse services, and earn loyalty points.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Why Choose Our Salon?</h2>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-calendar-plus fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="card-title">Easy Booking</h5>
+                    <p class="card-text">
+                        Book your appointments online 24/7. Choose your preferred time, 
+                        services, and location with just a few clicks.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-spa fa-3x text-success"></i>
+                    </div>
+                    <h5 class="card-title">Professional Services</h5>
+                    <p class="card-text">
+                        Our experienced professionals offer a wide range of beauty 
+                        and wellness services to help you look and feel your best.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-gift fa-3x text-warning"></i>
+                    </div>
+                    <h5 class="card-title">Loyalty Rewards</h5>
+                    <p class="card-text">
+                        Earn points with every visit and redeem them for discounts, 
+                        free services, and exclusive products.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Services Preview -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2 class="text-center mb-4">Our Services</h2>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-cut fa-2x text-primary mb-3"></i>
+                    <h6>Hair Styling</h6>
+                    <p class="small text-muted">Professional hair cuts, styling, and treatments</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-palette fa-2x text-success mb-3"></i>
+                    <h6>Hair Coloring</h6>
+                    <p class="small text-muted">Expert hair coloring and highlighting services</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-hand-paper fa-2x text-info mb-3"></i>
+                    <h6>Manicure & Pedicure</h6>
+                    <p class="small text-muted">Complete nail care and nail art services</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-smile fa-2x text-warning mb-3"></i>
+                    <h6>Facial Treatments</h6>
+                    <p class="small text-muted">Rejuvenating facial treatments and skincare</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call to Action -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light border-0">
+                <div class="card-body text-center py-5">
+                    <h3 class="mb-3">Ready to Get Started?</h3>
+                    <p class="lead mb-4">
+                        Join thousands of satisfied customers who trust us with their beauty needs.
+                    </p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{% url 'customer_register' %}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Create Your Account
+                        </a>
+                        <a href="{% url 'customer_login' %}" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Already Have an Account?
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.btn {
+    border-radius: 10px;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
+{% endblock %}

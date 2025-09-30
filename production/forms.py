@@ -1299,6 +1299,10 @@ class PaymentForm(forms.Form):
     bank_transfer_amount = forms.DecimalField(widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Bank Transfer Amount'}), required=False)
     remarks = forms.CharField(widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Remarks'}), required=False)
 
+    def __init__(self, *args, sale_balance=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sale_balance = sale_balance
+
 
 class ProductSalePaymentForm(forms.Form):
     """Simplified payment form for product sales"""
