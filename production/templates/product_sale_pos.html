@@ -289,12 +289,11 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
-                        <input type="tel" class="form-control" id="newCustomerPhone" required>
+                        <input type="text" class="form-control" id="newCustomerPhone" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Email <small class="text-muted">(Optional)</small></label>
-                        <input type="email" class="form-control" id="newCustomerEmail" placeholder="email@example.com">
-                        <div class="form-text">Email can be added later during KYC verification</div>
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="newCustomerEmail">
                     </div>
                 </form>
             </div>
@@ -308,6 +307,8 @@
 {% endblock %}
 
 {% block js %}
+<!-- Customer Search Functionality -->
+<script src="{% static 'js/customer-search.js' %}"></script>
 <script>
 let cart = [];
 let customers = [];
@@ -662,7 +663,7 @@ function updateCartDisplay() {
                 <p>No items in cart</p>
             </div>
         `;
-        cartTotal.textContent = '$0.00';
+        cartTotal.textContent = 'UGX 0.00';
         return;
     }
     
@@ -676,7 +677,7 @@ function updateCartDisplay() {
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <h6 class="mb-1">${item.name}</h6>
-                        <small class="text-muted">$${item.price.toFixed(2)} each</small>
+                        <small class="text-muted">UGX ${item.price.toFixed(2)} each</small>
                     </div>
                     <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart(${item.product_id})">
                         <i class="fas fa-trash"></i>
@@ -692,13 +693,13 @@ function updateCartDisplay() {
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
-                    <div class="h6 text-primary mb-0">$${itemTotal.toFixed(2)}</div>
+                    <div class="h6 text-primary mb-0">UGX ${itemTotal.toFixed(2)}</div>
                 </div>
             </div>
         `;
     }).join('');
     
-    cartTotal.textContent = `$${total.toFixed(2)}`;
+    cartTotal.textContent = `UGX ${total.toFixed(2)}`;
 }
 
 function updateQuantity(productId, newQuantity) {
@@ -869,7 +870,7 @@ function updateProductPrices() {
         if (productionId && productPrices[productionId]) {
             // Product has price in selected group
             const price = productPrices[productionId].price;
-            priceElement.innerHTML = `<span class="price-group-price">$${price.toFixed(2)}</span>`;
+            priceElement.innerHTML = `<span class="price-group-price">UGX ${price.toFixed(2)}</span>`;
             
             // Show price group info
             if (priceInfo) {

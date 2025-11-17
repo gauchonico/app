@@ -24,7 +24,7 @@ class AppointmentBookingForm(forms.ModelForm):
     
     appointment_time = forms.TimeField(
         widget=forms.TimeInput(attrs={
-            'class': 'form-control',
+            'class': 'form-control timepicker',
             'type': 'time'
         }),
         help_text="Select your preferred time"
@@ -70,6 +70,9 @@ class AppointmentBookingForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         
+        # Make store field not required since it can be null for out-of-salon appointments
+        self.fields['store'].required = False
+        
         # Filter stores and add "Out of Salon" option
         store_choices = list(Store.objects.all().values_list('id', 'name'))
         store_choices.insert(0, ('out_of_salon', 'Out of Salon'))
@@ -95,7 +98,8 @@ class AppointmentBookingForm(forms.ModelForm):
         date = self.cleaned_data.get('appointment_date')
         
         if date and time:
-            appointment_datetime = datetime.combine(date, time)
+            # Create timezone-aware datetime for comparison
+            appointment_datetime = timezone.make_aware(datetime.combine(date, time))
             if appointment_datetime < timezone.now():
                 raise forms.ValidationError("Appointment time cannot be in the past.")
             
@@ -112,18 +116,29 @@ class AppointmentBookingForm(forms.ModelForm):
         out_of_salon_address = cleaned_data.get('out_of_salon_address')
         
         # Handle out-of-salon appointments
-        if store == 'out_of_salon':
+        if store == 'out_of_salon' or (isinstance(store, str) and store == 'out_of_salon'):
             if not out_of_salon_address:
                 raise forms.ValidationError("Address is required for out-of-salon appointments.")
             cleaned_data['is_out_of_salon'] = True
             cleaned_data['store'] = None
         else:
+            # Regular in-salon appointment
             cleaned_data['is_out_of_salon'] = False
+            
+            # Store is required for in-salon appointments
+            if not store:
+                raise forms.ValidationError("Please select a store or choose 'Out of Salon'.")
+            
             # Check if all selected services are available at the selected store
             if services and store:
                 try:
-                    store_obj = Store.objects.get(id=store)
-                    available_services = store_obj.storeservice_set.values_list('service', flat=True)
+                    # Handle both Store object and ID
+                    if isinstance(store, Store):
+                        store_obj = store
+                    else:
+                        store_obj = Store.objects.get(id=store)
+                    
+                    available_services = store_obj.store_services.values_list('service', flat=True)
                     unavailable_services = services.exclude(id__in=available_services)
                     
                     if unavailable_services.exists():

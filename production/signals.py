@@ -1,13 +1,13 @@
 from datetime import date
 from threading import Thread
 from django import forms
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save, pre_save, post_delete
 from django.dispatch import receiver, Signal
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.db import transaction
-from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory,RawMaterialPrice, PriceAlert, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale, Payment, ServiceSaleInvoice, ServiceSale
+from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory,RawMaterialPrice, PriceAlert, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale, Payment, ServiceSaleInvoice, AccessorySaleItem, ServiceSale,ServiceSaleItem,ProductSaleItem
 @receiver(post_save, sender=Payment)
 def update_invoice_and_sale_on_payment(sender, instance, created, **kwargs):
     """When a payment is saved, recompute sale totals and update invoice/payment status."""
@@ -216,3 +216,15 @@ def check_price_alerts(sender, instance, created, **kwargs):
             if condition_met:
                 # Send notification (implement your notification logic)
                 send_price_alert_notification(alert, instance)
+
+
+@receiver(post_delete, sender=ServiceSaleItem)
+@receiver(post_delete, sender=ProductSaleItem)
+@receiver(post_delete, sender=AccessorySaleItem)
+def update_sale_total_on_delete(sender, instance, **kwargs):
+    """Update the sale total when an item is deleted"""
+    try:
+        instance.sale.calculate_total()
+    except:
+        # Handle case where sale was already deleted
+        pass

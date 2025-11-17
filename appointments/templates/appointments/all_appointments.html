@@ -1,0 +1,419 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}All Appointments - Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-2">
+                <i class="fas fa-calendar-alt text-primary me-2"></i>Appointments Management
+            </h1>
+            <p class="text-muted">Comprehensive view of all appointments across all stores</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Total Appointments -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #667eea !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Appointments</h6>
+                            <h3 class="mb-0 fw-bold">{{ total_appointments|intcomma }}</h3>
+                            <small class="text-muted">All time</small>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-calendar-check text-primary" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Appointments -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #43e97b !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Today's Appointments</h6>
+                            <h3 class="mb-0 fw-bold text-success">{{ today_appointments|intcomma }}</h3>
+                            <small class="text-muted">{{ "today"|date:"M d, Y" }}</small>
+                        </div>
+                        <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-calendar-day text-success" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming (Next 7 Days) -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #f093fb !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Upcoming (7 Days)</h6>
+                            <h3 class="mb-0 fw-bold text-info">{{ upcoming_appointments|intcomma }}</h3>
+                            <small class="text-muted">Pending & Confirmed</small>
+                        </div>
+                        <div class="bg-info bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-clock text-info" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Revenue -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #4facfe !important;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Completed Revenue</h6>
+                            <h3 class="mb-0 fw-bold text-primary">UGX {{ completed_revenue|floatformat:0|intcomma }}</h3>
+                            <small class="text-muted">Deposits: {{ total_deposits|floatformat:0|intcomma }}</small>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-money-bill-wave text-primary" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status & Payment Breakdown -->
+    <div class="row g-3 mb-4">
+        <!-- Status Breakdown -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Status Breakdown
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <small class="text-muted d-block">Pending</small>
+                                <strong class="text-warning">{{ status_stats.pending|intcomma }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <small class="text-muted d-block">Confirmed</small>
+                                <strong class="text-success">{{ status_stats.confirmed|intcomma }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <small class="text-muted d-block">In Progress</small>
+                                <strong class="text-info">{{ status_stats.in_progress|intcomma }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <small class="text-muted d-block">Completed</small>
+                                <strong class="text-primary">{{ status_stats.completed|intcomma }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <small class="text-muted d-block">Cancelled</small>
+                                <strong class="text-danger">{{ status_stats.cancelled|intcomma }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 border rounded">
+                                <small class="text-muted d-block">No Show</small>
+                                <strong class="text-secondary">{{ status_stats.no_show|intcomma }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Store Breakdown -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-store me-2"></i>Top Stores (Appointments)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if store_stats %}
+                    <div class="list-group list-group-flush">
+                        {% for store in store_stats %}
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span>{{ store.store__name|default:"Out of Salon" }}</span>
+                            <span class="badge bg-primary rounded-pill">{{ store.count }}</span>
+                        </div>
+                        {% endfor %}
+                        {% if out_of_salon_count > 0 %}
+                        <div class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-home me-2"></i>Out of Salon</span>
+                            <span class="badge bg-info rounded-pill">{{ out_of_salon_count }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">
+                <i class="fas fa-filter me-2"></i>Filters & Search
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label">Search</label>
+                        <input type="text" name="search" class="form-control" placeholder="ID, Name, Phone, Email..." value="{{ filter_search }}">
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Status</option>
+                            {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label">Payment Status</label>
+                        <select name="payment_status" class="form-select">
+                            <option value="">All Payment Status</option>
+                            {% for value, label in payment_status_choices %}
+                            <option value="{{ value }}" {% if filter_payment_status == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6">
+                        <label class="form-label">Store</label>
+                        <select name="store" class="form-select">
+                            <option value="">All Stores</option>
+                            {% for store in stores %}
+                            <option value="{{ store.id }}" {% if filter_store == store.id|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>
+                            {% endfor %}
+                            <option value="out_of_salon" {% if filter_store == "out_of_salon" %}selected{% endif %}>Out of Salon</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <label class="form-label">From Date</label>
+                        <input type="date" name="date_from" class="form-control" value="{{ filter_date_from }}">
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <label class="form-label">To Date</label>
+                        <input type="date" name="date_to" class="form-control" value="{{ filter_date_to }}">
+                    </div>
+                    <div class="col-lg-2 col-md-4">
+                        <label class="form-label">Sort By</label>
+                        <select name="show_latest" class="form-select">
+                            <option value="">Date & Time</option>
+                            <option value="true" {% if filter_show_latest %}selected{% endif %}>Latest Created</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2 col-md-6 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>Apply
+                        </button>
+                    </div>
+                    {% if request.GET %}
+                    <div class="col-lg-2 col-md-6 d-flex align-items-end">
+                        <a href="{% url 'all_appointments' %}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-times me-2"></i>Clear
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Appointments Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-list me-2"></i>Appointments List ({{ appointments.paginator.count|intcomma }} total)
+            </h6>
+            <button class="btn btn-sm btn-outline-success" onclick="exportToExcel()">
+                <i class="fas fa-file-excel me-1"></i>Export
+            </button>
+        </div>
+        <div class="card-body p-0">
+            {% if appointments %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Customer</th>
+                            <th>Contact</th>
+                            <th>Date & Time</th>
+                            <th>Location</th>
+                            <th>Services</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appointment in appointments %}
+                        <tr>
+                            <td>
+                                <strong class="text-primary">{{ appointment.appointment_id }}</strong>
+                                <br><small class="text-muted">{{ appointment.created_at|timesince }} ago</small>
+                            </td>
+                            <td>
+                                <strong>{{ appointment.customer_name }}</strong>
+                                {% if appointment.customer %}
+                                <br><small class="text-muted">ID: {{ appointment.customer.id }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <i class="fas fa-phone me-1 text-muted"></i>{{ appointment.customer_phone }}
+                                {% if appointment.customer_email %}
+                                <br><i class="fas fa-envelope me-1 text-muted"></i>{{ appointment.customer_email|truncatechars:20 }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ appointment.appointment_date|date:"M d, Y" }}</strong>
+                                <br><small class="text-muted">{{ appointment.appointment_time|time:"g:i A" }} ({{ appointment.duration_minutes }}m)</small>
+                            </td>
+                            <td>
+                                {% if appointment.is_out_of_salon %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-home me-1"></i>Out of Salon
+                                    </span>
+                                    <br><small class="text-muted">{{ appointment.out_of_salon_address|truncatewords:5 }}</small>
+                                {% else %}
+                                    <strong>{{ appointment.store.name }}</strong>
+                                    <br><small class="text-muted">{{ appointment.store.location|truncatewords:3 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% for service in appointment.services.all %}
+                                    <span class="badge bg-light text-dark border mb-1">{{ service.name }}</span>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {% if appointment.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif appointment.status == 'confirmed' %}
+                                    <span class="badge bg-success">Confirmed</span>
+                                {% elif appointment.status == 'in_progress' %}
+                                    <span class="badge bg-info">In Progress</span>
+                                {% elif appointment.status == 'completed' %}
+                                    <span class="badge bg-primary">Completed</span>
+                                {% elif appointment.status == 'cancelled' %}
+                                    <span class="badge bg-danger">Cancelled</span>
+                                {% elif appointment.status == 'no_show' %}
+                                    <span class="badge bg-secondary">No Show</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if appointment.payment_status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% elif appointment.payment_status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif appointment.payment_status == 'refunded' %}
+                                    <span class="badge bg-danger">Refunded</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Not Required</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>UGX {{ appointment.estimated_cost|floatformat:0|intcomma }}</strong>
+                                {% if appointment.deposit_amount > 0 %}
+                                <br><small class="text-success">Deposit: {{ appointment.deposit_amount|floatformat:0|intcomma }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'appointment_details' appointment.id %}" class="btn btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if appointment.customer %}
+                                    <a href="/customer/{{ appointment.customer.id }}/" class="btn btn-outline-info" title="Customer Profile">
+                                        <i class="fas fa-user"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if appointments.has_other_pages %}
+            <div class="p-3 border-top">
+                <nav aria-label="Appointments pagination">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if appointments.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ appointments.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                        </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">Page {{ appointments.number }} of {{ appointments.paginator.num_pages }}</span>
+                        </li>
+
+                        {% if appointments.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ appointments.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ appointments.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-calendar-times text-muted mb-3" style="font-size: 3rem; opacity: 0.3;"></i>
+                <h5 class="text-muted">No appointments found</h5>
+                <p class="text-muted">Try adjusting your filters</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function exportToExcel() {
+        alert('Export functionality will be implemented soon');
+        // TODO: Implement export to Excel
+    }
+</script>
+{% endblock %}
+

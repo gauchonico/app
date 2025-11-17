@@ -15,13 +15,16 @@ urlpatterns = [
     # Appointment Management
     path('book/', views.book_appointment, name='book_appointment'),
     path('my-appointments/', views.my_appointments, name='my_appointments'),
-    # path('appointment/<int:appointment_id>/', views.appointment_details, name='appointment_details'),
+    path('appointment/<int:appointment_id>/', views.appointment_details, name='appointment_details'),
     # path('appointment/<int:appointment_id>/cancel/', views.cancel_appointment, name='cancel_appointment'),
     # path('appointment/<int:appointment_id>/feedback/', views.submit_feedback, name='submit_feedback'),
     
     # Catalogues
     path('products/', views.product_catalogue, name='product_catalogue'),
     path('services/', views.service_catalogue, name='service_catalogue'),
+    
+    # Admin/Staff Views
+    path('all-appointments/', views.all_appointments, name='all_appointments'),
     
     # AJAX endpoints
     # path('api/available-times/', views.get_available_times, name='get_available_times'),

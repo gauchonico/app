@@ -301,12 +301,12 @@ $prefix:                                        bs- !default;
 // 04. Body setting
 
 $body-bg:                                       $white !default;
-$body-bg-gradient:                              linear-gradient(180deg, rgba($white,.90) 0%, rgba($white,.99) 100%) !default;
+$body-bg-gradient:                              linear-gradient(180deg, rgba($white,.95) 0%, rgba($white,.99) 100%) !default;
 $body-bg-cover:                                 url('images/cover.jpg') !default;
-$body-bg-image:                                 url('images/pattern.png') !default;
+$body-bg-image:                                 url('images/pattern-dark.png') !default;
 $body-bg-image-size:                            rem(75px) !default;
 $body-letter-spacing:                           rem(.75px) !default;
-$body-color:                                    rgba($black, .75) !default;
+$body-color:                                    rgba($black, .95) !default;
 $body-font-weight:                              400 !default;
 $body-emphasis-color:                           $black !default;
 $body-secondary-color:                          rgba($body-color, .75) !default;
@@ -333,7 +333,7 @@ $spacers: (
 
 // 06. Font & headings settings
 
-$font-family-base:                              'Chakra Petch', sans-serif !default;
+$font-family-base:                              'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !default;
 $font-size-base:                                .875rem !default;
 $font-size-sm:                                  .8125rem !default;
 $font-size-lg:                                 	1rem !default;

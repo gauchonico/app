@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}My Appointments{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">
+                        <i class="fas fa-calendar-check text-primary me-2"></i>My Appointments
+                    </h2>
+                    <p class="text-muted mb-0">View and manage all your appointments</p>
+                </div>
+                <div>
+                    <a href="{% url 'book_appointment' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Book New Appointment
+                    </a>
+                    <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-home me-2"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">
+                <i class="fas fa-filter me-2"></i>Filter Appointments
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Search</label>
+                        {{ search_form.search }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        {{ search_form.status }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Store</label>
+                        {{ search_form.store }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">From Date</label>
+                        {{ search_form.date_from }}
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">To Date</label>
+                        {{ search_form.date_to }}
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                {% if request.GET %}
+                <div class="mt-3">
+                    <a href="{% url 'my_appointments' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Clear Filters
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Appointments List -->
+    {% if appointments %}
+    <div class="row">
+        {% for appointment in appointments %}
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100 appointment-card">
+                <div class="card-body">
+                    <!-- Header -->
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="mb-1">
+                                <i class="fas fa-hashtag text-muted me-1"></i>{{ appointment.appointment_id }}
+                            </h5>
+                            <small class="text-muted">
+                                <i class="far fa-clock me-1"></i>Booked {{ appointment.created_at|timesince }} ago
+                            </small>
+                        </div>
+                        <div>
+                            {% if appointment.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-clock me-1"></i>Pending
+                                </span>
+                            {% elif appointment.status == 'confirmed' %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Confirmed
+                                </span>
+                            {% elif appointment.status == 'in_progress' %}
+                                <span class="badge bg-info">
+                                    <i class="fas fa-spinner me-1"></i>In Progress
+                                </span>
+                            {% elif appointment.status == 'completed' %}
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-check-double me-1"></i>Completed
+                                </span>
+                            {% elif appointment.status == 'cancelled' %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times-circle me-1"></i>Cancelled
+                                </span>
+                            {% elif appointment.status == 'no_show' %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-user-slash me-1"></i>No Show
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Date & Time -->
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <div class="p-3 rounded text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <i class="fas fa-calendar text-white mb-1" style="font-size: 1.2rem;"></i>
+                                <h6 class="text-white mb-0 small">{{ appointment.appointment_date|date:"M d, Y" }}</h6>
+                                <small class="text-white opacity-75">{{ appointment.appointment_date|date:"l" }}</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 rounded text-center" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <i class="fas fa-clock text-white mb-1" style="font-size: 1.2rem;"></i>
+                                <h6 class="text-white mb-0 small">{{ appointment.appointment_time|time:"g:i A" }}</h6>
+                                <small class="text-white opacity-75">{{ appointment.duration_minutes }} min</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Location -->
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-map-marker-alt me-2"></i>Location
+                        </h6>
+                        {% if appointment.is_out_of_salon %}
+                            <div class="ps-4">
+                                <span class="badge bg-info mb-1">Out of Salon</span>
+                                <p class="mb-0 small">{{ appointment.out_of_salon_address|truncatewords:10 }}</p>
+                            </div>
+                        {% else %}
+                            <div class="ps-4">
+                                <strong>{{ appointment.store.name }}</strong>
+                                <p class="mb-0 small text-muted">{{ appointment.store.location }}</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Services -->
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-cut me-2"></i>Services
+                        </h6>
+                        <div class="ps-4">
+                            {% for service in appointment.services.all %}
+                                <span class="badge bg-light text-dark border me-1 mb-1">{{ service.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Estimated Cost -->
+                    <div class="mb-3 p-2 rounded" style="background-color: #f8f9fa;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Estimated Cost:</span>
+                            <strong class="text-primary fs-5">UGX {{ appointment.estimated_cost|floatformat:0|intcomma }}</strong>
+                        </div>
+                        {% if appointment.deposit_amount > 0 %}
+                        <div class="d-flex justify-content-between align-items-center mt-1">
+                            <small class="text-muted">Deposit Paid:</small>
+                            <small class="text-success">UGX {{ appointment.deposit_amount|floatformat:0|intcomma }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'appointment_details' appointment.id %}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="fas fa-eye me-1"></i>View Details
+                        </a>
+                        {% if appointment.status == 'pending' or appointment.status == 'confirmed' %}
+                        <button class="btn btn-sm btn-outline-danger" onclick="confirmCancel({{ appointment.id }}, '{{ appointment.appointment_id }}')">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Card Footer for Special Info -->
+                {% if appointment.special_requests %}
+                <div class="card-footer bg-light border-top">
+                    <small class="text-muted">
+                        <i class="fas fa-comment-dots me-1"></i>
+                        <strong>Note:</strong> {{ appointment.special_requests|truncatewords:15 }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if appointments.has_other_pages %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="Appointments pagination">
+                <ul class="pagination justify-content-center">
+                    {% if appointments.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ appointments.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Page {{ appointments.number }} of {{ appointments.paginator.num_pages }}
+                        </span>
+                    </li>
+
+                    {% if appointments.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ appointments.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ appointments.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <div class="mb-4">
+                        <i class="fas fa-calendar-times text-muted" style="font-size: 4rem; opacity: 0.3;"></i>
+                    </div>
+                    <h4 class="text-muted mb-3">No Appointments Found</h4>
+                    {% if request.GET %}
+                    <p class="text-muted mb-4">No appointments match your search criteria. Try adjusting your filters.</p>
+                    <a href="{% url 'my_appointments' %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-times me-2"></i>Clear Filters
+                    </a>
+                    {% else %}
+                    <p class="text-muted mb-4">You haven't booked any appointments yet. Book your first appointment now!</p>
+                    {% endif %}
+                    <a href="{% url 'book_appointment' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Book Appointment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="cancelModalLabel">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>Cancel Appointment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel appointment <strong id="cancelAppointmentId"></strong>?</p>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    This action cannot be undone. You can always book a new appointment later.
+                </p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep It</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelBtn">Yes, Cancel Appointment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .appointment-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .appointment-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+    
+    .badge {
+        font-weight: 500;
+        padding: 0.4em 0.8em;
+    }
+</style>
+
+<script>
+    let appointmentToCancel = null;
+
+    function confirmCancel(appointmentId, appointmentCode) {
+        appointmentToCancel = appointmentId;
+        document.getElementById('cancelAppointmentId').textContent = appointmentCode;
+        new bootstrap.Modal(document.getElementById('cancelModal')).show();
+    }
+
+    document.getElementById('confirmCancelBtn').addEventListener('click', function() {
+        if (appointmentToCancel) {
+            // TODO: Implement cancel appointment AJAX call
+            // For now, just redirect to dashboard
+            window.location.href = "{% url 'customer_dashboard' %}";
+        }
+    });
+</script>
+{% endblock %}
+

@@ -98,6 +98,7 @@ urlpatterns = [
     path('edit-store/<int:store_id>', views.edit_store, name="editStore"),
     path('delete-store/<int:store_id>/', views.delete_store, name="deleteStore"),
     path('restock-requests/', views.restock_requests, name="restockRequests"),
+    path('store-restock-requests/', views.store_restock_requests, name="storeRestockRequests"),
     path('create-restock-request/', views.create_restock_request, name="createRestockRequest"),
     path('restock_request_detail/<int:restock_id>/', views.restock_request_detail, name="restock_request_detail"),
     path('mark_restock_as_delivered/<int:restock_id>', views.mark_restock_as_delivered, name="restock_delivered"),

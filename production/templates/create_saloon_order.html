@@ -8,6 +8,36 @@
 {% block css %}
 	<link href="/assets/plugins/select-picker/dist/picker.min.css" rel="stylesheet">
 	
+	<style>
+	.customer-search {
+		position: relative;
+	}
+	.customer-dropdown {
+		position: absolute;
+		top: 100%;
+		left: 0;
+		right: 0;
+		background: white;
+		border: 1px solid #ddd;
+		border-top: none;
+		max-height: 200px;
+		overflow-y: auto;
+		z-index: 1000;
+		display: none;
+	}
+	.customer-item {
+		padding: 10px;
+		cursor: pointer;
+		border-bottom: 1px solid #eee;
+	}
+	.customer-item:hover {
+		background: #f8f9fa;
+	}
+	.customer-item:last-child {
+		border-bottom: none;
+	}
+	</style>
+	
 	<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 	<style>
 		.select2-container .select2-selection {
@@ -170,19 +200,22 @@
 			}
 		};
 
-		// Preload existing cart when editing
+	let customers = [];
+	let selectedCustomerId = null;
+	
+
+		// Store existing cart data for later processing
+		let existingCartData = null;
 		{% if existing_cart_json %}
 		try {
-			const existing = JSON.parse('{{ existing_cart_json|escapejs }}');
-			cart = existing;
-			setTimeout(() => {
-				if (existing.customer) {
-					document.getElementById('customerSelect').value = String(existing.customer);
-				}
-				updateCartDisplay();
-				calculateTotals();
-			}, 0);
-		} catch (e) { console.error('Failed to preload existing cart', e); }
+			existingCartData = JSON.parse('{{ existing_cart_json|escapejs }}');
+			console.log('Loaded existing cart data:', existingCartData);
+			console.log('Existing cart items breakdown:', {
+				services: existingCartData.items?.filter(item => item.type === 'service').length || 0,
+				products: existingCartData.items?.filter(item => item.type === 'product').length || 0,
+				accessories: existingCartData.items?.filter(item => item.type === 'accessory').length || 0
+			});
+		} catch (e) { console.error('Failed to parse existing cart', e); }
 		{% endif %}
 
 		function addServiceToCart() {
@@ -217,6 +250,7 @@
 
 		// add product to cart
 		function addProductToCart() {
+			console.log('addProductToCart called with selectedProduct:', selectedProduct);
 			
 			const staffSelect = document.getElementById('productStaff');
 			const selectedStaff = staffSelect.value ? {
@@ -226,7 +260,8 @@
 		
 			// Ensure we have a valid price
 			if (!selectedProduct.price || isNaN(selectedProduct.price)) {
-				alert('Invalid price for this product');
+				console.error('Invalid price for product:', selectedProduct);
+				alert('Invalid price for this product. Please try selecting the product again.');
 				return;
 			}
 		
@@ -328,7 +363,7 @@
 					return response.json();
 				})
 				.then(data => {
-					console.log('Received price data:', data); // Debug log
+					console.log('Received price data for product', productId, ':', data); // Debug log
             
 					if (data.success && data.price) {
 						const productPrice = parseFloat(data.price);
@@ -337,13 +372,14 @@
 							throw new Error('Invalid price received from server');
 						}
 						
+						console.log('Setting selectedProduct.price to:', productPrice);
 						selectedProduct.price = productPrice;
 						document.getElementById('selectedPrice').textContent = 
 							`UGX ${productPrice.toLocaleString()}`;
 						
 						// Set price group if available
 						if (data.price_group_name) {
-							document.getElementById('priceGroup').value = data.price_groups[0].id;
+						document.getElementById('priceGroup').value = data.price_groups[0].id;
 						}
 						
 						document.querySelector('#productModal .btn-theme').disabled = false;
@@ -360,15 +396,16 @@
 					}
 				})
 				.catch(error => {
-					console.error('Error fetching price:', error);
+					console.error('Error fetching price for product', productId, ':', error);
 					document.getElementById('selectedPrice').innerHTML = `
 						<div class="text-danger">
-							<i class="bi bi-exclamation-triangle"></i> Error loading price
+							<i class="bi bi-exclamation-triangle"></i> Error loading price: ${error.message}
 						</div>
 						<small class="text-muted">Please ensure a price is set for this product in a price group</small>
 					`;
 					// Disable the Add Product button
 					document.querySelector('#productModal .btn-theme').disabled = true;
+					selectedProduct.price = null; // Ensure price is reset on error
 				});
 
 			// Show the modal
@@ -418,50 +455,234 @@
 			modal.show();
 		}
 
-		// Add new customer model 
-		function showNewCustomerModal() {
-			const modal = new bootstrap.Modal(document.getElementById('newCustomerModal'));
-			modal.show();
+
+
+		function getCookie(name) {
+			let cookieValue = null;
+			if (document.cookie && document.cookie !== '') {
+				const cookies = document.cookie.split(';');
+				for (let i = 0; i < cookies.length; i++) {
+					const cookie = cookies[i].trim();
+					if (cookie.substring(0, name.length + 1) === (name + '=')) {
+						cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+						break;
+					}
+				}
+			}
+			return cookieValue;
 		}
 
-		// Add event listener for new customer form submission
-		document.addEventListener('DOMContentLoaded', function() {
-			document.getElementById('newCustomerForm').addEventListener('submit', function(e) {
-				e.preventDefault();
+		// Customer search functionality
+		function setupCustomerSearch() {
+			const customerSearch = document.getElementById('customerSearch');
+			const customerDropdown = document.getElementById('customerDropdown');
+			
+			customerSearch.addEventListener('input', function() {
+				const query = this.value.toLowerCase().trim();
+				console.log('Customer search query:', query);
+				console.log('Available customers:', customers);
 				
-				const formData = new FormData(this);
+				if (query.length < 1) {
+					customerDropdown.style.display = 'none';
+					return;
+				}
 				
-				fetch('/api/customers/create/', {
+				const filteredCustomers = customers.filter(customer => 
+					customer.first_name.toLowerCase().includes(query) ||
+					customer.last_name.toLowerCase().includes(query) ||
+					customer.phone.includes(query)
+				);
+				
+				console.log('Filtered customers:', filteredCustomers);
+				
+				if (filteredCustomers.length > 0) {
+					customerDropdown.innerHTML = filteredCustomers.map(customer => 
+						`<div class="customer-item" onclick="selectCustomer(${customer.id}, '${customer.first_name} ${customer.last_name}')">
+							<strong>${customer.first_name} ${customer.last_name}</strong><br>
+							<small class="text-muted">${customer.phone}</small>
+						</div>`
+					).join('');
+					customerDropdown.style.display = 'block';
+				} else {
+					customerDropdown.innerHTML = `
+						<div class="customer-item" onclick="showNewCustomerModal()">
+							<i class="fas fa-plus me-2"></i>Create new customer: "${query}"
+						</div>
+					`;
+					customerDropdown.style.display = 'block';
+				}
+			});
+			
+			// Hide dropdown when clicking outside
+			document.addEventListener('click', function(e) {
+				if (!customerSearch.contains(e.target) && !customerDropdown.contains(e.target)) {
+					customerDropdown.style.display = 'none';
+				}
+			});
+		}
+
+		function selectCustomer(customerId, customerName) {
+			selectedCustomerId = customerId;
+			cart.customer = customerId;
+			document.getElementById('selectedCustomerId').value = customerId;
+			document.getElementById('selectedCustomerName').textContent = customerName;
+			document.getElementById('selectedCustomerInfo').style.display = 'block';
+			document.getElementById('customerSearch').value = '';
+			document.getElementById('customerDropdown').style.display = 'none';
+			updateCartDisplay();
+		}
+
+		function clearCustomer() {
+			selectedCustomerId = null;
+			cart.customer = null;
+			document.getElementById('selectedCustomerId').value = '';
+			document.getElementById('selectedCustomerInfo').style.display = 'none';
+			updateCartDisplay();
+		}
+
+		function showNewCustomerModal() {
+			document.getElementById('customerDropdown').style.display = 'none';
+			
+			// Pre-fill the form with the search query if it looks like a name
+			const searchQuery = document.getElementById('customerSearch').value.trim();
+			if (searchQuery) {
+				const nameParts = searchQuery.split(' ');
+				if (nameParts.length >= 2) {
+					document.getElementById('newCustomerFirstName').value = nameParts[0];
+					document.getElementById('newCustomerLastName').value = nameParts.slice(1).join(' ');
+				} else {
+					document.getElementById('newCustomerFirstName').value = searchQuery;
+				}
+			}
+			
+			new bootstrap.Modal(document.getElementById('customerModal')).show();
+		}
+
+		function createCustomer() {
+			const firstName = document.getElementById('newCustomerFirstName').value;
+			const lastName = document.getElementById('newCustomerLastName').value;
+			const phone = document.getElementById('newCustomerPhone').value;
+			const email = document.getElementById('newCustomerEmail').value;
+			
+			if (!firstName || !lastName || !phone) {
+				alert('Please fill in all required fields');
+				return;
+			}
+			
+			// Create customer via AJAX
+			fetch('{% url "DjangoHUDApp:create_customer_ajax" %}', {
 					method: 'POST',
 					headers: {
-						'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-					},
-					body: formData
+					'Content-Type': 'application/json',
+					'X-CSRFToken': getCookie('csrftoken')
+				},
+				body: JSON.stringify({
+					first_name: firstName,
+					last_name: lastName,
+					phone: phone,
+					email: email
+				})
 				})
 				.then(response => response.json())
 				.then(data => {
 					if (data.success) {
-						// Add new customer to select dropdown
-						const select = document.getElementById('customerSelect');
-						const option = new Option(
-							`${data.customer.first_name} ${data.customer.last_name}`,
-							data.customer.id
-						);
-						select.add(option);
-						select.value = data.customer.id;
-						
-						// Close modal and reset form
-						bootstrap.Modal.getInstance(document.getElementById('newCustomerModal')).hide();
-						this.reset();
+					// Add to customers array
+					customers.push(data.customer);
+					// Select the new customer
+					selectCustomer(data.customer.id, `${data.customer.first_name} ${data.customer.last_name}`);
+					// Close modal
+					bootstrap.Modal.getInstance(document.getElementById('customerModal')).hide();
+					// Clear form
+					document.getElementById('newCustomerForm').reset();
 					} else {
-						alert(data.message || 'Error creating customer');
+					alert('Error creating customer: ' + data.error);
 					}
 				})
 				.catch(error => {
 					console.error('Error:', error);
 					alert('Error creating customer');
 				});
-			});
+		}
+
+		// Initialize customer search functionality
+		document.addEventListener('DOMContentLoaded', function() {
+			// Convert customers to JavaScript array
+			customers = [
+				{% for customer in customers %}
+				{
+					id: {{ customer.id }},
+					first_name: "{{ customer.first_name|escapejs }}",
+					last_name: "{{ customer.last_name|escapejs }}",
+					phone: "{{ customer.phone|escapejs }}",
+					email: "{{ customer.email|escapejs|default:'' }}"
+				}{% if not forloop.last %},{% endif %}
+				{% endfor %}
+			];
+			
+			console.log('Customers loaded:', customers);
+			
+			// Load available staff for display
+			window.availableStaff = [
+				{% for staff in available_staff %}
+				{
+					id: {{ staff.id }},
+					name: "{{ staff.name|escapejs }}"
+				}{% if not forloop.last %},{% endif %}
+				{% endfor %}
+			];
+			console.log('Available staff loaded:', window.availableStaff);
+			
+			// Setup customer search
+			setupCustomerSearch();
+			
+			// Process existing cart data if available (for edit mode)
+			if (existingCartData) {
+				try {
+					cart = existingCartData;
+					console.log('Applied existing cart:', cart);
+					console.log('Existing cart items:', cart.items);
+					console.log('Cart items by type:', {
+						services: cart.items.filter(item => item.type === 'service'),
+						products: cart.items.filter(item => item.type === 'product'),
+						accessories: cart.items.filter(item => item.type === 'accessory')
+					});
+					
+					// Ensure totals object exists and is properly initialized
+					if (!cart.totals) {
+						cart.totals = { subtotal: 0, total: 0 };
+					}
+					
+					// Validate and fix any missing totals in existing items
+					cart.items.forEach((item, index) => {
+						console.log(`Validating item ${index}:`, item);
+						if (!item.total || isNaN(item.total)) {
+							console.warn(`Item ${index} missing total, recalculating:`, item);
+							if (item.unit_price && item.quantity) {
+								item.total = parseFloat(item.unit_price) * parseFloat(item.quantity);
+								console.log(`Recalculated total for ${item.name}: ${item.total}`);
+							}
+						}
+					});
+					
+					// Set customer if available
+					if (cart.customer) {
+						selectedCustomerId = cart.customer;
+						// Find and select the customer in the search interface
+						const customer = customers.find(c => c.id === cart.customer);
+						if (customer) {
+							document.getElementById('selectedCustomerId').value = cart.customer;
+							document.getElementById('selectedCustomerName').textContent = `${customer.first_name} ${customer.last_name}`;
+							document.getElementById('selectedCustomerInfo').style.display = 'block';
+						}
+					}
+					
+					// Update display
+					updateCartDisplay();
+					calculateTotals();
+				} catch (e) {
+					console.error('Failed to apply existing cart:', e);
+				}
+			}
 		});
 
 		// Product quantity handlers
@@ -499,28 +720,42 @@
 				products: cart.items.filter(item => item.type === 'product'),
 				accessories: cart.items.filter(item => item.type === 'accessory')
 			};
+			
+			console.log('Grouped items for display:', groupedItems);
 
 			// Display Services
 			if (groupedItems.services.length > 0) {
 				appendCartHeader(cartContainer, 'Services');
-				groupedItems.services.forEach((item, index) => {
-					appendCartItem(cartContainer, item, index);
+				groupedItems.services.forEach((item, groupIndex) => {
+					const globalIndex = cart.items.findIndex(cartItem => 
+						cartItem === item || 
+						(cartItem.type === 'service' && cartItem.id === item.id && cartItem.name === item.name)
+					);
+					appendCartItem(cartContainer, item, globalIndex);
 				});
 			}
 
 			// Display Products
 			if (groupedItems.products.length > 0) {
 				appendCartHeader(cartContainer, 'Products');
-				groupedItems.products.forEach((item, index) => {
-					appendCartItem(cartContainer, item, index);
+				groupedItems.products.forEach((item, groupIndex) => {
+					const globalIndex = cart.items.findIndex(cartItem => 
+						cartItem === item || 
+						(cartItem.type === 'product' && cartItem.id === item.id && cartItem.name === item.name)
+					);
+					appendCartItem(cartContainer, item, globalIndex);
 				});
 			}
 
 			// Display Accessories
 			if (groupedItems.accessories.length > 0) {
 				appendCartHeader(cartContainer, 'Accessories');
-				groupedItems.accessories.forEach((item, index) => {
-					appendCartItem(cartContainer, item, index);
+				groupedItems.accessories.forEach((item, groupIndex) => {
+					const globalIndex = cart.items.findIndex(cartItem => 
+						cartItem === item || 
+						(cartItem.type === 'accessory' && cartItem.id === item.id && cartItem.name === item.name)
+					);
+					appendCartItem(cartContainer, item, globalIndex);
 				});
 			}
 		}
@@ -533,22 +768,40 @@
 		}
 
 		function appendCartItem(container, item, index) {
+			console.log(`Appending cart item ${index}:`, item);
 			const itemElement = document.createElement('div');
 			itemElement.className = 'pos-order';
 			
 			let staffHtml = '';
-			if (item.type === 'service' && item.selected_staff) {
+			if (item.type === 'service' && (item.selected_staff || item.staff_ids)) {
+				const staffIds = item.selected_staff || item.staff_ids;
+				// For existing items, we only have IDs, so we need to get staff names from available_staff
+				if (Array.isArray(staffIds) && staffIds.length > 0) {
+					const staffNames = staffIds.map(id => {
+						const staff = window.availableStaff?.find(s => s.id === id);
+						return staff ? staff.name : `Staff ${id}`;
+					});
 				staffHtml = `
 					<div class="small">
-						Staff: ${item.selected_staff.map(s => s.name).join(', ')}
+							Staff: ${staffNames.join(', ')}
 					</div>
 				`;
-			} else if (item.type === 'product' && item.staff) {
+				}
+			} else if (item.type === 'product' && (item.staff || item.staff_id)) {
+				let staffName = '';
+				if (item.staff && item.staff.name) {
+					staffName = item.staff.name;
+				} else if (item.staff_id) {
+					const staff = window.availableStaff?.find(s => s.id === item.staff_id);
+					staffName = staff ? staff.name : `Staff ${item.staff_id}`;
+				}
+				if (staffName) {
 				staffHtml = `
 					<div class="small">
-						Commission Staff: ${item.staff.name}
+							Commission Staff: ${staffName}
 					</div>
 				`;
+				}
 			}
 
 			let quantityHtml = item.type !== 'service' ? 
@@ -580,21 +833,34 @@
 		}
 
 		function calculateTotals() {
+			console.log('Calculating totals for items:', cart.items);
+			
+			// Ensure totals object exists
+			if (!cart.totals) {
+				cart.totals = { subtotal: 0, total: 0 };
+			}
+			
 			cart.totals.subtotal = cart.items.reduce((sum, item) => {
 				// Skip accessories in total calculation
 				if (item.type === 'accessory') {
+					console.log('Skipping accessory:', item.name);
 					return sum;
 				}
 				
 				const itemTotal = parseFloat(item.total) || 0;
+				console.log(`Adding ${item.type} "${item.name}": ${itemTotal} (running total: ${sum + itemTotal})`);
 				return sum + itemTotal;
 			}, 0);
 			
 			cart.totals.total = cart.totals.subtotal;
 			
+			console.log('Final calculated totals:', cart.totals);
+			
 			// Format the totals with proper number handling
 			const formattedSubtotal = cart.totals.subtotal.toLocaleString();
 			const formattedTotal = cart.totals.total.toLocaleString();
+			
+			console.log('Formatted totals:', { subtotal: formattedSubtotal, total: formattedTotal });
 			
 			document.getElementById('subtotal').textContent = `UGX ${formattedSubtotal}`;
 			document.getElementById('total').textContent = `UGX ${formattedTotal}`;
@@ -625,7 +891,7 @@
 		}
 		function submitSale() {
 			// Get required data
-			const customerId = document.getElementById('customerSelect').value;
+			const customerId = selectedCustomerId;
 			const storeId = document.getElementById('storeId').value; // Add this hidden input to your template
 			console.log('Store ID:', storeId);  // Debug log
 			// Debug log for cart items
@@ -665,14 +931,14 @@
 						quantity: parseInt(item.quantity),
 						price_group_id: item.price_group_id ? parseInt(item.price_group_id) : null,
 						total_price: parseFloat(item.total),
-						staff_id: item.staff ? parseInt(item.staff.id) : null  // Add staff ID here
+						staff_id: item.staff ? parseInt(item.staff.id) : (item.staff_id ? parseInt(item.staff_id) : null)
 					})),
 				service_items: cart.items
 					.filter(item => item.type === 'service')
 					.map(item => ({
 						service_id: parseInt(item.id),
 						quantity: parseFloat(item.quantity),
-						staff_ids: item.selected_staff,
+						staff_ids: item.selected_staff || item.staff_ids || [],
 						total_price: parseFloat(item.total)
 					})),
 				accessory_items: cart.items
@@ -846,7 +1112,7 @@
 								<a class="nav-link active" href="#" data-filter="services">
 									<div class="card">
 										<div class="card-body">
-											<i class="fa fa-fw fa-utensils"></i>Services
+											<i class="fa fa-scissors"></i>Services
 										</div>
 										<div class="card-arrow">
 											<div class="card-arrow-top-left"></div>
@@ -861,7 +1127,7 @@
 								<a class="nav-link" href="#" data-filter="products">
 									<div class="card">
 										<div class="card-body">
-											<i class="fa fa-fw fa-drumstick-bite"></i> Products
+											<i class="fa fa-square"></i> Products
 										</div>
 										<div class="card-arrow">
 											<div class="card-arrow-top-left"></div>
@@ -876,7 +1142,7 @@
 								<a class="nav-link" href="#" data-filter="accessories">
 									<div class="card">
 										<div class="card-body">
-											<i class="fa fa-fw fa-drumstick-bite"></i> Accessories
+											<i class="fa fa-american-sign-language-interpreting"></i> Accessories
 										</div>
 										<div class="card-arrow">
 											<div class="card-arrow-top-left"></div>
@@ -977,11 +1243,11 @@
 								
 								<div class="price">
 									{% if selected_price_group %}
-										{% for price in product.product.prices.all %}
+									{% for price in product.product.prices.all %}
 											{% if price.price_group.id == selected_price_group.id %}
 												UGX {{ price.price|floatformat:0|intcomma }}
-											{% endif %}
-										{% endfor %}
+										{% endif %}
+									{% endfor %}
 									{% else %}
 										{% for price in product.product.prices.all %}
 											{% if price.price_group.name|lower == 'retail' %}
@@ -1035,19 +1301,21 @@
                     </button>
                 </div>
                 <div class="customer-row mb-3">
-					
-                    <select class="form-select" id="customerSelect">
-                        <option value="">Select or Search Customer</option>
-                        {% for customer in customers %}
-                            <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }}
-                                {% if customer.phone %} - {{ customer.phone }}{% endif %}
-                                {% if customer.email %} - {{ customer.email }}{% endif %}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <button class="btn btn-sm btn-outline-theme mt-1" onclick="showNewCustomerModal()">
-                        <i class="bi bi-person-plus"></i> New Customer
+                    <label class="form-label fw-bold">Customer</label>
+                    <div class="customer-search">
+                        <input type="text" id="customerSearch" class="form-control" placeholder="Search or select customer..." autocomplete="off">
+                        <div class="customer-dropdown" id="customerDropdown"></div>
+                    </div>
+                    <input type="hidden" id="selectedCustomerId">
+                    <div id="selectedCustomerInfo" class="mt-2" style="display: none;">
+                        <div class="alert alert-info py-2">
+                            <i class="fas fa-user me-2"></i>
+                            <span id="selectedCustomerName"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearCustomer()">
+                                <i class="fas fa-times"></i>
                     </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="pos-sidebar-body">
@@ -1279,41 +1547,48 @@
 		</div>
 	</div>
 	
-	<!-- New Customer Modal -->
-	<div class="modal fade" id="newCustomerModal" tabindex="-1">
+	<!-- Customer Modal -->
+	<div class="modal fade" id="customerModal" tabindex="-1">
 		<div class="modal-dialog">
 			<div class="modal-content">
-				<div class="card">
-					<div class="card-body">
-						<h5 class="card-title">New Customer</h5>
+				<div class="modal-header">
+					<h5 class="modal-title">
+						<i class="fas fa-user-plus me-2"></i>Create New Customer
+					</h5>
+					<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+				</div>
+				<div class="modal-body">
+					<div class="alert alert-info">
+						<i class="fas fa-info-circle me-2"></i>
+						<strong>Quick Customer Setup:</strong> Only basic information is required. Additional details can be added later during KYC verification.
+					</div>
 						<form id="newCustomerForm">
-							{% csrf_token %}
 							<div class="mb-3">
 								<label class="form-label">First Name</label>
-								<input type="text" class="form-control" name="first_name" required>
+							<input type="text" class="form-control" id="newCustomerFirstName" required>
 							</div>
 							<div class="mb-3">
 								<label class="form-label">Last Name</label>
-								<input type="text" class="form-control" name="last_name" required>
+							<input type="text" class="form-control" id="newCustomerLastName" required>
 							</div>
 							<div class="mb-3">
-								<label class="form-label">Phone Number</label>
-								<input type="tel" class="form-control" name="phone_number" required>
+							<label class="form-label">Phone</label>
+							<input type="text" class="form-control" id="newCustomerPhone" required>
 							</div>
 							<div class="mb-3">
-								<label class="form-label">Email (Optional)</label>
-								<input type="email" class="form-control" name="email">
-							</div>
-							<div class="text-end">
-								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-								<button type="submit" class="btn btn-theme">Save Customer</button>
+							<label class="form-label">Email</label>
+							<input type="email" class="form-control" id="newCustomerEmail">
 							</div>
 						</form>
 					</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+					<button type="button" class="btn btn-primary" onclick="createCustomer()">Create Customer</button>
 				</div>
 			</div>
 		</div>
 	</div>
+	
 	<!-- END MODALS -->
 	
 {% endblock %}

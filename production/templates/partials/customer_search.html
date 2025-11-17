@@ -1,0 +1,101 @@
+{% comment %}
+Reusable Customer Search Component
+Include this in any template where you need customer search functionality
+
+Usage:
+{% include 'partials/customer_search.html' with search_input_id="customerSearch" dropdown_id="customerDropdown" %}
+{% endcomment %}
+
+{% load static %}
+
+<!-- Customer Search HTML -->
+<div class="customer-row mb-3">
+    <label class="form-label fw-bold">Customer</label>
+    <div class="customer-search">
+        <input type="text" id="{{ search_input_id|default:'customerSearch' }}" class="form-control" placeholder="Search or select customer..." autocomplete="off">
+        <div class="customer-dropdown" id="{{ dropdown_id|default:'customerDropdown' }}"></div>
+    </div>
+    <input type="hidden" id="{{ selected_customer_id_id|default:'selectedCustomerId' }}">
+    <div id="{{ selected_customer_info_id|default:'selectedCustomerInfo' }}" class="mt-2" style="display: none;">
+        <div class="alert alert-info py-2">
+            <i class="fas fa-user me-2"></i>
+            <span id="{{ selected_customer_name_id|default:'selectedCustomerName' }}"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearCustomer()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal fade" id="{{ modal_id|default:'customerModal' }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>Create New Customer
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Quick Customer Setup:</strong> Only basic information is required. Additional details can be added later during KYC verification.
+                </div>
+                <form id="{{ form_id|default:'newCustomerForm' }}">
+                    <div class="mb-3">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="newCustomerFirstName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="newCustomerLastName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" id="newCustomerPhone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="newCustomerEmail">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createCustomer()">Create Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Search CSS -->
+<style>
+.customer-search {
+    position: relative;
+}
+.customer-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+.customer-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+.customer-item:hover {
+    background: #f8f9fa;
+}
+.customer-item:last-child {
+    border-bottom: none;
+}
+</style>

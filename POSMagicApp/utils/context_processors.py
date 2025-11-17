@@ -138,6 +138,11 @@ def sidebar_menu(request):
             'text': 'Customer Portal',
             'name': 'customer_portal'
         },{
+            'url': '/appointments/all-appointments/',
+            'icon': 'bi bi-calendar-check',
+            'text': 'All Appointments',
+            'name': 'all_appointments'
+        },{
             'text': 'PRODUCTION',
             'is_header': 1
         },{
@@ -327,8 +332,13 @@ def sidebar_menu(request):
         },{
             'url': '/production/restock-requests/',
             'icon':'bi bi-folder-fill',
-            'text':'Store Restock Requests',
+            'text':'All Store Restock Requests',
             'name':'restockRequests'
+        },{
+            'url': '/production/store-restock-requests/',
+            'icon': 'bi bi-shop',
+            'text':'My Store Requests',
+            'name':'storeRestockRequests'
         },{
             'url': '/production/manufacture_products_report',
             'icon': 'bi bi-folder-fill',
@@ -476,6 +486,11 @@ def sidebar_menu(request):
             'text': 'Salon Manager',
             'is_header': 1
         },{
+            'url': '/appointments/all-appointments/',
+            'icon': 'bi bi-calendar-check',
+            'text': 'All Appointments',
+            'name': 'all_appointments'
+        },{
             'url': '/salon/salon-dashboard/',
             'icon': 'bi bi-bounding-box-circles',
             'text': 'Salon',
@@ -526,7 +541,7 @@ def sidebar_menu(request):
         elif 'Storemanager' in group_names:
             # Show store manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','view_pricing_groups','factoryInventory','pageCustomer']]  # Replace with your store manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['allStores','view_pricing_groups','factoryInventory','pageCustomer','all_appointments']]  # Replace with your store manager menu names
             sidebar_menu.append({
                 'icon':'bi bi-box-fill',
                 'text':'Production Orders',
@@ -704,7 +719,7 @@ def sidebar_menu(request):
         elif 'Branch Manager' in group_names:
             # Show branch manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
-            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','view_pricing_groups','restockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','pageCustomer']]  # Replace with your branch manager menu names
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['manager_inventory_view','view_pricing_groups','storeRestockRequests','store_services_view','branch_staff_view','particular_store_inventory','store_internal_requests','pageCustomer']]  # Replace with your branch manager menu names
             sidebar_menu.append({
                 'icon': 'bi bi-receipt',
                 'text': 'Service Sales',
@@ -834,7 +849,16 @@ def sidebar_menu(request):
                     }
                 ]
             })
-            
+        elif 'Customers' in group_names:
+            # Show customer menus
+            sidebar_menu = mark_active_link(sidebar_menu, current_path_name)
+            sidebar_menu = [item for item in sidebar_menu if item.get('name', '') in ['customer_portal']]
+            sidebar_menu.append({
+                'url': '/appointments/my-appointments/',
+                'icon': 'bi bi-calendar-check',
+                'text': 'My Appointments',
+                'name': 'my_appointments'
+            })
         elif 'Finance' in group_names:
             # Show finance menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

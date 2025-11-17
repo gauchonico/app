@@ -1,0 +1,469 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ current_store.name }} - Restock Requests{% endblock %}
+
+{% block css %}
+<link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet" />
+<link href="{% static 'plugins/bootstrap-table/dist/bootstrap-table.min.css' %}" rel="stylesheet" />
+<style>
+    body {
+        min-height: 100vh;
+    }
+    
+    .card {
+        transition: all 0.3s ease;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .stats-card {
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stats-card.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    .stats-card.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stats-card.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .stats-card.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    
+    .status-pending {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .status-approved {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .status-delivered {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .status-rejected {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .table-responsive {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .chart-container {
+        b
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .page-header {
+        
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        border-radius: 0 0 20px 20px;
+    }
+    
+    .store-info {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        border-radius: 10px;
+        backdrop-filter: blur(10px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-3">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="#">SALON</a></li>
+            <li class="breadcrumb-item active">RESTOCK REQUESTS</li>
+        </ul>
+        <h1 class="page-header mb-0">{{ current_store.name }} - Restock Requests</h1>
+        <div class="store-info">
+            <h5 class="mb-1">{{ current_store.name }}</h5>
+            <small class="opacity-75">
+                <i class="fas fa-map-marker-alt me-1"></i>
+                {{ current_store.location|default:"Location not set" }}
+            </small>
+        </div>
+    </div>
+</div>
+<div class="container-fluid">
+    <!-- Page Header -->
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 bg-inverse bg-opacity-10">
+                <div class="d-flex align-items-center text-inverse m-5px">
+                    <div class="flex-fill">
+                        <h3 class="mb-1">{{ total_requests|intcomma }}</h3>
+                        <p class="mb-0">Total Requests</p>
+                    </div>
+                    <div class="opacity-5">
+                        <i class="fa fa-shopping-bag fa-2x"></i>
+                    </div>
+                  
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 bg-inverse bg-opacity-10">
+                <div class="d-flex align-items-center text-inverse m-5px">
+                    <div class="flex-fill">
+                        <h3 class="mb-1">{{ pending_requests|intcomma }}</h3>
+                        <p class="mb-0">Pending</p>
+                    </div>
+                    <div class="opacity-5">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 bg-inverse bg-opacity-10">
+                <div class="d-flex align-items-center text-inverse m-5px">
+                    <div class="flex-fill">
+                        <h3 class="mb-1">{{ delivered_requests|intcomma }}</h3>
+                        <p class="mb-0">Delivered</p>
+                    </div>
+                    <div class="opacity-5">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>  
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 bg-inverse bg-opacity-10">
+                <div class="d-flex align-items-center text-inverse m-5px">
+                    <div class="flex-fill">
+                        <h3 class="mb-1">{{ total_items_requested|intcomma }}</h3>
+                        <p class="mb-0">Items Requested</p>
+                    </div>
+                    <div class="opacity-5">
+                        <i class="fas fa-cubes fa-2x"></i>
+                    </div>  
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restock Requests Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-list me-2"></i>
+                All Restock Requests for {{ current_store.name }}
+            </h5>
+            <div>
+                <a href="{% url 'createRestockRequest' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Create New Request
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if restock_requests %}
+                <div class="table-responsive">
+                    <table class="table table-hover" id="restockTable">
+                        <thead>
+                            <tr>
+                                <th>Request ID</th>
+                                <th>Requested By</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Items</th>
+                                <th>Total Quantity</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for restock_request in restock_requests %}
+                            <tr>
+                                <td>
+                                    <strong>#{{ restock_request.id }}</strong>
+                                </td>
+                                <td>
+                                    {% if restock_request.requested_by %}
+                                        {{ restock_request.requested_by.get_full_name|default:restock_request.requested_by.username }}
+                                    {% else %}
+                                        <span class="text-muted">System</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ restock_request.request_date|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ restock_request.status }}">
+                                        {{ restock_request.status|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% for item in restock_request.items.all %}
+                                        <span class="badge bg-light text-dark me-1">
+                                            {{ item.product.product.product.product_name }}
+                                        </span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {{ restock_request.total_quantity|intcomma }}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'restock_request_detail' restock_request.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if restock_request.status == 'pending' %}
+                                        <a href="{% url 'approve_restock_requests' restock_request.id %}" 
+                                           class="btn btn-sm btn-outline-success">
+                                            <i class="fas fa-check"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No restock requests found</h5>
+                    <p class="text-muted">Create your first restock request to get started.</p>
+                    <a href="{% url 'createRestockRequest' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Create First Request
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% comment %} 
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="chart-container">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Request Status Breakdown
+                </h5>
+                <canvas id="statusChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="chart-container">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-line me-2"></i>
+                    Monthly Request Trends
+                </h5>
+                <canvas id="trendChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div> {% endcomment %}
+
+    <!-- Top Products and Recent Activity -->
+    <div class="row mb-4 mt-10">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-star me-2"></i>
+                        Top Requested Products
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if top_products %}
+                        <div class="list-group list-group-flush">
+                            {% for product in top_products %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ product.product__product__product__product_name }}</h6>
+                                    <small class="text-muted">{{ product.request_count }} request{{ product.request_count|pluralize }}</small>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">{{ product.total_quantity|intcomma }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">No product data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_activity %}
+                        <div class="list-group list-group-flush">
+                            {% for activity in recent_activity %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">Request #{{ activity.id }}</h6>
+                                        <p class="mb-1 text-muted">
+                                            {% if activity.requested_by %}
+                                                Requested by {{ activity.requested_by.get_full_name|default:activity.requested_by.username }}
+                                            {% else %}
+                                                Requested by System
+                                            {% endif %}
+                                        </p>
+                                        <small class="text-muted">{{ activity.request_date|timesince }} ago</small>
+                                    </div>
+                                    <span class="status-badge status-{{ activity.status }}">
+                                        {{ activity.status|title }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">No recent activity</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="{% static 'plugins/chart.js/dist/chart.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'plugins/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+
+<script>
+$(document).ready(function() {
+    // Initialize DataTable
+    $('#restockTable').DataTable({
+        responsive: true,
+        order: [[2, 'desc']], // Sort by date descending
+        pageLength: 25,
+        language: {
+            search: "Search requests:",
+            lengthMenu: "Show _MENU_ requests per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ requests",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            }
+        }
+    });
+
+    // Status Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ status_breakdown.keys|safe }},
+            datasets: [{
+                data: {{ status_breakdown.values|safe }},
+                backgroundColor: [
+                    '#ffc107',
+                    '#28a745',
+                    '#17a2b8',
+                    '#dc3545'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Trend Chart
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: {{ monthly_data|safe }},
+            datasets: [{
+                label: 'Requests',
+                data: {{ monthly_data|safe }},
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

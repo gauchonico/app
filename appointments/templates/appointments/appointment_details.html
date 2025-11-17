@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Appointment Details - {{ appointment.appointment_id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Success Banner -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-check-circle" style="font-size: 4rem; opacity: 0.9;"></i>
+                    </div>
+                    <h1 class="display-4 fw-bold mb-3">Appointment Confirmed!</h1>
+                    <p class="lead mb-4">Your appointment has been successfully booked. We're excited to see you!</p>
+                    <div class="badge bg-white text-primary fs-5 px-4 py-2">
+                        <i class="fas fa-hashtag me-2"></i>{{ appointment.appointment_id }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Appointment Details -->
+    <div class="row g-4">
+        <!-- Left Column - Main Details -->
+        <div class="col-lg-8">
+            <!-- Date & Time Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Date & Time
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="p-3 rounded" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                <i class="fas fa-calendar-day text-white mb-2" style="font-size: 2rem;"></i>
+                                <h6 class="text-white mb-0">Date</h6>
+                                <h4 class="text-white fw-bold mt-2">{{ appointment.appointment_date|date:"M d, Y" }}</h4>
+                                <small class="text-white opacity-75">{{ appointment.appointment_date|date:"l" }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <div class="p-3 rounded" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <i class="fas fa-clock text-white mb-2" style="font-size: 2rem;"></i>
+                                <h6 class="text-white mb-0">Time</h6>
+                                <h4 class="text-white fw-bold mt-2">{{ appointment.appointment_time|time:"g:i A" }}</h4>
+                                <small class="text-white opacity-75">{{ appointment.duration_minutes }} minutes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                                <i class="fas fa-hourglass-half text-white mb-2" style="font-size: 2rem;"></i>
+                                <h6 class="text-white mb-0">Duration</h6>
+                                <h4 class="text-white fw-bold mt-2">{{ appointment.duration_minutes }}</h4>
+                                <small class="text-white opacity-75">minutes</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <h5 class="mb-0">
+                        <i class="fas fa-map-marker-alt me-2"></i>Location
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    {% if appointment.is_out_of_salon %}
+                        <div class="alert alert-info border-0 mb-3">
+                            <i class="fas fa-home me-2"></i>
+                            <strong>Out of Salon Service</strong>
+                        </div>
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3">
+                                    <i class="fas fa-map-marked-alt" style="font-size: 1.5rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">Service Address</h6>
+                                <p class="text-muted mb-0">{{ appointment.out_of_salon_address }}</p>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="d-flex align-items-start">
+                            <div class="flex-shrink-0">
+                                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-3">
+                                    <i class="fas fa-store" style="font-size: 1.5rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="mb-1">{{ appointment.store.name }}</h6>
+                                <p class="text-muted mb-0">
+                                    <i class="fas fa-map-pin me-2"></i>{{ appointment.store.location }}
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Services Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cut me-2"></i>Services Booked
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        {% for service in appointment.services.all %}
+                        <div class="col-md-6">
+                            <div class="p-3 border rounded-3 h-100" style="border-left: 4px solid #667eea !important;">
+                                <div class="d-flex align-items-start">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-scissors text-primary" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <div class="flex-grow-1 ms-3">
+                                        <h6 class="mb-1">{{ service.name }}</h6>
+                                        <p class="text-muted small mb-2">{{ service.description|truncatewords:15 }}</p>
+                                        {% if appointment.store %}
+                                            {% for store_service in appointment.store.store_services.all %}
+                                                {% if store_service.service == service %}
+                                                    <span class="badge bg-success">UGX {{ store_service.service.price|floatformat:0|intcomma }}</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="badge bg-success">UGX {{ service.price|floatformat:0|intcomma }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Special Requests -->
+            {% if appointment.special_requests %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comment-dots me-2 text-primary"></i>Special Requests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ appointment.special_requests }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column - Summary & Actions -->
+        <div class="col-lg-4">
+            <!-- Status Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>Status
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if appointment.status == 'pending' %}
+                        <div class="mb-3">
+                            <i class="fas fa-clock text-warning" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="text-warning">Pending Confirmation</h5>
+                        <p class="text-muted small">We'll confirm your appointment shortly</p>
+                    {% elif appointment.status == 'confirmed' %}
+                        <div class="mb-3">
+                            <i class="fas fa-check-circle text-success" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="text-success">Confirmed</h5>
+                        <p class="text-muted small">Your appointment is confirmed!</p>
+                    {% elif appointment.status == 'completed' %}
+                        <div class="mb-3">
+                            <i class="fas fa-star text-primary" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="text-primary">Completed</h5>
+                        <p class="text-muted small">Thank you for your visit!</p>
+                    {% elif appointment.status == 'cancelled' %}
+                        <div class="mb-3">
+                            <i class="fas fa-times-circle text-danger" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="text-danger">Cancelled</h5>
+                        <p class="text-muted small">This appointment was cancelled</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Price Summary Card -->
+            <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white p-4">
+                    <h5 class="mb-4">
+                        <i class="fas fa-receipt me-2"></i>Price Summary
+                    </h5>
+                    <div class="d-flex justify-content-between mb-3 pb-3 border-bottom border-white border-opacity-25">
+                        <span>Estimated Cost:</span>
+                        <strong class="fs-5">UGX {{ appointment.estimated_cost|floatformat:0|intcomma }}</strong>
+                    </div>
+                    {% if appointment.deposit_amount > 0 %}
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Deposit Paid:</span>
+                        <span>UGX {{ appointment.deposit_amount|floatformat:0|intcomma }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Balance:</span>
+                        <strong>UGX {{ appointment.estimated_cost|add:"-"|add:appointment.deposit_amount|floatformat:0|intcomma }}</strong>
+                    </div>
+                    {% else %}
+                    <small class="opacity-75">
+                        <i class="fas fa-info-circle me-1"></i>
+                        No deposit required
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Customer Info Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2 text-primary"></i>Contact Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Name</small>
+                        <strong>{{ appointment.customer_name }}</strong>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Phone</small>
+                        <strong>{{ appointment.customer_phone }}</strong>
+                    </div>
+                    {% if appointment.customer_email %}
+                    <div class="mb-0">
+                        <small class="text-muted d-block mb-1">Email</small>
+                        <strong>{{ appointment.customer_email }}</strong>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-primary w-100 mb-3">
+                        <i class="fas fa-home me-2"></i>Back to Dashboard
+                    </a>
+                    <a href="{% url 'my_appointments' %}" class="btn btn-outline-secondary w-100 mb-3">
+                        <i class="fas fa-list me-2"></i>View All Appointments
+                    </a>
+                    {% if appointment.status == 'pending' or appointment.status == 'confirmed' %}
+                    <button class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                        <i class="fas fa-times-circle me-2"></i>Cancel Appointment
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2 text-primary"></i>Appointment Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Appointment Booked</h6>
+                                <small class="text-muted">{{ appointment.created_at|date:"F d, Y g:i A" }}</small>
+                            </div>
+                        </div>
+                        {% if appointment.confirmed_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Appointment Confirmed</h6>
+                                <small class="text-muted">{{ appointment.confirmed_at|date:"F d, Y g:i A" }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if appointment.completed_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">Appointment Completed</h6>
+                                <small class="text-muted">{{ appointment.completed_at|date:"F d, Y g:i A" }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Appointment Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="cancelModalLabel">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>Cancel Appointment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel this appointment?</p>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle me-1"></i>
+                    You can always book a new appointment later.
+                </p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep It</button>
+                <a href="{% url 'customer_dashboard' %}" class="btn btn-danger">Yes, Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e9ecef;
+    }
+    .timeline-item {
+        position: relative;
+        padding-bottom: 20px;
+    }
+    .timeline-marker {
+        position: absolute;
+        left: -24px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+    }
+    .timeline-content {
+        padding-left: 15px;
+    }
+</style>
+{% endblock %}
+

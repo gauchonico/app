@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
@@ -71,6 +71,10 @@ class CustomerRegistrationView(View):
                 first_name=form.cleaned_data['first_name'],
                 last_name=form.cleaned_data['last_name']
             )
+            
+            # Add user to "Customers" group (create if doesn't exist)
+            customers_group, created = Group.objects.get_or_create(name='Customers')
+            user.groups.add(customers_group)
             
             # Create Customer profile
             customer = Customer.objects.create(

@@ -3731,6 +3731,118 @@ def restock_requests (request):
     
     return render(request, 'restock-requests.html', context)
 
+# Store-specific restock requests for branch managers
+@login_required(login_url='/login/')
+def store_restock_requests(request):
+    # Check if user is a branch manager
+    user_groups = request.user.groups.all()
+    group_names = [group.name for group in user_groups]
+    
+    if 'Branch Manager' not in group_names:
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('production_dashboard')
+    
+    try:
+        # Get the current user's store
+        current_store = Store.objects.get(manager=request.user)
+    except Store.DoesNotExist:
+        messages.error(request, 'You are not assigned to any store.')
+        return redirect('production_dashboard')
+    
+    # Get restock requests for this specific store only
+    restock_requests = RestockRequest.objects.filter(
+        store=current_store
+    ).select_related('store', 'requested_by').prefetch_related('items__product').order_by('-request_date')
+
+    # Calculate comprehensive statistics for this store only
+    total_requests = restock_requests.count()
+    pending_requests = restock_requests.filter(status='pending').count()
+    approved_requests = restock_requests.filter(status='approved').count()
+    delivered_requests = restock_requests.filter(status='delivered').count()
+    rejected_requests = restock_requests.filter(status='rejected').count()
+
+    # Calculate total quantities requested for this store
+    total_items_requested = sum(
+        request.items.aggregate(total=Sum('quantity'))['total'] or 0
+        for request in restock_requests
+    )
+
+    # Get recent requests (last 7 days) for this store
+    from datetime import timedelta
+    recent_requests = restock_requests.filter(
+        request_date__gte=timezone.now() - timedelta(days=7)
+    ).count()
+
+    # Get requests by status for chart
+    status_breakdown = {
+        'Pending': pending_requests,
+        'Approved': approved_requests,
+        'Delivered': delivered_requests,
+        'Rejected': rejected_requests,
+    }
+
+    # Get monthly request trends (last 6 months) for this store
+    monthly_data = []
+    for i in range(6):
+        month_start = timezone.now().replace(day=1) - timedelta(days=30*i)
+        month_end = month_start.replace(day=28) + timedelta(days=4)
+        month_end = month_end.replace(day=1) - timedelta(days=1)
+
+        month_requests = restock_requests.filter(
+            request_date__gte=month_start,
+            request_date__lte=month_end
+        ).count()
+
+        monthly_data.append({
+            'month': month_start.strftime('%B %Y'),
+            'requests': month_requests
+        })
+
+    monthly_data.reverse()  # Show oldest to newest
+
+    # Get top requested products for this store
+    top_products = RestockRequestItem.objects.filter(
+        restock_request__store=current_store
+    ).values(
+        'product__product__product__product_name'
+    ).annotate(
+        total_quantity=Sum('quantity'),
+        request_count=Count('restock_request', distinct=True)
+    ).order_by('-total_quantity')[:5]
+
+    # Get recent activity for this store
+    recent_activity = restock_requests.filter(
+        request_date__gte=timezone.now() - timedelta(days=7)
+    ).select_related('store', 'requested_by')[:10]
+
+    # Calculate total quantity for each request
+    for restock_request in restock_requests:
+        restock_request.total_quantity = sum(item.quantity for item in restock_request.items.all())
+
+    # Get user groups for permissions
+    user_groups = request.user.groups.all()
+    user_group = user_groups.first()
+
+    context = {
+        'restock_requests': restock_requests,
+        'current_store': current_store,
+        'user_group': user_group,
+        'total_requests': total_requests,
+        'pending_requests': pending_requests,
+        'approved_requests': approved_requests,
+        'delivered_requests': delivered_requests,
+        'rejected_requests': rejected_requests,
+        'total_items_requested': total_items_requested,
+        'recent_requests': recent_requests,
+        'status_breakdown': status_breakdown,
+        'monthly_data': monthly_data,
+        'top_products': top_products,
+        'recent_activity': recent_activity,
+        
+    }
+    
+    return render(request, 'store-restock-requests.html', context)
+
 def restock_request_detail(request, restock_id):
     restock_request = get_object_or_404(RestockRequest, pk=restock_id)
 
@@ -5116,6 +5228,11 @@ def edit_saloon_sale(request, sale_id):
     sale = get_object_or_404(ServiceSale.objects.select_related('store', 'customer'), pk=sale_id)
     if sale.store_id != current_store.id and not request.user.is_superuser:
         return render(request, 'no_store_access.html', { 'message': 'You do not have access to this store.' })
+    
+    # Check if sale can be edited (not paid or receipt created)
+    if sale.paid_status == 'paid' or sale.invoice_status in ['invoiced', 'cancelled']:
+        messages.error(request, f'Cannot edit this sale. Status: {sale.get_workflow_status()}. Sale is {sale.paid_status}.')
+        return redirect('service_sale_details', sale_id=sale.id)
 
     search_query = request.GET.get('search', '')
 
@@ -5147,25 +5264,38 @@ def edit_saloon_sale(request, sale_id):
             'id': s_item.service.service.id,
             'name': s_item.service.service.name,
             'quantity': float(getattr(s_item, 'quantity', 1) or 1),
-            'price': float(s_item.total_price),
+            'unit_price': float(s_item.total_price),
             'total': float(s_item.total_price),
-            'selected_staff': list(s_item.staff.values_list('id', flat=True)),
+            'staff_ids': list(s_item.staff.values_list('id', flat=True)),
         })
     # Products
-    for p_item in sale.product_sale_items.select_related('product__product').all():
+    for p_item in sale.product_sale_items.select_related('product__product', 'price_group').all():
+        # Get the actual unit price from the price group or fallback to retail price
         unit_price = 0.0
-        try:
-            unit_price = float(p_item.total_price) / float(p_item.quantity or 1)
-        except Exception:
-            unit_price = float(p_item.total_price)
+        if p_item.price_group:
+            try:
+                from production.models import ProductPrice
+                product_price = ProductPrice.objects.get(
+                    product=p_item.product.product,
+                    price_group=p_item.price_group
+                )
+                unit_price = float(product_price.price)
+            except:
+                # Fallback to retail price
+                unit_price = float(p_item.product.product.price or 0)
+        else:
+            # No price group specified, use retail price
+            unit_price = float(p_item.product.product.price or 0)
+        
         existing_items.append({
             'type': 'product',
             'id': p_item.product.id,
             'name': p_item.product.product.product_name,
             'quantity': float(p_item.quantity or 1),
-            'unit_price': float(unit_price),
+            'unit_price': unit_price,
             'total': float(p_item.total_price),
-            'staff': ({ 'id': p_item.staff_id, 'name': str(p_item.staff) } if getattr(p_item, 'staff_id', None) else None),
+            'price_group_id': p_item.price_group.id if p_item.price_group else None,
+            'staff_id': p_item.staff_id if getattr(p_item, 'staff_id', None) else None,
         })
     # Accessories
     for a_item in sale.accessory_sale_items.select_related('accessory__accessory').all():
@@ -5202,6 +5332,8 @@ def edit_saloon_sale(request, sale_id):
         'search_query': search_query,
         'submit_url': reverse('update_service_sale_ajax', args=[sale.id]),
         'existing_cart_json': json.dumps(existing_cart),
+        'sale': sale,
+        'can_edit': sale.paid_status != 'paid' and sale.invoice_status not in ['invoiced', 'cancelled'],
     }
     return render(request, 'create_saloon_order.html', context)
 
@@ -5217,6 +5349,13 @@ def update_service_sale_ajax(request, sale_id):
         data = json.loads(request.body)
         with transaction.atomic():
             sale = get_object_or_404(ServiceSale, pk=sale_id)
+            
+            # Check if sale can be edited (not paid or receipt created)
+            if sale.paid_status == 'paid' or sale.invoice_status in ['invoiced', 'cancelled']:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Cannot edit this sale. Status: {sale.get_workflow_status()}. Sale is {sale.paid_status}.'
+                }, status=400)
 
             # Optional updates
             if 'customer_id' in data:
@@ -5742,11 +5881,12 @@ def store_service_sales_view(request):
     store = get_object_or_404(Store, manager=request.user)
 
     # Fetch all service sales for this store
-    service_sales = ServiceSale.objects.filter(store=store)
+    service_sales = ServiceSale.objects.filter(store=store).order_by('-sale_date')
 
     return render(request, 'store_sale_list.html', {
-        'service_sales': service_sales,
+        'sales': service_sales,
         'store': store,
+        
     })
     
 def service_sale_details(request, sale_id):
@@ -5764,6 +5904,14 @@ def service_sale_details(request, sale_id):
     
     # Get all payments made for this sale
     payments = sale.payments.all().order_by('payment_date')
+    
+    # Recalculate totals to ensure accuracy
+    sale.calculate_total()
+    
+    # Calculate totals by item type for detailed breakdown
+    service_total = sum(item.total_price for item in service_items)
+    product_total = sum(item.total_price for item in product_items)
+    accessory_total = sum(item.total_price for item in accessory_items)  # For display only, not included in totals
     
     # Calculate totals
     subtotal = sale.total_amount
@@ -5786,6 +5934,9 @@ def service_sale_details(request, sale_id):
         'balance_due': balance_due,
         'paid_amount': paid_amount,
         'status_info': status_info,
+        'service_total': service_total,
+        'product_total': product_total,
+        'accessory_total': accessory_total,
     }
     return render(request, 'service_sale_details.html', context)
 
@@ -6555,9 +6706,6 @@ def store_sale_list(request):
     from django.db.models import Sum
     store = get_object_or_404(Store, manager=request.user)
 
-    # Base queryset
-    sales = ServiceSale.objects.filter(store=store)
-
     # Filters
     paid_status = request.GET.get('paid_status', '').strip()  # 'paid' | 'not_paid'
     invoice_status = request.GET.get('invoice_status', '').strip()  # 'invoiced' | 'not_invoiced' | 'cancelled'
@@ -6565,6 +6713,10 @@ def store_sale_list(request):
     payment_method = request.GET.get('payment_method', '').strip()  # filter by payment method
     start_date = request.GET.get('start_date', '').strip()
     end_date = request.GET.get('end_date', '').strip()
+    show_latest = request.GET.get('show_latest', '').strip()  # 'true' to show latest sales
+
+    # Base queryset
+    sales = ServiceSale.objects.filter(store=store)
 
     if paid_status in ['paid', 'not_paid']:
         sales = sales.filter(paid_status=paid_status)
@@ -6601,6 +6753,10 @@ def store_sale_list(request):
     if end_date_obj:
         sales = sales.filter(sale_date__date__lte=end_date_obj)
 
+    # Latest filter - show latest sales by sale_date
+    if show_latest == 'true':
+        sales = sales.order_by('-sale_date')
+
     # Metrics tiles
     today = timezone.localdate()
     today_money = sales.filter(sale_date__date=today, paid_status='paid').aggregate(total=Sum('total_amount'))['total'] or 0
@@ -6628,6 +6784,7 @@ def store_sale_list(request):
         'filter_payment_method': payment_method,
         'filter_start_date': start_date,
         'filter_end_date': end_date,
+        'filter_show_latest': show_latest,
         'staff_options': staff_options,
         'today_money': today_money,
         'today_orders': today_orders,

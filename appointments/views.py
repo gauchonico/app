@@ -19,7 +19,14 @@ def customer_landing(request):
     if request.user.is_authenticated:
         return redirect('customer_dashboard')
     
-    return render(request, 'appointments/auth/customer_landing.html')
+    context = {
+        'appSidebarHide': 1,
+        'appHeaderHide': 1,
+        'appContentFullHeight': 1,
+        'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+    }
+    
+    return render(request, 'appointments/auth/customer_landing.html', context)
 
 
 @login_required(login_url='/appointments/login/')
@@ -73,10 +80,10 @@ def customer_dashboard(request):
         'featured_products': featured_products,
         'total_appointments': total_appointments,
         'upcoming_count': upcoming_count,
-        'appSidebarHide': 1,
-        'appHeaderHide': 1,
-        'appContentFullHeight': 1,
-        'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+        # 'appSidebarHide': 1,
+        # 'appHeaderHide': 1,
+        # 'appContentFullHeight': 1,
+        # 'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
     }
     
     return render(request, 'appointments/customer_dashboard.html', context)
@@ -95,27 +102,60 @@ def book_appointment(request):
     
     if request.method == 'POST':
         form = AppointmentBookingForm(request.POST, user=request.user)
+        
+        # Debug: Print POST data
+        print("POST Data:", request.POST)
+        print("Form errors:", form.errors)
+        print("Form is valid:", form.is_valid())
+        
         if form.is_valid():
-            appointment = form.save(commit=False)
-            appointment.customer = customer
-            appointment.save()
-            form.save_m2m()  # Save many-to-many relationships
+            print("Form cleaned data:", form.cleaned_data)
+            try:
+                appointment = form.save(commit=False)
+                appointment.customer = customer
+                
+                # Handle is_out_of_salon flag from cleaned_data
+                if 'is_out_of_salon' in form.cleaned_data:
+                    appointment.is_out_of_salon = form.cleaned_data['is_out_of_salon']
+                
+                print("About to save appointment...")
+                appointment.save()
+                print("Appointment saved with ID:", appointment.id)
+                
+                form.save_m2m()  # Save many-to-many relationships
+                print("M2M saved")
+                
+                messages.success(
+                    request, 
+                    f'Appointment booked successfully! Your appointment ID is {appointment.appointment_id}'
+                )
+                return redirect('appointment_details', appointment_id=appointment.id)
+            except Exception as e:
+                print("Error saving appointment:", str(e))
+                import traceback
+                traceback.print_exc()
+                messages.error(request, f"Error saving appointment: {str(e)}")
+        else:
+            # Show form errors
+            print("Form validation failed. Errors:", form.errors)
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
             
-            messages.success(
-                request, 
-                f'Appointment booked successfully! Your appointment ID is {appointment.appointment_id}'
-            )
-            return redirect('appointment_details', appointment_id=appointment.id)
+            # Also show non-field errors
+            if form.non_field_errors():
+                for error in form.non_field_errors():
+                    messages.error(request, f"Error: {error}")
     else:
         form = AppointmentBookingForm(user=request.user)
     
     context = {
         'form': form,
         'customer': customer,
-        'appSidebarHide': 1,
-        'appHeaderHide': 1,
-        'appContentFullHeight': 1,
-        'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+        # 'appSidebarHide': 1,
+        # 'appHeaderHide': 1,
+        # 'appContentFullHeight': 1,
+        # 'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
     }
     
     return render(request, 'appointments/book_appointment.html', context)
@@ -178,14 +218,211 @@ def my_appointments(request):
         'appointments': page_obj,
         'search_form': search_form,
         'customer': customer,
+        # 'appSidebarHide': 1,
+        # 'appHeaderHide': 1,
+        # 'appContentFullHeight': 1,
+        # 'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+    }
+    
+    return render(request, 'appointments/my_appointments.html', context)
+
+
+@login_required(login_url='/login/')
+def all_appointments(request):
+    """
+    View all appointments for managers and finance staff with advanced filters and analytics
+    """
+    # Check permissions - only managers and finance can access
+    user_groups = request.user.groups.all()
+    group_names = [group.name for group in user_groups]
+    
+    allowed_groups = ['Branch Manager','Storemanager', 'Finance', 'Admin']
+    if not any(group in group_names for group in allowed_groups):
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('production_dashboard')
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    payment_status_filter = request.GET.get('payment_status', '').strip()
+    store_filter = request.GET.get('store', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    show_latest = request.GET.get('show_latest', '').strip()
+    
+    # Base queryset with related data
+    appointments = Appointment.objects.select_related('customer', 'store').prefetch_related('services', 'assigned_staff')
+    
+    # Apply filters
+    if search_query:
+        appointments = appointments.filter(
+            Q(appointment_id__icontains=search_query) |
+            Q(customer_name__icontains=search_query) |
+            Q(customer_phone__icontains=search_query) |
+            Q(customer_email__icontains=search_query)
+        )
+    
+    if status_filter:
+        appointments = appointments.filter(status=status_filter)
+    
+    if payment_status_filter:
+        appointments = appointments.filter(payment_status=payment_status_filter)
+    
+    if store_filter:
+        if store_filter == 'out_of_salon':
+            appointments = appointments.filter(is_out_of_salon=True)
+        else:
+            appointments = appointments.filter(store_id=store_filter)
+    
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            appointments = appointments.filter(appointment_date__gte=date_from_obj)
+        except:
+            pass
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            appointments = appointments.filter(appointment_date__lte=date_to_obj)
+        except:
+            pass
+    
+    # Latest filter
+    if show_latest:
+        appointments = appointments.order_by('-created_at')
+    else:
+        appointments = appointments.order_by('-appointment_date', '-appointment_time')
+    
+    # Calculate statistics
+    from django.db.models import Sum, Count, Q, Avg
+    total_appointments = appointments.count()
+    
+    # Status breakdown
+    status_stats = {
+        'pending': appointments.filter(status='pending').count(),
+        'confirmed': appointments.filter(status='confirmed').count(),
+        'in_progress': appointments.filter(status='in_progress').count(),
+        'completed': appointments.filter(status='completed').count(),
+        'cancelled': appointments.filter(status='cancelled').count(),
+        'no_show': appointments.filter(status='no_show').count(),
+    }
+    
+    # Financial stats
+    total_estimated = appointments.aggregate(total=Sum('estimated_cost'))['total'] or 0
+    total_deposits = appointments.aggregate(total=Sum('deposit_amount'))['total'] or 0
+    completed_revenue = appointments.filter(status='completed').aggregate(total=Sum('estimated_cost'))['total'] or 0
+    
+    # Payment status breakdown
+    payment_stats = {
+        'not_required': appointments.filter(payment_status='not_required').count(),
+        'pending': appointments.filter(payment_status='pending').count(),
+        'paid': appointments.filter(payment_status='paid').count(),
+        'refunded': appointments.filter(payment_status='refunded').count(),
+    }
+    
+    # Today's appointments
+    today = timezone.now().date()
+    today_appointments = appointments.filter(appointment_date=today).count()
+    
+    # Upcoming appointments (next 7 days)
+    from datetime import timedelta
+    next_week = today + timedelta(days=7)
+    upcoming_appointments = appointments.filter(
+        appointment_date__gte=today,
+        appointment_date__lte=next_week,
+        status__in=['pending', 'confirmed']
+    ).count()
+    
+    # Store breakdown
+    store_stats = appointments.values('store__name').annotate(
+        count=Count('id')
+    ).order_by('-count')[:5]
+    
+    # Out of salon count
+    out_of_salon_count = appointments.filter(is_out_of_salon=True).count()
+    
+    # Pagination
+    paginator = Paginator(appointments, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get all stores for filter dropdown
+    stores = Store.objects.all()
+    
+    context = {
+        'appointments': page_obj,
+        'stores': stores,
+        'total_appointments': total_appointments,
+        'status_stats': status_stats,
+        'payment_stats': payment_stats,
+        'total_estimated': total_estimated,
+        'total_deposits': total_deposits,
+        'completed_revenue': completed_revenue,
+        'today_appointments': today_appointments,
+        'upcoming_appointments': upcoming_appointments,
+        'store_stats': store_stats,
+        'out_of_salon_count': out_of_salon_count,
+        # Filter values for preserving state
+        'filter_search': search_query,
+        'filter_status': status_filter,
+        'filter_payment_status': payment_status_filter,
+        'filter_store': store_filter,
+        'filter_date_from': date_from,
+        'filter_date_to': date_to,
+        'filter_show_latest': show_latest,
+        # Status choices
+        'status_choices': Appointment.STATUS_CHOICES,
+        'payment_status_choices': Appointment.PAYMENT_STATUS_CHOICES,
+    }
+    
+    return render(request, 'appointments/all_appointments.html', context)
+
+
+@login_required(login_url='/login/')
+def appointment_details(request, appointment_id):
+    """
+    View appointment details
+    """
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+    
+    # Check if user is the customer who booked
+    try:
+        customer = request.user.customer
+        if appointment.customer != customer:
+            messages.error(request, 'You do not have permission to view this appointment.')
+            return redirect('customer_dashboard')
+    except:
+        messages.error(request, 'Customer profile not found.')
+        return redirect('customer_dashboard')
+    
+    # Calculate estimated cost if not set
+    if appointment.estimated_cost == 0:
+        total_cost = 0
+        for service in appointment.services.all():
+            if appointment.store:
+                try:
+                    store_service = appointment.store.store_services.get(service=service)
+                    total_cost += store_service.service.price
+                except:
+                    total_cost += service.price
+            else:
+                total_cost += service.price
+        appointment.estimated_cost = total_cost
+        appointment.save()
+    
+    context = {
+        'appointment': appointment,
+        'customer': customer,
         'appSidebarHide': 1,
         'appHeaderHide': 1,
         'appContentFullHeight': 1,
         'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
     }
     
-    return render(request, 'appointments/my_appointments.html', context)
-
+    return render(request, 'appointments/appointment_details.html', context)
 
 @login_required(login_url='/login/')
 def product_catalogue(request):

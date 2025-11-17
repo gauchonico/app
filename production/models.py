@@ -1419,7 +1419,7 @@ class ServiceSale(models.Model):
 
     def calculate_total(self):
         total = sum(item.total_price for item in self.service_sale_items.all())
-        # total += sum(item.total_price for item in self.accessory_sale_items.all())
+        # Accessory items are not included in totals
         total += sum(item.total_price for item in self.product_sale_items.all())
         
         self.total_amount = total
@@ -1781,6 +1781,9 @@ class ServiceSaleItem(models.Model):
         
         # First save the service sale item
         super().save(*args, **kwargs)
+
+        # Recalculate the total for the related sale
+        self.sale.calculate_total()
         
         # Check if sale is paid
         if self.sale.paid_status == 'paid':
@@ -1858,7 +1861,10 @@ class ProductSaleItem(models.Model):
         # Ensure unit_price is not None
         if unit_price is None:
             unit_price = 0
-        self.total_price = self.quantity * unit_price
+            
+        if not self.total_price or kwargs.get('force_recalculate', False):
+            self.total_price = self.quantity * unit_price
+
         super().save(*args, **kwargs)
         
         # Calculate commission if staff is assigned and sale is paid
