@@ -7,6 +7,7 @@ from django.db.models import Q, Sum, Count, Avg, Max
 from datetime import datetime, timedelta
 from .models import ServiceSale, Store
 from POSMagicApp.models import Staff
+from django.http import HttpRequest
 
 
 @login_required
@@ -349,32 +350,35 @@ def service_timing_analytics(request):
     return render(request, 'service_timing_analytics.html', context)
 
 
-def get_user_store(user):
-    """Get the store associated with the current user"""
+def get_user_store(user_or_request):
+    """
+    Get the store associated with the current user or request.
+    Can accept either a User instance or a request object.
+    """
+    from .models import Store
+    
+    # If a request object is passed, get the user from it
+    if isinstance(user_or_request, HttpRequest):
+        user = user_or_request.user
+    else:
+        user = user_or_request
+    
     # First check if user is a store manager
     managed_store = Store.objects.filter(manager=user).first()
     if managed_store:
         return managed_store
     
     # Then check if user is staff at a store
-    try:
-        staff = Staff.objects.get(user=user)
-        return staff.store
-    except Staff.DoesNotExist:
-        pass
+    staff_store = Store.objects.filter(staff=user).first()
+    if staff_store:
+        return staff_store
     
-    # Check if user has a related staff profile by name
-    try:
-        staff = Staff.objects.filter(
-            first_name__icontains=user.first_name,
-            last_name__icontains=user.last_name
-        ).first()
-        if staff and staff.store:
-            return staff.store
-    except:
-        pass
+    # Then check user's profile for default store
+    if hasattr(user, 'profile') and hasattr(user.profile, 'default_store'):
+        return user.profile.default_store
     
-    return None
+    # If no specific store is found, return the first store
+    return Store.objects.first()
 
 
 @login_required

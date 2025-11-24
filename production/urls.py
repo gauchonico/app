@@ -345,5 +345,21 @@ urlpatterns = [
     path('debug/price-groups/', views.debug_price_groups, name='debug_price_groups'),
     path('product-sales-list/', views.product_sales_list, name='product_sales_list'),
     
+    # Refreshment URLs
+    path('refreshment-list/', views.refreshmentList, name='refreshmentList'),
+    path('refreshments/create/', views.addRefreshement, name='create_refreshment'),
+    path('refreshments/<int:refreshment_id>/', views.refreshmentDetail, name='refreshmentDetail'),
+    path('refreshments/<int:refreshment_id>/edit/', views.edit_refreshment, name='edit_refreshment'),
+    path('refreshments/<int:refreshment_id>/delete/', views.deleteRefreshment, name='deleteRefreshment'),
+    path('store-refreshment-list/', views.store_refreshment_list, name='store_refreshment_list'),
+    path('adjust-refreshment-stock/<int:refreshment_id>/', views.adjust_refreshment_stock, name='adjust_refreshment_stock'),
+
+    # Cash Drawer URLs
+    path('cash-drawer/', views.cash_drawer_manage, name='cash_drawer_manage'),
+    path('cash-drawer/start/', views.cash_drawer_start, name='cash_drawer_start'),
+    path('cash-drawer/close/<int:session_id>/', views.cash_drawer_close, name='cash_drawer_close'),
+    path('cash-drawer/detail/<int:session_id>/', views.cash_drawer_detail, name='cash_drawer_detail'),
+    path('cash-drawer/all/', views.all_cash_drawer_sessions, name='all_cash_drawer_sessions'),
+    path('cash-drawer/session/<int:session_id>/', views.session_detail, name='session_detail'),
    
 ]

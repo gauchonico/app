@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.db import transaction
-from production.models import ManufacturedProductInventory, PurchaseOrder, RequisitionItem, RestockRequest, StoreInventory, RawMaterialPrice
+from django.http import HttpRequest
+from production.models import ManufacturedProductInventory, PurchaseOrder, RequisitionItem, RestockRequest,Store, StoreInventory, RawMaterialPrice,CashDrawerSession, CashDrawerTransaction
 
 
 def check_ingredient_availability_for_production(production_order, quantity_to_produce):
@@ -301,3 +302,95 @@ def approve_restock_request(request_id):
         restock_request.status = "rejected"
         restock_request.comments = "Insufficient manufactured product inventory."
       restock_request.save()
+
+
+
+def record_service_sale_payment(service_sale, payment_method, amount, user, notes=None):
+    """
+    Record a service sale payment in the cash drawer system.
+    
+    Args:
+        service_sale: The ServiceSale instance
+        payment_method: Payment method (must match PAYMENT_METHODS in CashDrawerTransaction)
+        amount: Payment amount
+        user: User making the transaction
+        notes: Optional notes
+    
+    Returns:
+        CashDrawerTransaction: The created transaction or None if failed
+    """
+    try:
+        # Get the current open session for the user and store
+        session = CashDrawerSession.objects.filter(
+            user=user,
+            store=service_sale.store,
+            status='open'
+        ).first()
+        
+        if not session:
+            messages.warning(
+                None,
+                "No active cash drawer session found. Transaction not recorded in cash drawer."
+            )
+            return None
+        
+        # Create the transaction
+        transaction = CashDrawerTransaction.objects.create(
+            session=session,
+            transaction_type='sale',
+            payment_method=payment_method,
+            amount=amount,
+            service_sale=service_sale,
+            user=user,
+            notes=notes or f"Payment for service sale #{service_sale.id}",
+            reference=f"SS-{service_sale.id}"
+        )
+        
+        return transaction
+        
+    except Exception as e:
+        messages.error(
+            None,
+            f"Error recording cash drawer transaction: {str(e)}"
+        )
+        return None
+
+# production/utils.py
+def is_cash_drawer_session_required(user, store):
+    """
+    Check if a cash drawer session is required for the user and store.
+    """
+    # You can modify this logic based on your requirements
+    # For example, you might want to check user permissions or store settings
+    return True  # Or implement your own logic
+
+def get_user_store(user_or_request):
+    """
+    Get the store associated with the current user or request.
+    Can accept either a User instance or a request object.
+    """
+    from django.contrib.auth.models import User
+    from django.http import HttpRequest
+    
+    # If a request object is passed, get the user from it
+    if isinstance(user_or_request, HttpRequest):
+        user = user_or_request.user
+    else:
+        user = user_or_request
+    
+    # First check if user is a store manager
+    managed_store = Store.objects.filter(manager=user).first()
+    if managed_store:
+        return managed_store
+    
+    # Then check if user is staff at a store
+    staff_store = Store.objects.filter(staff=user).first()
+    if staff_store:
+        return staff_store
+    
+    # Then check user's profile for default store
+    if hasattr(user, 'profile') and user.profile.default_store:
+        return user.profile.default_store
+    
+    # If no specific store is found, return the first store
+    return Store.objects.first()

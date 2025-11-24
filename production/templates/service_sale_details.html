@@ -343,6 +343,17 @@
                                     <td class="text-end">UGX {{ item.total_price|floatformat:0|intcomma }}</td>
                                 </tr>
                                 {% endfor %}
+                                {% for item in refreshment_items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.refreshment.refreshment.name }}</strong>
+                                        <br><small class="text-muted">Refreshment</small>
+                                    </td>
+                                    <td class="text-center">{{ item.quantity }}</td>
+                                    <td class="text-end">UGX {{ item.unit_price|floatformat:0|intcomma }}</td>
+                                    <td class="text-end">UGX {{ item.total_price|floatformat:0|intcomma }}</td>
+                                </tr>
+                                {% endfor %}
 
                                 <!-- Accessory Items -->
                                 {% for item in accessory_items %}
@@ -445,6 +456,30 @@
             </tr>
         {% empty %}
             <tr><td colspan="4"><span class="text-danger">No service items found.</span></td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Refreshment Items</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Refreshment</th>
+            <th>Quantity</th>
+            <th>Price(UGX)</th>
+            <th>Total Price(UGX)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in refreshment_items %}
+            <tr>
+                <td>{{ item.refreshment.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.price|floatformat|intcomma }}</td>
+                <td>{{ item.total_price|floatformat|intcomma }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="4"><span class="text-danger">No refreshment items found.</span></td></tr>
         {% endfor %}
     </tbody>
 </table>
@@ -720,6 +755,14 @@ $(document).ready(function() {
                         <ul>
                             {% for item in sale.service_sale_items.all %}
                                 <li>{{ item.service.service.name }} - {{ item.quantity }}x</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="refreshments">
+                        <strong>Refreshments:</strong>
+                        <ul>
+                            {% for item in sale.refreshment_sale_items.all %}
+                                <li>{{ item.refreshment.refreshment.name }} - {{ item.quantity }}x</li>
                             {% endfor %}
                         </ul>
                     </div>

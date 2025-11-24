@@ -1,0 +1,114 @@
+<!-- cash_drawer/detail.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4>Cash Drawer Session #{{ session.id }}</h4>
+            <div>
+                <a href="{% url 'all_cash_drawer_sessions' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to All Sessions
+                </a>
+                {% if can_edit %}
+                <a href="{% url 'cash_drawer_edit' session.id %}" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Session Information</h5>
+                    <p><strong>Status:</strong> 
+                        <span class="badge {% if session.status == 'open' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ session.get_status_display }}
+                        </span>
+                    </p>
+                    <p><strong>Store:</strong> {{ session.store.name|default:"N/A" }}</p>
+                    <p><strong>User:</strong> {{ session.user.get_full_name|default:session.user.username }}</p>
+                    <p><strong>Opened:</strong> {{ session.opening_time|date:"M d, Y H:i" }}</p>
+                    {% if session.closed_at %}
+                        <p><strong>Closed:</strong> {{ session.closed_at|date:"M d, Y H:i" }}</p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <h5>Balances</h5>
+                    <p><strong>Opening Balance:</strong> {{ session.opening_balance|floatformat:2 }}</p>
+                    {% if session.status == 'closed' %}
+                        <p><strong>Closing Balance:</strong> {{ session.closing_balance|floatformat:2 }}</p>
+                        <p><strong>Difference:</strong> 
+                            <span class="{% if session.balance_difference >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ session.balance_difference|floatformat:2 }}
+                            </span>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <h5>Transaction Summary</h5>
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Payment Method</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Cash</td>
+                            <td class="text-end">{{ total_cash|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Card</td>
+                            <td class="text-end">{{ total_card|floatformat:2 }}</td>
+                        </tr>
+                        <tr>
+                            <td>Mobile Money</td>
+                            <td class="text-end">{{ total_mobile|floatformat:2 }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h5>Transaction History</h5>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Method</th>
+                            <th class="text-end">Amount</th>
+                            <th>Reference</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.created_at|date:"H:i" }}</td>
+                            <td>{{ transaction.get_transaction_type_display }}</td>
+                            <td>{{ transaction.get_payment_method_display }}</td>
+                            <td class="text-end {% if transaction.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ transaction.amount|floatformat:2 }}
+                            </td>
+                            <td>{{ transaction.reference|default:"-" }}</td>
+                            <td>{{ transaction.notes|default:""|truncatechars:30 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No transactions found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

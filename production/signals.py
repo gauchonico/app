@@ -7,7 +7,7 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.db import transaction
-from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory,RawMaterialPrice, PriceAlert, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale, Payment, ServiceSaleInvoice, AccessorySaleItem, ServiceSale,ServiceSaleItem,ProductSaleItem
+from .models import LPO, Accessory, AccessoryInventoryAdjustment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, MainStoreAccessoryRequisition, RawMaterialInventory,RawMaterialPrice, PriceAlert, Requisition, RequisitionItem, SaleItem, Store, StoreAccessoryInventory, StoreAlerts, StoreSale, Payment, ServiceSaleInvoice, AccessorySaleItem, ServiceSale,ServiceSaleItem,ProductSaleItem,ServiceSale, CashDrawerTransaction, CashDrawerSession, StoreProductSale
 @receiver(post_save, sender=Payment)
 def update_invoice_and_sale_on_payment(sender, instance, created, **kwargs):
     """When a payment is saved, recompute sale totals and update invoice/payment status."""
@@ -228,3 +228,138 @@ def update_sale_total_on_delete(sender, instance, **kwargs):
     except:
         # Handle case where sale was already deleted
         pass
+
+
+print("Cash drawer transaction signal connected")
+
+@receiver(post_save, sender=StoreProductSale)
+def create_product_sale_transaction(sender, instance, created, **kwargs):
+    """
+    Create a cash drawer transaction when a product sale is marked as paid
+    """
+    # Skip if this is a new instance or not marked as paid
+    if created or instance.paid_status != 'paid':
+        return
+
+    # Skip if already has a cash drawer session (handled in mark_as_paid)
+    if hasattr(instance, 'cash_drawer_session') and instance.cash_drawer_session:
+        return
+        
+    # Get the current user (try to get from request thread local)
+    from django.utils.module_loading import import_string
+    from django.conf import settings
+    
+    user = None
+    try:
+        from django.utils.deprecation import MiddlewareMixin
+        user_middleware = import_string(settings.MIDDLEWARE[0])()
+        if hasattr(user_middleware, 'get_user'):
+            user = user_middleware.get_user(None)
+    except (ImportError, AttributeError, IndexError):
+        pass
+    
+    # If no user found, use the store manager or a system user
+    if user is None or not user.is_authenticated:
+        user = instance.store.manager if hasattr(instance.store, 'manager') else None
+        if user is None:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            user = User.objects.filter(is_superuser=True).first()
+    
+    # Find an open session for the user and store
+    session = CashDrawerSession.objects.filter(
+        user=user,
+        store=instance.store,
+        status='open'
+    ).order_by('-opening_time').first()
+    
+    if session:
+        # Create cash drawer transaction
+        CashDrawerTransaction.objects.create(
+            session=session,
+            transaction_type='sale',
+            payment_method=instance.payment_mode,
+            amount=instance.total_amount,
+            reference=f"Product Sale #{instance.product_sale_number or instance.id}",
+            notes=f"Product sale to {instance.customer}",
+            user=user
+        )
+        
+        # Link the session to the sale
+        instance.cash_drawer_session = session
+        instance.save(update_fields=['cash_drawer_session'])
+    else:
+        print(f"Warning: No open cash drawer session found for product sale #{instance.id}")
+
+print("Product sale transaction signal connected")
+@receiver(post_save, sender=ServiceSale)
+def create_cashdrawer_transaction(sender, instance, created, **kwargs):
+    """
+    Create a cash drawer transaction when a service sale is paid in full
+    """
+    # Only proceed if the sale is being updated (not created) and is now paid
+    if not created and instance.paid_status == 'paid':
+        with transaction.atomic():
+            try:
+                if not instance.created_by:
+                    raise ValueError("No user associated with this sale")
+                
+                # Get the active cash drawer session for this user and store
+                cash_drawer = CashDrawerSession.objects.get(
+                    user=instance.created_by,
+                    store=instance.store,
+                    status='open'
+                )
+                
+                # Check if a transaction already exists for this sale
+                if not CashDrawerTransaction.objects.filter(service_sale=instance).exists():
+
+                    # Map payment methods to cash drawer transaction methods
+                    payment_method_mapping = {
+                        'cash': 'cash',
+                        'mobile_money': 'mtn_momo',
+                        'airtel_money': 'airtel_money',
+                        'bank_transfer': 'bank_transfer',
+                    }
+                    
+                    # Get the payment method from the sale's payments if available
+                    payment_method = None
+                    if hasattr(instance, 'payments') and instance.payments.exists():
+                        # Get the most recent payment method
+                        latest_payment = instance.payments.latest('payment_date')
+                        payment_method = payment_method_mapping.get(
+                            latest_payment.payment_method.lower(),
+                            'other'
+                        )
+                    else:
+                        # Fall back to the sale's payment_mode
+                        payment_method = payment_method_mapping.get(
+                            (instance.payment_mode or 'cash').lower(),
+                            'cash'  # Default to cash if no mapping found
+                        )
+                    
+                    # Create the cash drawer transaction
+                    CashDrawerTransaction.objects.create(
+                        session=cash_drawer,
+                        transaction_type='sale',
+                        payment_method=payment_method,
+                        amount=instance.total_amount,
+                        service_sale=instance,
+                        user=instance.created_by,
+                        notes=f"Service sale #{instance.id}",
+                        reference=f"SS-{instance.id}"
+                    )
+                    
+            
+                    # Update the cash drawer's balance
+                    cash_drawer.current_balance += instance.total_amount
+                    cash_drawer.save(update_fields=['current_balance'])
+                    
+            except CashDrawerSession.DoesNotExist:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"No active cash drawer session found for user {instance.created_by} and store {instance.store}")
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating cash drawer transaction: {str(e)}", exc_info=True)

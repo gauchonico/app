@@ -178,11 +178,14 @@
         .print-button:hover {
             background: #0056b3;
         }
+        
+    
     </style>
 </head>
 <body>
     <!-- Print Button (hidden in print) -->
     <button class="print-button no-print" onclick="window.print()">🖨️ Print</button>
+    <button class="back-button btn btn-outline-theme no-print" onclick="window.history.back()">Back</button>
     
     <div class="receipt">
         <!-- Header -->
@@ -262,15 +265,17 @@
                 {% endfor %}
             {% endif %}
             
-            {% if accessory_items %}
-                {% for item in accessory_items %}
+            
+            
+            {% if refreshment_items %}
+                {% for item in refreshment_items %}
                 <div class="item-row">
-                    <div class="item-name">{{ item.accessory.accessory.name }}</div>
+                    <div class="item-name">{{ item.refreshment.name }}</div>
                     <div class="item-details">
-                        <span class="item-qty-price">{{ item.quantity }} x {{ item.price|floatformat:0 }}</span>
+                        <span class="item-qty-price">{{ item.quantity }} x {{ item.unit_price|floatformat:0 }}</span>
                         <span class="bold">{{ item.total_price|floatformat:0 }}</span>
                     </div>
-                    <div style="font-size: 9px; color: #666;">Accessory</div>
+                    <div style="font-size: 9px; color: #666;">Refreshment</div>
                 </div>
                 {% endfor %}
             {% endif %}

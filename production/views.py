@@ -48,8 +48,8 @@ from django.core.paginator import Paginator
 from production.service_timing_views import get_user_store
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductSalePaymentForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, ServiceCategoryForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreTransferItemFormSet, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory, AccessoryInventory, AccessoryInventoryAdjustment, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductSalePayment, ProductSaleReceipt, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, SavedCommissionReport, ServiceCategory, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreProductSale, StoreProductSaleItem, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import AccessorySaleItemForm,AddRefreshment,CloseCashDrawerForm, CashDrawerSessionForm, StockAdjustmentForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductSalePaymentForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, ServiceCategoryForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreTransferItemFormSet, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
+from .models import LPO, Accessory,CashDrawerSession, AccessoryInventory, AccessoryInventoryAdjustment,RefreshmentSaleItem, RefreshmentStockHistory, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, Refreshment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductSalePayment, ProductSaleReceipt, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, SavedCommissionReport, ServiceCategory, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreProductSale, StoreProductSaleItem, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -730,6 +730,130 @@ def editStoreAlerts(request, alert_id):
         return render(request, 'store-requests.html', context)  # Fallback for direct access (optional)
 
 
+#Refreshements View management
+@login_required(login_url='/login/')
+def refreshmentList(request):
+    refreshments = Refreshment.objects.all().order_by('-created_at')
+    context = {
+        'refreshments': refreshments,
+    }
+    return render(request, "refreshment-list.html", context)
+
+@login_required(login_url='/login/')
+def refreshmentDetail(request, refreshment_id):
+    refreshment = get_object_or_404(Refreshment, pk=refreshment_id)
+    context = {
+        'refreshment': refreshment,
+    }
+    return render(request, "refreshment-detail.html", context)
+
+@login_required(login_url='/login/')
+def addRefreshement(request):
+    if request.method == 'POST':
+        form = AddRefreshment(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Refreshment has been added successfully")
+            return redirect('refreshmentList')
+    else:
+        form = AddRefreshment()
+    context = {
+        'form': form,
+    }
+    return render(request, "add-refreshment.html", context)
+
+#Adjust Refreshment stock
+@login_required
+def adjust_refreshment_stock(request, refreshment_id):
+    refreshment = get_object_or_404(Refreshment, pk=refreshment_id)
+    
+    if request.method == 'POST':
+        form = StockAdjustmentForm(request.POST)
+        if form.is_valid():
+            quantity = form.cleaned_data['quantity']
+            action = form.cleaned_data['action']
+            notes = form.cleaned_data['notes']
+            
+            if action == 'add':
+                refreshment.update_stock(quantity, 'addition', request.user, notes)
+                messages.success(request, f"Added {quantity} units to stock")
+            else:
+                if refreshment.quantity < quantity:
+                    messages.error(request, "Insufficient stock for this deduction")
+                else:
+                    refreshment.update_stock(-quantity, 'deduction', request.user, notes)
+                    messages.success(request, f"Deducted {quantity} units from stock")
+            
+            return redirect('refreshmentDetail', refreshment_id=refreshment.id)
+    else:
+        form = StockAdjustmentForm()
+    
+    context = {
+        'refreshment': refreshment,
+        'form': form,
+        'title': 'Adjust Stock'
+    }
+    return render(request, 'adjust-refreshment-stock.html', context)
+
+@login_required(login_url='/login/')
+def deleteRefreshment(request, refreshment_id):
+    refreshment = get_object_or_404(Refreshment, pk=refreshment_id)
+    if request.method == 'POST':
+        refreshment.delete()
+        messages.success(request, "Refreshment has been deleted successfully")
+        return redirect('refreshmentList')
+    return render(request, "confirm-delete-refreshment.html", {'refreshment': refreshment})
+
+@login_required(login_url='/login/')
+def edit_refreshment(request, refreshment_id):
+    refreshment = get_object_or_404(Refreshment, pk=refreshment_id)
+    if request.method == 'POST':
+        form = AddRefreshment(request.POST, instance=refreshment)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Refreshment has been updated successfully")
+            return redirect('refreshmentList')
+    else:
+        form = AddRefreshment(instance=refreshment)
+    context = {
+        'form': form,
+        'refreshment': refreshment,
+    }
+    return render(request, "edit-refreshment.html", context)
+
+
+#Refreshments per store
+@login_required(login_url='/login/')
+def store_refreshment_list(request):
+    #get store managers store
+    # Get the store for the logged-in user
+    user_store = None
+    # Check if user is a store manager and get their store
+    if request.user.groups.filter(name='Branch Manager').exists():
+        try:
+            user_store = Store.objects.get(manager=request.user)
+        except Store.DoesNotExist:
+            pass
+    
+    # If no store, show error
+    if not user_store:
+        messages.error(request, "You are not associated with any store. Please contact your administrator.")
+        return redirect('store_inventory_list')
+
+    refreshments = Refreshment.objects.filter(store=user_store)
+     # Calculate counts in the view
+    total_items = refreshments.count()
+    low_stock_count = refreshments.filter(quantity__lt=10, quantity__gt=0).count()
+    out_of_stock_count = refreshments.filter(quantity=0).count()
+    
+    context = {
+        'user_store': user_store,
+        'refreshments': refreshments,
+        'total_items': total_items,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+    }
+    return render(request, "store_refreshment_list.html", context)
 
 def dispatchList(request):
     return render(request, "dispatch-list.html")
@@ -5137,7 +5261,19 @@ def saloon_sale(request):
         store=current_store,
         
     ).select_related('service')
+
+    store_refreshments = Refreshment.objects.filter(
+        store=current_store,
+        is_active=True,
+        quantity__gt=0
+    ).select_related('store')
     
+    if search_query:
+        store_refreshments = store_refreshments.filter(
+            Q(refreshments__name__icontains=search_query) |
+            Q(refreshments__price__icontains=search_query)
+        )
+
     if search_query:
         store_services = store_services.filter(
             Q(service__name__icontains=search_query) |
@@ -5203,6 +5339,7 @@ def saloon_sale(request):
     context ={
         'available_staff': available_staff,
         'store_services':store_services,
+        'store_refreshments':store_refreshments,
         'store_products':store_products,
         'store_accessories':store_accessories,
         'customers': customers,
@@ -5565,15 +5702,35 @@ def search_customers(request):
     return JsonResponse({'results': results})
 
 @require_http_methods(["POST"])
+@login_required
 def new_create_service_sale(request):
     # Start timing sale creation
-    from django.utils import timezone
+    
     sale_start_time = timezone.now()
     
     try:
         data = json.loads(request.body)
         store_id = data['store_id']
         
+        # Get store using the user object
+        store = get_user_store(request.user)
+
+        # Check for active session
+        has_active_session = False
+        if store:
+            has_active_session = CashDrawerSession.objects.filter(
+                user=request.user,
+                store=store,
+                status='open'
+            ).exists()
+        
+        if not has_active_session:
+            return JsonResponse({
+                'success': False,
+                'message': 'No active cash drawer session. Please start a session from the Cash Drawer page.',
+                'redirect': reverse('cash_drawer_manage')
+            }, status=400)
+
         # Debug: Print all services for this store
         store_services = StoreService.objects.filter(store_id=store_id)
         available_service_ids = list(store_services.values_list('service__id', flat=True))
@@ -5589,7 +5746,8 @@ def new_create_service_sale(request):
                 customer_id=data['customer_id'],
                 total_amount=Decimal(str(data['total_amount'])),
                 paid_status=data['paid_status'],
-                payment_mode=data['payment_mode']
+                payment_mode=data['payment_mode'],
+                created_by=request.user 
             )
             
             # Calculate sale creation time
@@ -5653,7 +5811,7 @@ def new_create_service_sale(request):
                         staff_ids = [int(sid) for sid in item['staff_ids']]
                         service_item.staff.add(*staff_ids)
                         print(f"Added staff IDs: {staff_ids} to service item")
-            
+
             # Create product sale items
             for item in data['product_items']:
                 try:
@@ -5703,7 +5861,58 @@ def new_create_service_sale(request):
                 except StoreInventory.DoesNotExist:
                     raise ValueError(f"Product with ID {item['product_id']} not found in store {store_id}")
             
+            # Process refreshments
+            if 'refreshment_items' in data and data['refreshment_items']:
+                print("\nProcessing refreshment items:", data['refreshment_items'])
+                for item in data['refreshment_items']:
+                    try:
+                        print(f"\nProcessing refreshment item: {item}")
+                        refreshment = get_object_or_404(Refreshment, id=item['refreshment_id'])
+                        
+                        # Get current stock from the refreshment model
+                        current_stock = refreshment.quantity  # Assuming you have a quantity field on the Refreshment model
             
+                        quantity = Decimal(str(item.get('quantity', 1)))
+            
+                        # Check stock
+                        if current_stock < quantity:
+                            raise ValueError(f"Insufficient stock for refreshment {refreshment.name}. Available: {current_stock}")
+                        
+                        # Ensure unit_price is properly handled
+                        unit_price = Decimal(str(item.get('unit_price', refreshment.sale_price)))
+                        total_price = unit_price * quantity
+                        
+                        print(f"Creating refreshment sale item: {refreshment.name}, Qty: {quantity}, Price: {unit_price}")
+                        
+                        # Create the refreshment sale item
+                        RefreshmentSaleItem.objects.create(
+                            sale=sale,
+                            refreshment=refreshment,
+                            quantity=quantity,
+                            unit_price=Decimal(str(item['unit_price'])),
+                            total_price=Decimal(str(item['total_price']))
+                        )
+                        
+                        # Update refreshment stock
+                        refreshment.quantity -= quantity
+                        refreshment.save()
+                        
+                        # Create stock history record
+                        RefreshmentStockHistory.objects.create(
+                            refreshment=refreshment,
+                            action='sale',
+                            quantity=float(-quantity),  # Negative because it's a sale
+                            previous_quantity=float(current_stock),
+                            new_quantity=float(refreshment.quantity),
+                            reference=f"Sale #{sale.id}",
+                            created_by=request.user
+                        )
+                        print(f"Updated inventory for {refreshment.name}, new quantity: {refreshment.quantity}")
+                        
+                    except Exception as e:
+                        print(f"Error processing refreshment item: {str(e)}")
+                        raise
+
             
             # Create accessory sale items
             if 'accessory_items' in data and data['accessory_items']:
@@ -5894,6 +6103,7 @@ def service_sale_details(request, sale_id):
     service_items = sale.service_sale_items.all()
     accessory_items = sale.accessory_sale_items.all()
     product_items = sale.product_sale_items.all()
+    refreshment_items = sale.refreshment_sale_items.all()
     
     # Add unit price calculation for product items
     for item in product_items:
@@ -5911,6 +6121,7 @@ def service_sale_details(request, sale_id):
     # Calculate totals by item type for detailed breakdown
     service_total = sum(item.total_price for item in service_items)
     product_total = sum(item.total_price for item in product_items)
+    refreshment_total = sum(item.total_price for item in refreshment_items)
     accessory_total = sum(item.total_price for item in accessory_items)  # For display only, not included in totals
     
     # Calculate totals
@@ -5929,6 +6140,7 @@ def service_sale_details(request, sale_id):
         'service_items': service_items,
         'accessory_items': accessory_items,
         'product_items': product_items,
+        'refreshment_items': refreshment_items,
         'payments': payments,
         'subtotal': subtotal,
         'balance_due': balance_due,
@@ -5936,6 +6148,7 @@ def service_sale_details(request, sale_id):
         'status_info': status_info,
         'service_total': service_total,
         'product_total': product_total,
+        'refreshment_total': refreshment_total,
         'accessory_total': accessory_total,
     }
     return render(request, 'service_sale_details.html', context)
@@ -6657,6 +6870,7 @@ def service_sale_receipt(request, sale_id):
     service_items = sale.service_sale_items.all()
     product_items = sale.product_sale_items.all()
     accessory_items = sale.accessory_sale_items.all()
+    refreshment_items = sale.refreshment_sale_items.all()
     
     # Pre-calculate unit prices for product items to avoid template division
     for item in product_items:
@@ -6668,8 +6882,9 @@ def service_sale_receipt(request, sale_id):
     # Calculate totals
     service_total = sum(item.total_price for item in service_items)
     product_total = sum(item.total_price for item in product_items)
+    refreshment_total = sum(item.total_price for item in refreshment_items)
     accessory_total = sum(item.total_price for item in accessory_items)
-    subtotal = service_total + product_total + accessory_total
+    subtotal = service_total + product_total + refreshment_total + accessory_total
     
     # Get payments
     payments = sale.payments.all().order_by('payment_date')
@@ -6690,6 +6905,7 @@ def service_sale_receipt(request, sale_id):
         'sale': sale,
         'service_items': service_items,
         'product_items': product_items,
+        'refreshment_items': refreshment_items,
         'accessory_items': accessory_items,
         'subtotal': subtotal,
         'payments': payments,
@@ -10763,6 +10979,20 @@ def create_product_sale(request):
         try:
             data = json.loads(request.body)
             current_store = Store.objects.get(manager=request.user)
+
+            # Check for open cash drawer session
+            open_session = CashDrawerSession.objects.filter(
+                user=request.user,
+                store=current_store,
+                status='open'
+            ).order_by('-opening_time').first()
+            
+            if not open_session:
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'No open cash drawer session. Please open a cash drawer session before creating a sale.',
+                    'requires_cash_drawer': True
+                })
             
             # Get customer
             customer_id = data.get('customer_id')
@@ -10776,7 +11006,8 @@ def create_product_sale(request):
                 store=current_store,
                 customer=customer,
                 total_amount=0,  # Will be calculated from items
-                balance=0
+                balance=0,
+                cash_drawer_session=open_session  # Link to open cash drawer session
             )
             
             # Add product items
@@ -10842,7 +11073,8 @@ def create_product_sale(request):
                 'sale_id': sale.id,
                 'sale_number': sale.product_sale_number,
                 'total_amount': float(sale.total_amount),
-                'message': 'Product sale created successfully'
+                'message': 'Product sale created successfully',
+                'cash_drawer_session_id': open_session.id
             })
             
         except Customer.DoesNotExist:
@@ -10903,7 +11135,9 @@ def record_product_sale_payment(request, sale_id):
                 sale=sale,
                 amount=payment_amount,
                 payment_method=payment_method,
-                remarks=payment_remarks
+                remarks=payment_remarks,
+                created_by=request.user
+
             )
             
             # Update sale payment info
@@ -10916,9 +11150,15 @@ def record_product_sale_payment(request, sale_id):
             
             # Mark as paid if fully paid
             if sale.balance <= 0:
-                sale.mark_as_paid()
-                messages.success(request, f'Payment recorded and sale marked as paid for {sale.customer.first_name} {sale.customer.last_name}')
-                return redirect('product_sale_receipt', sale_id=sale.id)
+                try:
+                    sale.mark_as_paid(user=request.user)  # Pass the authenticated user
+                    messages.success(request, f'Payment recorded and sale marked as paid for {sale.customer.first_name} {sale.customer.last_name}')
+                    return redirect('product_sale_receipt', sale_id=sale.id)
+                except ValueError as e:
+                    # Handle case where there's no open cash drawer session
+                    messages.error(request, str(e))
+                    # Optionally redirect to cash drawer management
+                    return redirect('cash_drawer_manage')
             else:
                 messages.success(request, f'Payment of UGX {payment_amount:,.0f} recorded. Balance: UGX {sale.balance:,.0f}')
                 return redirect('product_sale_details', sale_id=sale.id)
@@ -11231,3 +11471,213 @@ def product_sales_list(request):
     }
     
     return render(request, 'product_sales_list.html', context)
+
+
+#Cash drawer 
+@login_required
+def cash_drawer_manage(request):
+    """View for managing cash drawer sessions"""
+    active_session = CashDrawerSession.objects.filter(
+        user=request.user,
+        status='open'
+    ).first()
+    
+    store = get_user_store(request.user)
+    recent_sessions = CashDrawerSession.objects.filter(
+        user=request.user,
+        store=store
+    ).order_by('-opening_time')[:5]
+    
+    return render(request, 'cash_drawer/manage.html', {
+        'active_session': active_session,
+        'recent_sessions': recent_sessions,
+        'store': store
+    })
+
+@login_required
+def cash_drawer_start(request):
+    """Start a new cash drawer session"""
+    store = get_user_store(request.user)
+    if request.method == 'POST':
+        form = CashDrawerSessionForm(request.POST)
+        if form.is_valid():
+            session = form.save(commit=False)
+            session.user = request.user
+            session.store = store
+            session.status = 'open'
+            session.save()
+            messages.success(request, 'Cash drawer session started successfully')
+            return redirect('cash_drawer_manage')
+    else:
+        form = CashDrawerSessionForm(initial={'opening_balance': 0})
+    
+    return render(request, 'cash_drawer/start.html', {
+        'form': form,
+        'store': store
+    })
+
+@login_required
+def cash_drawer_close(request, session_id):
+    try:
+        session = get_object_or_404(CashDrawerSession, id=session_id, user=request.user)
+        
+        if session.status != 'open':
+            messages.error(request, "This cash drawer session is already closed.")
+            return redirect('cash_drawer_detail', session_id=session_id)
+        
+        # Get the sum of all transactions
+        total_transactions = session.transactions.aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'))
+        )['total'] or Decimal('0')
+        
+        # Calculate expected balance
+        expected_balance = (session.opening_balance or Decimal('0')) + total_transactions
+        
+        if request.method == 'POST':
+            # Handle form submission
+            form = CloseCashDrawerForm(request.POST)
+            if form.is_valid():
+                # Update the session
+                session.closing_balance = form.cleaned_data['closing_balance']
+                session.closing_notes = form.cleaned_data['notes']
+                session.closed_at = timezone.now()
+                session.status = 'closed'
+                session.save()
+                
+                messages.success(request, "Cash drawer session closed successfully.")
+                return redirect('cash_drawer_detail', session_id=session_id)
+        else:
+            # Pre-fill the form with calculated values
+            form = CloseCashDrawerForm(initial={
+                'closing_balance': expected_balance,
+                'expected_balance': expected_balance,
+                'difference': Decimal('0'),
+                'opening_balance': session.opening_balance,
+                'total_transactions': total_transactions
+            })
+        
+        return render(request, 'cash_drawer/close.html', {
+            'form': form,
+            'session': session,
+            'transactions': session.transactions.all(),
+            'total_transactions': total_transactions,
+            'expected_balance': expected_balance
+        })
+        
+    except Exception as e:
+        logger.error(f"Error closing cash drawer: {str(e)}", exc_info=True)
+        messages.error(request, f"An error occurred: {str(e)}")
+        return redirect('cash_drawer_manage')
+
+@login_required
+def cash_drawer_detail(request, session_id):
+    try:
+        session = get_object_or_404(CashDrawerSession, id=session_id, user=request.user)
+        
+        # Get the sum of all transactions
+        total_transactions = session.transactions.aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'))
+        )['total'] or Decimal('0')
+        
+        # Calculate expected balance
+        expected_balance = (session.opening_balance or Decimal('0')) + total_transactions
+        
+        # Get all transactions for the session
+        transactions = session.transactions.all().order_by('-created_at')
+        
+        # Calculate the difference if the session is closed
+        difference = None
+        if session.status == 'closed' and session.closing_balance is not None:
+            difference = session.closing_balance - expected_balance
+        
+        return render(request, 'cash_drawer/detail.html', {
+            'session': session,
+            'transactions': transactions,
+            'total_transactions': total_transactions,
+            'expected_balance': expected_balance,
+            'difference': difference,
+            'can_close': session.status == 'open'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in cash_drawer_detail: {str(e)}", exc_info=True)
+        messages.error(request, "An error occurred while loading the cash drawer details.")
+        return redirect('cash_drawer_manage')
+
+@login_required
+def session_detail(request, session_id):
+    """View details of a cash drawer session - accessible to all authenticated users"""
+    try:
+        session = get_object_or_404(CashDrawerSession, id=session_id)
+        
+        # Get all transactions for this session
+        transactions = session.transactions.all().order_by('-timestamp')
+        
+        # Calculate totals
+        total_cash = transactions.filter(payment_method='cash').aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'))
+        )['total']
+        
+        total_card = transactions.filter(payment_method='card').aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'))
+        )['total']
+        
+        total_mobile = transactions.filter(payment_method='mobile').aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'))
+        )['total']
+        
+        context = {
+            'session': session,
+            'transactions': transactions,
+            'total_cash': total_cash,
+            'total_card': total_card,
+            'total_mobile': total_mobile,
+            'can_edit': request.user.is_staff  # Only staff can edit
+        }
+        
+        return render(request, 'cash_drawer/session_details.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in cash_drawer_detail: {str(e)}", exc_info=True)
+        messages.error(request, "An error occurred while loading the cash drawer details.")
+        return redirect('all_cash_drawer_sessions')
+
+@login_required
+
+def all_cash_drawer_sessions(request):
+    try:
+
+        print("User:", request.user)  # Debug: Print current user
+        print("Is authenticated:", request.user.is_authenticated)  # Debug: Check authentication
+        print("User groups:", [g.name for g in request.user.groups.all()]) 
+        # Get all sessions with related data
+        sessions = CashDrawerSession.objects.select_related(
+            'user', 'store'
+        ).order_by('-opening_time')
+        
+        # Calculate difference for each session
+        for session in sessions:
+            if session.status == 'closed' and session.closing_balance is not None:
+                session.balance_difference = float(session.closing_balance) - (float(session.opening_balance or 0) + float(session.get_expected_balance()))
+        
+
+        # Add pagination
+        page = request.GET.get('page', 1)
+        paginator = Paginator(sessions, 25)  # Show 25 sessions per page
+        
+        try:
+            sessions_page = paginator.page(page)
+        except PageNotAnInteger:
+            sessions_page = paginator.page(1)
+        except EmptyPage:
+            sessions_page = paginator.page(paginator.num_pages)
+            
+        return render(request, 'cash_drawer/all_sessions.html', {
+            'sessions': sessions_page,
+            'can_view_all': request.user.is_superuser  # Add this context variable
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in all_cash_drawer_sessions: {str(e)}", exc_info=True)
+        messages.error(request, "An error occurred while loading cash drawer sessions.")
+        return redirect('productionPage')  # Or another appropriate redirect

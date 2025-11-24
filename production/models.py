@@ -72,6 +72,19 @@ class UnitOfMeasurement(models.Model):
     def __str__(self):
         return self.name
 
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    default_store = models.ForeignKey(
+        'production.Store', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+    
+    def __str__(self):
+        return f"{self.user.username}'s profile"
+
 class RawMaterial(models.Model):
     name = models.CharField(max_length=255)
     suppliers = models.ManyToManyField(Supplier, related_name='supplied_raw_materials')
@@ -1326,7 +1339,169 @@ class InternalAccessoryRequestItem(models.Model):
 
     def __str__(self):
         return f"{self.quantity_requested} x {self.accessory.name}"
+
+#Cash Drawer Sessions
+class CashDrawerSession(models.Model):
+    SESSION_STATUS = (
+        ('open', 'Open'),
+        ('closed', 'Closed'),
+    )
     
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name='cash_drawer_sessions')
+    store = models.ForeignKey('production.Store', on_delete=models.PROTECT)
+    opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    closing_balance = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    opening_time = models.DateTimeField(auto_now_add=True)
+    closing_time = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=SESSION_STATUS, default='open')
+    notes = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-opening_time']
+        verbose_name = 'Cash Drawer Session'
+        verbose_name_plural = 'Cash Drawer Sessions'
+
+    def get_expected_balance(self):
+        """Calculate the expected balance based on opening balance and transactions"""
+        total_transactions = self.transactions.aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'))
+        )['total'] or Decimal('0')
+        return (self.opening_balance or Decimal('0')) + total_transactions
+
+    @property
+    def difference(self):
+        if self.closing_balance is not None:
+            return self.closing_balance - (self.opening_balance + self.cash_total)
+        return None
+    
+    @property
+    def cash_total(self):
+        return self.transactions.filter(payment_method='cash').aggregate(
+            total=models.Sum('amount')
+        )['total__sum'] or 0
+    
+    def __str__(self):
+        return f"Session {self.id} - {self.store.name} - {self.opening_time.strftime('%Y-%m-%d %H:%M')}"
+
+class CashDrawerTransaction(models.Model):
+    PAYMENT_METHODS = (
+        ('cash', 'Cash'),
+        ('card', 'Card'),
+        ('mobile_money', 'MTN Momo'),
+        ('airtel_money', 'Airtel Money'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('other', 'Other'),
+    )
+    
+    TRANSACTION_TYPES = (
+        ('sale', 'Sale'),
+        ('expense', 'Expense'),
+        ('float', 'Float Addition'),
+        ('withdrawal', 'Withdrawal'),
+        ('other', 'Other'),
+    )
+    
+    session = models.ForeignKey(CashDrawerSession, on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    reference = models.CharField(max_length=100, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.PROTECT)
+    
+    # Optional: Link to related models
+    service_sale = models.ForeignKey('production.ServiceSale', on_delete=models.SET_NULL, null=True, blank=True)
+    # expense = models.ForeignKey('accounting.Expense', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['session', 'transaction_type']),
+            models.Index(fields=['timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_transaction_type_display()} - {self.amount} ({self.payment_method})"
+
+#Refreshments model
+class Refreshment(models.Model):
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='refreshments',null=True,blank=True)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    cost = models.DecimalField(max_digits=10, decimal_places=2, help_text="Cost price per unit")
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Selling price per unit")
+    quantity = models.PositiveIntegerField(default=0, help_text="Current stock quantity")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('store', 'name')  # Prevent duplicate names within the same store
+
+    def __str__(self):
+        return f"{self.name} (Qty: {self.quantity}) in {self.store.name}"
+
+    def update_stock(self, quantity, action, user, notes=None, reference=None):
+        """Update stock and create history record"""
+        previous_quantity = self.quantity
+        
+        # Update the quantity
+        self.quantity += quantity
+        self.save()
+        
+        # Create history record
+        RefreshmentStockHistory.objects.create(
+            refreshment=self,
+            action=action,
+            quantity=quantity,
+            previous_quantity=previous_quantity,
+            new_quantity=self.quantity,
+            notes=notes,
+            created_by=user,
+            reference=reference
+        )
+        
+        return self.quantity
+
+    def save(self, *args, **kwargs):
+        # Ensure sale price is not less than cost
+        if self.sale_price < self.cost:
+            self.sale_price = self.cost
+        super().save(*args, **kwargs)
+
+        # Calculate total price
+        self.total_price = self.quantity * self.sale_price
+        super().save(*args, **kwargs)
+
+class RefreshmentStockHistory(models.Model):
+    REFRESHMENT_ACTION_CHOICES = [
+        ('addition', 'Stock Addition'),
+        ('deduction', 'Stock Deduction'),
+        ('update', 'Stock Update'),
+        ('sale', 'Sale'),
+        ('adjustment', 'Manual Adjustment'),
+    ]
+
+    refreshment = models.ForeignKey(Refreshment, on_delete=models.CASCADE, related_name='stock_history')
+    action = models.CharField(max_length=20, choices=REFRESHMENT_ACTION_CHOICES)
+    quantity = models.IntegerField(help_text="Positive for addition, negative for deduction")
+    previous_quantity = models.IntegerField(help_text="Quantity before this action")
+    new_quantity = models.IntegerField(help_text="Quantity after this action")
+    notes = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    reference = models.CharField(max_length=100, blank=True, null=True, 
+                               help_text="Reference ID (e.g., order number, adjustment ID)")
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Refreshment Stock History'
+
+    def __str__(self):
+        return f"{self.get_action_display()} - {self.refreshment.name} ({self.quantity:+})"
+
+
 class ServiceSale(models.Model):
     PAID_STATUS_CHOICES = [
         ('not_paid', 'Not Paid'),
@@ -1356,6 +1531,8 @@ class ServiceSale(models.Model):
         ('mixed', 'Mixed'),
     ],default='cash')
     payment_remarks = models.CharField(max_length=150, null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_service_sales')
+    
     
     # Invoice and workflow tracking
     invoice_status = models.CharField(max_length=20, choices=INVOICE_STATUS_CHOICES, default='not_invoiced')
@@ -1405,10 +1582,24 @@ class ServiceSale(models.Model):
         return f"Sale #{self.id} - {self.customer.name}"
     
     def save(self, *args, **kwargs):
+        # Check if this is an existing instance being updated
+        if self.pk:
+            old_instance = ServiceSale.objects.get(pk=self.pk)
+            paid_status_changed = (old_instance.paid_status != self.paid_status)
+        else:
+            paid_status_changed = False
+
         # Automatically generate a unique number if not already set
         if not self.service_sale_number:
             self.service_sale_number = self.generate_service_sale_number()
+
+        # Save the instance first
         super().save(*args, **kwargs)
+
+        # If paid_status changed to 'paid', the post_save signal will handle the cash drawer transaction
+        if paid_status_changed and self.paid_status == 'paid':
+            # The signal will handle the rest
+            pass
 
     def generate_service_sale_number(self):
         """Generate a unique number based on store, date, and random digits."""
@@ -1421,6 +1612,7 @@ class ServiceSale(models.Model):
         total = sum(item.total_price for item in self.service_sale_items.all())
         # Accessory items are not included in totals
         total += sum(item.total_price for item in self.product_sale_items.all())
+        total += sum(item.total_price for item in self.refreshment_sale_items.all()) 
         
         self.total_amount = total
         
@@ -1430,6 +1622,14 @@ class ServiceSale(models.Model):
         self.balance = total - self.paid_amount
         self.paid_status = 'paid' if self.balance <= 0 else 'not_paid'
         self.save()
+
+    def _deduct_refreshment_stock(self):
+        """Deduct refreshment stock for all refreshment items in the sale."""
+        for refreshment_item in self.refreshment_sale_items.all():
+            try:
+                refreshment_item._update_refreshment_stock()
+            except ValueError as e:
+                raise ValueError(f"Failed to update refreshment stock: {str(e)}")
         
     def create_service_commissions(self):
         """Create commission records for all service items in this sale"""
@@ -1528,11 +1728,19 @@ class ServiceSale(models.Model):
                         adjustment_reason__icontains=f"ServiceSale #{self.id}"
                     ).exists()
 
+                    refreshment_already_deducted = RefreshmentStockHistory.objects.filter(
+                        refreshment__store=self.store,
+                        reference=f"ServiceSale-{self.id}"
+                    ).exists()
+
                     if not accessory_already_deducted:
                         self._deduct_accessory_inventory()
 
                     if not product_already_deducted:
                         self._deduct_product_inventory()
+
+                    if not refreshment_already_deducted:
+                        self._deduct_refreshment_stock()
 
                 except ValueError as e:
                     raise ValueError(f"Inventory adjustment failed: {str(e)}")
@@ -1876,6 +2084,61 @@ class ProductSaleItem(models.Model):
     
     def __str__(self):
         return f"{self.quantity} x {self.product.product.product_name} for Sale #{self.sale.id}"
+
+
+#RefreshmentItem
+class RefreshmentSaleItem(models.Model):
+    """
+    Model for tracking refreshments sold as part of a service sale.
+    """
+    sale = models.ForeignKey(ServiceSale, on_delete=models.CASCADE, related_name='refreshment_sale_items')
+    refreshment = models.ForeignKey('Refreshment', on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    def save(self, *args, **kwargs):
+        # Calculate total price
+        self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+        
+        # Recalculate the total for the related sale
+        self.sale.calculate_total()
+        
+        # If sale is paid, update refreshment stock
+        if self.sale.paid_status == 'paid':
+            self._update_refreshment_stock()
+    
+    def _update_refreshment_stock(self):
+        """Update refreshment stock and create stock history record"""
+        with transaction.atomic():
+            # Get the refreshment with select_for_update to prevent race conditions
+            refreshment = Refreshment.objects.select_for_update().get(pk=self.refreshment.pk)
+            
+            # Check if stock is sufficient
+            if refreshment.quantity < self.quantity:
+                raise ValueError(f"Insufficient stock for {refreshment.name}. Available: {refreshment.quantity}, Requested: {self.quantity}")
+            
+            # Update stock
+            previous_quantity = refreshment.quantity
+            refreshment.quantity -= self.quantity
+            refreshment.save()
+            
+            # Create stock history record
+            RefreshmentStockHistory.objects.create(
+                refreshment=refreshment,
+                action='sale',
+                quantity=-self.quantity,  # Negative for deduction
+                previous_quantity=previous_quantity,
+                new_quantity=refreshment.quantity,
+                notes=f"Sold in ServiceSale #{self.sale.id}",
+                created_by=self.sale.store.manager,  # Assuming store has a manager field
+                reference=f"ServiceSale-{self.sale.id}"
+            )
+    
+    def __str__(self):
+        return f"{self.quantity} x {self.refreshment.name} for Sale #{self.sale.id}"
+
     
 class StoreInventoryAdjustment(models.Model):
     ADJUSTMENT_TYPE_CHOICES = [
@@ -1891,7 +2154,9 @@ class StoreInventoryAdjustment(models.Model):
 
     def __str__(self):
         return f"{self.adjustment}: {self.quantity} on {self.accessory_inventory.store.name}"
-    
+
+
+#Payment tracking for service sales   
 class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = [
         ('cash', 'Cash'),
@@ -1925,6 +2190,7 @@ class ProductSalePayment(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_date = models.DateTimeField(auto_now=True)
     remarks = models.TextField(null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, help_text="User who created the payment")
 
     def __str__(self):
         return f"{self.amount} via {self.payment_method} for Product Sale #{self.sale.id}"
@@ -3373,6 +3639,14 @@ class StoreProductSale(models.Model):
     paid_status = models.CharField(max_length=20, choices=PAID_STATUS_CHOICES, default='not_paid')
     payment_mode = models.CharField(max_length=255, choices=PAYMENT_MODE_CHOICES, default='cash')
     payment_remarks = models.CharField(max_length=150, null=True, blank=True)
+    cash_drawer_session = models.ForeignKey(
+        'CashDrawerSession', 
+        on_delete=models.PROTECT, 
+        related_name='product_sales',
+        null=True,
+        blank=True,
+        help_text="The cash drawer session this sale is associated with"
+    )
     
     # Performance tracking
     sale_creation_time = models.DurationField(null=True, blank=True, help_text="Time taken to create the sale")
@@ -3419,8 +3693,8 @@ class StoreProductSale(models.Model):
         """Check if payment can be processed"""
         return self.paid_status == 'not_paid' and self.balance > 0
     
-    def mark_as_paid(self):
-        """Mark the sale as paid, deduct inventory, and create receipt"""
+    def mark_as_paid(self, user):
+        """Mark the sale as paid, deduct inventory, create receipt, and record transaction"""
         if self.balance <= 0:
             with transaction.atomic():
                 # Check if inventory adjustments for this sale already exist
@@ -3428,8 +3702,33 @@ class StoreProductSale(models.Model):
                     adjustment_reason__icontains=f"ProductSale #{self.id}"
                 ).exists()
                 
+                # Get or create an open cash drawer session for the user
+                from .models import CashDrawerSession, CashDrawerTransaction
+                
+                # Find an open session for the user and store
+                session = CashDrawerSession.objects.filter(
+                    user=user,
+                    store=self.store,
+                    status='open'
+                ).order_by('-opening_time').first()
+                
+                if not session:
+                    raise ValueError("No open cash drawer session found. Please open a cash drawer session before making a sale.")
+                
+                self.cash_drawer_session = session
                 self.paid_status = 'paid'
-                self.save(update_fields=['paid_status'])
+                self.save(update_fields=['paid_status', 'cash_drawer_session'])
+                
+                # Create cash drawer transaction
+                CashDrawerTransaction.objects.create(
+                    session=session,
+                    transaction_type='sale',
+                    payment_method=self.payment_mode,
+                    amount=self.total_amount,
+                    reference=f"Product Sale #{self.product_sale_number or self.id}",
+                    notes=f"Product sale to {self.customer}",
+                    user=user
+                )
                 
                 # Deduct product inventory if not already done
                 if not product_deductions_exist:
@@ -3442,7 +3741,7 @@ class StoreProductSale(models.Model):
                     ProductSaleReceipt.objects.create(
                         sale=self,
                         store=self.store,
-                        created_by=self.store.manager
+                        created_by=user
                     )
                 
                 return True

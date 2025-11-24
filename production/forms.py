@@ -59,6 +59,97 @@ class EditSupplierForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class':'form-control','rows':'3','placeholder':'Additional notes about the supplier...'}),
         }
 
+#Refreshment Form
+
+class AddRefreshment(forms.ModelForm):
+    class Meta:
+        model = Refreshment
+        fields = ['name', 'description', 'cost', 'sale_price', 'quantity', 'is_active', 'store']
+        widgets = {
+            'store': forms.Select(attrs={'class':'form-select'}),
+            'name': forms.TextInput(attrs={'class':'form-control','placeholder':'Refreshment Name'}),
+            'description': forms.Textarea(attrs={'class':'form-control','placeholder':'Description'}),
+            'cost': forms.NumberInput(attrs={'class':'form-control','placeholder':'Cost Price'}),
+            'sale_price': forms.NumberInput(attrs={'class':'form-control','placeholder':'Sale Price'}),
+            'quantity': forms.NumberInput(attrs={'class':'form-control','placeholder':'Quantity'}),
+            'is_active': forms.CheckboxInput(attrs={'class':'form-check-input'}),
+        }
+    
+    def clean_name(self):
+        name = self.cleaned_data['name']
+        store = self.cleaned_data.get('store')
+        if store and Refreshment.objects.filter(store=store, name__iexact=name).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('A refreshment with this name already exists in this store')
+        return name
+    
+    def clean_quantity(self):
+        quantity = self.cleaned_data['quantity']
+        if quantity < 0:
+            raise forms.ValidationError('Quantity cannot be negative')
+        return quantity
+    
+    def clean_cost(self):
+        cost = self.cleaned_data['cost']
+        if cost < 0:
+            raise forms.ValidationError('Cost cannot be negative')
+        return cost
+    
+    def clean_sale_price(self):
+        cost = self.cleaned_data.get('cost')
+        sale_price = self.cleaned_data.get('sale_price')
+        if sale_price and cost and sale_price < cost:
+            raise forms.ValidationError('Sale price cannot be less than cost price')
+        return sale_price
+
+    def save(self, commit=True, user=None):
+        refreshment = super().save(commit=False)
+        
+        if commit:
+            # For new instances, set initial stock
+            if not self.instance.pk:
+                refreshment.save()
+                refreshment.update_stock(
+                    quantity=self.cleaned_data['quantity'],
+                    action='addition',
+                    user=user,
+                    notes='Initial stock'
+                )
+            else:
+                # For existing instances, check if quantity changed
+                old_quantity = Refreshment.objects.get(pk=refreshment.pk).quantity
+                quantity_diff = self.cleaned_data['quantity'] - old_quantity
+                
+                if quantity_diff != 0:
+                    refreshment.save()
+                    refreshment.update_stock(
+                        quantity=quantity_diff,
+                        action='addition' if quantity_diff > 0 else 'deduction',
+                        user=user,
+                        notes='Manual stock adjustment'
+                    )
+                else:
+                    refreshment.save()
+        
+        return refreshment
+
+
+#stock adjustment form
+class StockAdjustmentForm(forms.Form):
+    ACTION_CHOICES = [
+        ('add', 'Add to Stock'),
+        ('deduct', 'Deduct from Stock'),
+    ]
+    
+    quantity = forms.IntegerField(min_value=1, widget=forms.NumberInput(attrs={'class': 'form-control'}))
+    action = forms.ChoiceField(
+        choices=ACTION_CHOICES,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'})
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Enter reason for adjustment...'})
+    )
+
 class AddRawmaterialForm(forms.ModelForm):
     class Meta:
         model = RawMaterial
@@ -1727,3 +1818,55 @@ class CreditNoteForm(forms.ModelForm):
         if tax_amount < 0:
             raise forms.ValidationError("Tax amount cannot be negative.")
         return tax_amount
+
+
+class CashDrawerSessionForm(forms.ModelForm):
+    class Meta:
+        model = CashDrawerSession
+        fields = ['opening_balance', 'notes']
+        widgets = {
+            'opening_balance': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3
+            })
+        }
+
+class CloseCashDrawerForm(forms.Form):
+    closing_balance = forms.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    expected_balance = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.HiddenInput(),
+        required=False
+    )
+    opening_balance = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.HiddenInput(),
+        required=False
+    )
+    total_transactions = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.HiddenInput(),
+        required=False
+    )
+    difference = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.HiddenInput(),
+        required=False
+    )

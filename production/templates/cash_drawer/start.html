@@ -1,0 +1,49 @@
+<!-- templates/cash_drawer/start.html -->
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Start New Cash Drawer Session</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Store: <strong>{{ store.name }}</strong></p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="{{ form.opening_balance.id_for_label }}" class="form-label">
+                                Opening Balance
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.opening_balance }}
+                            </div>
+                            {% if form.opening_balance.errors %}
+                                <div class="text-danger">{{ form.opening_balance.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                Notes
+                            </label>
+                            {{ form.notes }}
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                Start Session
+                            </button>
+                            <a href="{% url 'cash_drawer_manage' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

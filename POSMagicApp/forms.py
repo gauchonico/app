@@ -122,6 +122,10 @@ class AddCustomerForm(forms.ModelForm):
             self.add_error('relationship_to_guardian', 'Cannot have "Self" relationship when guardian is specified.')
         
         return cleaned_data
+
+
+#Refreshment Form
+
         
 class EditCustomerForm(forms.ModelForm):
 

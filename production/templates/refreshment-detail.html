@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box d-flex align-items-center justify-content-between">
+                <h4 class="mb-0">Refreshment Details</h4>
+                <div class="page-title-right">
+                    <a href="{% url 'refreshmentList' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="avatar-xxl mx-auto mb-3">
+                            <div class="avatar-title bg-soft-primary text-primary rounded-circle display-4">
+                                <i class="fas fa-mug-hot"></i>
+                            </div>
+                        </div>
+                        <h4>{{ refreshment.name }}</h4>
+                        <p class="text-muted mb-0">{{ refreshment.description }}</p>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tbody>
+                                <tr>
+                                    <th>Store:</th>
+                                    <td class="text-end">{{ refreshment.store.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Cost Price:</th>
+                                    <td class="text-end">Ksh {{ refreshment.cost|intcomma }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Selling Price:</th>
+                                    <td class="text-end">Ksh {{ refreshment.sale_price|intcomma }}</td>
+                                </tr>
+                                <tr>
+                                    <th>In Stock:</th>
+                                    <td class="text-end">{{ refreshment.quantity }} units</td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td class="text-end">
+                                        <span class="badge bg-{% if refreshment.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if refreshment.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Added On:</th>
+                                    <td class="text-end">{{ refreshment.created_at|date:"M d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Last Updated:</th>
+                                    <td class="text-end">{{ refreshment.updated_at|date:"M d, Y h:i A" }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-4 pt-2">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'edit_refreshment' refreshment.id %}" class="btn btn-primary waves-effect waves-light">
+                                <i class="fas fa-edit me-1"></i> Edit Details
+                            </a>
+                            <a href="{% url 'deleteRefreshment' refreshment.id %}" class="btn btn-outline-danger waves-effect">
+                                <i class="fas fa-trash-alt me-1"></i> Delete
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <ul class="nav nav-tabs nav-tabs-custom" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#stock-history" role="tab">
+                                <i class="fas fa-boxes me-1"></i> Stock History
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#sales" role="tab">
+                                <i class="fas fa-shopping-cart me-1"></i> Sales
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content p-3">
+                        <div class="tab-pane" id="stock-history" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Stock History</h5>
+                                <a href="{% url 'adjust_refreshment_stock' refreshment.id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-plus me-1"></i> Adjust Stock
+                                </a>
+                            </div>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Action</th>
+                                            <th class="text-end">Quantity</th>
+                                            <th>Previous</th>
+                                            <th>New</th>
+                                            <th>Notes</th>
+                                            <th>By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for history in refreshment.stock_history.all %}
+                                        <tr>
+                                            <td>{{ history.created_at|date:"M d, Y H:i" }}</td>
+                                            <td>{{ history.get_action_display }}</td>
+                                            <td class="text-end {% if history.quantity > 0 %}text-success{% elif history.quantity < 0 %}text-danger{% endif %}">
+                                                {{ history.quantity|stringformat:"+d" }}
+                                            </td>
+                                            <td>{{ history.previous_quantity }}</td>
+                                            <td>{{ history.new_quantity }}</td>
+                                            <td>{{ history.notes|default:"-" }}</td>
+                                            <td>{{ history.created_by.get_full_name|default:history.created_by.username }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4 text-muted">
+                                                No stock history available
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+</div>
+                        <div class="tab-pane" id="sales" role="tabpanel">
+                            <div class="text-center py-4">
+                                <i class="fas fa-chart-line text-muted" style="font-size: 2.5rem;"></i>
+                                <h5 class="mt-2">Sales Data</h5>
+                                <p class="text-muted">Sales information will appear here when available</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

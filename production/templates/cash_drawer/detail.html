@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Cash Drawer Session #{{ session.id }}</h2>
+        {% if can_close %}
+        <a href="{% url 'cash_drawer_close' session_id=session.id %}" class="btn btn-danger">
+            Close Session
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Session Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Status:</strong> 
+                        <span class="badge {% if session.status == 'open' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ session.get_status_display }}
+                        </span>
+                    </p>
+                    <p><strong>Opened By:</strong> {{ session.user.get_full_name|default:session.user.username }}</p>
+                    <p><strong>Opened At:</strong> {{ session.opening_time|date:"M d, Y H:i" }}</p>
+                    <p><strong>Opening Balance:</strong> {{ session.opening_balance|floatformat:2 }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Total Transactions:</strong> {{ total_transactions|floatformat:2 }}</p>
+                    <p><strong>Expected Balance:</strong> {{ expected_balance|floatformat:2 }}</p>
+                    
+                    {% if session.status == 'closed' %}
+                        <p><strong>Closed At:</strong> {{ session.closed_at|date:"M d, Y H:i" }}</p>
+                        <p><strong>Closing Balance:</strong> {{ session.closing_balance|floatformat:2 }}</p>
+                        {% if difference is not None %}
+                            <p><strong>Difference:</strong> 
+                                <span class="{% if difference >= 0 %}text-success{% else %}text-danger{% %}">
+                                    {{ difference|floatformat:2 }}
+                                </span>
+                            </p>
+                        {% endif %}
+                        {% if session.notes %}
+                            <p><strong>Notes:</strong> {{ session.notes }}</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Transactions</h5>
+        </div>
+        <div class="card-body">
+            {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Payment Method</th>
+                                <th>Amount</th>
+                                <th>Reference</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr>
+                                <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                                <td>{{ transaction.get_transaction_type_display }}</td>
+                                <td>{{ transaction.get_payment_method_display }}</td>
+                                <td>{{ transaction.amount|floatformat:2 }}</td>
+                                <td>{{ transaction.reference|default:"-" }}</td>
+                                <td>{{ transaction.notes|default:"-"|truncatechars:30 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">No transactions found for this session.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

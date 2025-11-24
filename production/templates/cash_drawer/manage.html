@@ -1,0 +1,80 @@
+<!-- templates/cash_drawer/manage.html -->
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Cash Drawer Management</h4>
+                </div>
+                <div class="card-body">
+                    {% if active_session %}
+                        <div class="alert alert-success">
+                            <h5>Active Session</h5>
+                            <p>Opened at: {{ active_session.opening_time|date:"F j, Y H:i" }}</p>
+                            <p>Starting Balance: {{ active_session.opening_balance|floatformat:2 }}</p>
+                            <a href="{% url 'cash_drawer_close' active_session.id %}" class="btn btn-danger">
+                                Close Session
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <h5>No active cash drawer session</h5>
+                            <a href="{% url 'cash_drawer_start' %}" class="btn btn-primary mt-3">
+                                Start New Session
+                            </a>
+                        </div>
+                    {% endif %}
+
+                    <h5 class="mt-4">Recent Sessions</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Opening</th>
+                                    <th>Closing</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in recent_sessions %}
+                                <tr>
+                                    <td>{{ session.opening_time|date:"M j, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if session.status == 'open' %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ session.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ session.opening_balance|floatformat:2 }}</td>
+                                    <td>
+                                        {% if session.closing_balance is not None %}
+                                            {{ session.closing_balance|floatformat:2 }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'cash_drawer_detail' session.id %}" class="btn btn-sm btn-outline-primary">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No sessions found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

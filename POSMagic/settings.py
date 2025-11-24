@@ -74,6 +74,7 @@ MIDDLEWARE = [
     'auditlog.middleware.AuditlogMiddleware',  # Audit logging middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'production.middleware.CashDrawerSessionMiddleware'
 ]
 
 ROOT_URLCONF = 'POSMagic.urls'
@@ -92,6 +93,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'POSMagicApp.utils.context_processors.sidebar_menu',
                 'cart.context_processors.cart',
+                'production.context_processors.cash_drawer_context',
                 
             ],
         },

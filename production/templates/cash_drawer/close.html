@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Close Cash Drawer</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Session #{{ session.id }}</h5>
+            <p class="card-text">
+                <strong>Opened:</strong> {{ session.opening_time|date:"M d, Y H:i" }}<br>
+                <strong>Opened by:</strong> {{ session.user.get_full_name|default:session.user.username }}<br>
+                <strong>Opening Balance:</strong> {{ session.opening_balance|floatformat:2 }}<br>
+                <strong>Total Transactions:</strong> {{ total_transactions|floatformat:2 }}<br>
+                <strong>Expected Balance:</strong> {{ expected_balance|floatformat:2 }}
+            </p>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Close Session</h5>
+            <form method="post">
+                {% csrf_token %}
+                {{ form.expected_balance }}
+                {{ form.opening_balance }}
+                {{ form.total_transactions }}
+                {{ form.difference }}
+                
+                <div class="form-group">
+                    <label for="{{ form.closing_balance.id_for_label }}">Actual Closing Balance</label>
+                    {{ form.closing_balance }}
+                    {% if form.closing_balance.errors %}
+                        <div class="text-danger">
+                            {{ form.closing_balance.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.notes.id_for_label }}">Notes</label>
+                    {{ form.notes }}
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Close Drawer</button>
+                <a href="{% url 'cash_drawer_detail' session_id=session.id %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-calculate difference when closing balance changes
+document.addEventListener('DOMContentLoaded', function() {
+    const closingBalance = document.querySelector('#{{ form.closing_balance.id_for_label }}');
+    const expectedBalance = document.querySelector('#{{ form.expected_balance.id_for_label }}');
+    const differenceField = document.querySelector('#{{ form.difference.id_for_label }}');
+    
+    function calculateDifference() {
+        const closing = parseFloat(closingBalance.value) || 0;
+        const expected = parseFloat(expectedBalance.value) || 0;
+        const difference = (closing - expected).toFixed(2);
+        differenceField.value = difference;
+    }
+    
+    closingBalance.addEventListener('change', calculateDifference);
+    closingBalance.addEventListener('keyup', calculateDifference);
+});
+</script>
+{% endblock %}

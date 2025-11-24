@@ -31,4 +31,6 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
     
     
 admin.site.register(ServiceCategory, ServiceCategoryAdmin)
+admin.site.register(Refreshment)
+admin.site.register(Profile)
 

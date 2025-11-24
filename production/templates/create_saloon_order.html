@@ -17,7 +17,6 @@
 		top: 100%;
 		left: 0;
 		right: 0;
-		background: white;
 		border: 1px solid #ddd;
 		border-top: none;
 		max-height: 200px;
@@ -31,7 +30,7 @@
 		border-bottom: 1px solid #eee;
 	}
 	.customer-item:hover {
-		background: #f8f9fa;
+		background: white opacity(0.9);
 	}
 	.customer-item:last-child {
 		border-bottom: none;
@@ -718,7 +717,8 @@
 			const groupedItems = {
 				services: cart.items.filter(item => item.type === 'service'),
 				products: cart.items.filter(item => item.type === 'product'),
-				accessories: cart.items.filter(item => item.type === 'accessory')
+				accessories: cart.items.filter(item => item.type === 'accessory'),
+				refreshments: cart.items.filter(item => item.type === 'refreshment')
 			};
 			
 			console.log('Grouped items for display:', groupedItems);
@@ -754,6 +754,18 @@
 					const globalIndex = cart.items.findIndex(cartItem => 
 						cartItem === item || 
 						(cartItem.type === 'accessory' && cartItem.id === item.id && cartItem.name === item.name)
+					);
+					appendCartItem(cartContainer, item, globalIndex);
+				});
+			}
+
+			//Display Refreshments
+			if (groupedItems.refreshments.length > 0) {
+				appendCartHeader(cartContainer, 'Refreshments');
+				groupedItems.refreshments.forEach((item, groupIndex) => {
+					const globalIndex = cart.items.findIndex(cartItem => 
+						cartItem === item || 
+						(cartItem.type === 'refreshment' && cartItem.id === item.id && cartItem.name === item.name)
 					);
 					appendCartItem(cartContainer, item, globalIndex);
 				});
@@ -874,21 +886,7 @@
 			calculateTotals();
 		}
 
-		// Helper function to get CSRF token
-		function getCookie(name) {
-			let cookieValue = null;
-			if (document.cookie && document.cookie !== '') {
-				const cookies = document.cookie.split(';');
-				for (let i = 0; i < cookies.length; i++) {
-					const cookie = cookies[i].trim();
-					if (cookie.substring(0, name.length + 1) === (name + '=')) {
-						cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-						break;
-					}
-				}
-			}
-			return cookieValue;
-		}
+	
 		function submitSale() {
 			// Get required data
 			const customerId = selectedCustomerId;
@@ -918,6 +916,7 @@
 			const productItems = [];
 			const serviceItems = [];
 			const accessoryItems = [];
+			const refreshmentItems = [];
 			const url = `{% if submit_url %}{{ submit_url }}{% else %}/production/new_create_service_sale/{% endif %}`;
 
 			// Filter and validate items before mapping
@@ -948,6 +947,14 @@
 						quantity: parseFloat(item.quantity),
 						price: parseFloat(item.unit_price).toFixed(2),
 						total_price: parseFloat(item.total).toFixed(2) 
+					})),
+				refreshment_items: cart.items
+					.filter(item => item.type === 'refreshment')
+					.map(item => ({
+						refreshment_id: parseInt(item.id),
+						quantity: parseFloat(item.quantity),
+						unit_price: parseFloat(item.unit_price),
+						total_price: parseFloat(item.total) 
 					})),
 				total_amount: totalAmount.toFixed(2),
 				paid_status: 'not_paid',
@@ -1153,6 +1160,21 @@
 									</div>
 								</a>
 							</li>
+							<li class="nav-item">
+								<a class="nav-link" href="#" data-filter="refreshments">
+									<div class="card">
+										<div class="card-body">
+											<i class="fa fa-coffee"></i> Refreshments
+										</div>
+										<div class="card-arrow">
+											<div class="card-arrow-top-left"></div>
+											<div class="card-arrow-top-right"></div>
+											<div class="card-arrow-bottom-left"></div>
+											<div class="card-arrow-bottom-right"></div>
+										</div>
+									</div>
+								</a>
+							</li>
 							
 						</ul>
 					</div>
@@ -1286,7 +1308,36 @@
 					
 				</div>
 			</div>
-			{% endfor %}
+			{% endfor %}		
+
+			<!-- Refreshments -->
+				{% for refreshment in store_refreshments %}
+				<div class="col-xxl-3 col-xl-4 col-lg-6 col-md-4 col-sm-6 pb-4" data-type="refreshments">
+					<div class="item-card h-100">
+						<div class="card-body h-100 p-1">
+							<span class="item-badge {% if refreshment.quantity > 0 %}bg-success{% else %}bg-danger{% endif %}">
+								{% if refreshment.quantity > 0 %}In Stock{% else %}Out of Stock{% endif %}
+							</span>
+							<a href="#" class="pos-product refreshment-item" onclick="showRefreshmentModal(
+								'{{ refreshment.id }}', 
+								'{{ refreshment.name|escapejs }}',
+								'{{ refreshment.sale_price|floatformat }}',
+								'{{ refreshment.quantity }}'
+							); return false;">
+								<div class="info">
+									<div class="item-title">{{ refreshment.name }}</div>
+									<div class="item-desc">Stock: {{ refreshment.quantity|default:0 }}</div>
+									<div class="price">UGX {{ refreshment.sale_price|floatformat|intcomma }}</div>
+								</div>
+							</a>
+						</div>
+					</div>
+				</div>
+				{% empty %}
+				<div class="col-12">
+					<div class="alert alert-info">No refreshments available</div>
+				</div>
+				{% endfor %}	
         </div>
     </div>
 </div>
@@ -1376,7 +1427,37 @@
 	<!-- END pos-mobile-sidebar-toggler -->
 
 
-
+	<!-- Refreshment Modal -->
+		<div class="modal fade" id="refreshmentModal" tabindex="-1">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="card">
+						<div class="card-body">
+							<h5 class="card-title" id="refreshmentName"></h5>
+							<div class="mb-3">
+								<label class="form-label">Price:</label>
+								<div class="form-control" id="refreshmentPriceDisplay"></div>
+							</div>
+							<div class="mb-3">
+								<label class="form-label">Available Stock: <span id="refreshmentStock"></span></label>
+							</div>
+							<div class="mb-3">
+								<label class="form-label">Quantity:</label>
+								<div class="input-group">
+									<button class="btn btn-outline-secondary" type="button" onclick="decrementQuantity('refreshment')">-</button>
+									<input type="number" class="form-control text-center" id="refreshmentQuantity" min="1" value="1">
+									<button class="btn btn-outline-secondary" type="button" onclick="incrementQuantity('refreshment')">+</button>
+								</div>
+							</div>
+							<div class="text-end">
+								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+								<button type="button" class="btn btn-theme" onclick="addRefreshmentToCart()">Add to Cart</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
 	<!-- Product Modal -->
 
 	<div class="modal fade" id="productModal" tabindex="-1">
@@ -1464,6 +1545,107 @@
 			</div>
 		</div>
 	</div>
+
+	<script>
+		// Global variables to store refreshment data
+		let currentRefreshment = {
+			id: null,
+			name: '',
+			price: 0,
+			stock: 0
+		};
+
+	
+
+		// Function to show the refreshment modal
+		function showRefreshmentModal(id, name, price, stock) {
+			currentRefreshment = {
+				id: id,
+				name: name,
+				price: parseFloat(price),
+				stock: parseInt(stock)
+			};
+
+			// Update modal fields
+			document.getElementById('refreshmentName').textContent = name;
+			document.getElementById('refreshmentPriceDisplay').textContent = 'UGX ' + parseFloat(price).toLocaleString();
+			document.getElementById('refreshmentStock').textContent = stock;
+			document.getElementById('refreshmentQuantity').value = 1;
+			document.getElementById('refreshmentQuantity').max = stock;
+
+			// Reset and configure quantity input
+			const quantityInput = document.getElementById('refreshmentQuantity');
+			quantityInput.value = 1;
+			quantityInput.max = stock;
+			quantityInput.min = 1;
+
+			// Show the modal
+			var modal = new bootstrap.Modal(document.getElementById('refreshmentModal'));
+			modal.show();
+		}
+
+		// Function to add refreshment to cart
+		function addRefreshmentToCart() {
+			const quantity = parseInt(document.getElementById('refreshmentQuantity').value);
+			
+			if (quantity <= 0 || quantity > currentRefreshment.stock) {
+				alert('Invalid quantity');
+				return;
+			}
+
+			// Create cart item
+			const refreshmentItem = {
+				type: 'refreshment',
+				id: currentRefreshment.id,
+				name: currentRefreshment.name,
+				quantity: quantity,
+				unit_price: currentRefreshment.price,
+				total: (currentRefreshment.price * quantity).toFixed(2),
+				stock: currentRefreshment.stock
+			};
+
+			// Add to cart
+			cart.items.push(refreshmentItem);
+			updateCartDisplay();
+			calculateTotals();
+			
+			// Hide the modal
+			var modal = bootstrap.Modal.getInstance(document.getElementById('refreshmentModal'));
+			modal.hide();
+		}
+
+		// Add these functions if they don't exist
+		function incrementQuantity(type) {
+			const input = document.getElementById(`${type}Quantity`);
+			const max = type === 'refreshment' ? currentRefreshment.stock : input.max;
+			if (parseInt(input.value) < max) {
+				input.value = parseInt(input.value) + 1;
+			}
+		}
+
+		function decrementQuantity(type) {
+			const input = document.getElementById(`${type}Quantity`);
+			if (parseInt(input.value) > 1) {
+				input.value = parseInt(input.value) - 1;
+			}
+		}
+	</script>
+	</script>
+		// Helper function to get CSRF token
+		function getCookie(name) {
+			let cookieValue = null;
+			if (document.cookie && document.cookie !== '') {
+				const cookies = document.cookie.split(';');
+				for (let i = 0; i < cookies.length; i++) {
+					const cookie = cookies[i].trim();
+					if (cookie.substring(0, name.length + 1) === (name + '=')) {
+						cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+						break;
+					}
+				}
+			}
+			return cookieValue;
+}
 	<script>
 		$(document).ready(function() {
 			// Initialize customer search

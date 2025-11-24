@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Refreshments</h4>
+                <a href="{% url 'create_refreshment' %}" class="btn btn-outline-theme">
+                    <i class="fas fa-plus me-2"></i>Add Refreshment
+                </a>
+                
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="refreshmentTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Store</th>
+                            <th class="text-end">Cost</th>
+                            <th class="text-end">Price</th>
+                            <th class="text-center">In Stock</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in refreshments %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'refreshmentDetail' item.id %}" class="text-theme fw-medium">
+                                    {{ item.name }}
+                                </a>
+                            </td>
+                            <td>{{ item.description|truncatechars:50 }}</td>
+                            <td>{{ item.store.name }}</td>
+                            <td class="text-end">Ksh {{ item.cost|intcomma }}</td>
+                            <td class="text-end">Ksh {{ item.sale_price|intcomma }}</td>
+                            <td class="text-center">{{ item.quantity }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-{% if item.is_active %}success{% else %}secondary{% endif %}">
+                                    {% if item.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group">
+                                    <a href="{% url 'refreshmentDetail' item.id %}" class="btn btn-sm btn-outline-theme">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{% url 'edit_refreshment' item.id %}" class="btn btn-sm btn-outline-theme">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'deleteRefreshment' item.id %}" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                    <a href="{% url 'adjust_refreshment_stock' item.id %}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-balance-scale"></i>
+                                        <tooltip>Adjust Stock</tooltip>
+
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-mug-hot fa-2x mb-2"></i>
+                                    <p class="mb-0">No refreshments found. Add your first refreshment item.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if refreshments %}
+<script>
+    $(document).ready(function() {
+        $('#refreshmentTable').DataTable({
+            "order": [[0, "asc"]],
+            "pageLength": 25,
+            "responsive": true,
+            "language": {
+                "emptyTable": "No refreshments available",
+                "search": "_INPUT_",
+                "searchPlaceholder": "Search refreshments...",
+            }
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}
