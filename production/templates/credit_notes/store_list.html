@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-12">
+                <div class="page-title-box">
+                    <h4 class="page-title">Credit Notes - {{ store.name }}</h4>
+                    <ol class="breadcrumb p-0 m-0">
+                        
+                        
+                        <li class="breadcrumb-item active">Credit Notes</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <!-- Filters -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <form method="get" class="form-inline">
+                                    <div class="form-group mr-2">
+                                        <select name="status" class="form-control">
+                                            <option value="">All Statuses</option>
+                                            {% for value, label in credit_notes.0.STATUS_CHOICES %}
+                                                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Filter</button>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <form method="get" class="float-right">
+                                    <div class="input-group">
+                                        <input type="text" 
+                                               class="form-control" 
+                                               name="search" 
+                                               placeholder="Search credit notes..." 
+                                               value="{{ search_query|default:'' }}">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-primary" type="submit">Search</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Credit Notes Table -->
+                        <div class="table-responsive">
+                            <table class="table table-centered table-striped table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Credit Note #</th>
+                                        <th>Date</th>
+                                        <th>Customer</th>
+                                        <th>Type</th>
+                                        <th class="text-right">Amount</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cn in credit_notes %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'credit_note_detail' pk=cn.id %}">
+                                                {{ cn.credit_note_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ cn.date_created|date:"M d, Y" }}</td>
+                                        <td>{{ cn.customer.get_full_name|default:cn.customer.email }}</td>
+                                        <td>{{ cn.get_note_type_display }}</td>
+                                        <td class="text-right">{{ cn.total_amount|floatformat:2|intcomma }}</td>
+                                        <td>
+                                            <span class="badge 
+                                                {% if cn.status == 'approved' %}bg-success
+                                                {% elif cn.status == 'refunded' %}bg-info
+                                                {% elif cn.status == 'void' %}bg-danger
+                                                {% else %}bg-secondary
+                                                {% endif %}">
+                                                {{ cn.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="{% url 'credit_note_detail' pk=cn.id %}" 
+                                               class="btn btn-sm btn-primary" 
+                                               data-toggle="tooltip" 
+                                               title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'edit_credit_note' pk=cn.id %}" 
+                                               class="btn btn-sm btn-warning" 
+                                               data-toggle="tooltip" 
+                                               title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center">No credit notes found</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if credit_notes.has_other_pages %}
+                        <div class="mt-3">
+                            <nav>
+                                <ul class="pagination pagination-rounded justify-content-center">
+                                    {% if credit_notes.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ credit_notes.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" 
+                                               aria-label="Previous">
+                                                <span aria-hidden="true">&laquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for i in credit_notes.paginator.page_range %}
+                                        <li class="page-item {% if credit_notes.number == i %}active{% endif %}">
+                                            <a class="page-link" href="?page={{ i }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">
+                                                {{ i }}
+                                            </a>
+                                        </li>
+                                    {% endfor %}
+                                    
+                                    {% if credit_notes.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ credit_notes.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}" 
+                                               aria-label="Next">
+                                                <span aria-hidden="true">&raquo;</span>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize tooltips
+        $('[data-toggle="tooltip"]').tooltip();
+    });
+</script>
+{% endblock %}

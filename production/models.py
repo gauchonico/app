@@ -1520,6 +1520,7 @@ class ServiceSale(models.Model):
     service_recipient = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='services_received', null=True, blank=True, help_text="Who actually received the service (can be different from customer)")
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     sale_date = models.DateTimeField(auto_now_add=True)
+    credit_notes = models.ManyToManyField('StoreCreditNote', blank=True, related_name='service_sales')
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     paid_status = models.CharField(max_length=20, choices=PAID_STATUS_CHOICES, default='not_paid')
@@ -2183,6 +2184,7 @@ class ProductSalePayment(models.Model):
         ('airtel_money', 'Airtel Money'),
         ('visa', 'Visa'),
         ('bank_transfer', 'Bank Transfer'),
+        ('mixed', 'Mixed'),
     ]
 
     sale = models.ForeignKey('StoreProductSale', on_delete=models.CASCADE, related_name='payments')
@@ -3611,6 +3613,105 @@ class CreditNote(models.Model):
         return amount_to_apply
 
 
+class StoreCreditNote(models.Model):
+    CREDIT_NOTE_TYPES = (
+        ('product_return', 'Product Return'),
+        ('service_cancellation', 'Service Cancellation'),
+        ('price_adjustment', 'Price Adjustment'),
+        ('other', 'Other')
+    )
+    
+    STATUS_CHOICES = (
+        ('draft', 'Draft'),
+        ('approved', 'Approved'),
+        ('exchanged', 'Exchanged'),
+        ('refunded', 'Refunded'),
+        ('void', 'Void')
+    )
+    
+    credit_note_number = models.CharField(max_length=50, unique=True)
+    date_created = models.DateTimeField(auto_now_add=True)
+    date_updated = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='created_credit_notes')
+    updated_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='updated_credit_notes')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    note_type = models.CharField(max_length=50, choices=CREDIT_NOTE_TYPES)
+    reason = models.TextField()
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_refunded = models.BooleanField(default=False)
+    refund_date = models.DateTimeField(null=True, blank=True)
+    refund_method = models.CharField(max_length=50, blank=True, null=True)
+    refund_reference = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Link to the original sale
+    product_sale = models.ForeignKey('StoreProductSale', on_delete=models.SET_NULL, null=True, blank=True)
+    service_sale = models.ForeignKey('ServiceSale', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Store the customer for easy filtering
+    customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.PROTECT)
+    
+    def save(self, *args, **kwargs):
+        if not self.credit_note_number:
+            # Generate credit note number: CN-YYYYMMDD-XXXX
+            today = timezone.now().strftime('%Y%m%d')
+            last_cn = CreditNote.objects.filter(
+                credit_note_number__startswith=f'SCN-{today}'
+            ).order_by('-credit_note_number').first()
+            
+            if last_cn:
+                last_num = int(last_cn.credit_note_number.split('-')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+                
+            self.credit_note_number = f'CN-{today}-{new_num:04d}'
+            
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return self.credit_note_number
+class CreditNoteItem(models.Model):
+    ITEM_TYPES = (
+        ('service', 'Service'),
+        ('product', 'Product'),
+        ('accessory', 'Accessory'),
+        ('refreshment', 'Refreshment'),
+    )
+    
+    credit_note = models.ForeignKey('StoreCreditNote', on_delete=models.CASCADE, related_name='items')
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPES, null=True, blank=True)
+    
+    # These fields will be used based on item_type
+    service = models.ForeignKey('StoreService', on_delete=models.SET_NULL, null=True, blank=True)
+    product = models.ForeignKey('StoreInventory', on_delete=models.SET_NULL, null=True, blank=True)
+    accessory = models.ForeignKey('StoreAccessoryInventory', on_delete=models.SET_NULL, null=True, blank=True)
+    refreshment = models.ForeignKey('Refreshment', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    total_price = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField()
+    
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        item_name = self.get_item_name()
+        return f"{self.quantity} x {item_name} (Credit Note: {self.credit_note.credit_note_number})"
+    
+    def get_item_name(self):
+        if self.item_type == 'service' and self.service:
+            return self.service.service.name
+        elif self.item_type == 'product' and self.product:
+            return self.product.product.product_name
+        elif self.item_type == 'accessory' and self.accessory:
+            return self.accessory.accessory.name
+        elif self.item_type == 'refreshment' and self.refreshment:
+            return self.refreshment.name
+        return 'Unknown Item'
+
+
 class StoreProductSale(models.Model):
     """
     Model for walk-in customers who only buy products (no services)
@@ -3633,6 +3734,7 @@ class StoreProductSale(models.Model):
     store = models.ForeignKey(Store, on_delete=models.CASCADE, related_name='product_sales')
     customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.CASCADE, related_name='product_sales', help_text="Customer who purchased the products")
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    credit_notes = models.ManyToManyField('StoreCreditNote', blank=True, related_name='product_sales')
     sale_date = models.DateTimeField(auto_now_add=True)
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)

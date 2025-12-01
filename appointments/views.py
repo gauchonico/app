@@ -380,6 +380,79 @@ def all_appointments(request):
     
     return render(request, 'appointments/all_appointments.html', context)
 
+@login_required(login_url='/login/')
+def store_appointments(request):
+    """
+    View for store managers to see appointments for their specific store
+    """
+    # Get the store managed by the current user
+    store = get_object_or_404(Store, manager=request.user)
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    date_filter = request.GET.get('date', '').strip()
+    
+    # Base queryset with related data, filtered by store
+    appointments = Appointment.objects.filter(store=store).select_related(
+        'customer'
+    ).prefetch_related(
+        'services', 'assigned_staff'
+    ).order_by('-appointment_date', '-appointment_time')
+    
+    # Apply filters
+    if search_query:
+        appointments = appointments.filter(
+            Q(appointment_id__icontains=search_query) |
+            Q(customer_name__icontains=search_query) |
+            Q(customer_phone__icontains=search_query) |
+            Q(customer_email__icontains=search_query)
+        )
+    
+    if status_filter:
+        appointments = appointments.filter(status=status_filter)
+    
+    if date_filter:
+        try:
+            from datetime import datetime
+            date_obj = datetime.strptime(date_filter, '%Y-%m-%d').date()
+            appointments = appointments.filter(appointment_date=date_obj)
+        except:
+            pass
+    
+    # Calculate basic statistics
+    total_appointments = appointments.count()
+    today_appointments = appointments.filter(appointment_date=timezone.now().date()).count()
+    
+    # Status breakdown
+    status_stats = {
+        'pending': appointments.filter(status='pending').count(),
+        'confirmed': appointments.filter(status='confirmed').count(),
+        'in_progress': appointments.filter(status='in_progress').count(),
+        'completed': appointments.filter(status='completed').count(),
+        'cancelled': appointments.filter(status='cancelled').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(appointments, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'appointments': page_obj,
+        'store': store,
+        'total_appointments': total_appointments,
+        'today_appointments': today_appointments,
+        'status_stats': status_stats,
+        # Filter values for preserving state
+        'filter_search': search_query,
+        'filter_status': status_filter,
+        'filter_date': date_filter,
+        # Status choices
+        'status_choices': Appointment.STATUS_CHOICES,
+    }
+    
+    return render(request, 'appointments/store_appointments.html', context)
 
 @login_required(login_url='/login/')
 def appointment_details(request, appointment_id):

@@ -183,6 +183,7 @@
         <th>Sale Date</th>
         <th>view</th>
         <th>Update</td>
+        <th>CN</td>
       </tr>
     </thead>
     <tbody>
@@ -224,10 +225,17 @@
             <i class="fas fa-edit"></i>
           </a>
         </td>
+        <td>
+          <a href="{% url 'create_credit_note' sale_type='service' sale_id=sale.id %}" 
+            class="btn btn-sm btn-warning" 
+            title="Create Credit Note">
+              <i class="fas fa-file-invoice-dollar"></i> CN
+          </a>
+      </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="6">No service sales found for this store.</td>
+        <td colspan="10">No service sales found for this store.</td>
       </tr>
       {% endfor %}
     </tbody>

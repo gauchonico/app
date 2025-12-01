@@ -36,12 +36,13 @@
 		{% if appBoxedLayout %}app-boxed-layout{% endif %}
 	">
 		{% if user.is_authenticated and not has_active_cash_drawer_session and not '/cash-drawer/' in request.path %}
-		<div class="alert alert-warning mb-0 text-center">
-			<i class="bi bi-exclamation-triangle-fill me-2"></i>
+		<div class="alert alert-theme mb-0 text-center z-index-99">
+			<i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
 			No active cash drawer session. 
-			<a href="{% url 'cash_drawer_manage' %}" class="alert-link">Start a session</a> 
+			<a href="{% url 'cash_drawer_manage' %}" class="alert-link text-theme">Start a session</a> 
 			to record transactions.
 		</div>
+		
 		{% endif %}
 		{% if appHeaderHide is None %}
 			{% include 'partial/header.html' %}

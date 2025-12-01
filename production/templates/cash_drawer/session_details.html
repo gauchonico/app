@@ -1,114 +1,200 @@
-<!-- cash_drawer/detail.html -->
 {% extends 'base.html' %}
 {% load static %}
 
 {% block content %}
 <div class="container mt-4">
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4>Cash Drawer Session #{{ session.id }}</h4>
-            <div>
-                <a href="{% url 'all_cash_drawer_sessions' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to All Sessions
-                </a>
-                {% if can_edit %}
-                <a href="{% url 'cash_drawer_edit' session.id %}" class="btn btn-primary">
-                    <i class="fas fa-edit"></i> Edit
-                </a>
-                {% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Cash Register #{{ session.id }}</h2>
+        {% if can_close %}
+        <a href="{% url 'cash_drawer_close' session_id=session.id %}" class="btn btn-danger">
+            Close Session
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Opening Balance</h6>
+                    <h4 class="mb-0">{{ session.opening_balance|floatformat:2 }}</h4>
+                </div>
             </div>
         </div>
-        
-        <div class="card-body">
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <h5>Session Information</h5>
-                    <p><strong>Status:</strong> 
-                        <span class="badge {% if session.status == 'open' %}bg-success{% else %}bg-secondary{% endif %}">
-                            {{ session.get_status_display }}
-                        </span>
-                    </p>
-                    <p><strong>Store:</strong> {{ session.store.name|default:"N/A" }}</p>
-                    <p><strong>User:</strong> {{ session.user.get_full_name|default:session.user.username }}</p>
-                    <p><strong>Opened:</strong> {{ session.opening_time|date:"M d, Y H:i" }}</p>
-                    {% if session.closed_at %}
-                        <p><strong>Closed:</strong> {{ session.closed_at|date:"M d, Y H:i" }}</p>
-                    {% endif %}
-                </div>
-                <div class="col-md-6">
-                    <h5>Balances</h5>
-                    <p><strong>Opening Balance:</strong> {{ session.opening_balance|floatformat:2 }}</p>
-                    {% if session.status == 'closed' %}
-                        <p><strong>Closing Balance:</strong> {{ session.closing_balance|floatformat:2 }}</p>
-                        <p><strong>Difference:</strong> 
-                            <span class="{% if session.balance_difference >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                {{ session.balance_difference|floatformat:2 }}
-                            </span>
-                        </p>
-                    {% endif %}
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Total Transactions</h6>
+                    <h4 class="mb-0">{{ total_transactions|floatformat:2 }}</h4>
                 </div>
             </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Expected Balance</h6>
+                    <h4 class="mb-0">{{ expected_balance|floatformat:2 }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            <h5>Transaction Summary</h5>
-            <div class="table-responsive mb-4">
+    <!-- Payment Method Summary -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Payment Method Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
                 <table class="table table-bordered">
                     <thead class="table-light">
                         <tr>
                             <th>Payment Method</th>
-                            <th class="text-end">Amount</th>
+                            <th>Transaction Count</th>
+                            <th>Total Amount</th>
+                            <th>Percentage</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% for method in payment_summary %}
                         <tr>
-                            <td>Cash</td>
-                            <td class="text-end">{{ total_cash|floatformat:2 }}</td>
-                        </tr>
-                        <tr>
-                            <td>Card</td>
-                            <td class="text-end">{{ total_card|floatformat:2 }}</td>
-                        </tr>
-                        <tr>
-                            <td>Mobile Money</td>
-                            <td class="text-end">{{ total_mobile|floatformat:2 }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <h5>Transaction History</h5>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Type</th>
-                            <th>Method</th>
-                            <th class="text-end">Amount</th>
-                            <th>Reference</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for transaction in transactions %}
-                        <tr>
-                            <td>{{ transaction.created_at|date:"H:i" }}</td>
-                            <td>{{ transaction.get_transaction_type_display }}</td>
-                            <td>{{ transaction.get_payment_method_display }}</td>
-                            <td class="text-end {% if transaction.amount >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                {{ transaction.amount|floatformat:2 }}
-                            </td>
-                            <td>{{ transaction.reference|default:"-" }}</td>
-                            <td>{{ transaction.notes|default:""|truncatechars:30 }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center">No transactions found</td>
+                            <td>{{ method.name }}</td>
+                            <td>{{ method.count }}</td>
+                            <td>{{ method.total_amount|floatformat:2 }}</td>
+                            <td>{{ method.percentage|floatformat:1 }}%</td>
                         </tr>
                         {% endfor %}
+                        <tr class="table-active">
+                            <td><strong>Total</strong></td>
+                            <td><strong>{{ transactions.count }}</strong></td>
+                            <td><strong>{{ total_transactions|floatformat:2 }}</strong></td>
+                            <td>100%</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
+
+    <!-- Session Details -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Session Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Status:</strong> 
+                        <span class="badge {% if session.status == 'open' %}bg-success{% else %}bg-secondary{% endif %}">
+                            {{ session.get_status_display }}
+                        </span>
+                    </p>
+                    <p><strong>Opened By:</strong> {{ session.user.get_full_name|default:session.user.username }}</p>
+                    <p><strong>Opened At:</strong> {{ session.opening_time|date:"M d, Y H:i" }}</p>
+                </div>
+                <div class="col-md-6">
+                    {% if session.status == 'closed' %}
+                        <p><strong>Closed At:</strong> {{ session.closed_at|date:"M d, Y H:i" }}</p>
+                        <p><strong>Closing Balance:</strong> {{ session.closing_balance|floatformat:2 }}</p>
+                        {% if difference is not None %}
+                            <p><strong>Difference:</strong> 
+                                <span class="{% if difference >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ difference|floatformat:2 }}
+                                </span>
+                            </p>
+                        {% endif %}
+                        {% if session.notes %}
+                            <p><strong>Notes:</strong> {{ session.notes }}</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Transactions</h5>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-outline-primary filter-btn" data-type="all">All</button>
+                <button type="button" class="btn btn-sm btn-outline-primary filter-btn" data-type="sale">Sales</button>
+                <button type="button" class="btn btn-sm btn-outline-primary filter-btn" data-type="expense">Expenses</button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-striped" id="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Payment Method</th>
+                                <th>Amount</th>
+                                <th>Reference</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr data-type="{{ transaction.transaction_type }}">
+                                <td>{{ transaction.timestamp|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if transaction.transaction_type == 'sale' %}bg-success
+                                        {% elif transaction.transaction_type == 'expense' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ transaction.get_transaction_type_display }}
+                                    </span>
+                                </td>
+                                <td>{{ transaction.get_payment_method_display }}</td>
+                                <td>{{ transaction.amount|floatformat:2 }}</td>
+                                <td>{{ transaction.reference|default:"-" }}</td>
+                                <td>{{ transaction.notes|default:"-"|truncatechars:30 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted">No transactions found for this session.</p>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
+<style>
+    .transaction-type-badge {
+        font-size: 0.8em;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Transaction filtering
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    const transactionRows = document.querySelectorAll('#transactions-table tbody tr');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const type = this.dataset.type;
+            
+            // Update active button
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Filter rows
+            transactionRows.forEach(row => {
+                if (type === 'all' || row.dataset.type === type) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+});
+</script>
 {% endblock %}

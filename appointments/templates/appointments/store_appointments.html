@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Store Appointments - {{ store.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="page-header">
+                <i class="fas fa-calendar-alt me-2"></i> {{ store.name }} Appointments
+            </h1>
+            
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 bg-primary bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="text-muted">Total Appointments</h6>
+                        <h3 class="mb-0">{{ total_appointments|intcomma }}</h3>
+                        <small class="text-muted">All time</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 bg-success bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="text-muted">Today's Appointments</h6>
+                        <h3 class="mb-0">{{ today_appointments|intcomma }}</h3>
+                        <small class="text-muted">{{ today|date:"F d, Y" }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 bg-warning bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="text-muted">Pending</h6>
+                        <h3 class="mb-0">{{ status_stats.pending|intcomma }}</h3>
+                        <small class="text-muted">Require attention</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card h-100 bg-info bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="text-muted">Confirmed</h6>
+                        <h3 class="mb-0">{{ status_stats.confirmed|intcomma }}</h3>
+                        <small class="text-muted">Upcoming appointments</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <input type="text" name="search" class="form-control" placeholder="Search by name, phone, or email" 
+                               value="{{ filter_search }}">
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            {% for value, label in status_choices %}
+                                <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="date" name="date" class="form-control" value="{{ filter_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-1"></i> Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Appointments Table -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Customer</th>
+                                <th>Date & Time</th>
+                                <th>Services</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in appointments %}
+                            <tr>
+                                <td>#{{ appointment.appointment_id }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0 me-2">
+                                            <div class="avatar-sm bg-light rounded-circle text-center">
+                                                <i class="fas fa-user text-muted mt-2"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0">{{ appointment.customer_name }}</h6>
+                                            <small class="text-muted">{{ appointment.customer_phone }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>{{ appointment.appointment_date|date:"M d, Y" }}</div>
+                                    <small class="text-muted">{{ appointment.appointment_time|time:"g:i A" }}</small>
+                                </td>
+                                <td>
+                                    {% for service in appointment.services.all|slice:":2" %}
+                                        <span class="badge bg-light text-dark">{{ service.name }}</span>
+                                    {% endfor %}
+                                    {% if appointment.services.count > 2 %}
+                                        <span class="badge bg-light text-muted">+{{ appointment.services.count|add:"-2" }} more</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if appointment.status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                    {% elif appointment.status == 'confirmed' %}
+                                        <span class="badge bg-primary">Confirmed</span>
+                                    {% elif appointment.status == 'in_progress' %}
+                                        <span class="badge bg-info">In Progress</span>
+                                    {% elif appointment.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{% url 'appointment_details' appointment.id %}" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="#" 
+                                           class="btn btn-sm btn-outline-secondary" 
+                                           data-bs-toggle="tooltip" 
+                                           title="Check In">
+                                            <i class="fas fa-sign-in-alt"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="far fa-calendar-alt fa-2x mb-2"></i>
+                                        <p class="mb-0">No appointments found</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if appointments.paginator.num_pages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if appointments.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ appointments.previous_page_number }}{% if filter_search %}&search={{ filter_search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_date %}&date={{ filter_date }}{% endif %}" 
+                                   aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in appointments.paginator.page_range %}
+                            <li class="page-item {% if num == appointments.number %}active{% endif %}">
+                                <a class="page-link" href="?page={{ num }}{% if filter_search %}&search={{ filter_search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_date %}&date={{ filter_date }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                        
+                        {% if appointments.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ appointments.next_page_number }}{% if filter_search %}&search={{ filter_search }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}{% if filter_date %}&date={{ filter_date }}{% endif %}" 
+                                   aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %}

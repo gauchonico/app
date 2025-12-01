@@ -21,7 +21,14 @@ class CustomerLoginView(View):
             return redirect('customer_dashboard')
         
         form = CustomerLoginForm()
-        return render(request, self.template_name, {'form': form})
+        context = {
+            'form': form,
+            'appSidebarHide': 1,
+            'appHeaderHide': 1,
+            'appContentFullHeight': 1,
+            'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+        }
+        return render(request, self.template_name, context)
     
     def post(self, request):
         form = CustomerLoginForm(request.POST)
@@ -58,7 +65,14 @@ class CustomerRegistrationView(View):
             return redirect('customer_dashboard')
         
         form = CustomerRegistrationForm()
-        return render(request, self.template_name, {'form': form})
+        context = {
+            'form': form,
+            'appSidebarHide': 1,
+            'appHeaderHide': 1,
+            'appContentFullHeight': 1,
+            'appContentClass': "p-1 ps-xl-4 pe-xl-4 pt-xl-3 pb-xl-3",
+        }
+        return render(request, self.template_name, context)
     
     def post(self, request):
         form = CustomerRegistrationForm(request.POST)

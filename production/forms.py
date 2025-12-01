@@ -1403,13 +1403,76 @@ class ProductSalePaymentForm(forms.Form):
         ('airtel_money', 'Airtel Money'),
         ('visa', 'Visa'),
         ('bank_transfer', 'Bank Transfer'),
+        ('mixed', 'Mixed Payment'),
     ]
 
-    payment_method = forms.ChoiceField(choices=PAYMENT_METHOD_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
+    payment_method = forms.ChoiceField(
+        choices=PAYMENT_METHOD_CHOICES, 
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+            'id': 'payment-method-select'
+        })
+    )
+    # Main amount field (for single payment method)
     amount = forms.DecimalField(
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Payment Amount', 'step': '0.01', 'min': '0.01'}),
         required=True,
         help_text="Enter the payment amount"
+    )
+    # Fields for mixed payments
+    cash_amount = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control mixed-payment', 
+            'placeholder': 'Cash Amount',
+            'step': '0.01',
+            'min': '0.00'
+        }),
+        initial=0
+    )
+    
+    mobile_money_amount = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control mixed-payment', 
+            'placeholder': 'Mobile Money Amount',
+            'step': '0.01',
+            'min': '0.00'
+        }),
+        initial=0
+    )
+    
+    airtel_money_amount = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control mixed-payment', 
+            'placeholder': 'Airtel Money Amount',
+            'step': '0.01',
+            'min': '0.00'
+        }),
+        initial=0
+    )
+    
+    visa_amount = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control mixed-payment', 
+            'placeholder': 'Visa Amount',
+            'step': '0.01',
+            'min': '0.00'
+        }),
+        initial=0
+    )
+    
+    bank_transfer_amount = forms.DecimalField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control mixed-payment', 
+            'placeholder': 'Bank Transfer Amount',
+            'step': '0.01',
+            'min': '0.00'
+        }),
+        initial=0
     )
     remarks = forms.CharField(
         widget=forms.Textarea(attrs={'class': 'form-control', 'placeholder': 'Payment remarks (optional)', 'rows': 3}),
@@ -1419,38 +1482,57 @@ class ProductSalePaymentForm(forms.Form):
     def __init__(self, *args, sale_balance=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.sale_balance = sale_balance  # Pass the sale's balance for validation
+
+        # Set initial values from GET parameters if available
+        if 'payment_method' in self.data:
+            payment_method = self.data.get('payment_method')
+            if payment_method == 'mixed':
+                for field in ['cash_amount', 'mobile_money_amount', 'airtel_money_amount', 'visa_amount', 'bank_transfer_amount']:
+                    self.fields[field].required = False
+            else:
+                self.fields['amount'].required = True
     
     def clean(self):
         cleaned_data = super().clean()
+        payment_method = cleaned_data.get('payment_method')
         amount = cleaned_data.get('amount')
         
-        if amount and self.sale_balance and amount > self.sale_balance:
-            raise forms.ValidationError(f"Payment amount ({amount}) exceeds the remaining balance ({self.sale_balance}).")
-        
-        return cleaned_data
-
-        # Validate mixed payments
-        # if payment_method == 'mixed':
-        #     if not any([cash_amount, mobile_money_amount, visa_amount]):
-        #         raise forms.ValidationError("Please enter at least one amount for mixed payments.")
-        # elif payment_method in ['cash', 'mobile_money', 'visa'] and not amount:
-        #     raise forms.ValidationError(f"Please enter the amount for {payment_method} payment.")
-        
-        # Mixed payment validation
+        # For mixed payments
         if payment_method == 'mixed':
+            cash_amount = cleaned_data.get('cash_amount') or 0
+            mobile_money_amount = cleaned_data.get('mobile_money_amount') or 0
+            airtel_money_amount = cleaned_data.get('airtel_money_amount') or 0
+            visa_amount = cleaned_data.get('visa_amount') or 0
             bank_transfer_amount = cleaned_data.get('bank_transfer_amount') or 0
-            total_mixed = cash_amount + mobile_money_amount + airtel_money_amount + visa_amount + bank_transfer_amount
-            if total_mixed > self.sale_balance:
+            
+            total_mixed = (
+                cash_amount + 
+                mobile_money_amount + 
+                airtel_money_amount + 
+                visa_amount + 
+                bank_transfer_amount
+            )
+            
+            if total_mixed <= 0:
+                raise forms.ValidationError("At least one payment amount must be greater than 0 for mixed payments.")
+                
+            if self.sale_balance and total_mixed > self.sale_balance:
                 raise forms.ValidationError(
-                    f"Total mixed payment ({total_mixed}) exceeds the remaining balance ({self.sale_balance})."
+                    f"Total payment amount ({total_mixed:,.0f}) exceeds the remaining balance ({self.sale_balance:,.0f})."
                 )
-        elif payment_method in ['cash', 'mobile_money', 'airtel_money', 'visa', 'bank_transfer']:
-            amount = cleaned_data.get('amount') or 0
-            if amount > self.sale_balance:
+                
+            # Store the total as amount for validation
+            cleaned_data['amount'] = total_mixed
+        else:
+            # For single payment method
+            if not amount or amount <= 0:
+                raise forms.ValidationError("Please enter a valid payment amount.")
+                
+            if self.sale_balance and amount > self.sale_balance:
                 raise forms.ValidationError(
-                    f"Payment amount ({amount}) exceeds the remaining balance ({self.sale_balance})."
+                    f"Payment amount ({amount:,.0f}) exceeds the remaining balance ({self.sale_balance:,.0f})."
                 )
-
+        
         return cleaned_data
 
 class PriceGroupForm(forms.ModelForm):
@@ -1870,3 +1952,73 @@ class CloseCashDrawerForm(forms.Form):
         widget=forms.HiddenInput(),
         required=False
     )
+
+
+#store credit notes
+# production/forms.py
+class StoreCreditNoteForm(forms.ModelForm):
+    class Meta:
+        model = StoreCreditNote
+        fields = ['note_type', 'reason', 'total_amount', 'refund_method', 'status']
+        widgets = {
+            'reason': forms.Textarea(attrs={'class':'form-control','rows': 3}),
+            'total_amount': forms.NumberInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+            'status':forms.Select(attrs={'class':'form-control'}),
+            'note_type':forms.Select(attrs={'class':'form-control'}),
+            'refund_method':forms.TextInput(attrs={'class':'form-control'}),
+            
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['total_amount'].widget.attrs['readonly'] = True
+# forms.py
+class CreditNoteItemForm(forms.ModelForm):
+    class Meta:
+        model = CreditNoteItem
+        fields = ['item_type', 'service', 'product', 'accessory', 'refreshment', 'quantity', 'unit_price', 'reason']
+        widgets = {
+            'reason': forms.Textarea(attrs={'rows': 2}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control quantity'}),
+            'unit_price': forms.NumberInput(attrs={'class': 'form-control price'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.sale = kwargs.pop('sale', None)
+        super().__init__(*args, **kwargs)
+        
+        # Make fields not required since they'll be conditionally shown
+        self.fields['service'].required = False
+        self.fields['product'].required = False
+        self.fields['accessory'].required = False
+        self.fields['refreshment'].required = False
+        
+        if self.sale:
+            # Set querysets based on sale type
+            if hasattr(self.sale, 'service_sale_items'):
+                self.fields['service'].queryset = StoreService.objects.filter(
+                    id__in=self.sale.service_sale_items.values_list('service_id', flat=True)
+                )
+            
+            if hasattr(self.sale, 'product_sale_items'):
+                self.fields['product'].queryset = StoreInventory.objects.filter(
+                    id__in=self.sale.product_sale_items.values_list('product_id', flat=True)
+                )
+                
+            # Add similar for accessories and refreshments if needed
+
+    def clean(self):
+        cleaned_data = super().clean()
+        item_type = cleaned_data.get('item_type')
+        
+        # Validate that the appropriate field is filled based on item_type
+        if item_type == 'service' and not cleaned_data.get('service'):
+            self.add_error('service', 'This field is required for service items')
+        elif item_type == 'product' and not cleaned_data.get('product'):
+            self.add_error('product', 'This field is required for product items')
+        elif item_type == 'accessory' and not cleaned_data.get('accessory'):
+            self.add_error('accessory', 'This field is required for accessory items')
+        elif item_type == 'refreshment' and not cleaned_data.get('refreshment'):
+            self.add_error('refreshment', 'This field is required for refreshment items')
+            
+        return cleaned_data

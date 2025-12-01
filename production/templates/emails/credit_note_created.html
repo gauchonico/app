@@ -1,0 +1,27 @@
+<!-- templates/emails/credit_note_created.html -->
+{% extends "email/base.html" %}
+
+{% block content %}
+<p>Hello {{ user.get_full_name }},</p>
+
+<p>A new credit note has been created:</p>
+
+<div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+    <p><strong>Credit Note #:</strong> {{ credit_note.credit_note_number }}</p>
+    <p><strong>Customer:</strong> {{ credit_note.customer.get_full_name }}</p>
+    <p><strong>Amount:</strong> {{ credit_note.total_amount|floatformat:2 }}</p>
+    <p><strong>Reason:</strong> {{ credit_note.reason|truncatechars:100 }}</p>
+</div>
+
+<p>You can view the full details by clicking the button below:</p>
+
+<p style="margin: 30px 0;">
+    <a href="{{ site_url }}{% url 'credit_note_detail' pk=credit_note.id %}" 
+       style="background-color: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+        View Credit Note
+    </a>
+</p>
+
+<p>If the button doesn't work, copy and paste this link into your browser:</p>
+<p>{{ site_url }}{% url 'credit_note_detail' pk=credit_note.id %}</p>
+{% endblock %}

@@ -25,6 +25,7 @@ urlpatterns = [
     
     # Admin/Staff Views
     path('all-appointments/', views.all_appointments, name='all_appointments'),
+    path('store-appointments/', views.store_appointments, name='store_appointments'),
     
     # AJAX endpoints
     # path('api/available-times/', views.get_available_times, name='get_available_times'),

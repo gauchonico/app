@@ -48,8 +48,8 @@ from django.core.paginator import Paginator
 from production.service_timing_views import get_user_store
 from .utils import approve_restock_request, cost_per_unit
 from django.core.exceptions import ObjectDoesNotExist
-from .forms import AccessorySaleItemForm,AddRefreshment,CloseCashDrawerForm, CashDrawerSessionForm, StockAdjustmentForm, AddSupplierForm, ApprovePurchaseForm, ApproveRejectRequestForm, CreditNoteForm, DeliveryRestockRequestForm, IncidentWriteOffForm, PaymentForm, PriceGroupCSVForm, PriceGroupForm, ProductSaleItemForm, ProductSalePaymentForm, ProductionOrderFormSet, QualityControlTestForm, QualityTestParameterForm, QualityControlActionForm, QualityTestResultForm, QualityTestParameterFormSet, RawMaterialUploadForm, ReorderPointForm, RestockApprovalItemForm, BulkUploadForm, BulkUploadRawMaterialForm, BulkUploadRawMaterialPriceForm, DeliveredRequisitionItemForm, EditSupplierForm, AddRawmaterialForm, CreatePurchaseOrderForm, GoodsReceivedNoteForm, InternalAccessoryRequestForm, LPOForm, LivaraMainStoreDeliveredQuantityForm, MainStoreAccessoryRequisitionForm,MainStoreAccessoryRequisitionItemFormSet, ManufactureProductForm, MarkAsDeliveredForm, NewAccessoryForm, ProductionForm,RawMaterialPriceForm, PriceAlertForm, ProductionIngredientForm, ProductionIngredientFormSet, ProductionOrderForm, RawMaterialQuantityForm, ReceiptForm, ReplaceNoteForm, ReplaceNoteItemForm, ReplaceNoteItemFormSet, RequisitionForm, RequisitionItemForm, RequisitionExpenseItemFormSet, RestockRequestForm, RestockRequestItemForm, RestockRequestItemFormset, SaleOrderForm, ServiceNameForm, ServiceSaleForm, ServiceSaleItemForm, ServiceCategoryForm, StoreAlertForm, StoreForm, StoreSalePaymentForm, StoreSelectionForm, StoreServiceForm, StoreTransferForm,InternalAccessoryRequestItemFormSet, StoreTransferItemForm, StoreTransferItemFormSet, StoreWriteOffForm, TestForm, TestItemForm, TestItemFormset, TransferApprovalForm, WriteOffForm
-from .models import LPO, Accessory,CashDrawerSession, AccessoryInventory, AccessoryInventoryAdjustment,RefreshmentSaleItem, RefreshmentStockHistory, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, Refreshment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductSalePayment, ProductSaleReceipt, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, SavedCommissionReport, ServiceCategory, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreProductSale, StoreProductSaleItem, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
+from .forms import *
+from .models import LPO, Accessory,CashDrawerSession, CashDrawerTransaction, AccessoryInventory, AccessoryInventoryAdjustment,RefreshmentSaleItem, RefreshmentStockHistory, AccessorySaleItem, CreditNote,RawMaterialPrice, PriceAlert, DebitNote, DiscrepancyDeliveryReport, Refreshment, GoodsReceivedNote, IncidentWriteOff, InternalAccessoryRequest, InternalAccessoryRequestItem, InventoryAdjustment, LivaraInventoryAdjustment, LivaraMainStore, MainStoreAccessoryRequisition, MainStoreAccessoryRequisitionItem, ManufactureProduct, ManufacturedProductIngredient, ManufacturedProductInventory, MonthlyStaffCommission, Notification, Payment, PaymentVoucher, PriceGroup, ProductPrice, ProductSaleItem, ProductSalePayment, ProductSaleReceipt, ProductionIngredient, Production, ProductionOrder, QualityControlTest, QualityTestParameter, QualityControlAction, SampleAllocation, RawMaterial, RawMaterialInventory, ReplaceNote, ReplaceNoteItem, Requisition, RequisitionItem, RequisitionExpenseItem, RestockRequest, RestockRequestItem, SaleItem, SalesInvoice, SavedCommissionReport, ServiceCategory, ServiceName, ServiceSale, ServiceSaleInvoice, ServiceSaleItem, StaffCommission, StaffProductCommission, Store, StoreAccessoryInventory, StoreAlerts, StoreInventory, StoreInventoryAdjustment, StoreProductSale, StoreProductSaleItem, StoreSale, StoreSalePayment, StoreSaleReceipt, StoreService, StoreTransfer, StoreTransferItem, StoreWriteOff, Supplier, PurchaseOrder, TransferApproval, WriteOff
 
 logger = logging.getLogger(__name__)
 # Create your views here.
@@ -11126,42 +11126,77 @@ def record_product_sale_payment(request, sale_id):
     if request.method == 'POST':
         form = ProductSalePaymentForm(request.POST, sale_balance=sale.balance or sale.total_amount)
         if form.is_valid():
-            payment_amount = form.cleaned_data['amount']
             payment_method = form.cleaned_data['payment_method']
             payment_remarks = form.cleaned_data.get('remarks', '')
             
-            # Create payment record
-            ProductSalePayment.objects.create(
-                sale=sale,
-                amount=payment_amount,
-                payment_method=payment_method,
-                remarks=payment_remarks,
-                created_by=request.user
-
-            )
-            
-            # Update sale payment info
-            sale.paid_amount = (sale.paid_amount or 0) + payment_amount
-            sale.balance = sale.total_amount - sale.paid_amount
-            sale.payment_mode = payment_method
-            if payment_remarks:
-                sale.payment_remarks = payment_remarks
-            sale.save()
-            
-            # Mark as paid if fully paid
-            if sale.balance <= 0:
-                try:
-                    sale.mark_as_paid(user=request.user)  # Pass the authenticated user
-                    messages.success(request, f'Payment recorded and sale marked as paid for {sale.customer.first_name} {sale.customer.last_name}')
-                    return redirect('product_sale_receipt', sale_id=sale.id)
-                except ValueError as e:
-                    # Handle case where there's no open cash drawer session
-                    messages.error(request, str(e))
-                    # Optionally redirect to cash drawer management
-                    return redirect('cash_drawer_manage')
-            else:
-                messages.success(request, f'Payment of UGX {payment_amount:,.0f} recorded. Balance: UGX {sale.balance:,.0f}')
-                return redirect('product_sale_details', sale_id=sale.id)
+            try:
+                with transaction.atomic():
+                    total_paid = 0
+                    
+                    # Handle mixed payments
+                    if payment_method == 'mixed':
+                        # Process each payment method
+                        for method in ['cash', 'mobile_money', 'airtel_money', 'visa', 'bank_transfer']:
+                            amount_field = f'{method}_amount'
+                            amount = form.cleaned_data.get(amount_field, 0) or 0
+                            
+                            if amount > 0:
+                                # Create individual payment record
+                                ProductSalePayment.objects.create(
+                                    sale=sale,
+                                    amount=amount,
+                                    payment_method=method,
+                                    remarks=f"{method.replace('_', ' ').title()}: {payment_remarks or 'Part of mixed payment'}",
+                                    created_by=request.user
+                                )
+                                total_paid += amount
+                    else:
+                        # Single payment method
+                        amount = form.cleaned_data['amount']
+                        ProductSalePayment.objects.create(
+                            sale=sale,
+                            amount=amount,
+                            payment_method=payment_method,
+                            remarks=payment_remarks,
+                            created_by=request.user
+                        )
+                        total_paid = amount
+                    
+                    # Update sale payment info
+                    sale.paid_amount = (sale.paid_amount or 0) + total_paid
+                    sale.balance = sale.total_amount - sale.paid_amount
+                    sale.payment_mode = payment_method
+                    if payment_remarks:
+                        sale.payment_remarks = payment_remarks
+                    
+                    # Save the sale to update the balance
+                    sale.save()
+                    
+                    # Mark as paid if fully paid
+                    if sale.balance <= 0:
+                        try:
+                            sale.mark_as_paid(user=request.user)
+                            messages.success(
+                                request, 
+                                f'Payment of UGX {total_paid:,.0f} recorded and sale marked as paid. ' +
+                                f'Balance: UGX {sale.balance:,.0f}'
+                            )
+                            return redirect('product_sale_receipt', sale_id=sale.id)
+                        except ValueError as e:
+                            messages.error(request, str(e))
+                            return redirect('cash_drawer_manage')
+                    else:
+                        messages.success(
+                            request, 
+                            f'Payment of UGX {total_paid:,.0f} recorded. ' +
+                            f'Balance: UGX {sale.balance:,.0f}'
+                        )
+                        return redirect('product_sale_details', sale_id=sale.id)
+                            
+            except Exception as e:
+                messages.error(request, f'Error processing payment: {str(e)}')
+                logger.error(f"Error processing payment for sale {sale_id}: {str(e)}", exc_info=True)
+           
     else:
         form = ProductSalePaymentForm(sale_balance=sale.balance or sale.total_amount)
     
@@ -11584,6 +11619,16 @@ def cash_drawer_detail(request, session_id):
         
         # Get all transactions for the session
         transactions = session.transactions.all().order_by('-created_at')
+
+        # Calculate payment method summary
+        payment_summary = transactions.values('payment_method').annotate(
+            total=Sum('amount'),
+            count=Count('id')
+        ).order_by('-total')
+
+        # Calculate percentage for each payment method
+        for method in payment_summary:
+            method['percentage'] = (method['total'] / total_transactions * 100) if total_transactions > 0 else 0
         
         # Calculate the difference if the session is closed
         difference = None
@@ -11596,7 +11641,8 @@ def cash_drawer_detail(request, session_id):
             'total_transactions': total_transactions,
             'expected_balance': expected_balance,
             'difference': difference,
-            'can_close': session.status == 'open'
+            'can_close': session.status == 'open',
+            'payment_summary': payment_summary
         })
         
     except Exception as e:
@@ -11613,26 +11659,46 @@ def session_detail(request, session_id):
         # Get all transactions for this session
         transactions = session.transactions.all().order_by('-timestamp')
         
-        # Calculate totals
-        total_cash = transactions.filter(payment_method='cash').aggregate(
+        # Get the sum of all transactions
+        total_transactions = session.transactions.aggregate(
             total=Coalesce(Sum('amount'), Decimal('0'))
-        )['total']
+        )['total'] or Decimal('0')
+
+        # Calculate payment method summary - using the model's choices
+        payment_methods = dict(CashDrawerTransaction.PAYMENT_METHODS)
+
+        # Calculate payment method summary with display names
+        payment_summary = []
+        for code, name in payment_methods.items():
+            method_transactions = transactions.filter(payment_method=code)
+            total = method_transactions.aggregate(
+                total=Coalesce(Sum('amount'), Decimal('0'))
+            )['total'] or Decimal('0')
+            count = method_transactions.count()
+            
+            if count > 0:  # Only include methods with transactions
+                payment_summary.append({
+                    'name': name,  # This is the display name
+                    'total_amount': total,
+                    'count': count
+                })
         
-        total_card = transactions.filter(payment_method='card').aggregate(
-            total=Coalesce(Sum('amount'), Decimal('0'))
-        )['total']
+        # Sort by total_amount in descending order
+        payment_summary.sort(key=lambda x: x['total_amount'], reverse=True)
+
         
-        total_mobile = transactions.filter(payment_method='mobile').aggregate(
-            total=Coalesce(Sum('amount'), Decimal('0'))
-        )['total']
+
+        # Calculate expected balance
+        expected_balance = (session.opening_balance or Decimal('0')) + total_transactions
+        
         
         context = {
             'session': session,
             'transactions': transactions,
-            'total_cash': total_cash,
-            'total_card': total_card,
-            'total_mobile': total_mobile,
-            'can_edit': request.user.is_staff  # Only staff can edit
+            'total_transactions': total_transactions,
+            'expected_balance': expected_balance,
+            'can_edit': request.user.is_staff,  # Only staff can edit
+            'payment_summary': payment_summary
         }
         
         return render(request, 'cash_drawer/session_details.html', context)
@@ -11681,3 +11747,320 @@ def all_cash_drawer_sessions(request):
         logger.error(f"Error in all_cash_drawer_sessions: {str(e)}", exc_info=True)
         messages.error(request, "An error occurred while loading cash drawer sessions.")
         return redirect('productionPage')  # Or another appropriate redirect
+
+
+
+#store credit notes
+@login_required
+@login_required
+def create_credit_note(request, sale_type, sale_id):
+    # Get the sale and customer
+    if sale_type == 'product':
+        sale = get_object_or_404(StoreProductSale, id=sale_id)
+        customer = sale.customer
+        # For product sales, items are in the 'items' related manager
+        items = [{
+            'item_type': 'product',
+            'name': item.product.product_name if hasattr(item.product, 'product_name') else 'Unknown Product',
+            'quantity': item.quantity,
+            'unit_price': item.unit_price,
+            'total_price': item.total_price,
+            'object': item
+        } for item in sale.product_sale_items.all()]   # Updated related name
+    else:  # service
+        sale = get_object_or_404(ServiceSale, id=sale_id)
+        customer = sale.customer
+        
+        # Process each type of item separately
+        items = []
+        
+        # Service items
+        for item in sale.service_sale_items.all():
+            items.append({
+                'item_type': 'service',
+                'name': item.service if item.service else 'Unknown Service',
+                'quantity': item.quantity,
+                'unit_price': item.unit_price if hasattr(item, 'unit_price') else 0,
+                'total_price': item.total_price if hasattr(item, 'total_price') else 0,
+                'object': item
+            })
+            
+        # Product items
+        for item in sale.product_sale_items.all():
+            items.append({
+                'item_type': 'product',
+                'name': item.product.name if hasattr(item, 'product') else 'Unknown Product',
+                'quantity': item.quantity,
+                'unit_price': item.unit_price if hasattr(item, 'unit_price') else 0,
+                'total_price': item.total_price if hasattr(item, 'total_price') else 0,
+                'object': item
+            })
+            
+        # Accessory items
+        for item in sale.accessory_sale_items.all():
+            items.append({
+                'item_type': 'accessory',
+                'name': item.accessory.name if hasattr(item, 'accessory') else 'Unknown Accessory',
+                'quantity': item.quantity,
+                'unit_price': item.unit_price if hasattr(item, 'unit_price') else 0,
+                'total_price': item.total_price if hasattr(item, 'total_price') else 0,
+                'object': item
+            })
+            
+        # Refreshment items
+        for item in sale.refreshment_sale_items.all():
+            items.append({
+                'item_type': 'refreshment',
+                'name': item.refreshment.name if hasattr(item, 'refreshment') else 'Unknown Refreshment',
+                'quantity': item.quantity,
+                'unit_price': item.unit_price if hasattr(item, 'unit_price') else 0,
+                'total_price': item.total_price if hasattr(item, 'total_price') else 0,
+                'object': item
+            })
+
+    # Rest of your view remains the same...
+    if request.method == 'POST':
+        form = StoreCreditNoteForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                credit_note = form.save(commit=False)
+                credit_note.created_by = request.user
+                credit_note.updated_by = request.user
+                credit_note.customer = customer
+                
+                if sale_type == 'product':
+                    credit_note.product_sale = sale
+                    credit_note.service_sale = None
+                else:
+                    credit_note.service_sale = sale
+                    credit_note.product_sale = None
+                
+                if form.cleaned_data.get('is_refunded', False):
+                    credit_note.status = 'refunded'
+                    credit_note.refund_date = timezone.now()
+                else:
+                    credit_note.status = 'approved'
+                
+                credit_note.save()
+                messages.success(request, 'Credit note created successfully!')
+                return redirect('credit_note_detail', pk=credit_note.id)
+    else:
+        initial_data = {
+            'total_amount': sale.total_amount,
+            'reason': f"Credit note for {sale_type} sale #{getattr(sale, 'sale_number', sale.id)}",
+            'note_type': 'price_adjustment',
+            'status': 'approved'
+        }
+        form = StoreCreditNoteForm(initial=initial_data)
+
+    context = {
+        'form': form,
+        'sale': sale,
+        'sale_type': sale_type,
+        'items': items,  # Pass items to template for display
+        'sale_total': sale.total_amount,
+    }
+    return render(request, 'credit_notes/create.html', context)
+
+
+@login_required
+def credit_note_detail(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    return render(request, 'credit_notes/detail.html', {
+        'credit_note': credit_note
+    })
+@login_required
+def credit_note_list(request):
+    # Prefetch related data to optimize database queries
+    credit_notes = StoreCreditNote.objects.select_related(
+        'product_sale__store',  # For product sales
+        'service_sale__store',  # For service sales
+        'customer'              # For customer info
+    ).order_by('-date_created')
+    
+    # Add filtering
+    status = request.GET.get('status')
+    if status:
+        credit_notes = credit_notes.filter(status=status)
+    
+    # Add search
+    search = request.GET.get('search')
+    if search:
+        credit_notes = credit_notes.filter(
+            Q(credit_note_number__icontains=search) |
+            Q(customer__first_name__icontains=search) |
+            Q(customer__last_name__icontains=search) |
+            Q(reason__icontains=search) |
+            Q(product_sale__store__name__icontains=search) |  # Search by store name for product sales
+            Q(service_sale__store__name__icontains=search)    # Search by store name for service sales
+        )
+    
+    # Add pagination
+    paginator = Paginator(credit_notes, 25)
+    page = request.GET.get('page')
+    credit_notes = paginator.get_page(page)
+    
+    return render(request, 'credit_notes/list.html', {
+        'credit_notes': credit_notes,
+        'status_filter': status,
+        'search_query': search or ''
+    })
+    
+@login_required
+def credit_note_detail(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    return render(request, 'credit_notes/detail.html', {
+        'credit_note': credit_note
+    })
+
+@login_required
+def store_credit_note_list(request):
+    """
+    View to list all credit notes for a specific store.
+    """
+    store = get_object_or_404(Store, manager=request.user)
+    
+    # Get credit notes where either product_sale or service_sale belongs to this store
+    credit_notes = StoreCreditNote.objects.select_related(
+        'product_sale__store',
+        'service_sale__store',
+        'customer'
+    ).filter(
+        models.Q(product_sale__store=store) | 
+        models.Q(service_sale__store=store)
+    ).order_by('-date_created')
+    
+    # Add filtering
+    status = request.GET.get('status')
+    if status:
+        credit_notes = credit_notes.filter(status=status)
+    
+    # Add search
+    search = request.GET.get('search')
+    if search:
+        credit_notes = credit_notes.filter(
+            Q(credit_note_number__icontains=search) |
+            Q(customer__first_name__icontains=search) |
+            Q(customer__last_name__icontains=search) |
+            Q(reason__icontains=search)
+        )
+    
+    # Add pagination
+    paginator = Paginator(credit_notes, 25)
+    page = request.GET.get('page')
+    credit_notes = paginator.get_page(page)
+    
+    return render(request, 'credit_notes/store_list.html', {
+        'credit_notes': credit_notes,
+        'store': store,
+        'status_filter': status,
+        'search_query': search or ''
+    })
+
+@login_required
+def edit_credit_note(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    if request.method == 'POST':
+        form = StoreCreditNoteForm(request.POST, instance=credit_note)
+        if form.is_valid():
+            credit_note = form.save(commit=False)
+            credit_note.updated_by = request.user
+            credit_note.save()
+            messages.success(request, 'Credit note has been updated successfully.')
+            return redirect('credit_note_detail', pk=credit_note.id)
+    else:
+        form = StoreCreditNoteForm(instance=credit_note)
+    return render(request, 'credit_notes/edit.html', {
+        'form': form,
+        'credit_note': credit_note
+    })
+
+@login_required
+def process_refund(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    
+    if request.method == 'POST':
+        form = StoreCreditNoteForm(request.POST, instance=credit_note)
+        if form.is_valid():
+            credit_note = form.save(commit=False)
+            credit_note.status = 'refunded'
+            credit_note.refund_date = timezone.now()
+            credit_note.updated_by = request.user
+            credit_note.save()
+            
+            # Process the refund (integrate with your payment gateway)
+            try:
+                # Example: Process refund through payment gateway
+                # refund = payment_gateway.refund(
+                #     amount=credit_note.total_amount,
+                #     reference=credit_note.credit_note_number,
+                #     payment_reference=credit_note.sale.payment_reference
+                # )
+                
+                messages.success(request, f'Refund of {credit_note.total_amount} processed successfully.')
+                return redirect('credit_note_detail', pk=credit_note.id)
+                
+            except Exception as e:
+                messages.error(request, f'Error processing refund: {str(e)}')
+                credit_note.status = 'approved'  # Revert status if refund fails
+                credit_note.save()
+    
+    else:
+        form = StoreCreditNoteForm(instance=credit_note)
+    
+    return render(request, 'credit_notes/process_refund.html', {
+        'form': form,
+        'credit_note': credit_note
+    })
+
+# views.py
+@login_required
+def approve_credit_note(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    if credit_note.status != 'draft':
+        messages.error(request, 'Only draft credit notes can be approved.')
+        return redirect('credit_note_detail', pk=pk)
+    
+    credit_note.status = 'approved'
+    credit_note.updated_by = request.user
+    credit_note.save()
+    
+    messages.success(request, 'Credit note has been approved and is ready for refund processing.')
+    return redirect('credit_note_detail', pk=pk)
+
+@login_required
+def void_credit_note(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    if credit_note.status != 'draft':
+        messages.error(request, 'Only draft credit notes can be voided.')
+        return redirect('credit_note_detail', pk=pk)
+    
+    if request.method == 'POST':
+        reason = request.POST.get('reason', '')
+        if not reason:
+            messages.error(request, 'Please provide a reason for voiding this credit note.')
+            return redirect('credit_note_detail', pk=pk)
+            
+        credit_note.status = 'void'
+        credit_note.reason = f"{credit_note.reason}\n\nVoided: {reason}"
+        credit_note.updated_by = request.user
+        credit_note.save()
+        
+        messages.success(request, 'Credit note has been voided.')
+        return redirect('credit_note_detail', pk=pk)
+    
+    return redirect('credit_note_detail', pk=pk)
+
+@login_required
+def credit_note_pdf(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    # Generate PDF using a library like ReportLab or WeasyPrint
+    # Return the PDF as a response
+    pass
+
+@login_required
+def credit_note_email(request, pk):
+    credit_note = get_object_or_404(StoreCreditNote, pk=pk)
+    # Send email with PDF attachment
+    # Return a success/error message
+    pass

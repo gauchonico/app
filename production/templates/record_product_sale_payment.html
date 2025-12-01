@@ -26,21 +26,13 @@
                     </div>
 
                     <!-- Payment Form -->
-                    <form method="post">
+                    <form method="post" id="payment-form">
                         {% csrf_token %}
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="{{ form.amount.id_for_label }}" class="form-label">Payment Amount *</label>
-                                    {{ form.amount }}
-                                    {% if form.amount.errors %}
-                                        <div class="text-danger">{{ form.amount.errors.0 }}</div>
-                                    {% endif %}
-                                    <div class="form-text">Maximum: UGX {{ sale.balance|floatformat:0|intcomma }}</div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
+                        
+                        <!-- Payment Method Selection -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-group">
                                     <label for="{{ form.payment_method.id_for_label }}" class="form-label">Payment Method *</label>
                                     {{ form.payment_method }}
                                     {% if form.payment_method.errors %}
@@ -49,7 +41,90 @@
                                 </div>
                             </div>
                         </div>
-                        
+
+                        <!-- Single Payment Method (shown by default) -->
+                        <div id="single-payment-section">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <label for="{{ form.amount.id_for_label }}" class="form-label">Payment Amount *</label>
+                                        {{ form.amount }}
+                                        {% if form.amount.errors %}
+                                            <div class="text-danger">{{ form.amount.errors.0 }}</div>
+                                        {% endif %}
+                                        <div class="form-text">Maximum: UGX {{ sale.balance|floatformat:0|intcomma }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mixed Payment Section (hidden by default) -->
+                        <div id="mixed-payment-section" style="display: none;">
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">Mixed Payment Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.cash_amount.id_for_label }}" class="form-label">Cash Amount</label>
+                                                {{ form.cash_amount }}
+                                                {% if form.cash_amount.errors %}
+                                                    <div class="text-danger">{{ form.cash_amount.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.mobile_money_amount.id_for_label }}" class="form-label">Mobile Money</label>
+                                                {{ form.mobile_money_amount }}
+                                                {% if form.mobile_money_amount.errors %}
+                                                    <div class="text-danger">{{ form.mobile_money_amount.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.airtel_money_amount.id_for_label }}" class="form-label">Airtel Money</label>
+                                                {{ form.airtel_money_amount }}
+                                                {% if form.airtel_money_amount.errors %}
+                                                    <div class="text-danger">{{ form.airtel_money_amount.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.visa_amount.id_for_label }}" class="form-label">Visa</label>
+                                                {{ form.visa_amount }}
+                                                {% if form.visa_amount.errors %}
+                                                    <div class="text-danger">{{ form.visa_amount.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.bank_transfer_amount.id_for_label }}" class="form-label">Bank Transfer</label>
+                                                {{ form.bank_transfer_amount }}
+                                                {% if form.bank_transfer_amount.errors %}
+                                                    <div class="text-danger">{{ form.bank_transfer_amount.errors.0 }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-info">
+                                        <strong>Total Payment:</strong> 
+                                        <span id="total-mixed-payment">UGX 0</span> / 
+                                        <span>UGX {{ sale.balance|floatformat:0|intcomma }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label for="{{ form.remarks.id_for_label }}" class="form-label">Payment Remarks</label>
                             {{ form.remarks }}
@@ -75,18 +150,64 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const paymentMethod = document.getElementById('{{ form.payment_method.id_for_label }}');
+    const singlePaymentSection = document.getElementById('single-payment-section');
+    const mixedPaymentSection = document.getElementById('mixed-payment-section');
     const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
-    const maxAmount = {{ sale.balance }};
+    const maxAmount = {{ sale.balance|default:0 }};
     
-    amountInput.addEventListener('input', function() {
-        const value = parseFloat(this.value);
-        if (value > maxAmount) {
-            this.value = maxAmount;
+    // Payment method change handler
+    function handlePaymentMethodChange() {
+        if (paymentMethod.value === 'mixed') {
+            singlePaymentSection.style.display = 'none';
+            mixedPaymentSection.style.display = 'block';
+            amountInput.required = false;
+        } else {
+            singlePaymentSection.style.display = 'block';
+            mixedPaymentSection.style.display = 'none';
+            amountInput.required = true;
         }
-    });
+    }
+
+    // Calculate total for mixed payments
+    function calculateMixedTotal() {
+        const cash = parseFloat(document.getElementById('{{ form.cash_amount.id_for_label }}').value) || 0;
+        const mobileMoney = parseFloat(document.getElementById('{{ form.mobile_money_amount.id_for_label }}').value) || 0;
+        const airtelMoney = parseFloat(document.getElementById('{{ form.airtel_money_amount.id_for_label }}').value) || 0;
+        const visa = parseFloat(document.getElementById('{{ form.visa_amount.id_for_label }}').value) || 0;
+        const bankTransfer = parseFloat(document.getElementById('{{ form.bank_transfer_amount.id_for_label }}').value) || 0;
+        
+        const total = cash + mobileMoney + airtelMoney + visa + bankTransfer;
+        document.getElementById('total-mixed-payment').textContent = `UGX ${total.toLocaleString()}`;
+        
+        // Update the hidden amount field for form validation
+        amountInput.value = total;
+    }
+
+    // Add event listeners
+    paymentMethod.addEventListener('change', handlePaymentMethodChange);
     
-    // Set max amount as placeholder
-    amountInput.placeholder = `Maximum: UGX ${maxAmount.toFixed(0)}`;
+    // Add input event listeners to all mixed payment fields
+    const mixedPaymentInputs = document.querySelectorAll('.mixed-payment');
+    mixedPaymentInputs.forEach(input => {
+        input.addEventListener('input', calculateMixedTotal);
+    });
+
+    // Initial setup
+    handlePaymentMethodChange();
+    
+    // Amount input validation
+    if (amountInput) {
+        amountInput.addEventListener('input', function() {
+            const value = parseFloat(this.value) || 0;
+            if (value > maxAmount) {
+                this.value = maxAmount;
+            }
+        });
+        
+        // Set max amount as placeholder
+        amountInput.placeholder = `Maximum: UGX ${maxAmount.toLocaleString()}`;
+    }
 });
 </script>
 {% endblock %}

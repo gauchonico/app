@@ -24,7 +24,7 @@
         background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     }
     .filter-card {
-        background: #f8f9fa;
+        background: #e4e5e6ca;
         border-radius: 10px;
         padding: 20px;
         margin-bottom: 20px;
@@ -306,6 +306,11 @@
                                                     <i class="fas fa-credit-card"></i>
                                                 </a>
                                                 {% endif %}
+                                                <a href="{% url 'create_credit_note' sale_type='product' sale_id=sale.id %}" 
+                                                   class="btn btn-sm btn-warning" 
+                                                   title="Create Credit Note">
+                                                    <i class="fas fa-file-invoice-dollar"></i> CN
+                                                </a>
                                             </div>
                                         </td>
                                     </tr>

@@ -1,0 +1,227 @@
+<!-- templates/credit_notes/detail.html -->
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Credit Note: {{ credit_note.credit_note_number }}</h2>
+        <div>
+            <a href="{% url 'credit_note_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to List
+            </a>
+            <a href="{% url 'edit_credit_note' credit_note.id %}" class="btn btn-outline-primary">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            {% if credit_note.status == 'approved' and not credit_note.is_refunded %}
+            <a href="{% url 'process_refund' pk=credit_note.id %}" class="btn btn-success">
+                <i class="fas fa-money-bill-wave"></i> Process Refund
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Credit Note Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Credit Note #:</strong> {{ credit_note.credit_note_number }}</p>
+                            <p><strong>Date Created:</strong> {{ credit_note.date_created|date:"M d, Y" }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge bg-{% if credit_note.status == 'approved' %}success{% elif credit_note.status == 'refunded' %}info{% elif credit_note.status == 'void' %}danger{% else %}secondary{% endif %}">
+                                    {{ credit_note.get_status_display }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Type:</strong> {{ credit_note.get_note_type_display }}</p>
+                            <p><strong>Customer:</strong> {{ credit_note.customer.get_full_name }}</p>
+                            {% if credit_note.refund_date %}
+                            <p><strong>Refund Date:</strong> {{ credit_note.refund_date|date:"M d, Y" }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <h6>Reason for Credit Note:</h6>
+                    <p class="mb-4">{{ credit_note.reason }}</p>
+
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Quantity</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in credit_note.items.all %}
+                                <tr>
+                                    <td>
+                                        {% if item.product %}
+                                            {{ item.product.name }}
+                                        {% else %}
+                                            {{ item.service.name }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.reason|truncatechars:50 }}</td>
+                                    <td class="text-end">{{ item.quantity }}</td>
+                                    <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
+                                    <td class="text-end">{{ item.total_price|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="4" class="text-end">Subtotal:</th>
+                                    <th class="text-end">{{ credit_note.total_amount|floatformat:2 }}</th>
+                                </tr>
+                                <tr>
+                                    <th colspan="4" class="text-end">Tax (if any):</th>
+                                    <th class="text-end">0.00</th>
+                                </tr>
+                                <tr class="table-active">
+                                    <th colspan="4" class="text-end">Total Credit:</th>
+                                    <th class="text-end">{{ credit_note.total_amount|floatformat:2 }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    {% if credit_note.refund_method %}
+                    <div class="mt-4">
+                        <h6>Refund Information</h6>
+                        <p>
+                            <strong>Refund Method:</strong> {{ credit_note.get_refund_method_display }}<br>
+                            <strong>Reference:</strong> {{ credit_note.refund_reference|default:"N/A" }}<br>
+                            <strong>Processed By:</strong> {{ credit_note.updated_by.get_full_name }}<br>
+                            <strong>Processed On:</strong> {{ credit_note.refund_date|date:"M d, Y H:i" }}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Related Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if credit_note.product_sale %}
+                    <h6>Related Product Sale</h6>
+                    <p>
+                        <a href="{% url 'product_sale_detail' pk=credit_note.product_sale.id %}">
+                            {{ credit_note.product_sale.invoice_number }}
+                        </a><br>
+                        <small class="text-muted">
+                            {{ credit_note.product_sale.sale_date|date:"M d, Y" }} - 
+                            {{ credit_note.product_sale.get_status_display }}
+                        </small>
+                    </p>
+                    {% endif %}
+
+                    {% if credit_note.service_sale %}
+                    <h6>Related Service Sale</h6>
+                    <p>
+                        <a href="{% url 'service_sale_details' sale_id=credit_note.service_sale.id %}">
+                            {{ credit_note.service_sale.service_sale_number }}
+                        </a><br>
+                        <small class="text-muted">
+                            {{ credit_note.service_sale.sale_date|date:"M d, Y" }} - 
+                            {{ credit_note.service_sale.get_status_display }}
+                        </small>
+                    </p>
+                    {% endif %}
+
+                    <h6 class="mt-4">Audit Trail</h6>
+                    <p>
+                        <small class="text-muted">
+                            Created by {{ credit_note.created_by.get_full_name }}<br>
+                            on {{ credit_note.date_created|date:"M d, Y H:i" }}<br>
+                            {% if credit_note.updated_by and credit_note.updated_by != credit_note.created_by %}
+                                Last updated by {{ credit_note.updated_by.get_full_name }}<br>
+                                on {{ credit_note.date_updated|date:"M d, Y H:i" }}
+                            {% endif %}
+                        </small>
+                    </p>
+
+                    {% if credit_note.status == 'draft' %}
+                    <div class="mt-3">
+                        <form method="post" action="{% url 'approve_credit_note' pk=credit_note.id %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-sm">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                        </form>
+                        <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#voidModal">
+                            <i class="fas fa-times"></i> Void
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'credit_note_pdf' pk=credit_note.id %}" class="btn btn-outline-primary">
+                            <i class="fas fa-file-pdf"></i> Download PDF
+                        </a>
+                        <a href="{% url 'credit_note_email' pk=credit_note.id %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-envelope"></i> Email to Customer
+                        </a>
+                        {% if credit_note.status == 'approved' and not credit_note.is_refunded %}
+                        <a href="{% url 'process_refund' pk=credit_note.id %}" class="btn btn-success">
+                            <i class="fas fa-money-bill-wave"></i> Process Refund
+                        </a>
+                        {% endif %}
+                        {% if credit_note.status == 'draft' %}
+                        <a href="{% url 'credit_note_edit' pk=credit_note.id %}" class="btn btn-outline-warning">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Void Confirmation Modal -->
+<div class="modal fade" id="voidModal" tabindex="-1" aria-labelledby="voidModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="voidModalLabel">Void Credit Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to void this credit note? This action cannot be undone.</p>
+                <form id="voidForm" method="post" action="{% url 'void_credit_note' pk=credit_note.id %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="voidReason" class="form-label">Reason for voiding</label>
+                        <textarea class="form-control" id="voidReason" name="reason" rows="3" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="voidForm" class="btn btn-danger">Void Credit Note</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

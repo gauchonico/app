@@ -361,5 +361,17 @@ urlpatterns = [
     path('cash-drawer/detail/<int:session_id>/', views.cash_drawer_detail, name='cash_drawer_detail'),
     path('cash-drawer/all/', views.all_cash_drawer_sessions, name='all_cash_drawer_sessions'),
     path('cash-drawer/session/<int:session_id>/', views.session_detail, name='session_detail'),
+
+    #store credit notes views
+    path('credit-notes/create/<str:sale_type>/<int:sale_id>/', views.create_credit_note, name='create_credit_note'),
+    path('credit-notes/<int:pk>/', views.credit_note_detail, name='credit_note_detail'),
+    path('credit-notes/<int:pk>/process-refund/', views.process_refund, name='process_refund'),
+    path('credit-notes/<int:pk>/void/', views.void_credit_note, name='void_credit_note'),
+    path('credit-notes-list/', views.credit_note_list, name='credit_note_list'),
+    path('credit-notes/<int:pk>/edit/', views.edit_credit_note, name='edit_credit_note'),
+    path('store_credit_note_list/', views.store_credit_note_list, name='store_credit_note_list'),
+    path('credit-notes/<int:pk>/approve/', views.approve_credit_note, name='approve_credit_note'),
+    path('credit-notes/<int:pk>/pdf/', views.credit_note_pdf, name='credit_note_pdf'),
+    path('credit-notes/<int:pk>/email/', views.credit_note_email, name='credit_note_email'),
    
 ]
