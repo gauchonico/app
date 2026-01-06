@@ -190,7 +190,7 @@ def sidebar_menu(request):
         },{
             'url': '/production/factory-inventory/',
             'icon': 'bi bi-box-fill',
-            'text': 'URI Inventory',
+            'text': 'URI Manufacturing',
             'name': 'factoryInventory'
         },{
             'url': '/production/production-orders/',
@@ -615,8 +615,8 @@ def sidebar_menu(request):
             })
             sidebar_menu.append({
                 'icon': 'bi bi-box-fill',
-                'text': mark_safe(f'Inventory<span class="badge rounded-circle bg-danger">{inventory_total}</span>'
-                                if inventory_total > 0 else 'Inventory'
+                'text': mark_safe(f'Main Store Inventory<span class="badge rounded-circle bg-danger">{inventory_total}</span>'
+                                if inventory_total > 0 else 'Main Store Inventory'
                                 ),
                 'children': [
                     
@@ -1095,7 +1095,7 @@ def sidebar_menu(request):
             },{
             'url': '/production/factory-inventory/',
             'icon': 'bi bi-box-fill',
-            'text': 'URI Inventory',
+            'text': 'URI Manufacturing',
             'name': 'factoryInventory'
         },{
                     'url':'/production/accessory_store/',
@@ -1345,21 +1345,11 @@ def sidebar_menu(request):
                     }]
             })
             sidebar_menu.append({
+                'url': '/production/raw-materials-dashboard/',
                 'icon': 'bi bi-folder',
-                'text':'Rawmaterials Unit',
-                'children': [{
-                    'url': '/production/raw-materials/',
-                    'text': 'All Rawmaterials',
-                    'name':'rawmaterialsList',
-                },{
-                    'url': '/production/raw-material-prices/add/',
-                    'text': 'Raw Material Price',
-                    'name':'add_raw_material_price',
-                    },{
-                        'url': '/production/price-comparison/',
-                        'text': 'Price Comparison',
-                        'name':'price_comparison',
-                    }]
+                'text': 'Rawmaterials',
+                'name': 'raw_materials_dasboard'
+
             })
         elif 'Saloon Managers' in group_names:
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

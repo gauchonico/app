@@ -4,6 +4,8 @@
 
 {% block title %}Factory Inventory Dashboard{% endblock %}
 
+{% block htmlAttr %}data-help-page="manufactured-product-inventory"{% endblock %}
+
 {% block css %}
 <link href="{% static 'plugins/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet" />
 <link href="{% static 'plugins/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet" />
@@ -26,38 +28,10 @@
     }
     
     .stats-card {
-        color: white;
+        border: 1px solid #595757ff;
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 1rem;
-    }
-    
-    .stats-card.success {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-    }
-    
-    .stats-card.warning {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    }
-    
-    .stats-card.info {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    }
-    
-    .stats-card.primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    
-    .stats-card.danger {
-        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-    }
-    
-    .stats-card.secondary {
-        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-    }
-    
-    .stats-card.purple {
-        background: linear-gradient(135deg, #8e2de2 0%, #4a00e0 100%);
     }
     
     .stats-number {
@@ -202,46 +176,122 @@ if (typeof $.fn.DataTable === 'undefined') {
     document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"><\/script>');
     document.write('<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"><\/script>');
 }
+
+ $('.toast').toast('show');
 </script>
+
+<script>
+// Keyboard shortcuts
+$(document).on('keydown', function(e) {
+    // Only trigger if not in an input field
+    if ($(e.target).is('input, textarea, select')) return;
+
+    // Ctrl + N - New manufacturing order
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        window.location.href = "#";
+    }
+    
+    // F5 - Refresh data
+    if (e.key === 'F5') {
+        window.location.reload();
+    }
+});
+
+// Auto-focus search on Ctrl+F
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[type="search"]');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    }
+});
+</script>
+
 {% endblock %}
 
 {% block content %}
-<!-- BEGIN page-header -->
-<div class="d-flex align-items-center mb-4">
-    <div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
-            <li class="breadcrumb-item active">FACTORY INVENTORY</li>
-        </ul>
-        <h2 class="text-white mb-0">Factory Inventory Dashboard</h2>
-        <p class="text-white-50 mb-0">Monitor manufactured products, batches, and production efficiency</p>
-    </div>
-    <div class="ms-auto">
-        <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary me-2">
-            <i class="fas fa-truck me-1"></i>Bulk Transfer
-        </a>
-        <a href="{% url 'main_stock_transfer' %}" class="btn btn-info">
-            <i class="fas fa-exchange-alt me-1"></i>View Transfers
-        </a>
-    </div>
+<!-- Help Button -->
+<button type="button" class="btn btn-sm btn-outline-theme position-fixed" style="bottom: 20px; right: 20px; z-index: 1000;" data-bs-toggle="modal" data-bs-target="#helpModal">
+    <i class="fas fa-question-circle me-1"></i> Help
+</button>
+<div class="d-flex align-items-center justify-content-between mb-4">
+		<div>
+			<nav aria-label="breadcrumb">
+				<ol class="breadcrumb mb-2">
+					<li class="breadcrumb-item"><a href="#">URI INVENTORY</a></li>
+				
+				</ol>
+			</nav>
+			<h6 class="mb-0">Manufactured Product Inventory</h6>
+			
+		</div>
+		<div class="d-flex gap-2">
+			
+			<div class="dropdown">
+				<button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+					<i class="fas fa-download me-2"></i>Export
+				</button>
+				<ul class="dropdown-menu">
+					<li><a class="dropdown-item" href="#"><i class="fas fa-file-excel me-2"></i>Excel</a></li>
+					<li><a class="dropdown-item" href="#"><i class="fas fa-file-pdf me-2"></i>PDF</a></li>
+					<li><a class="dropdown-item" href="#"><i class="fas fa-file-csv me-2"></i>CSV</a></li>
+				</ul>
+			</div>
+		</div>
+	</div>
+<div class="flex-grow-1 mb-4">
+            <h6 class="alert-heading">Products Available at URI</h6>
+            <p class="mb-2">This dashboard provides an overview of your manufactured product inventory, including current levels, batch details, and more.</p>
 </div>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <h6 class="mb-3">Production</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'productionProduction' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Production Orders
+            </a>
+            <a href="{% url 'bulk_stock_transfer' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Transfer to Main Store
+            </a>
+            <a href="{% url 'main_stock_transfer' %}" class="text-decoration-none">
+                <i class="fas fa-arrow-right me-2"></i>Inventory Transfers
+            </a>
 
-<!-- Quick Actions -->
-<div class="quick-actions">
-    <div class="row align-items-center">
-        <div class="col-md-6">
-            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Production Overview</h5>
+            
         </div>
-        <div class="ms-auto">
-            {% comment %} <a href="{% url 'create_production_order' %}" class="btn btn-primary btn-action me-2">
-                <i class="fas fa-plus me-1"></i>New Production
-            </a> {% endcomment %}
-            <a href="{% url 'manufacturedProductList' %}" class="btn btn-info btn-action me-2">
-                <i class="fas fa-list me-1"></i>Production History
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Items</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'productsList' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Products
             </a>
-            <a href="{% url 'accounts:manufacturing_report' %}" class="btn btn-success btn-action">
-                <i class="fas fa-chart-bar me-1"></i>Production Report
+            
+            <a href="#" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>URI Product Write Off
             </a>
+            
+        </div>
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Reports</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'manufacturedProductList' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Completed Orders
+            </a>
+            <a href="{% url 'accounts:manufacturing_report' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Production Reports
+            </a>
+            <a href="#" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Rawmaterial Utilization Report
+            </a>
+            <a href="#" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Products Manufactured
+            </a>
+            
         </div>
     </div>
 </div>
@@ -249,7 +299,7 @@ if (typeof $.fn.DataTable === 'undefined') {
 <!-- Statistics Cards -->
 <div class="row mb-4">
     <div class="col-xl-2 col-md-4 col-sm-6">
-        <div class="stats-card primary">
+        <div class="stats-card">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
                     <div class="stats-number">{{ total_products }}</div>
@@ -315,6 +365,97 @@ if (typeof $.fn.DataTable === 'undefined') {
         </div>
     </div>
 </div>
+<div class="stats-card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>URI Inventory</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="datatableDefault" class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th>Batch Number</th>
+                        <th>Quantity</th>
+                        <th>Expiry Date</th>
+                        <th>Status</th>
+                        <th>Last Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ item.product.product_name }}</strong>
+                            {% if item.product.description %}
+                                <br><small class="text-muted">{{ item.product.description|truncatechars:50 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.batch_number }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {% if item.quantity > 50 %}bg-success opacity-80{% elif item.quantity > 10 %}bg-primary opacity-80{% elif item.quantity > 0 %}bg-warning opacity-80{% else %}bg-danger opacity-80{% endif %}">
+                                {{ item.quantity|intcomma }} units
+                            </span>
+                        </td>
+                        <td>
+                            {% if item.expiry_date %}
+                                {% if item.expiry_date < today %}
+                                    <span class="text-danger">{{ item.expiry_date|date:"M d, Y" }}</span>
+                                {% elif item.expiry_date|date:"Y-m-d" == today|date:"Y-m-d" %}
+                                    <span class="text-warning">{{ item.expiry_date|date:"M d, Y" }}</span>
+                                {% else %}
+                                    {{ item.expiry_date|date:"M d, Y" }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">No expiry</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.quantity > 50 %}
+                                <i class="fas fa-arrow-alt-circle-up text-success opacity-75"></i>
+                            {% elif item.quantity > 10 %}
+                                <i class="fas fa-arrow-alt-circle-up text-primary opacity-75"></i>
+                            {% elif item.quantity > 0 %}
+                                <i class="fas fa-arrow-alt-circle-down text-warning opacity-75"></i>
+                            {% else %}
+                                <i class="fas fa-arrow-alt-circle-down text-danger opacity-75"></i>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.last_updated|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <div class="btn-group">
+                                <button href="{% url 'productInventoryDetails' item.id %}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye me-1"></i>View
+                                </button>
+                                {% if item.quantity > 0 %}
+                                <button href="{% url 'write_off_inventory' item.id %}" type="button" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-times me-1"></i>Write Off
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No inventory items found</p>
+                                <a href="{% url 'create_production_order' %}" class="btn btn-primary">Start Production</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 <!-- Charts Row -->
 <div class="row mb-4">
@@ -322,7 +463,7 @@ if (typeof $.fn.DataTable === 'undefined') {
         <div class="chart-container">
             <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Monthly Production Trends</h5>
             <canvas id="monthlyProductionChart" height="100"></canvas>
-            <div id="monthlyChartFallback" class="text-center text-white" style="display: none;">
+            <div id="monthlyChartFallback" class="text-center text-theme" style="display: none;">
                 <i class="fas fa-chart-line fa-3x mb-3"></i>
                 <p>Chart loading...</p>
             </div>
@@ -495,97 +636,7 @@ if (typeof $.fn.DataTable === 'undefined') {
 </div>
 
 <!-- Main Inventory Table -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Complete Factory Inventory</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table id="datatableDefault" class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Product</th>
-                        <th>Batch Number</th>
-                        <th>Quantity</th>
-                        <th>Expiry Date</th>
-                        <th>Status</th>
-                        <th>Last Updated</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in inventory %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>
-                            <strong>{{ item.product.product_name }}</strong>
-                            {% if item.product.description %}
-                                <br><small class="text-muted">{{ item.product.description|truncatechars:50 }}</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge bg-secondary">{{ item.batch_number }}</span>
-                        </td>
-                        <td>
-                            <span class="badge {% if item.quantity > 50 %}bg-success{% elif item.quantity > 10 %}bg-primary{% elif item.quantity > 0 %}bg-warning{% else %}bg-danger{% endif %}">
-                                {{ item.quantity|intcomma }} units
-                            </span>
-                        </td>
-                        <td>
-                            {% if item.expiry_date %}
-                                {% if item.expiry_date < today %}
-                                    <span class="text-danger">{{ item.expiry_date|date:"M d, Y" }}</span>
-                                {% elif item.expiry_date|date:"Y-m-d" == today|date:"Y-m-d" %}
-                                    <span class="text-warning">{{ item.expiry_date|date:"M d, Y" }}</span>
-                                {% else %}
-                                    {{ item.expiry_date|date:"M d, Y" }}
-                                {% endif %}
-                            {% else %}
-                                <span class="text-muted">No expiry</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if item.quantity > 50 %}
-                                <span class="status-badge status-instock">High Stock</span>
-                            {% elif item.quantity > 10 %}
-                                <span class="status-badge status-instock">In Stock</span>
-                            {% elif item.quantity > 0 %}
-                                <span class="status-badge status-lowstock">Low Stock</span>
-                            {% else %}
-                                <span class="status-badge status-outofstock">Out/Stock</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ item.last_updated|date:"M d, Y H:i" }}</td>
-                        <td>
-                            <div class="btn-group">
-                                <button href="{% url 'productInventoryDetails' item.id %}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-eye me-1"></i>View
-                                </button>
-                                {% if item.quantity > 0 %}
-                                <button href="{% url 'write_off_inventory' item.id %}" type="button" class="btn btn-sm btn-danger">
-                                    <i class="fas fa-times me-1"></i>Write Off
-                                </button>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="8" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="fas fa-inbox fa-3x mb-3"></i>
-                                <p>No inventory items found</p>
-                                <a href="{% url 'create_production_order' %}" class="btn btn-primary">Start Production</a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block outter_content %}

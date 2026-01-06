@@ -73,27 +73,41 @@
 <div class="d-flex align-items-center mb-3">
     <div>
         <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#">RAW MATERIALS</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'raw_materials_dashboard' %}">RAW MATERIALS DASHBOARD</a></li>
             <li class="breadcrumb-item active">ADD RAW MATERIALS</li>
         </ul>
         
-        <h1 class="page-header">
-            Add Raw Material <small>Get started</small>
-            <a href="{% url 'upload_raw_materials' %}">
-                <button class="btn btn-sm btn-outline-theme float-end">Assign</button>
+        <h5>
+            Add Raw Material
+            
+        </h5>
+       
+    </div>
+    </div>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <h6 class="mb-3">For Bulk Uploads</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'download_example_csv' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Download Sample bulk upload csv
             </a>
-        </h1>
-        <h6>For Bulk Uploads<span class="text-theme"> Download </span><a href="{% url 'download_example_csv' %}">raw_material_bulk_upload csv</a></h6>
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 {{ bulk_form.as_p }}
                 <button class="btn btn-outline-theme" type="submit" name="bulk_upload">Upload CSV</button>
             </form>
+        </div>
     </div>
-    <div class="ms-auto">
-        
+    <div class="col-md-3">
+        <h6 class="mb-3">Supplier Assign</h6>
+        <div class="d-flex flex-column">
+            <p>You can assign suppliers to particular rawmaterials
+            <a href="{% url 'upload_raw_materials' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Assign Suppliers
+            </a>
+            
+        </div>
     </div>
-        
 </div>
 <div class="card">
     <div class="card-body pb-2">

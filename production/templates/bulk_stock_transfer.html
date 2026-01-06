@@ -14,16 +14,27 @@
 
 {% block content %}
 <!-- BEGIN page-header -->
-<div class="d-flex align-items-center mb-3">
-    <div>
-        <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#">FACTORY INVENTORY</a></li>
-            <li class="breadcrumb-item active">STOCK TRANSFER TO LIVARA MAIN STORE</li>
-        </ul>
-        <h1 class="page-header mb-0">Stock Movement</h1>
-    </div>
-    
-</div>
+<div class="d-flex align-items-center justify-content-between mb-4">
+		<div>
+			<nav aria-label="breadcrumb">
+				<ol class="breadcrumb mb-2">
+					<li class="breadcrumb-item"><a href="{% url 'factoryInventory' %}">URI INVENTORY</a></li>
+                    <li class="breadcrumb-item active">TRANSFER TO MAINSTORE</li>
+				
+				</ol>
+			</nav>
+			<h6 class="mb-0">Stock Transfer To Livara Main Store</h6>
+			
+		</div>
+		<div class="d-flex gap-2">
+			
+			<div class="mb-md-4 mb-3 d-md-flex">
+		
+		        <div class="btn btn-sm btn-outline-theme ms-md-4 mt-md-0 mt-2"><a href="{% url 'create_production_order' %}" class="{% if request.resolver_match.url_name == 'create_production_order' %}text-theme{% else %}text-inverse{% endif %} text-decoration-none"><i class="bi bi-plus-circle fa-fw me-1 text-theme"></i> Add New</a></div>
+		
+	        </div>
+		</div>
+	</div>
 <h6>You are about to initiate a transfer of our already manufactured products to the <span class="text-success">LIVARA MAIN STORE.</span></h6>
 <form method="POST" enctype="multipart/form-data">
     {% csrf_token %}

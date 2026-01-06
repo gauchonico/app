@@ -38,18 +38,22 @@
                 <div class="col-xl-12">
                     <!-- BEGIN row -->
                     <div class="row">
-                        <!-- BEGIN col-9 -->
-                        <div class="col-xl-9">
+                        <!-- BEGIN col-12 -->
+                        <div class="col-xl-12">
                             <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="#">FACTORY STORE</a></li>
-                                <li class="breadcrumb-item active">MANUFACTURED PRODUCTS</li>
+                                <li class="breadcrumb-item"><a href="{% url 'factoryInventory' %}">URI INVENTORY</a></li>
+                                <li class="breadcrumb-item active">COMPLETED ORDERS</li>
                             </ul>
                             
-                            <h1 class="page-header">
-                                Production Inventory <small>page header description goes here...</small>
-                            </h1>
+                            <h5>
+                                Completed Orders
+                            </h5>
                             
                             <hr class="mb-4">
+                            <div class="flex-grow-1 mb-4">
+                                <h6 class="alert-heading">Products Available at URI</h6>
+                                <p class="mb-2">A list of all completed production orders and a complete Raw Material Utilization Report or each order.</p>
+                            </div>
                             
                             <!-- BEGIN #datatable -->
                             <div id="datatable" class="mb-5">
@@ -63,7 +67,7 @@
                                                     <th>Qty bottles</th>
                                                     <th>Batch No.</th>
                                                     <th>Manufactured Date</th>
-                                                    <th>view</th>
+                                                    <th>Util Report</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -76,7 +80,7 @@
                                                 
                                                     <td>{{ product.manufactured_at}}</td>
                                                     
-                                                    <td><a href="{% url 'manufacturedProductDetails' product.id  %}"><i class="bi bi-eye text-theme"></i></a></td>
+                                                    <td><a href="{% url 'manufacturedProductDetails' product.id  %}"><i class="bi bi-folder-fill text-theme"></i></a></td>
                                                 </tr>
                                                 {% endfor %}
                                     
@@ -95,18 +99,7 @@
                             <!-- END #datatable -->
                         </div>
                         <!-- END col-9-->
-                        <!-- BEGIN col-3 -->
-                        <div class="col-xl-3">
-                            <!-- BEGIN #sidebar-bootstrap -->
-                            <nav id="sidebar-bootstrap" class="navbar navbar-sticky d-none d-xl-block">
-                                <nav class="nav">
-                                    <a class="nav-link" href="#datatable" data-toggle="scroll-to">Product List</a>
-                                    <a class="nav-link" href="{% url 'createProduct' %}">Roll Out New Product</a>
-                                </nav>
-                            </nav>
-                            <!-- END #sidebar-bootstrap -->
-                        </div>
-                        <!-- END col-3 -->
+                        
                     </div>
                     <!-- END row -->
                 </div>

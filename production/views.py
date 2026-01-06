@@ -11979,39 +11979,68 @@ def edit_credit_note(request, pk):
 def process_refund(request, pk):
     credit_note = get_object_or_404(StoreCreditNote, pk=pk)
     
+    # Check if credit note is eligible for refund
+    if credit_note.status != 'approved':
+        messages.error(request, 'Only approved credit notes can be refunded.')
+        return redirect('credit_note_detail', pk=pk)
+    
     if request.method == 'POST':
-        form = StoreCreditNoteForm(request.POST, instance=credit_note)
-        if form.is_valid():
-            credit_note = form.save(commit=False)
+        refund_method = request.POST.get('refund_method')
+        notes = request.POST.get('notes', '')
+        
+        if not refund_method:
+            messages.error(request, 'Please select a refund method.')
+            return redirect('process_refund', pk=pk)
+        
+        # Process the refund
+        try:
+            # Update credit note status and details
             credit_note.status = 'refunded'
             credit_note.refund_date = timezone.now()
+            credit_note.refund_method = refund_method
+            credit_note.is_refunded = True
             credit_note.updated_by = request.user
+            
+            # Save credit note
             credit_note.save()
             
-            # Process the refund (integrate with your payment gateway)
+            # Process the refund using the model's process_refund method
             try:
-                # Example: Process refund through payment gateway
-                # refund = payment_gateway.refund(
-                #     amount=credit_note.total_amount,
-                #     reference=credit_note.credit_note_number,
-                #     payment_reference=credit_note.sale.payment_reference
-                # )
-                
-                messages.success(request, f'Refund of {credit_note.total_amount} processed successfully.')
-                return redirect('credit_note_detail', pk=credit_note.id)
+                transaction = credit_note.process_refund(
+                    payment_method=refund_method,
+                    user=request.user,
+                    notes=notes
+                )
+                messages.success(
+                    request, 
+                    f'Successfully processed refund of {credit_note.total_amount} via {refund_method}.'
+                )
+                return redirect('credit_note_detail', pk=credit_note.pk)
                 
             except Exception as e:
-                messages.error(request, f'Error processing refund: {str(e)}')
-                credit_note.status = 'approved'  # Revert status if refund fails
+                # Revert status if refund processing fails
+                credit_note.status = 'approved'
+                credit_note.is_refunded = False
                 credit_note.save()
+                raise e
+            
+        except Exception as e:
+            # Log the error
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error processing refund for credit note {credit_note.pk}: {str(e)}")
+            
+            messages.error(
+                request, 
+                f'Error processing refund: {str(e)}. Please try again or contact support.'
+            )
+            return redirect('process_refund', pk=pk)
     
-    else:
-        form = StoreCreditNoteForm(instance=credit_note)
-    
-    return render(request, 'credit_notes/process_refund.html', {
-        'form': form,
-        'credit_note': credit_note
-    })
+    # GET request - show the refund form
+    context = {
+        'credit_note': credit_note,
+    }
+    return render(request, 'credit_notes/process_refund.html', context)
 
 # views.py
 @login_required

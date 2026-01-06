@@ -1368,6 +1368,134 @@ class CashDrawerSession(models.Model):
         )['total'] or Decimal('0')
         return (self.opening_balance or Decimal('0')) + total_transactions
 
+    def add_credit_note_refund(self, credit_note,amount, payment_method, notes=None, user=None):
+        """
+        Add a credit note refund transaction to the cash drawer
+        """
+        if self.status != 'open':
+            raise ValueError("Cannot add transaction to a closed session")
+    
+        if credit_note.status != 'refunded':
+            raise ValueError("Credit note must be in 'refunded' status")
+    
+        # Create the transaction
+        transaction = CashDrawerTransaction.objects.create(
+            session=self,
+        transaction_type='credit_note_refund',
+        payment_method=payment_method,
+        amount=-credit_note.total_amount,  # Negative amount as it's money leaving the drawer
+        reference=f"CN-REFUND-{credit_note.credit_note_number}",
+        notes=notes or f"Refund for credit note {credit_note.credit_note_number}",
+        user=user or self.user,
+        store_credit_note=credit_note
+    )
+    
+        # Update the session's closing balance
+        if self.closing_balance is None:
+            self.closing_balance = self.opening_balance
+        self.closing_balance -= credit_note.total_amount
+        self.save()
+    
+        return transaction
+
+    def get_transaction_summary(self):
+        """
+        Get a summary of all transactions in this session
+        """
+        from django.db.models import Sum, Q
+        from decimal import Decimal
+        
+        summary = {
+            'total_sales': Decimal('0.00'),
+            'total_expenses': Decimal('0.00'),
+            'total_float_additions': Decimal('0.00'),
+            'total_withdrawals': Decimal('0.00'),
+            'total_credit_note_refunds': Decimal('0.00'),
+            'total_credit_note_voids': Decimal('0.00'),
+        }
+        
+        # Get all transactions for this session
+        transactions = self.transactions.all()
+        
+        # Calculate totals by transaction type
+        summary['total_sales'] = transactions.filter(transaction_type='sale').aggregate(
+            total=Sum('amount', filter=Q(amount__gt=0))
+        )['total'] or Decimal('0.00')
+        
+        summary['total_expenses'] = abs(transactions.filter(transaction_type='expense').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00'))
+        
+        summary['total_float_additions'] = transactions.filter(transaction_type='float').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        summary['total_withdrawals'] = abs(transactions.filter(transaction_type='withdrawal').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00'))
+        
+        summary['total_credit_note_refunds'] = abs(transactions.filter(
+            transaction_type='credit_note_refund'
+        ).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00'))
+        
+        summary['total_credit_note_voids'] = transactions.filter(
+            transaction_type='credit_note_void'
+        ).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        # Calculate net total
+        summary['net_total'] = (
+            summary['total_sales'] + 
+            summary['total_float_additions'] +
+            summary['total_credit_note_voids'] -
+            summary['total_expenses'] -
+            summary['total_withdrawals'] -
+            summary['total_credit_note_refunds']
+        )
+        
+        return summary
+
+    def void_credit_note_refund(self, credit_note, notes=None, user=None):
+        """
+        Void a previously processed credit note refund
+        """
+        if self.status != 'open':
+            raise ValueError("Cannot add transaction to a closed session")
+    
+        # Find the original refund transaction
+        original_refund = self.transactions.filter(
+            transaction_type='credit_note_refund',
+            store_credit_note=credit_note
+        ).first()
+    
+        if not original_refund:
+            raise ValueError("No refund found for this credit note in the current session")
+    
+        # Create a void transaction (positive amount to offset the refund)
+        transaction = CashDrawerTransaction.objects.create(
+            session=self,
+        transaction_type='credit_note_void',
+        payment_method=original_refund.payment_method,
+        amount=abs(original_refund.amount),  # Positive amount to offset the refund
+        reference=f"CN-VOID-{credit_note.credit_note_number}",
+        notes=notes or f"Void of refund for credit note {credit_note.credit_note_number}",
+        user=user or self.user,
+        store_credit_note=credit_note
+    )
+    
+        # Update the session's closing balance
+        if self.closing_balance is None:
+            self.closing_balance = self.opening_balance
+        self.closing_balance += abs(original_refund.amount)  # Add back the voided amount
+        self.save()
+    
+        return transaction
+
+
+
     @property
     def difference(self):
         if self.closing_balance is not None:
@@ -1398,11 +1526,20 @@ class CashDrawerTransaction(models.Model):
         ('expense', 'Expense'),
         ('float', 'Float Addition'),
         ('withdrawal', 'Withdrawal'),
+        ('credit_note_refund', 'Credit Note Refund'),  # New type
+        ('credit_note_void', 'Credit Note Void'),      # New type
         ('other', 'Other'),
     )
     
     session = models.ForeignKey(CashDrawerSession, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    store_credit_note = models.ForeignKey(
+        'production.StoreCreditNote', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='cash_drawer_transactions'
+    )
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -3649,6 +3786,45 @@ class StoreCreditNote(models.Model):
     
     # Store the customer for easy filtering
     customer = models.ForeignKey('POSMagicApp.Customer', on_delete=models.PROTECT)
+
+    def process_refund(self, payment_method, user=None, notes=None):
+        """
+        Process a refund for this credit note
+        """
+        if self.status != 'refunded':
+            raise ValueError("Credit note must be in 'refunded' status to process refund")
+
+        # Get the store from either product_sale or service_sale
+        store = None
+        if self.product_sale and hasattr(self.product_sale, 'store'):
+            store = self.product_sale.store
+        elif self.service_sale and hasattr(self.service_sale, 'store'):
+            store = self.service_sale.store
+        elif hasattr(self, 'store'):  # Fallback to direct store attribute if it exists
+            store = self.store
+        
+        if not store:
+            raise ValueError("Could not determine store for this credit note")
+
+        # Find the most recent open session for the store
+        session = CashDrawerSession.objects.filter(
+            store=store,
+            status='open'
+        ).order_by('-opening_time').first()
+            
+        if not session:
+            raise ValueError(f"No open cash drawer session found for store: {store.name}")
+
+        # Process the refund
+        transaction = session.add_credit_note_refund(
+            credit_note=self,
+            amount=self.total_amount,  # Use the credit note's total amount
+            payment_method=payment_method,
+            notes=notes,
+            user=user
+        )
+        
+        return transaction
     
     def save(self, *args, **kwargs):
         if not self.credit_note_number:

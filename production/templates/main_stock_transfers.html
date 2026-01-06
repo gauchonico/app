@@ -27,86 +27,77 @@
     }
     
     .stats-card {
-        {% comment %} background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); {% endcomment %}
-        {% comment %} color: white; {% endcomment %}
+        
+        border: 1px solid #595757ff;
         border-radius: 15px;
         padding: 1.5rem;
         margin-bottom: 1rem;
     }
     
     .stats-card.success {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+
     }
     
     .stats-card.warning {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+       
     }
     
     .stats-card.info {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        
     }
     
     .stats-card.primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+       
     }
     
     .stats-number {
-        color: white;
         font-size: 2.5rem;
         font-weight: bold;
         margin-bottom: 0.5rem;
     }
     
     .stats-label {
-        color: white;
         font-size: 0.9rem;
         opacity: 0.9;
     }
     
     .table {
-        {% comment %} background: white; {% endcomment %}
         border-radius: 10px;
         overflow: hidden;
     }
     
     .table thead th {
-        {% comment %} background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); {% endcomment %}
-        {% comment %} color: white; {% endcomment %}
         border: none;
         font-weight: 600;
     }
     
-    .btn-action {
-        border-radius: 20px;
-        padding: 0.5rem 1rem;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
+    
     
     .status-badge {
-        padding: 0.4rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
+        padding: 0.4rem 0.4rem;
+        border-radius: 5px;
+        font-size: 0.6rem;
         font-weight: 600;
     }
     
     .status-pending {
-        background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+        background: linear-gradient(135deg, #ffa424ff 0%, #f4b12dff 100%);
         color: white;
     }
     
     .status-completed {
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        background: linear-gradient(135deg, #28a745 0%, #099e72ff 100%);
         color: white;
     }
     
     .status-approved {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(135deg, #2c8de2ff 0%, #3f75ffff 100%);
         color: white;
     }
     
     .chart-container {
         background: transparent;
+        border: 1px solid #595757ff;
         border-radius: 15px;
         padding: 1.5rem;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -137,8 +128,7 @@
     }
     
     .nav-tabs .nav-link.active {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        
     }
 </style>
 {% endblock %}
@@ -183,35 +173,51 @@ if (typeof $.fn.DataTable === 'undefined') {
 <div class="d-flex align-items-center mb-4">
     <div>
         <ul class="breadcrumb">
-            <li class="breadcrumb-item"><a href="#">INVENTORY TRANSFERS</a></li>
-            <li class="breadcrumb-item active">LIVARA MAIN STORE</li>
+            <li class="breadcrumb-item"><a href="{% url 'factoryInventory' %}">URI INVENTORY</a></li>
+            <li class="breadcrumb-item active">INVENTORY TRANSFERS</li>
         </ul>
-        <h2 class="mb-0">Main Store Transfers Dashboard</h2>
-        <p class="mb-0">Manage transfers from production to Livara main store</p>
+        <h5 class="mb-0">Main Store Transfers Dashboard</h5>
+        
     </div>
 </div>
 
-<!-- Quick Actions -->
-<div class="quick-actions">
-    <div class="row align-items-center">
-        <div class="col-md-6">
-            <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Quick Actions</h5>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <h6 class="mb-3">Transfers In</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'productionProduction' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Initiate Transfer
+            </a>
+            
+
+            
         </div>
-        <div class="col-md-6 text-end">
-            {% if user_is_production_manager %}
-                <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary btn-action me-2">
-                    <i class="fas fa-plus me-1"></i>Create Transfer
-                </a>
-            {% endif %}
-            <a href="{% url 'restockRequests' %}" class="btn btn-info btn-action me-2">
-                <i class="fas fa-store me-1"></i>Salon Transfers
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Transfers Out</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'productionProduction' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Salon Transfers
             </a>
-            <a href="{% url 'detailed_inventory_report' %}" class="btn btn-success btn-action">
-                <i class="fas fa-chart-bar me-1"></i>Transfer Report
+            
+
+            
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <h6 class="mb-3">Reports</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'manufacturedProductList' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Transfer History
             </a>
+           
+            
         </div>
     </div>
 </div>
+
+
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
@@ -257,6 +263,98 @@ if (typeof $.fn.DataTable === 'undefined') {
                 </div>
                 <i class="fas fa-boxes fa-2x opacity-75"></i>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Transfers Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Main Store Transfers</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="datatableDefault" class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Transfer No.</th>
+                        <th>Created By</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Items</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transfer in store_transfers %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ transfer.liv_main_transfer_number }}</strong>
+                            {% if transfer.notes %}
+                                <br><small class="text-muted">{{ transfer.notes|truncatechars:30 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}</td>
+                        <td>
+                            <span class="status-badge status-{{ transfer.status|lower }}">
+                                {{ transfer.status }}
+                            </span>
+                        </td>
+                        <td>{{ transfer.date|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                {% for transfer_item in transfer.items.all %}
+                                <div class="mb-1">
+                                    <span class="badge bg-light text-dark">
+                                        {{ transfer_item.product.product.product_name }} - {{ transfer_item.quantity }} units
+                                    </span>
+                                </div>
+                                {% empty %}
+                                <span class="text-muted">No items</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                {% if transfer.status == 'Pending' %}
+                                    <a href="{% url 'mark_transfer_completed' transfer.id %}" class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-check me-1">Ready</i>
+                                    </a>
+                                {% elif transfer.status == 'Completed' %}
+                                    <span class="badge status-completed">Completed</span>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                               
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-eye me-2"></i>View Details</a></li>
+                                    {% if transfer.delivery_document %}
+                                    <li><a class="dropdown-item" href="{{ transfer.delivery_document.url }}" target="_blank">
+                                        <i class="fas fa-file-download me-2"></i>Download Document
+                                    </a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-inbox fa-3x mb-3"></i>
+                                <p>No store transfers found</p>
+                                {% if user_is_production_manager %}
+                                <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary">Create First Transfer</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -334,96 +432,6 @@ if (typeof $.fn.DataTable === 'undefined') {
     </div>
 </div>
 
-<!-- Main Transfers Table -->
-<div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Main Store Transfers</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table id="datatableDefault" class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Transfer No.</th>
-                        <th>Created By</th>
-                        <th>Status</th>
-                        <th>Date</th>
-                        <th>Items</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for transfer in store_transfers %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>
-                            <strong>{{ transfer.liv_main_transfer_number }}</strong>
-                            {% if transfer.notes %}
-                                <br><small class="text-muted">{{ transfer.notes|truncatechars:30 }}</small>
-                            {% endif %}
-                        </td>
-                        <td>{{ transfer.created_by.get_full_name|default:transfer.created_by.username }}</td>
-                        <td>
-                            <span class="status-badge status-{{ transfer.status|lower }}">
-                                {{ transfer.status }}
-                            </span>
-                        </td>
-                        <td>{{ transfer.date|date:"M d, Y H:i" }}</td>
-                        <td>
-                            <div class="d-flex flex-column">
-                                {% for transfer_item in transfer.items.all %}
-                                <div class="mb-1">
-                                    <span class="badge bg-light text-dark">
-                                        {{ transfer_item.product.product.product_name }} - {{ transfer_item.quantity }} units
-                                    </span>
-                                </div>
-                                {% empty %}
-                                <span class="text-muted">No items</span>
-                                {% endfor %}
-                            </div>
-                        </td>
-                        <td>
-                            <div class="btn-group" role="group">
-                                {% if transfer.status == 'Pending' %}
-                                    <a href="{% url 'mark_transfer_completed' transfer.id %}" class="btn btn-sm btn-success btn-action">
-                                        <i class="fas fa-check me-1"></i>Complete
-                                    </a>
-                                {% elif transfer.status == 'Completed' %}
-                                    <span class="badge bg-success">Completed</span>
-                                {% endif %}
-                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown">
-                                    <span class="visually-hidden">Toggle Dropdown</span>
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#"><i class="fas fa-eye me-2"></i>View Details</a></li>
-                                    {% if transfer.delivery_document %}
-                                    <li><a class="dropdown-item" href="{{ transfer.delivery_document.url }}" target="_blank">
-                                        <i class="fas fa-file-download me-2"></i>Download Document
-                                    </a></li>
-                                    {% endif %}
-                                </ul>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="fas fa-inbox fa-3x mb-3"></i>
-                                <p>No store transfers found</p>
-                                {% if user_is_production_manager %}
-                                <a href="{% url 'bulk_stock_transfer' %}" class="btn btn-primary">Create First Transfer</a>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block outter_content %}
