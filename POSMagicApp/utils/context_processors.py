@@ -1033,10 +1033,10 @@ def sidebar_menu(request):
 
             })
             sidebar_menu.append({
-                'url': '/production/product-list/',
+                'url': '/production/products-list/',
                 'icon':'bi bi-upc-scan',
                 'text':'Livara Products',
-                'name': 'productList'
+                'name': 'productsList'
             
             })
         
@@ -1249,6 +1249,11 @@ def sidebar_menu(request):
                 'icon': 'bi bi-box-seam',
                 'text': 'Reports',
                 'children': [{
+                    'url': '/production/manufactured-product-list/',
+                'icon':'bi bi-upc-scan',
+                'text':'Completed Production Orders',
+                'name': 'manufacturedProductList'
+                },{
                     'url':'/production/price-groups/',
                     'icon': 'bi bi-folder-fill',
                     'text': 'Pricing Groups',
