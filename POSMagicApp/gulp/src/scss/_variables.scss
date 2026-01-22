@@ -302,7 +302,7 @@ $prefix:                                        bs- !default;
 
 $body-bg:                                       $white !default;
 $body-bg-gradient:                              linear-gradient(180deg, rgba($white,.95) 0%, rgba($white,.99) 100%) !default;
-$body-bg-cover:                                 url('images/cover.jpg') !default;
+$body-bg-cover:                                 url('images/livbg.png') !default;
 $body-bg-image:                                 url('images/pattern-dark.png') !default;
 $body-bg-image-size:                            rem(75px) !default;
 $body-letter-spacing:                           rem(.75px) !default;
@@ -490,7 +490,7 @@ $app-header-zindex:                             1020 !default;
 $app-header-search-max-width:                   rem(967px) !default;
 $app-header-padding-x:                          $spacer * .25 !default;
 $app-header-padding-y:                          $spacer * .25 !default;
-$app-header-brand-img:                          url('images/logo.png') !default;
+$app-header-brand-img:                          url('images/logo-dark.png') !default;
 $app-header-link-color:                         $black !default;
 $app-header-link-hover-color:                   $black !default;
 $app-header-scroll-box-shadow:                  null !default;

@@ -1,6 +1,7 @@
 from django import template
 from django.utils.html import format_html
 from decimal import Decimal, InvalidOperation
+from production.models import ProductionOrder
 import logging
 from datetime import date
 
@@ -38,3 +39,7 @@ def days_difference(date1, date2):
 def get_item(dictionary, key):
     """Get an item from a dictionary using a key"""
     return dictionary.get(key)
+
+@register.filter
+def filter_status(queryset, status):
+    return queryset.filter(status=status)

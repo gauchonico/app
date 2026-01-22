@@ -9,7 +9,11 @@
         </ul>
         <h5>Accessory Inventory for all our stores</h5>
     </div>
+    <div class="ms-auto">
+    <a href="{% url 'createRestockRequest' %}" class="btn btn-sm btn-primary">Create a new Request</a>
+    </div>
 </div>
+
 <div class="mb-md-4 mb-3 d-md-flex">
   <div class="mt-md-0 mt-2"><a href="{% url 'accessory_store' %}" class="{% if request.resolver_match.url_name == 'accessory_store' %} text-theme {% else %} text-inverse{% endif %} text-decoration-none"><i class="fa fa-circle-plus fa-fw me-1 text-theme"></i>Accessory Store</a></div>
   <div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'create_new_accessory' %}" class="{% if request.resolver_match.url_name == 'create_new_accessory' %} text-theme {% else %} text-inverse{% endif %} text-decoration-none"><i class="bi bi-body-text fa-fw me-1 text-theme"></i>New Accessory</a></div>

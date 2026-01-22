@@ -1,0 +1,5 @@
+store_names,service_name,service_category,price,commission_rate
+"Store A, Store B, Store C",Haircut,Hair Services,25000,0.10
+"Store A",Manicure,Nail Services,15000,0.08
+"Store B, Store D",Massage,Spa Services,45000,0.12
+"Store A, Store B, Store C, Store D",Facial,Skin Care,35000,0.09

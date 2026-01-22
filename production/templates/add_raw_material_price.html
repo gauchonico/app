@@ -15,21 +15,62 @@
 {% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center mb-3">
-	<div>
-		<ul class="breadcrumb">
-			<li class="breadcrumb-item"><a href="#">PRODUCTION</a></li>
-			<li class="breadcrumb-item active">RAW MATERIAL PRICES</li>
-		</ul>
-		<h1 class="page-header mb-0">ADD NEW RAW MATERIAL PRICE</h1>
-	</div>
-	
-	<div class="ms-auto">
-		<a href="{% url 'bulk_upload_raw_material_prices' %}" class="btn btn-outline-theme me-2">BULK UPLOAD</a>
-        <a href="{% url 'all_supplier_prices' %}" class="btn btn-outline-theme me-2">ALL SUPPLIER PRICES</a>
-		
-	</div>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-2">
+                <li class="breadcrumb-item"><a href="{% url 'supplierList' %}">SUPPLIER DASHBOARD</a></li>
+                <li class="breadcrumb-item active"><a href="{% url 'all_supplier_prices' %}">SUPPLIER PRICE</a></li>
+                <li class="breadcrumb-item active"><a href="{% url 'price_comparison' %}">PRICE COMPARISON</a></li>
+                <li class="breadcrumb-item active"><a href="{% url 'add_raw_material_price' %}">PRICE COMPARISON</a></li>
+
+            </ol>
+        </nav>
+        <h5 class="h5 mb-0">Add New Rawmaterial Price.</h5>
+        <p class="text-muted">Choose a Rawmaterial from the dropdown and the supplier dropdown will be populated with all that particular Rawmaterial Supplier</p>
+    </div>
+
 </div>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <h6 class="mb-3">Suppliers</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'addSupplier' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Add New Supplier
+            </a>
+            
+            
+        </div>
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Price</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'all_supplier_prices' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>All Supplier Prices
+            </a>
+            <a href="{% url 'price_comparison' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Price Comparison
+            </a>
+            <a href="{% url 'add_raw_material_price' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Add New Price
+            </a>
+            
+        </div>
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Quick Actions</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'bulk_upload_raw_material_prices' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Bulk Upload Supplier Prices
+            </a>
+          
+            </a>
+            
+        </div>
+    </div>
+</div>
+
 
 <div class="container mt-4">
     <div class="card">

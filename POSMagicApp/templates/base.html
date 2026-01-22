@@ -35,7 +35,7 @@
 		{% if appFooter %}app-fixed-footer{% endif %}
 		{% if appBoxedLayout %}app-boxed-layout{% endif %}
 	">
-		{% if user.is_authenticated and not has_active_cash_drawer_session and not '/cash-drawer/' in request.path %}
+		{% if user.is_authenticated and is_branch_manager and not has_active_cash_drawer_session and not '/cash-drawer/' in request.path %}
 		<div class="alert alert-theme mb-0 text-center z-index-99">
 			<i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
 			No active cash drawer session. 

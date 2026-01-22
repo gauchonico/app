@@ -46,14 +46,46 @@
 					</ul>
 					
 					<div class="ms-auto">
-						<a href="{% url 'main_store_invoices' %}" class="btn btn-outline-info me-2">
-							<i class="fa fa-file-invoice me-1"></i>View Invoices
-						</a>
-						<a href="{% url 'SaleTest' %}" class="btn btn-outline-theme me-2">Create New Store Order</a>
+						
 					</div>
+				</div>
+			</div>
+			<div class="row mb-4">
+				<!-- First Column -->
+				<div class="col-md-3">
+					<h6 class="mb-3">Sales Management</h6>
+					<div class="d-flex flex-column">
+						<a href="{% url 'SaleTest' %}" class="text-decoration-none mb-2">
+							<i class="fas fa-arrow-right me-2"></i>Create New Store Order
+						</a>
+						<a href="{% url 'DjangoHUDApp:pageCustomer' %}" class="text-decoration-none mb-2">
+							<i class="fas fa-arrow-right me-2"></i>Customers
+						</a>
 					
-					<hr class="mb-4">
+					</div>
+				</div>
 
+				<!-- Second Column -->
+				<div class="col-md-3">
+					<h6 class="mb-3">Order Management</h6>
+					<div class="d-flex flex-column">
+						<a href="{% url 'main_store_invoices' %}" class="text-decoration-none mb-2">
+							<i class="fas fa-arrow-right me-2"></i>Sales Invoice
+						</a>
+						<a href="{% url 'list_credit_notes' %}" class="text-decoration-none mb-2">
+							<i class="fas fa-arrow-right me-2"></i>Sales Credit Note
+						</a>
+						<a href="{% url 'store_sale_list_receipts' %}" class="text-decoration-none mb-2">
+							<i class="fas fa-arrow-right me-2"></i>Sales Receipt
+						</a>
+					</div>
+				</div>
+
+				<!-- Add more columns as needed -->
+			</div>
+					
+	
+					
 					<!-- Summary Statistics -->
 					<div class="row mb-4">
 						<div class="col-md-2">

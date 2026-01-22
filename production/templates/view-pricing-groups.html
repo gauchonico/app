@@ -150,4 +150,25 @@
         });
     });
     </script>
+
+
+    {% if messages %}
+        <div class="toasts-container">
+            {% for message in messages %}
+                <div class="toast fade show">
+                    <div class="toast-header">
+                        <i class="far fa-bell text-muted me-2"></i>
+                        <strong class="me-auto">Store Order Status</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                    </div>
+                    <div class="toast-body">
+                        <p>{{ message }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if form.errors %}  {% endif %}
+
     {% endblock outter_content %}

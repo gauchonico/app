@@ -19,15 +19,104 @@
 <div class="d-flex align-items-center mb-3">
 	<div>
 		<ul class="breadcrumb">
-			<li class="breadcrumb-item"><a href="#">GENERAL STORES</a></li>
-			<li class="breadcrumb-item active">INVENTORY</li>
+			<li class="breadcrumb-item"><a href="#">LIVARA MAINSTORE</a></li>
+			
 		</ul>
-		<h1 class="page-header mb-0">GENERAL STORES</h1>
+		<h5 mb-0">MAIN STORES</h5>
 	</div>
-    <div class="ms-auto">
-    <a href="{% url 'createRestockRequest' %}" class="btn btn-sm btn-primary">Create a new Request</a>
-    </div>
+   
 	
+</div>
+    
+<div class="flex-grow-1 mb-4">
+            <p class="mb-2">Welcome to the Livara Main Store.</p>
+</div>
+<div class="row mb-4">
+    <div class="col-md-3">
+        <h6 class="mb-3">Main Store Items</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'livara_main_store_inventory' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Inventory Items
+                
+            </a>
+            <a href="{% url 'main_store_writeoff_list' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Inventory Write-Offs
+                
+            </a>
+            <a href="{% url 'accessory_store' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Accessory Items
+            </a>
+            <a href="{% url 'refreshmentList' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Refreshments 
+                    
+            </a>
+            <a href="{% url 'allStores' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>All Branches 
+                    
+            </a>
+            <a href="{% url 'view_pricing_groups' %}" class="text-decoration-none">
+                <i class="fas fa-arrow-right me-2"></i>Pricing Groups 
+                    
+            </a>
+
+            
+        </div>
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Branch Items</h6>
+        <div class="d-flex flex-column">
+        <a href="{% url 'all_stores_inventory_view' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Accessory Items
+            </a>
+            <a href="{% url 'productsList' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Product - Items
+            </a>
+            
+            <a href="#" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Product Transfers
+            </a>
+            <a href="#" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Accessory Transfers
+            </a>
+            
+        </div>
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Product Order</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'productsList' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Production Orders
+            </a>
+            
+            <a href="#" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Branch Product Transfers
+            </a>
+            <a href="#" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Branch Accessory Requests
+            </a>
+            
+        </div>
+    </div>
+    <div class="col-md-3">
+        <h6 class="mb-3">Sales</h6>
+        <div class="d-flex flex-column">
+            <a href="{% url 'DjangoHUDApp:pageCustomer' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Customers
+            </a>
+            <a href="{% url 'listStoreSales' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Sales Order
+            </a>
+            <a href="{% url 'main_store_invoices' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Sales Invoice
+            </a>
+            <a href="{% url 'list_credit_notes' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Sales Credit Note
+            </a>
+            <a href="{% url 'store_sale_list_receipts' %}" class="text-decoration-none mb-2">
+                <i class="fas fa-arrow-right me-2"></i>Sales Receipt
+            </a>
+        </div>
+    </div>
 </div>
 	<!-- BEGIN row -->
 	<div class="row">

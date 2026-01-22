@@ -34,8 +34,9 @@
 	<div class="d-flex align-items-center mb-3">
 		<div>
 			<ul class="breadcrumb">
-				<li class="breadcrumb-item"><a href="#">MAIN STORE</a></li>
-				<li class="breadcrumb-item active">NEW ACCESSORY</li>
+				<li class="breadcrumb-item"><a href="{% url 'store_inventory_list' %}">LIVARA MAINSTORE</a></li>
+				<li class="breadcrumb-item"><a href="{% url 'accessory_store' %}">ACCESSORIES STORE</a></li>
+                <li class="breadcrumb-item active">NEW ACCESSORY</li>
 			</ul>
 			<h5 class="mb-0">Add New Accessory Type</h5>
 		</div>

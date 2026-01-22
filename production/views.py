@@ -1208,42 +1208,87 @@ def upload_store_services(request):
         try:
             decoded_file = TextIOWrapper(csv_file.file, encoding='utf-8-sig')
             reader = csv.DictReader(decoded_file)
-            
+
+            # Debug: Check if headers are read correctly
+            if not reader.fieldnames:
+                messages.error(request, 'CSV file appears to be empty or has no headers')
+                return redirect('upload_store_services')
+
+            expected_headers = {'store_names', 'service_name', 'service_category', 'price', 'commission_rate'}
+            # Also support old format with 'store_name'
+            actual_headers = set(reader.fieldnames)
+            if not (expected_headers.issubset(actual_headers) or 'store_name' in actual_headers):
+                messages.error(request, f'CSV headers do not match expected format. Expected: {expected_headers}. Found: {actual_headers}')
+                return redirect('upload_store_services')
+
             success_count = 0
             error_rows = []
             
             with transaction.atomic():
                 for row_number, row in enumerate(reader, start=2):  # Start at 2 to account for header row
                     try:
+                        # Handle both 'store_name' and 'store_names' for backward compatibility
+                        store_column = row.get('store_names') or row.get('store_name')
+                        if not store_column:
+                            error_rows.append(f"Row {row_number}: Missing store_names or store_name column. Available columns: {list(row.keys())}")
+                            continue
+
+                        # Get or create service category
+                        service_category_name = row.get('service_category', '').strip()
+                        service_category = None
+                        if service_category_name:
+                            service_category, category_created = ServiceCategory.objects.get_or_create(
+                                name=service_category_name,
+                                defaults={'description': f'Category for {service_category_name}'}
+                            )
+
                         # Get or create service
                         service, created = ServiceName.objects.get_or_create(
                             name=row['service_name'],
-                            defaults={'price': float(row['price'])}
-                        )
-                        
-                        # If service exists but price is different, update it
-                        if not created and service.price != float(row['price']):
-                            service.price = float(row['price'])
-                            service.save()
-
-                        # Get store
-                        try:
-                            store = Store.objects.get(name=row['store_name'])
-                        except Store.DoesNotExist:
-                            error_rows.append(f"Row {row_number}: Store '{row['store_name']}' not found")
-                            continue
-
-                        # Create store service
-                        store_service, created = StoreService.objects.get_or_create(
-                            store=store,
-                            service=service,
-                            defaults={'commission_rate': float(row['commission_rate'])}
+                            defaults={
+                                'price': float(row['price']),
+                                'service_category': service_category
+                            }
                         )
 
-                        # If store service exists but commission rate is different, update it
-                        if not created and store_service.commission_rate != float(row['commission_rate']):
-                            store_service.commission_rate = float(row['commission_rate'])
-                            store_service.save()
+                        # If service exists but price or category is different, update it
+                        if not created:
+                            updated = False
+                            if service.price != float(row['price']):
+                                service.price = float(row['price'])
+                                updated = True
+                            if service.service_category != service_category:
+                                service.service_category = service_category
+                                updated = True
+                            if updated:
+                                service.save()
+
+                        # Process store names (comma-separated or single)
+                        store_names = [name.strip() for name in store_column.split(',') if name.strip()]
+                        stores = []
+
+                        # Validate all stores exist first
+                        for store_name in store_names:
+                            try:
+                                store = Store.objects.get(name=store_name)
+                                stores.append(store)
+                            except Store.DoesNotExist:
+                                error_rows.append(f"Row {row_number}: Store '{store_name}' not found")
+                                break
+                        else:
+                            # All stores found, create store services
+                            for store in stores:
+                                # Create store service
+                                store_service, created = StoreService.objects.get_or_create(
+                                    store=store,
+                                    service=service,
+                                    defaults={'commission_rate': float(row['commission_rate'])}
+                                )
+
+                                # If store service exists but commission rate is different, update it
+                                if not created and store_service.commission_rate != float(row['commission_rate']):
+                                    store_service.commission_rate = float(row['commission_rate'])
+                                    store_service.save()
 
                         success_count += 1
 
@@ -1272,10 +1317,12 @@ def download_service_template(request):
     writer = csv.writer(response)
     
     # Write the header row
-    writer.writerow(['store_name', 'service_name', 'price', 'commission_rate'])
-    
-    # Write a sample row
-    writer.writerow(['Store Name', 'Hair Cut', '2000', '0.10'])
+    writer.writerow(['store_names', 'service_name', 'service_category', 'price', 'commission_rate'])
+
+    # Write sample rows
+    writer.writerow(['Store A, Store B, Store C', 'Haircut', 'Hair Services', '25000', '0.10'])
+    writer.writerow(['Store A', 'Manicure', 'Nail Services', '15000', '0.08'])
+    writer.writerow(['Store B, Store D', 'Massage', 'Spa Services', '45000', '0.12'])
 
     return response
 
@@ -2467,6 +2514,8 @@ def factory_inventory(request):
     
     # Get all inventory with related data
     inventory = ManufacturedProductInventory.objects.all().select_related('product')
+    production_orders = ProductionOrder.objects.all()
+    pending_inventory_transfers = StoreTransfer.objects.all().filter(status='pending')
     
     # Calculate comprehensive statistics
     total_products = inventory.count()
@@ -2551,6 +2600,7 @@ def factory_inventory(request):
     
     context = {
         'inventory': inventory,
+        'production_orders': production_orders,
         'total_products': total_products,
         'total_quantity': total_quantity,
         'total_value': total_value,
@@ -2571,6 +2621,7 @@ def factory_inventory(request):
         'production_efficiency': production_efficiency,
         'recent_transfers': recent_transfers,
         'today': today,
+        'pending_inventory_transfers':pending_inventory_transfers
     }
 
     return render(request, 'manufactured-product-inventory.html', context)
@@ -4758,7 +4809,7 @@ def create_store_test(request):
                         if product.quantity < quantity:
                             sufficient_inventory = False
                             shortage = quantity - product.quantity
-                            inventory_errors.append(f"{product.product.product_name}: Need {quantity}, Available {product.quantity} (Shortage: {shortage})")
+                            inventory_errors.append(f"{product.product.product}: Need {quantity}, Available {product.quantity} (Shortage: {shortage})")
                             item_form.add_error('quantity', f'Insufficient quantity. Available: {product.quantity}')
                 
                 if sufficient_inventory:
@@ -11724,7 +11775,10 @@ def all_cash_drawer_sessions(request):
         # Calculate difference for each session
         for session in sessions:
             if session.status == 'closed' and session.closing_balance is not None:
-                session.balance_difference = float(session.closing_balance) - (float(session.opening_balance or 0) + float(session.get_expected_balance()))
+                #calculate total sales (profit) for the session
+                total_sales = float(session.get_expected_balance() or 0)
+                # Calculate difference as (total sales) - (opening balance)
+                session.balance_difference = total_sales - float(session.opening_balance or 0)
         
 
         # Add pagination
@@ -11751,7 +11805,6 @@ def all_cash_drawer_sessions(request):
 
 
 #store credit notes
-@login_required
 @login_required
 def create_credit_note(request, sale_type, sale_id):
     # Get the sale and customer
@@ -12092,4 +12145,5 @@ def credit_note_email(request, pk):
     credit_note = get_object_or_404(StoreCreditNote, pk=pk)
     # Send email with PDF attachment
     # Return a success/error message
+    pass
     pass

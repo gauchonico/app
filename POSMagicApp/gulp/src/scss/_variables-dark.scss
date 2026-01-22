@@ -122,10 +122,10 @@ $dark-border-subtle-dark:                       $gray-800 !default;
 
 $body-font-weight-dark:                         300 !default;
 $body-letter-spacing-dark:                      rem(.75px) !default;
-$body-bg-dark:                                  #141915 !default;
-$body-bg-gradient-dark:                         linear-gradient(180deg, rgba(50,70,80,.9) 0%, rgba(13,16,27,1) 100%) !default;
-$body-bg-cover-dark:                            url('images/cover-dark.jpg') !default;
-$body-bg-image-dark:                            url('images/pattern-dark.png') !default;
+$body-bg-dark:                                  #0b241c !default;
+$body-bg-gradient-dark:                         linear-gradient(180deg, rgba(55, 80, 50, 0.9) 0%, rgba(13,16,27,1) 100%) !default;
+$body-bg-cover-dark:                            url('images/livbg.png') !default;
+$body-bg-image-dark:                            url('images/patern-dark.png') !default;
 $body-bg-image-size-dark:                       rem(75px) !default;
 $body-color-dark:                               rgba($white, .75) !default;
 $body-emphasis-color-dark:                      $gray-100 !default;
@@ -162,7 +162,7 @@ $component-color-dark:                          $body-color-dark !default;
 
 // 06. App - Header settings
 
-$app-header-bg-dark:                            rgba(29, 40, 53, .95) !default;
+$app-header-bg-dark:                            rgba(29, 53, 53, 0.95) !default;
 $app-header-brand-img-dark:                     url('images/logo-dark.png') !default;
 $app-header-link-color-dark:                    $white !default;
 $app-header-link-hover-color-dark:              rgba($white, .5) !default;
@@ -176,7 +176,7 @@ $app-sidebar-menu-header-color-dark:            rgba(var(--#{$prefix}inverse-rgb
 $app-sidebar-menu-link-color-dark:              rgba(var(--#{$prefix}inverse-rgb), .5) !default;
 $app-sidebar-menu-link-hover-color-dark:        $white !default;
 $app-sidebar-menu-link-active-color-dark:       $white !default;
-$app-sidebar-mobile-bg-dark:                    rgba(44, 56, 70, .98) !default;
+$app-sidebar-mobile-bg-dark:                    rgba(44, 70, 63, 0.98) !default;
 
 
 

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 {% load humanize %}
 
 {% block title %}Factory Inventory Dashboard{% endblock %}
@@ -252,12 +253,24 @@ document.addEventListener('keydown', function(e) {
         <div class="d-flex flex-column">
             <a href="{% url 'productionProduction' %}" class="text-decoration-none mb-2">
                 <i class="fas fa-arrow-right me-2"></i>Production Orders
+                {% with created_orders=production_orders|filter_status:"Created" %}
+                    {% if created_orders.count > 0 %}
+                        <span class="badge rounded-circle bg-danger">{{ created_orders.count }}</span>
+                    {% else %}
+                        <span class="badge rounded-circle bg-secondary">0</span>
+                    {% endif %}
+                {% endwith %}
             </a>
             <a href="{% url 'bulk_stock_transfer' %}" class="text-decoration-none mb-2">
                 <i class="fas fa-arrow-right me-2"></i>Transfer to Main Store
             </a>
             <a href="{% url 'main_stock_transfer' %}" class="text-decoration-none">
                 <i class="fas fa-arrow-right me-2"></i>Inventory Transfers
+                    {% if pending_inventory_transfers.count > 0 %}
+                        <span class="badge rounded-circle bg-danger">{{ pending_inventory_transfers.count }}</span>
+                    {% else %}
+                        <span class="badge rounded-circle bg-secondary">0</span>
+                    {% endif %}
             </a>
 
             

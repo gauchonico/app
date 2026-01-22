@@ -35,7 +35,11 @@ from .forms import AddCustomerForm, AddProductForm, EditCustomerForm, EditProduc
 
 
 def index(request):
-	return render(request, "pages/index.html")
+	context = {
+
+	
+	}
+	return render(request, "pages/index.html", context)
 @unauthenticated_user
 def login_user(request):
 	if request.method == 'POST':

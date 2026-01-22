@@ -21,10 +21,12 @@
                     <i class="bi bi-info-circle"></i> CSV File Requirements
                 </h6>
                 <ul class="mb-0">
-                    <li>CSV file must have headers: store_name, service_name, price, commission_rate</li>
+                    <li>CSV file must have headers: store_names, service_name, service_category, price, commission_rate</li>
+                    <li>store_names can be comma-separated for multiple stores (e.g., "Store A, Store B, Store C")</li>
+                    <li>service_category is optional - will be created if it doesn't exist</li>
                     <li>Commission rate should be in decimal format (e.g., 0.10 for 10%)</li>
                     <li>Price should be a number without currency symbols</li>
-                    <li>Store name must match existing store names</li>
+                    <li>Store names must match existing store names</li>
                 </ul>
             </div>
         </div>

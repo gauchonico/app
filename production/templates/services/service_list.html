@@ -7,8 +7,6 @@
 {% block css %}
 <style>
     .analytics-card {
-        
-        color: white;
         border-radius: 16px;
         padding: 2rem;
         margin-bottom: 2rem;
@@ -35,7 +33,7 @@
     }
     
     .metric-card {
-        background: white;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -50,7 +48,6 @@
     .metric-value {
         font-size: 2rem;
         font-weight: 700;
-        color: #1a202c;
         margin-bottom: 0.5rem;
     }
     
@@ -81,7 +78,7 @@
     .category-badge {
         padding: 0.25rem 0.75rem;
         border-radius: 9999px;
-        font-size: 0.75rem;
+        font-size: 0.55rem;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -93,7 +90,6 @@
     .category-default { background: #f1f5f9; color: #475569; }
     
     .filter-section {
-        background: #f8fafc;
         border-radius: 12px;
         padding: 1.5rem;
         margin-bottom: 2rem;
@@ -115,7 +111,7 @@
     .performance-low { background: #fee2e2; color: #991b1b; }
     
     .chart-container {
-        background: white;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
         padding: 1.5rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -158,23 +154,24 @@
 
 {% block content %}
 <!-- Header -->
-<div class="analytics-card">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <h1 class="mb-2"><i class="fas fa-chart-line me-3"></i>Service Analytics Dashboard</h1>
-            <p class="mb-0 text-theme">Comprehensive overview of your service performance and analytics</p>
-        </div>
-        <div class="col-md-4 text-md-end">
-            <div class="btn-group">
-                <a href="{% url 'create_service_category' %}" class="btn btn-light me-2">
-                    <i class="fas fa-plus me-2"></i>Add Category
-                </a>
-                <a href="{% url 'create_service' %}" class="btn btn-warning">
-                    <i class="fas fa-plus me-2"></i>Add Service
-                </a>
-            </div>
-        </div>
+<div class="d-flex align-items-center mb-4">
+    <div>
+        <ul class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'factoryInventory' %}">SERVICES DASHBOARD</a></li>
+            <li class="breadcrumb-item active">INVENTORY TRANSFERS</li>
+        </ul>
+        
     </div>
+</div>
+
+<div class="mb-md-4 mb-3 d-md-flex">
+    <div class="mt-md-0 mt-2"><a href="{% url 'create_service_category' %}" class="text-decoration-none mb-2">
+        <i class="fas fa-arrow-right me-2"></i>Add Category
+    </a></div>
+    <div class="ms-md-4 mt-md-0 mt-2"><a href="{% url 'create_service' %}" class="text-decoration-none mb-2">
+        <i class="fas fa-arrow-right me-2"></i>Add Service
+    </a></div>
+
 </div>
 
 <!-- Key Metrics -->

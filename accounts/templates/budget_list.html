@@ -11,11 +11,11 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h1 class="h3 mb-0 text-white fw-bold">
+                    <h5 class="h5 mb-0">
                         <i class="fas fa-chart-pie me-2"></i>
                         Budget Management
-                    </h1>
-                    <p class="text-light mb-0">Track and manage budget allocations across departments</p>
+                    </h5>
+                    <p class="mb-0">Track and manage budget allocations across departments</p>
                 </div>
                 <div>
                     <a href="{% url 'accounts:budget_create' %}" class="btn btn-primary btn-lg">
@@ -39,8 +39,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ budgets.count }}</h5>
-                            <p class="text-white-50 mb-0">Total Budgets</p>
+                            <h5 class="fw-bold mb-1">{{ budgets.count }}</h5>
+                            <p class="mb-0">Total Budgets</p>
                         </div>
                     </div>
                 </div>
@@ -52,13 +52,13 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-shrink-0">
-                            <div class="bg-white bg-opacity-25 rounded-circle p-3">
+                            <div class="bg-opacity-25 rounded-circle p-3">
                                 <i class="fas fa-dollar-sign fa-2x text-white"></i>
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ total_allocated|floatformat:0|intcomma }}</h5>
-                            <p class="text-white-50 mb-0">Total Allocated</p>
+                            <h5 class="fw-bold mb-1">{{ total_allocated|floatformat:0|intcomma }}</h5>
+                            <p class="mb-0">Total Allocated</p>
                         </div>
                     </div>
                 </div>
@@ -75,8 +75,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ total_spent|floatformat:0|intcomma }}</h5>
-                            <p class="text-white-50 mb-0">Total Spent</p>
+                            <h5 class="fw-bold mb-1">{{ total_spent|floatformat:0|intcomma }}</h5>
+                            <p class="mb-0">Total Spent</p>
                         </div>
                     </div>
                 </div>
@@ -93,8 +93,8 @@
                             </div>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h5 class="text-white fw-bold mb-1">{{ avg_utilization|floatformat:1 }}%</h5>
-                            <p class="text-white-50 mb-0">Avg Utilization</p>
+                            <h5 class="fw-bold mb-1">{{ avg_utilization|floatformat:1 }}%</h5>
+                            <p class="mb-0">Avg Utilization</p>
                         </div>
                     </div>
                 </div>
@@ -103,9 +103,9 @@
     </div>
 
     <!-- Budgets Table -->
-    <div class="card shadow border-0" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+    <div class="card shadow border-0">
         <div class="card-header bg-transparent border-0">
-            <h5 class="text-white fw-bold mb-0">
+            <h5 class="mb-0">
                 <i class="fas fa-list me-2"></i>
                 Budget Allocations
             </h5>
@@ -113,53 +113,53 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
-                    <thead style="background: rgba(255, 255, 255, 0.1);">
+                    <thead>
                         <tr>
-                            <th class="text-white border-0">Department</th>
-                            <th class="text-white border-0">Account</th>
-                            <th class="text-white border-0">Period</th>
-                            <th class="text-white border-0 text-end">Allocated</th>
-                            <th class="text-white border-0 text-end">Spent</th>
-                            <th class="text-white border-0 text-end">Remaining</th>
-                            <th class="text-white border-0 text-center">Utilization</th>
-                            <th class="text-white border-0 text-center">Actions</th>
+                            <th class="border-0">Department</th>
+                            <th class="border-0">Account</th>
+                            <th class="border-0">Period</th>
+                            <th class="border-0 text-end">Allocated</th>
+                            <th class="border-0 text-end">Spent</th>
+                            <th class="border-0 text-end">Remaining</th>
+                            <th class="border-0 text-center">Utilization</th>
+                            <th class="border-0 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for budget in budgets %}
                         <tr style="border-color: rgba(255, 255, 255, 0.1);">
-                            <td class="text-white">
+                            <td class="">
                                 <div class="d-flex align-items-center">
                                     <div class="bg-primary bg-opacity-25 rounded-circle p-2 me-3">
                                         <i class="fas fa-building text-primary"></i>
                                     </div>
                                     <div>
                                         <div class="fw-bold">{{ budget.department.name }}</div>
-                                        <small class="text-light">{{ budget.department.code }}</small>
+                                        <small>{{ budget.department.code }}</small>
                                     </div>
                                 </div>
                             </td>
-                            <td class="text-white">
+                            <td>
                                 <div>
                                     <div class="fw-bold">{{ budget.account.account_name }}</div>
-                                    <small class="text-light">{{ budget.account.account_code }}</small>
+                                    <small class="">{{ budget.account.account_code }}</small>
                                 </div>
                             </td>
-                            <td class="text-white">
+                            <td>
                                 <span class="badge bg-primary bg-opacity-25 text-white">
                                     {{ budget.get_period_display }}
                                 </span>
-                                <div class="small text-light mt-1">
+                                <div class="small mt-1">
                                     {{ budget.start_date|date:"M d" }} - {{ budget.end_date|date:"M d, Y" }}
                                 </div>
                             </td>
-                            <td class="text-white text-end">
+                            <td class="text-end">
                                 <div class="fw-bold">{{ budget.amount|floatformat:0|intcomma }}</div>
                             </td>
-                            <td class="text-white text-end">
+                            <td class="text-end">
                                 <div class="fw-bold">{{ budget.spent_amount|floatformat:0|intcomma }}</div>
                             </td>
-                            <td class="text-white text-end">
+                            <td class="text-end">
                                 <div class="fw-bold {% if budget.remaining_amount < 0 %}text-danger{% else %}text-success{% endif %}">
                                     {{ budget.remaining_amount|floatformat:0|intcomma }}
                                 </div>
