@@ -164,14 +164,19 @@ class Command(BaseCommand):
             orphaned_payments.delete()
             
             # Delete orphaned journal entries
+            # IMPORTANT: exclude any journal entries that are linked to CashDrawerBanking,
+            # because that FK is PROTECT and those entries are not truly orphaned.
             orphaned_journal_entries = JournalEntry.objects.filter(
                 ~models.Q(production_expenses__isnull=False) &
                 ~models.Q(sales_revenues__isnull=False) &
                 ~models.Q(store_transfers__isnull=False) &
                 ~models.Q(manufacturing_records__isnull=False) &
-                ~models.Q(payment_records__isnull=False)
+                ~models.Q(payment_records__isnull=False) &
+                ~models.Q(cash_drawer_banking__isnull=False)
             )
+            orphaned_count = orphaned_journal_entries.count()
             orphaned_journal_entries.delete()
+            total_orphaned += orphaned_count
             
             self.stdout.write(f'✅ Deleted {total_orphaned} orphaned records')
 
@@ -230,11 +235,16 @@ class Command(BaseCommand):
         return count
 
     def _sync_store_sales(self, admin_user, dry_run):
-        """Sync store sales without accounting entries"""
+        """Sync store sales without accounting entries.
+
+        We treat a StoreSale as "already synced" if it has at least one
+        SalesRevenue record (accounts.models.SalesRevenue) pointing to it,
+        via the related name `revenue_records`.
+        """
         sales_to_sync = StoreSale.objects.filter(
             total_amount__gt=0
         ).exclude(
-            accounting_entries__isnull=False
+            revenue_records__isnull=False
         )
         
         count = 0
@@ -280,13 +290,28 @@ class Command(BaseCommand):
         return count
 
     def _sync_manufacturing(self, admin_user, dry_run):
-        """Sync manufacturing without accounting entries"""
-        manufacturing_to_sync = ManufacturedProductInventory.objects.exclude(
-            accounting_entries__isnull=False
+        """Sync manufacturing without accounting entries.
+
+        We treat a ManufactureProduct batch as "already synced" if there is
+        already a JournalEntry with the reference pattern we use for
+        manufacturing entries ("MFG-{batch_number}"). This avoids relying on
+        a reverse relation that does not exist between ManufactureProduct and
+        ManufacturedProductInventory.
+        """
+        from production.models import ManufactureProduct
+
+        # Consider all manufacture batches that are tied to a production order
+        products_to_sync = ManufactureProduct.objects.filter(
+            production_order__isnull=False
         )
-        
+
         count = 0
-        for product in manufacturing_to_sync:
+        for product in products_to_sync:
+            # Skip if a manufacturing JE for this batch already exists
+            from accounts.models import JournalEntry
+            if JournalEntry.objects.filter(reference=f"MFG-{product.batch_number}").exists():
+                continue
+
             try:
                 if not dry_run:
                     with transaction.atomic():

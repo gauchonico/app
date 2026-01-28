@@ -1375,6 +1375,12 @@ def sidebar_menu(request):
                     }
                 ]
             })
+            sidebar_menu.append({
+                'url': '/production/audit-logs/',
+                'icon':'fa fa-gears',
+                'text': 'Audit Logs',
+                'name':'audit_logs'
+            })
         elif 'Production Manager' in group_names:
             # Show production manager menus
             sidebar_menu = mark_active_link(sidebar_menu, current_path_name)

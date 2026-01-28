@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Cash Drawer Bank Deposits</h2>
+
+    <div class="card">
+        <div class="card-body">
+            {% if deposits %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Store</th>
+                                <th>Session</th>
+                                <th>Amount</th>
+                                <th>Bank Account</th>
+                                <th>Cash at Hand Account</th>
+                                <th>Reference</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for deposit in deposits %}
+                            <tr>
+                                <td>{{ deposit.deposit_date|date:"M d, Y H:i" }}</td>
+                                <td>{{ deposit.session.store.name }}</td>
+                                <td>
+                                    <a href="{% url 'cash_drawer_detail' session_id=deposit.session.id %}">
+                                        Session #{{ deposit.session.id }}
+                                    </a>
+                                </td>
+                                <td>{{ deposit.amount|floatformat:2 }}</td>
+                                <td>{{ deposit.bank_account.account_name }}</td>
+                                <td>{{ deposit.cash_drawer_account.account_name }}</td>
+                                <td>{{ deposit.reference|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if is_paginated %}
+                    <nav>
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <p class="mb-0">No bank deposits recorded yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@ from django.db.models import Sum, Q
 from django.utils import timezone
 from datetime import date, datetime
 import uuid
+from auditlog.registry import auditlog
 
 class ChartOfAccounts(models.Model):
     """Chart of Accounts - Standard accounting structure"""
@@ -34,12 +35,18 @@ class ChartOfAccounts(models.Model):
         # Revenue
         ('operating_revenue', 'Operating Revenue'),
         ('other_revenue', 'Other Revenue'),
+        ('contra_revenue', 'Contra Revenue'),
         
         # Expenses
         ('cost_of_goods_sold', 'Cost of Goods Sold'),
         ('operating_expense', 'Operating Expense'),
         ('administrative_expense', 'Administrative Expense'),
         ('financial_expense', 'Financial Expense'),
+        ('tax_expense', 'Tax Expense'),
+
+        # Tax Accounts
+        ('tax_receivable', 'Tax Receivable'),
+        ('tax_payable', 'Tax Payable'),
     ]
     
     account_code = models.CharField(max_length=10, unique=True, help_text="Account number (e.g., 1000, 2000)")
@@ -640,3 +647,85 @@ class StoreFinancialSummary(models.Model):
         self.gross_profit = self.total_sales - self.total_cost
         self.net_profit = self.gross_profit - self.operating_expenses
         self.save()
+
+
+class CashDrawerBanking(models.Model):
+    """Represents a bank deposit of cash from a specific cash drawer session."""
+
+    session = models.ForeignKey(
+        'production.CashDrawerSession',
+        on_delete=models.PROTECT,
+        related_name='bank_deposits',
+    )
+    bank_account = models.ForeignKey(
+        ChartOfAccounts,
+        on_delete=models.PROTECT,
+        related_name='cash_deposits',
+        help_text="Bank account (e.g., Equity Bank, Stanbic Bank)",
+    )
+    cash_drawer_account = models.ForeignKey(
+        ChartOfAccounts,
+        on_delete=models.PROTECT,
+        related_name='cash_drawer_deposits',
+        help_text="Cash-on-hand / till account",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    deposit_date = models.DateTimeField(auto_now_add=True)
+    reference = models.CharField(max_length=50, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(User, on_delete=models.PROTECT)
+
+    journal_entry = models.OneToOneField(
+        JournalEntry,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='cash_drawer_banking',
+    )
+
+    class Meta:
+        ordering = ['-deposit_date']
+
+    def __str__(self):
+        return f"Deposit {self.amount} from Session {self.session_id} to {self.bank_account.account_name}"
+
+    def create_journal_entry(self):
+        """Create and post a journal entry debiting bank and crediting the cash drawer."""
+        if self.journal_entry:
+            return self.journal_entry
+
+        je = JournalEntry.objects.create(
+            date=self.deposit_date.date(),
+            reference=self.reference or f"Deposit from session {self.session_id}",
+            description=f"Banking cash from drawer session {self.session_id}",
+            entry_type='sales',  # or 'system' depending on your convention
+            created_by=self.created_by,
+            is_posted=True,
+            posted_at=timezone.now(),
+        )
+
+        # Debit Bank
+        JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=self.bank_account,
+            entry_type='debit',
+            amount=self.amount,
+            description="Bank deposit",
+        )
+
+        # Credit Cash Drawer
+        JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=self.cash_drawer_account,
+            entry_type='credit',
+            amount=self.amount,
+            description="Cash taken from till",
+        )
+
+        self.journal_entry = je
+        self.save(update_fields=['journal_entry'])
+        return je
+
+
+# Register cash drawer banking with auditlog so deposits appear in the global audit log
+auditlog.register(CashDrawerBanking)

@@ -18,15 +18,10 @@
         </button>
         
         <!-- Audit Button for High-Level Users -->
-        {% if user.groups.exists %}
-            {% for group in user.groups.all %}
-                {% if group.name in "Admin,Finance,Management" %}
-                    <a href="{% url 'model_audit_logs' 'lpo' lpo.id %}" class="btn btn-outline-info" title="View Audit History">
-                        <i class="fa fa-eye me-1"></i> Audit
-                    </a>
-                    {% break %}
-                {% endif %}
-            {% endfor %}
+        {% if can_view_audit_logs %}
+            <a href="{% url 'model_audit_logs' 'lpo' lpo.id %}" class="btn btn-outline-info" title="View Audit History">
+                <i class="fa fa-eye me-1"></i> Audit
+            </a>
         {% endif %}
         
         {% if lpo.outstanding_balance > 0 %}

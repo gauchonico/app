@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Tax Summary Report</h2>
+
+  <form method="get" class="row g-3 mb-3">
+    <div class="col-md-3">
+      <label class="form-label">From Date</label>
+      <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">To Date</label>
+      <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card mb-3">
+        <div class="card-header">Store Sales</div>
+        <div class="card-body">
+          <p><strong>Total VAT:</strong> {{ totals.store_vat|floatformat:2|intcomma }}</p>
+          <p><strong>Total Withholding Tax:</strong> {{ totals.store_wht|floatformat:2|intcomma }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card mb-3">
+        <div class="card-header">Sales Invoices</div>
+        <div class="card-body">
+          <p><strong>Total VAT:</strong> {{ totals.invoice_vat|floatformat:2|intcomma }}</p>
+          <p><strong>Total Withholding Tax:</strong> {{ totals.invoice_wht|floatformat:2|intcomma }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

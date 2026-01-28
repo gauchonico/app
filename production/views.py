@@ -1,5 +1,8 @@
+from accounts.services import AccountingService
+from django.db.models import Sum
 from collections import defaultdict
 from datetime import date, datetime, timedelta
+from django.contrib.auth.mixins import LoginRequiredMixin
 from decimal import Decimal, InvalidOperation
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
@@ -43,7 +46,8 @@ from POSMagicApp.models import Branch, Customer, Staff
 from accounts.models import ChartOfAccounts
 from auditlog.models import LogEntry
 from django.contrib.contenttypes.models import ContentType
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
+from django.views.generic import CreateView, ListView
 
 from production.service_timing_views import get_user_store
 from .utils import approve_restock_request, cost_per_unit
@@ -1173,8 +1177,41 @@ def handle_csv_upload(csv_file, price_group):
         raise ValueError(f"Error processing CSV: {str(e)}")
     
 # Create Services
-@login_required
+@login_required(login_url='/login/')
+def tax_summary_report(request):
+    """Simple view to show total VAT and Withholding Tax for StoreSale and SalesInvoice."""
+    # Optional date filters
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+
+    store_sales = StoreSale.objects.all()
+    invoices = SalesInvoice.objects.all()
+
+    if date_from:
+        store_sales = store_sales.filter(order_date__date__gte=date_from)
+        invoices = invoices.filter(invoice_date__date__gte=date_from)
+    if date_to:
+        store_sales = store_sales.filter(order_date__date__lte=date_to)
+        invoices = invoices.filter(invoice_date__date__lte=date_to)
+
+    totals = {
+        'store_vat': store_sales.aggregate(total=Sum('tax_amount'))['total'] or Decimal('0.00'),
+        'store_wht': store_sales.aggregate(total=Sum('withholding_tax'))['total'] or Decimal('0.00'),
+        'invoice_vat': invoices.aggregate(total=Sum('tax_amount'))['total'] or Decimal('0.00'),
+        'invoice_wht': invoices.aggregate(total=Sum('withholding_tax'))['total'] or Decimal('0.00'),
+    }
+
+    context = {
+        'totals': totals,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    return render(request, 'tax_summary_report.html', context)
+
+
+@login_required(login_url='/login/')
 def create_service(request):
+    """Create a new service definition (name only for now)."""
     if request.method == 'POST':
         form = ServiceNameForm(request.POST)
         if form.is_valid():
@@ -1183,13 +1220,13 @@ def create_service(request):
             return redirect('service_list')
     else:
         form = ServiceNameForm()
-    
+
     context = {
         'form': form,
         'title': 'Create New Service',
-        'button_text': 'Create Service'
+        'button_text': 'Create Service',
     }
-            
+
     return render(request, 'services/service_form.html', context)
 
 @login_required
@@ -2926,17 +2963,21 @@ def main_stock_transfer (request):
     }
     return render(request, 'main_stock_transfers.html', context)
 
-def mark_transfer_completed (request, transfer_id):
+def mark_transfer_completed(request, transfer_id):
     transfer = get_object_or_404(StoreTransfer, pk=transfer_id)
     
     # Ensure we only allow marking as completed if the status is not already completed
     if transfer.status == 'Completed':
         return redirect('main_stock_transfer')
+
     # Get transfer items for the selected transfer
     transfer_items = StoreTransferItem.objects.filter(transfer=transfer)
 
     # Create a formset for delivered quantities
-    LivaraMainStoreQuantityFormSet = modelformset_factory(StoreTransferItem, form=LivaraMainStoreDeliveredQuantityForm, extra=0)
+    LivaraMainStoreQuantityFormSet = modelformset_factory(
+        StoreTransferItem, form=LivaraMainStoreDeliveredQuantityForm, extra=0
+    )
+
     if request.method == 'POST':
         formset = LivaraMainStoreQuantityFormSet(request.POST, queryset=transfer_items)
 
@@ -2946,36 +2987,53 @@ def mark_transfer_completed (request, transfer_id):
                 transfer.save()
 
                 for form, item in zip(formset.forms, transfer_items):
-                    delivered_quantity = form.cleaned_data['delivered_quantity']
-                    manufactured_product_inventory = item.product
-                    batch_number = manufactured_product_inventory.batch_number
-                    expiry_date = manufactured_product_inventory.expiry_date
+                    delivered_quantity = Decimal(form.cleaned_data['delivered_quantity'])
+                    mfg_inv = item.product  # ManufacturedProductInventory
+                    batch_number = mfg_inv.batch_number
+                    expiry_date = mfg_inv.expiry_date
 
-                    # Update ManufacturedProductInventory
-                    if manufactured_product_inventory.quantity >= delivered_quantity:
-                        manufactured_product_inventory.quantity -= delivered_quantity
-                        manufactured_product_inventory.save()
-                    else:
-                        raise ValueError(f"Not enough stock in manufacture inventory for {manufactured_product_inventory.product}")
+                    # Ensure sufficient stock exists in manufacturing inventory
+                    if mfg_inv.quantity < delivered_quantity:
+                        raise ValueError(f"Not enough stock in manufacture inventory for {mfg_inv.product}")
 
-                    # Update LivaraMainStore
+                    unit_cost = mfg_inv.unit_cost or Decimal('0.00')
+                    move_cost = unit_cost * delivered_quantity
+
+                    # Decrease ManufacturedProductInventory quantity and cost
+                    mfg_inv.quantity -= delivered_quantity
+                    mfg_inv.total_cost -= move_cost
+                    mfg_inv.save(update_fields=['quantity', 'total_cost'])
+
+                    # Increase LivaraMainStore quantity and cost
                     livara_inventory, created = LivaraMainStore.objects.get_or_create(
-                        product=manufactured_product_inventory,
+                        product=mfg_inv,
                         batch_number=batch_number,
                         expiry_date=expiry_date,
-                        defaults={'quantity': delivered_quantity}
+                        defaults={
+                            'quantity': int(delivered_quantity),
+                            'unit_cost': unit_cost,
+                            'total_cost': move_cost,
+                        },
                     )
-                    
+
                     if not created:
-                        livara_inventory.quantity += delivered_quantity
-                        livara_inventory.save()
+                        livara_inventory.previous_quantity = livara_inventory.quantity
+                        livara_inventory.quantity += int(delivered_quantity)
+                        livara_inventory.total_cost += move_cost
+                        if livara_inventory.quantity > 0:
+                            livara_inventory.unit_cost = (
+                                livara_inventory.total_cost / Decimal(livara_inventory.quantity)
+                            )
+                        livara_inventory.save(
+                            update_fields=['previous_quantity', 'quantity', 'total_cost', 'unit_cost']
+                        )
+
                     # Create an audit trail record for LivaraMainStore adjustment
-                    
                     LivaraInventoryAdjustment.objects.create(
                         store_inventory=livara_inventory,
-                        adjusted_quantity=delivered_quantity,  # Assuming a positive quantity indicates an increase
+                        adjusted_quantity=int(delivered_quantity),  # Positive quantity indicates an increase
                         adjustment_reason=f"Stock Transfer #{transfer.liv_main_transfer_number or transfer.id}",
-                        adjusted_by=request.user  # Assuming the logged-in user is responsible
+                        adjusted_by=request.user,  # Assuming the logged-in user is responsible
                     )
 
             return redirect('main_stock_transfer')
@@ -2989,7 +3047,6 @@ def mark_transfer_completed (request, transfer_id):
         'transfer': transfer,
         'transfer_items': transfer_items,
     }
-
 
     return render(request, 'mark_transfer_completed.html', context)
 
@@ -4615,30 +4672,48 @@ def create_store_sale(request):
     if request.method == 'POST':
         form = SaleOrderForm(request.POST)
         sale_items = form.sale_items
-        
-        if form.is_valid() and sale_items.is_valid():
+        if form.is_valid():
             sale = form.save(commit=False) # Save without creating SaleItems yet
-            
-            for sale_item in form.sale_items:
-                # Assuming sale_item is a dictionary with 'product' and 'quantity' keys
-                product = LivaraMainStore.objects.get(pk=sale_item['product'])  # Fetch product object
-                if product.quantity < sale_item['quantity']:
+            sale.created_by = request.user
+            sale.save() # Save the sale object first to get an ID
+
+            # Now, save the sale items and associate them with the sale
+            valid_sale_items_count = 0
+            for item_data in sale_items:
+                product = LivaraMainStore.objects.get(pk=item_data['product'])
+                quantity = item_data['quantity']
+
+                if product.quantity < quantity:
                     messages.error(request, f"Insufficient stock for {product.product.product_name}. Available stock: {product.quantity}")
-                    continue  # Skip saving this item if insufficient stock
+                    continue
                 
                 today = date.today()
                 if product.expiry_date is not None and product.expiry_date < today:
                     messages.error(request, f"Product {product.product.product_name} has expired on {product.expiry_date}.")
-                    continue  # Skip saving this item if product has expired
+                    continue
 
-                sale_item['product'] = product  # Update dictionary with product object
-                sale.sale_items.append(sale_item)
-                
-            if sale.sale_items.count() > 0:    
-                sale.save()  # Now save the sale with sale items
+                # Create and save SaleItem directly
+                SaleItem.objects.create(
+                    sale=sale,
+                    product=product,
+                    quantity=quantity,
+                    chosen_price=item_data['chosen_price']
+                )
+                valid_sale_items_count += 1
+            
+            if valid_sale_items_count > 0:
+                # Recalculate financial amounts on the sale object
+                sale.calculate_financial_amounts()
+                sale.save() # Save again to persist updated financial amounts
+
+                # Create journal entry for the store sale
+                AccountingService.create_sales_journal_entry(sale, request.user)
+
                 messages.success(request, "Store sale created successfully!")
-                return redirect('listStoreSales')  # Redirect to sale list view (replace 'list_store_sales' with your actual URL pattern name)
+                return redirect('listStoreSales')
             else:
+                # Delete the sale object if no valid items were added
+                sale.delete()
                 messages.error(request, "No valid sale items. Please check product quantities and expiry dates.")
     else:
         form = SaleOrderForm()
@@ -7998,7 +8073,10 @@ def approve_requisition(request, requisition_id):
         messages.success(request, f'Requisition approved successfully. LPO {lpo.lpo_number} has been created and is pending document verification.')
     else:
         messages.success(request, 'Requisition approved successfully. LPO already exists.')
-        
+    
+    # Create journal entry for the requisition
+    AccountingService.create_requisition_expense_journal_entry(requisition, request.user)
+
     return redirect('lpos_list')
 
 def reject_requisition(request, requisition_id):
@@ -8202,6 +8280,9 @@ def pay_lpo(request, lpo_id):
                 payment_type=payment_type
             )
             voucher.save()
+            
+            # Create journal entry for the LPO payment
+            AccountingService.create_payment_journal_entry(voucher, request.user)
 
             # Success message
             if new_outstanding <= 0:
@@ -8274,6 +8355,11 @@ class LpoDetailView(DetailView):
         outstanding_balance = max(0, grand_total - amount_paid)
         
         # Add summary data
+        can_view_audit_logs = False
+        if self.request.user.is_authenticated:
+            if self.request.user.groups.filter(name__in=['Admin', 'Finance', 'Management']).exists():
+                can_view_audit_logs = True
+
         context.update({
             'requisition_items_with_totals': items_with_totals,
             'expense_items': expense_items,
@@ -8285,6 +8371,7 @@ class LpoDetailView(DetailView):
             'payment_percentage': (amount_paid / grand_total * 100) if grand_total > 0 else 0,
             'supplier': self.object.requisition.supplier,
             'requisition': self.object.requisition,
+            'can_view_audit_logs': can_view_audit_logs,
         })
         
         return context
@@ -9900,6 +9987,9 @@ def record_store_sale_payment(request, receipt_id):
             payment.received_by = request.user
             payment.save()
             
+            # Create journal entry for the store sale payment
+            AccountingService.create_store_sale_payment_journal_entry(payment, request.user)
+
             messages.success(request, f'Payment of UGX {payment.amount_paid:,.0f} recorded successfully for receipt {receipt.receipt_number}')
             return redirect('store_sale_receipt_detail', receipt_id=receipt.id)
     else:
@@ -10214,6 +10304,36 @@ def store_sale_list_receipts(request):
     }
     return render(request, 'list_receipts.html', context)
 
+def return_products_to_inventory(credit_note, user):
+    """Return products from credit note back to factory inventory"""
+    from .models import SaleItem, LivaraInventoryAdjustment
+
+    try:
+        # Get all sale items from the original sale
+        sale_items = SaleItem.objects.filter(sale=credit_note.sales_invoice.store_sale)
+
+        for sale_item in sale_items:
+            # Increase the factory inventory quantity
+            livara_main_store = sale_item.product
+            original_quantity = livara_main_store.quantity
+            livara_main_store.quantity += sale_item.quantity
+            livara_main_store.save()
+
+            # Create inventory adjustment record
+            LivaraInventoryAdjustment.objects.create(
+                store_inventory=livara_main_store,
+                adjusted_quantity=sale_item.quantity,  # Positive for return
+                adjustment_reason=f"Credit Note Return - {credit_note.credit_note_number}",
+                adjusted_by=user
+            )
+
+    except Exception as e:
+        # Log the error but don't fail the credit note creation
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error returning products to inventory for credit note {credit_note.credit_note_number}: {str(e)}")
+
+
 def create_credit_note_from_invoice(request, invoice_id):
     """Create a credit note for an invoice"""
     invoice = get_object_or_404(SalesInvoice, id=invoice_id)
@@ -10270,8 +10390,11 @@ def create_credit_note_from_invoice(request, invoice_id):
                         description=f"Credit note for Invoice {invoice.invoice_number}"
                     )
                     
-                    messages.success(request, f'Credit Note #{credit_note.credit_note_number} created successfully for UGX {credit_note.total_amount:,.0f}')
-                    return redirect('credit_note_detail', credit_note_id=credit_note.pk)
+                    # Return products to factory inventory
+                    return_products_to_inventory(credit_note, request.user)
+
+                    messages.success(request, f'Credit Note #{credit_note.credit_note_number} created successfully for UGX {credit_note.total_amount:,.0f}. Products have been returned to factory inventory.')
+                    return redirect('sales_credit_note_detail', credit_note_id=credit_note.pk)
                     
             except Exception as e:
                 messages.error(request, f'Error creating credit note: {str(e)}')
@@ -10323,14 +10446,19 @@ def list_credit_notes(request):
     }
     return render(request, 'list_credit_notes.html', context)
 
-def credit_note_detail(request, credit_note_id):
-    """View credit note details"""
+def sales_credit_note_detail(request, credit_note_id):
+    """View sales invoice credit note details"""
     credit_note = get_object_or_404(CreditNote, id=credit_note_id)
-    
+
+    # Get the associated order (store sale), handle case where it might be None
+    order = None
+    if credit_note.sales_invoice and credit_note.sales_invoice.store_sale:
+        order = credit_note.sales_invoice.store_sale
+
     context = {
         'credit_note': credit_note,
         'invoice': credit_note.sales_invoice,
-        'order': credit_note.sales_invoice.store_sale,
+        'order': order,
     }
     return render(request, 'credit_note_detail.html', context)
 
@@ -10340,15 +10468,15 @@ def apply_credit_note(request, credit_note_id):
     
     if not credit_note.can_be_applied:
         messages.error(request, f"Credit Note #{credit_note.credit_note_number} cannot be applied.")
-        return redirect('credit_note_detail', credit_note_id=credit_note.pk)
-    
+        return redirect('sales_credit_note_detail', credit_note_id=credit_note.pk)
+
     try:
         amount_applied = credit_note.apply_to_invoice()
         messages.success(request, f'Credit Note #{credit_note.credit_note_number} applied successfully. Amount applied: UGX {amount_applied:,.0f}')
     except Exception as e:
         messages.error(request, f'Error applying credit note: {str(e)}')
-    
-    return redirect('credit_note_detail', credit_note_id=credit_note.pk)
+
+    return redirect('sales_credit_note_detail', credit_note_id=credit_note.pk)
 
 
 ################### Quality Control Views ###################
@@ -11559,6 +11687,8 @@ def product_sales_list(request):
     return render(request, 'product_sales_list.html', context)
 
 
+from accounts.models import CashDrawerBanking
+
 #Cash drawer 
 @login_required
 def cash_drawer_manage(request):
@@ -11595,11 +11725,19 @@ def cash_drawer_start(request):
             messages.success(request, 'Cash drawer session started successfully')
             return redirect('cash_drawer_manage')
     else:
-        form = CashDrawerSessionForm(initial={'opening_balance': 0})
+        # Default opening balance from last closed session's carry-forward float
+        initial_opening = CashDrawerSession.get_default_opening_balance_for_store(
+            store=store,
+            user=request.user,
+        ) if store else Decimal('0.00')
+        form = CashDrawerSessionForm(initial={'opening_balance': initial_opening})
     
+    last_session = CashDrawerSession.get_last_closed_session(store=store, user=request.user) if store else None
+
     return render(request, 'cash_drawer/start.html', {
         'form': form,
-        'store': store
+        'store': store,
+        'last_session': last_session,
     })
 
 @login_required
@@ -11621,33 +11759,65 @@ def cash_drawer_close(request, session_id):
         
         if request.method == 'POST':
             # Handle form submission
-            form = CloseCashDrawerForm(request.POST)
+            form = CloseCashDrawerForm(request.POST, store=session.store)
             if form.is_valid():
                 # Update the session
                 session.closing_balance = form.cleaned_data['closing_balance']
-                session.closing_notes = form.cleaned_data['notes']
-                session.closed_at = timezone.now()
+                # Preserve your existing notes field
+                session.notes = form.cleaned_data['notes']
+                session.closing_time = timezone.now()
                 session.status = 'closed'
+
+                # Update carry-forward float if provided
+                carry_forward = form.cleaned_data.get('carry_forward_float')
+                if carry_forward is not None:
+                    session.carry_forward_float = carry_forward
+
                 session.save()
-                
+
+                # Optionally create a banking record if amount and accounts are provided
+                bank_amount = form.cleaned_data.get('bank_amount') or Decimal('0')
+                bank_account = form.cleaned_data.get('bank_account')
+                cash_drawer_account = form.cleaned_data.get('cash_drawer_account')
+
+                if bank_amount > 0 and bank_account and cash_drawer_account:
+                    banking = CashDrawerBanking.objects.create(
+                        session=session,
+                        bank_account=bank_account,
+                        cash_drawer_account=cash_drawer_account,
+                        amount=bank_amount,
+                        reference=f"Session {session.id} deposit",
+                        notes=form.cleaned_data.get('notes') or "",
+                        created_by=request.user,
+                    )
+                    # Create journal entry for this banking
+                    banking.create_journal_entry()
+
                 messages.success(request, "Cash drawer session closed successfully.")
                 return redirect('cash_drawer_detail', session_id=session_id)
         else:
             # Pre-fill the form with calculated values
+            initial_carry_forward = session.effective_carry_forward_float
+            initial_bank_amount = session.recommended_deposit_amount
+
             form = CloseCashDrawerForm(initial={
                 'closing_balance': expected_balance,
                 'expected_balance': expected_balance,
                 'difference': Decimal('0'),
                 'opening_balance': session.opening_balance,
-                'total_transactions': total_transactions
-            })
+                'total_transactions': total_transactions,
+                'carry_forward_float': initial_carry_forward,
+                'bank_amount': initial_bank_amount,
+            }, store=session.store)
         
         return render(request, 'cash_drawer/close.html', {
             'form': form,
             'session': session,
             'transactions': session.transactions.all(),
             'total_transactions': total_transactions,
-            'expected_balance': expected_balance
+            'expected_balance': expected_balance,
+            'recommended_deposit': session.recommended_deposit_amount,
+            'effective_carry_forward_float': session.effective_carry_forward_float,
         })
         
     except Exception as e:
@@ -11802,6 +11972,63 @@ def all_cash_drawer_sessions(request):
         messages.error(request, "An error occurred while loading cash drawer sessions.")
         return redirect('productionPage')  # Or another appropriate redirect
 
+
+
+# Cash drawer banking CBVs
+class CashDrawerBankingCreateView(LoginRequiredMixin, CreateView):
+    model = CashDrawerBanking
+    fields = ['bank_account', 'cash_drawer_account', 'amount', 'reference', 'notes']
+    template_name = 'cash_drawer/banking_form.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.session = get_object_or_404(CashDrawerSession, id=kwargs['session_id'], user=request.user)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['session'] = self.session
+        # Provide helpful defaults
+        context['recommended_deposit'] = self.session.recommended_deposit_amount
+        context['effective_carry_forward_float'] = self.session.effective_carry_forward_float
+        return context
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['amount'] = self.session.recommended_deposit_amount
+        initial['reference'] = f"Session {self.session.id} deposit"
+        return initial
+
+    def form_valid(self, form):
+        form.instance.session = self.session
+        form.instance.created_by = self.request.user
+        response = super().form_valid(form)
+        # Create corresponding journal entry
+        form.instance.create_journal_entry()
+        messages.success(self.request, "Bank deposit recorded successfully.")
+        return response
+
+    def get_success_url(self):
+        return reverse('cash_drawer_detail', kwargs={'session_id': self.session.id})
+
+
+class CashDrawerBankingListView(LoginRequiredMixin, ListView):
+    model = CashDrawerBanking
+    template_name = 'cash_drawer/banking_list.html'
+    context_object_name = 'deposits'
+    paginate_by = 25
+
+    def get_queryset(self):
+        qs = super().get_queryset().select_related('session', 'bank_account', 'cash_drawer_account')
+        store = get_user_store(self.request.user)
+        if store:
+            qs = qs.filter(session__store=store)
+
+        # Optional filter: show deposits for a specific session
+        session_id = self.request.GET.get('session')
+        if session_id:
+            qs = qs.filter(session_id=session_id)
+
+        return qs.order_by('-deposit_date')
 
 
 #store credit notes

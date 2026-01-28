@@ -1,6 +1,11 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block css %}
+{{ block.super }}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <h2>Close Cash Drawer</h2>
@@ -28,7 +33,12 @@
                 {{ form.total_transactions }}
                 {{ form.difference }}
                 
-                <div class="form-group">
+                <div class="alert alert-info mb-3">
+                    <p class="mb-1"><strong>Recommended carry-forward float:</strong> {{ effective_carry_forward_float|floatformat:2 }}</p>
+                    <p class="mb-0"><strong>Recommended bank deposit:</strong> {{ recommended_deposit|floatformat:2 }}</p>
+                </div>
+
+                <div class="form-group mb-3">
                     <label for="{{ form.closing_balance.id_for_label }}">Actual Closing Balance</label>
                     {{ form.closing_balance }}
                     {% if form.closing_balance.errors %}
@@ -38,12 +48,38 @@
                     {% endif %}
                 </div>
                 
+                <div class="form-group mb-3">
+                    <label for="{{ form.carry_forward_float.id_for_label }}">Float to carry forward</label>
+                    {{ form.carry_forward_float }}
+                    <small class="form-text text-muted">If left blank, opening balance will be used.</small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="{{ form.bank_amount.id_for_label }}">Amount to bank</label>
+                    {{ form.bank_amount }}
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.bank_account.id_for_label }}">Bank Account</label>
+                            {{ form.bank_account }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="{{ form.cash_drawer_account.id_for_label }}">Cash at Hand Account</label>
+                            {{ form.cash_drawer_account }}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="{{ form.notes.id_for_label }}">Notes</label>
                     {{ form.notes }}
                 </div>
                 
-                <button type="submit" class="btn btn-primary">Close Drawer</button>
+                <button type="submit" class="btn btn-primary">Close Drawer &amp; Save Banking</button>
                 <a href="{% url 'cash_drawer_detail' session_id=session.id %}" class="btn btn-secondary">Cancel</a>
             </form>
         </div>
@@ -67,5 +103,16 @@ document.addEventListener('DOMContentLoaded', function() {
     closingBalance.addEventListener('change', calculateDifference);
     closingBalance.addEventListener('keyup', calculateDifference);
 });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+  $(function() {
+    $('select[name="bank_account"], select[name="cash_drawer_account"]').select2({
+      width: '100%',
+      placeholder: 'Select account',
+      allowClear: true
+    });
+  });
 </script>
 {% endblock %}

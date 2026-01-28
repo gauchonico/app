@@ -5,11 +5,18 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Cash Drawer Session #{{ session.id }}</h2>
-        {% if can_close %}
-        <a href="{% url 'cash_drawer_close' session_id=session.id %}" class="btn btn-danger">
-            Close Session
-        </a>
-        {% endif %}
+        <div class="btn-group">
+            {% if can_close %}
+            <a href="{% url 'cash_drawer_close' session_id=session.id %}" class="btn btn-danger">
+                Close Session
+            </a>
+            {% endif %}
+            {% if session.status == 'closed' %}
+            <a href="{% url 'cash_drawer_bank' session_id=session.id %}" class="btn btn-outline-success">
+                Record Bank Deposit
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Summary Cards -->
@@ -35,6 +42,25 @@
                 <div class="card-body text-center">
                     <h6 class="card-title">Expected Balance</h6>
                     <h4 class="mb-0">{{ expected_balance|floatformat:2 }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Carry-forward Float</h6>
+                    <h4 class="mb-0">{{ session.effective_carry_forward_float|floatformat:2 }}</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Recommended Deposit</h6>
+                    <h4 class="mb-0">{{ session.recommended_deposit_amount|floatformat:2 }}</h4>
                 </div>
             </div>
         </div>

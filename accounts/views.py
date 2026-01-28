@@ -112,6 +112,16 @@ def chart_of_accounts_list(request):
     # Group by account type
     account_groups = {}
     for account in accounts:
+        # Calculate current balance for each account using JournalEntryLine
+        account.total_debits = JournalEntryLine.objects.filter(account=account, entry_type='debit').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+        account.total_credits = JournalEntryLine.objects.filter(account=account, entry_type='credit').aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+        
+        # Attach the calculated display balance
+        if account.is_debit_balance:
+            account.display_balance = account.total_debits - account.total_credits
+        else:
+            account.display_balance = account.total_credits - account.total_debits
+            
         if account.account_type not in account_groups:
             account_groups[account.account_type] = []
         account_groups[account.account_type].append(account)

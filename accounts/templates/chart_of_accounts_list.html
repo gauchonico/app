@@ -150,8 +150,8 @@
                                 </span>
                             </td>
                             <td class="text-end">
-                                <div class="fw-bold {% if account.balance < 0 %}text-danger{% elif account.balance > 0 %}text-success{% endif %}">
-                                    {{ account.balance|floatformat:2|intcomma }}
+                                <div class="fw-bold {% if account.display_balance < 0 %}text-danger{% elif account.display_balance > 0 %}text-success{% endif %}">
+                                    {{ account.display_balance|floatformat:2|intcomma }}
                                 </div>
                                 <small class="text-light">
                                     {% if account.is_debit_balance %}Debit{% else %}Credit{% endif %} Balance

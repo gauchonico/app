@@ -35,21 +35,16 @@ class Command(BaseCommand):
         self.stdout.write('\n🔄 SYNC STATUS:')
         
         # Check requisitions
-        requisitions_with_entries = Requisition.objects.filter(
-            status__in=['approved', 'checking', 'delivered'],
-            total_cost__gt=0
-        ).filter(accounting_entries__isnull=False).count()
-        
+        requisitions_with_entries = ProductionExpense.objects.values('requisition').distinct().count()
         self.stdout.write(f'   - Requisitions with accounting entries: {requisitions_with_entries}/{requisitions}')
         
         # Check store sales
-        sales_with_entries = StoreSale.objects.filter(
-            total_amount__gt=0
-        ).filter(accounting_entries__isnull=False).count()
-        
+        sales_with_entries = SalesRevenue.objects.filter(
+            store_sale__isnull=False
+        ).values('store_sale').distinct().count()
         self.stdout.write(f'   - Store sales with accounting entries: {sales_with_entries}/{store_sales}')
         
-        # Check manufacturing
+        # Check manufacturing (inventory in production store with accounting records)
         manufacturing_with_entries = ManufacturedProductInventory.objects.filter(
             accounting_entries__isnull=False
         ).count()

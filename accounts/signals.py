@@ -7,7 +7,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from accounts.services import AccountingService
 from accounts.models import JournalEntry, ProductionExpense, SalesRevenue, StoreTransfer as StoreTransferLink, ManufacturingRecord, PaymentRecord
-from production.models import StoreSale, Requisition, StoreTransfer, ManufactureProduct, PaymentVoucher, ServiceSale
+from production.models import StoreSale, Requisition, StoreTransfer, ManufactureProduct, PaymentVoucher, ServiceSale, ManufacturedProductInventory, IncidentWriteOff
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -28,7 +28,8 @@ def check_existing_entry(instance, entry_type):
         elif isinstance(instance, Requisition):
             return ProductionExpense.objects.filter(requisition=instance).exists()
         elif isinstance(instance, ManufactureProduct):
-            return ManufacturingRecord.objects.filter(manufacture_product=instance).exists()
+            # Manufacturing is keyed off the MFG-{batch_number} journal reference
+            return JournalEntry.objects.filter(reference=f"MFG-{instance.batch_number}").exists()
         elif isinstance(instance, StoreTransfer):
             return StoreTransferLink.objects.filter(transfer=instance).exists()
         elif isinstance(instance, PaymentVoucher):
@@ -42,9 +43,15 @@ def check_existing_entry(instance, entry_type):
 
 @receiver(post_save, sender=StoreSale)
 def create_sales_journal_entry_auto(sender, instance, created, **kwargs):
-    """Automatically create journal entry when a store sale is created"""
+    """Automatically create journal entry when a store sale is invoiced.
+
+    We wait until the sale is fully priced (status='invoiced') so that
+    subtotal, VAT, and withholding tax are final before posting to the
+    ledger.
+    """
     try:
-        if created and instance.total_amount and instance.total_amount > 0:
+        # Only create when the sale is invoiced and has a non-zero total
+        if instance.status == 'invoiced' and instance.total_amount and instance.total_amount > 0:
             # Check for existing entry to prevent duplicates
             if check_existing_entry(instance, 'sales'):
                 logger.info(f"Sales journal entry already exists for sale ID: {instance.id}")
@@ -180,4 +187,91 @@ def create_service_sale_journal_entry_auto(sender, instance, **kwargs):
         logger.error(f"Error creating service sale journal entry for sale ID {instance.id}: {str(e)}")
         # Log the full traceback for debugging
         import traceback
-        logger.error(f"Full traceback: {traceback.format_exc()}") 
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+
+
+@receiver(post_save, sender=IncidentWriteOff)
+def create_raw_material_writeoff_journal_entry_auto(sender, instance, **kwargs):
+    """Automatically create JE when an incident write-off is approved.
+
+    Creates a raw-material loss/spoilage entry at the latest requisition
+    (or market) price, using AccountingService.create_raw_material_writeoff_journal_entry.
+    """
+    try:
+        if instance.status != 'approved':
+            return
+
+        # Prevent duplicates using our RM-WO-{id} reference
+        ref = f"RM-WO-{instance.id}"
+        if JournalEntry.objects.filter(reference=ref).exists():
+            logger.info(
+                f"Raw material write-off journal entry already exists for incident ID: {instance.id}"
+            )
+            return
+
+        admin_user = get_admin_user()
+        if admin_user:
+            with transaction.atomic():
+                je = AccountingService.create_raw_material_writeoff_journal_entry(instance, admin_user)
+                if je:
+                    logger.info(
+                        f"Raw material write-off journal entry created for incident ID: {instance.id} "
+                        f"- Entry: {je.entry_number or je.id}"
+                    )
+                else:
+                    logger.error(
+                        f"Failed to create raw material write-off journal entry for incident ID: {instance.id}"
+                    )
+        else:
+            logger.error(
+                f"No admin user found for raw material write-off incident ID: {instance.id}"
+            )
+    except Exception as e:
+        logger.error(
+            f"Error creating raw material write-off journal entry for incident ID {instance.id}: {str(e)}"
+        )
+
+
+@receiver(post_save, sender=ManufacturedProductInventory)
+def link_manufacturing_record_to_inventory(sender, instance, created, **kwargs):
+    """Ensure ManufacturingRecord rows are tied to production-store inventory.
+
+    ManufacturedProductInventory represents inventory in the production store.
+    When it is created, we try to link or create a ManufacturingRecord using
+    the manufacturing journal entry with reference "MFG-{batch_number}".
+    """
+    try:
+        if not instance.batch_number:
+            return
+
+        # Find the manufacturing JournalEntry for this batch
+        je = JournalEntry.objects.filter(reference=f"MFG-{instance.batch_number}").first()
+        if not je:
+            return
+
+        # First, try to attach any placeholder record that has this journal_entry
+        mr = ManufacturingRecord.objects.filter(
+            journal_entry=je,
+            manufacture_product__isnull=True,
+        ).first()
+
+        if mr:
+            mr.manufacture_product = instance
+            mr.save(update_fields=['manufacture_product'])
+        else:
+            # If no placeholder exists, create a new ManufacturingRecord.
+            from decimal import Decimal
+            from django.db.models import Sum
+
+            # Derive amount from the journal entry lines (sum of debits)
+            total_amount = je.entries.filter(entry_type='debit').aggregate(
+                total=Sum('amount')
+            )['total'] or Decimal('0.00')
+
+            ManufacturingRecord.objects.get_or_create(
+                manufacture_product=instance,
+                journal_entry=je,
+                defaults={'amount': total_amount},
+            )
+    except Exception as e:
+        logger.error(f"Error linking ManufacturingRecord to inventory {instance.id}: {str(e)}")

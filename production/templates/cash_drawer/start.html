@@ -12,6 +12,12 @@
                 </div>
                 <div class="card-body">
                     <p class="text-muted">Store: <strong>{{ store.name }}</strong></p>
+                    {% if last_session %}
+                        <p class="text-muted small mb-2">
+                            Last closed session opening balance: {{ last_session.opening_balance|floatformat:2 }} | 
+                            Carry-forward float: {{ last_session.effective_carry_forward_float|floatformat:2 }}
+                        </p>
+                    {% endif %}
                     <form method="post">
                         {% csrf_token %}
                         <div class="mb-3">
@@ -19,7 +25,7 @@
                                 Opening Balance
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text">$</span>
+                                <span class="input-group-text">UGX</span>
                                 {{ form.opening_balance }}
                             </div>
                             {% if form.opening_balance.errors %}

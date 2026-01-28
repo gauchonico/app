@@ -1,5 +1,6 @@
 <!-- templates/cash_drawer/manage.html -->
 {% extends "base.html" %}
+{% load humanize %}
 {% load static %}
 
 {% block content %}
@@ -20,7 +21,15 @@
                                 Close Session
                             </a>
                         </div>
-                    {% else %}
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <a href="{% url 'cash_drawer_banking_list' %}" class="btn btn-outline-secondary btn-sm">
+                            View Bank Deposits
+                        </a>
+                    </div>
+
+                    {% if not active_session %}
                         <div class="text-center py-4">
                             <h5>No active cash drawer session</h5>
                             <a href="{% url 'cash_drawer_start' %}" class="btn btn-primary mt-3">
@@ -39,6 +48,7 @@
                                     <th>Opening</th>
                                     <th>Closing</th>
                                     <th></th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -53,7 +63,7 @@
                                     <td>{{ session.opening_balance|floatformat:2 }}</td>
                                     <td>
                                         {% if session.closing_balance is not None %}
-                                            {{ session.closing_balance|floatformat:2 }}
+                                            {{ session.closing_balance|intcomma|floatformat:2 }}
                                         {% else %}
                                             -
                                         {% endif %}
@@ -62,6 +72,19 @@
                                         <a href="{% url 'cash_drawer_detail' session.id %}" class="btn btn-sm btn-outline-primary">
                                             View
                                         </a>
+                                    </td>
+                                    <td>
+                                        {% if session.status == 'closed' and session.closing_balance %}
+                                            {% if session.bank_deposits.count %}
+                                                <a href="{% url 'cash_drawer_banking_list' %}?session={{ session.id }}" class="btn btn-sm btn-success">
+                                                    Banked
+                                                </a>
+                                            {% else %}
+                                                <a href="{% url 'cash_drawer_bank' session_id=session.id %}" class="btn btn-sm btn-outline-success">
+                                                    Record Deposit
+                                                </a>
+                                            {% endif %}
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}

@@ -481,13 +481,62 @@ class ManufacturedProductIngredient(models.Model):
 class ManufacturedProductInventory(models.Model):
     product = models.ForeignKey(Production, on_delete=models.CASCADE)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
-    batch_number = models.CharField(max_length=50,blank=True, null=True)
-    last_updated = models.DateTimeField(auto_now=True)
+    batch_number = models.CharField(max_length=50, blank=True, null=True)
     expiry_date = models.DateField(blank=True, null=True)
-    
+    unit_cost = models.DecimalField(max_digits=15, decimal_places=4, default=0)
+    total_cost = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    last_updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.product.product_name} Btch No: {self.batch_number} Qty: ({self.quantity})"
+
+
+def release_batch_to_manufactured_inventory(manufacture_product):
+    """Release a QC-approved batch into ManufacturedProductInventory.
+
+    Uses ManufactureProduct.total_production_cost and quantity to compute
+    unit_cost, then creates or updates a ManufacturedProductInventory record
+    for the available quantity (excluding samples).
+    """
+    from decimal import Decimal
+
+    # Only release if QC allows it
+    if not manufacture_product.can_be_released():
+        return None
+
+    total_units = Decimal(manufacture_product.quantity or 0)
+    total_cost = manufacture_product.total_production_cost or Decimal('0.00')
+    if total_units <= 0 or total_cost <= 0:
+        return None
+
+    unit_cost = total_cost / total_units
+    inv_qty = Decimal(manufacture_product.get_available_quantity_for_inventory() or 0)
+    if inv_qty <= 0:
+        return None
+
+    inventory, created = ManufacturedProductInventory.objects.get_or_create(
+        product=manufacture_product.product,
+        batch_number=manufacture_product.batch_number,
+        defaults={
+            'quantity': inv_qty,
+            'expiry_date': manufacture_product.expiry_date,
+            'unit_cost': unit_cost,
+            'total_cost': unit_cost * inv_qty,
+        },
+    )
+
+    if not created:
+        # If inventory already exists for this batch, update quantity and cost
+        inventory.quantity += inv_qty
+        inventory.total_cost += unit_cost * inv_qty
+        if inventory.quantity > 0:
+            inventory.unit_cost = inventory.total_cost / inventory.quantity
+        if manufacture_product.expiry_date and not inventory.expiry_date:
+            inventory.expiry_date = manufacture_product.expiry_date
+        inventory.save(update_fields=['quantity', 'total_cost', 'unit_cost', 'expiry_date'])
+
+    return inventory
+
 
 class WriteOff(models.Model):
     manufactured_product_inventory = models.ForeignKey(
@@ -735,6 +784,36 @@ class QualityControlAction(models.Model):
         return f"{self.action_type} - {self.quality_test.test_number}"
 
 
+@receiver(post_save, sender=QualityControlAction)
+def auto_release_batch_to_inventory(sender, instance, created, **kwargs):
+    """When a QC action of type 'release' is created, push batch into inventory.
+
+    This will:
+    - Mark the related ManufactureProduct as QC passed & releasable
+    - Call release_batch_to_manufactured_inventory to create/update
+      ManufacturedProductInventory for the available quantity.
+    """
+    if not created:
+        return
+
+    if instance.action_type != 'release':
+        return
+
+    try:
+        manufactured_product = instance.quality_test.manufactured_product
+    except ManufactureProduct.DoesNotExist:  # defensive
+        return
+
+    # Ensure the batch is marked as QC passed and allowed to release
+    if manufactured_product.qc_status != 'passed' or not manufactured_product.can_release_to_inventory:
+        manufactured_product.qc_status = 'passed'
+        manufactured_product.can_release_to_inventory = True
+        manufactured_product.save(update_fields=['qc_status', 'can_release_to_inventory'])
+
+    # Now release to inventory (helper will respect can_be_released checks)
+    release_batch_to_manufactured_inventory(manufactured_product)
+
+
 class SampleAllocation(models.Model):
     """
     Track sample bottles allocated for testing from manufactured batches
@@ -969,16 +1048,30 @@ class StaffCommission(models.Model):
 
 ##### Main Livara Store Transfer      
 class LivaraMainStore(models.Model):
-    product = models.ForeignKey(ManufacturedProductInventory, on_delete=models.CASCADE,related_name='livara_main_store')
+    """Main store inventory per manufactured batch.
+
+    Linked back to ManufacturedProductInventory so we can trace cost and
+    quantities from production into the main store.
+    """
+
+    product = models.ForeignKey(
+        ManufacturedProductInventory,
+        on_delete=models.CASCADE,
+        related_name='livara_main_store',
+    )
     quantity = models.PositiveIntegerField()
     batch_number = models.CharField(max_length=50, null=True, blank=True)
-    quantity = models.PositiveIntegerField()
     expiry_date = models.DateField(null=True, blank=True)
+
+    # Cost tracking (mirrors ManufacturedProductInventory cost at time of transfer)
+    unit_cost = models.DecimalField(max_digits=15, decimal_places=4, default=0)
+    total_cost = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+
     previous_quantity = models.PositiveIntegerField(default=0)
     adjustment_date = models.DateTimeField(null=True, blank=True)
     adjustment_reason = models.CharField(max_length=255, null=True, blank=True)
     
-    def __str__ (self):
+    def __str__(self):
         return f"{self.product.product.product_name} (Batch: {self.batch_number})"
 
 #Adjustment mobel to track mainstore changes
@@ -1351,6 +1444,16 @@ class CashDrawerSession(models.Model):
     store = models.ForeignKey('production.Store', on_delete=models.PROTECT)
     opening_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     closing_balance = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    carry_forward_float = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            "Amount of cash kept in drawer to start next session (float). "
+            "Defaults to this session's opening balance if not set."
+        ),
+    )
     opening_time = models.DateTimeField(auto_now_add=True)
     closing_time = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=SESSION_STATUS, default='open')
@@ -1360,6 +1463,46 @@ class CashDrawerSession(models.Model):
         ordering = ['-opening_time']
         verbose_name = 'Cash Drawer Session'
         verbose_name_plural = 'Cash Drawer Sessions'
+
+    @property
+    def effective_carry_forward_float(self):
+        """Float actually kept in the drawer to roll into the next session.
+
+        If carry_forward_float is not explicitly set, fall back to opening_balance.
+        """
+        if self.carry_forward_float is not None:
+            return self.carry_forward_float
+        return self.opening_balance or Decimal('0.00')
+
+    @property
+    def recommended_deposit_amount(self):
+        """Recommended cash amount to bank when closing this session.
+
+        This assumes that effective_carry_forward_float is left in the till
+        and everything above that (if positive) is banked.
+        """
+        if self.closing_balance is None:
+            return Decimal('0.00')
+
+        closing = self.closing_balance or Decimal('0.00')
+        float_to_keep = self.effective_carry_forward_float
+        deposit = closing - float_to_keep
+        return deposit if deposit > 0 else Decimal('0.00')
+
+    @classmethod
+    def get_last_closed_session(cls, store, user=None):
+        qs = cls.objects.filter(store=store, status='closed')
+        if user is not None:
+            qs = qs.filter(user=user)
+        return qs.order_by('-closing_time').first()
+
+    @classmethod
+    def get_default_opening_balance_for_store(cls, store, user=None):
+        """Default opening balance = last session's carry-forward float (if any)."""
+        last_session = cls.get_last_closed_session(store=store, user=user)
+        if not last_session:
+            return Decimal('0.00')
+        return last_session.effective_carry_forward_float
 
     def get_expected_balance(self):
         """Calculate the expected balance based on opening balance and transactions"""
@@ -2983,7 +3126,7 @@ class TaxCode(models.Model):
         """Calculate base amount from tax-inclusive total"""
         return (total_amount / (1 + self.rate_decimal)).quantize(Decimal('0.01'))
 
-################### Requsition models
+################### Requsition models for Production Rawmaterials
 class Requisition(models.Model):
     STATUS_CHOICES = [
         ('created', 'Created'),
@@ -3000,7 +3143,7 @@ class Requisition(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    total_cost = models.DecimalField(max_digits=10, decimal_places=0, null=True, blank=True)
+    total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     
     # Tax settings
     amounts_are_tax_inclusive = models.BooleanField(default=False, help_text="If checked, amounts include tax")
@@ -3257,8 +3400,8 @@ class LPO(models.Model):
     payment_option = models.CharField(max_length=20, choices=PAYMENT_OPTIONS_CHOICES, default='cash')
     
     # Payment tracking fields
-    is_paid = models.BooleanField(default=False, null=True, blank=True)
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=0, default=0.00, null=True, blank=True)
+    is_paid = models.BooleanField(default=False)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     payment_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
@@ -3268,11 +3411,11 @@ class LPO(models.Model):
         if not self.lpo_number:
             self.lpo_number = self.generate_lpo_number()
             
-        # Ensure amount_paid and total_cost are not None before comparison
-        req_total_cost = self.requisition.total_cost if self.requisition.total_cost is not None else 0
-        current_amount_paid = self.amount_paid if self.amount_paid is not None else 0
+        # Ensure amount_paid is Decimal
+        current_amount_paid = self.amount_paid if self.amount_paid is not None else Decimal('0.00')
+        lpo_grand_total = self.requisition.calculate_grand_total_with_tax()
 
-        if current_amount_paid >= req_total_cost and req_total_cost > 0:
+        if current_amount_paid >= lpo_grand_total and lpo_grand_total > 0:
             self.is_paid = True
             if not self.payment_date: # Only set if not already set
                 self.payment_date = timezone.now()
@@ -3588,22 +3731,11 @@ def update_supplier_prices_on_delivery(sender, instance, **kwargs):
 from auditlog.registry import auditlog
 
 # Register key models for audit tracking
-# auditlog.register(Supplier)
-# auditlog.register(RawMaterial) 
-# Temporarily disable auditlog registrations due to changes_text constraint issues
-# This can be re-enabled once auditlog version compatibility is resolved
+# NOTE: Some legacy models were temporarily disabled due to earlier auditlog issues.
+# Newer models like CashDrawerSession and StoreSale are safe to register and will appear in audit_logs.html.
 
-# auditlog.register(Requisition)
-# auditlog.register(RequisitionItem)
-# auditlog.register(RequisitionExpenseItem)
-# auditlog.register(LPO)
-# auditlog.register(PaymentVoucher)
-# auditlog.register(RawMaterialPrice)
-# auditlog.register(TaxCode)
-# auditlog.register(GoodsReceivedNote)
-# auditlog.register(Production)
-# auditlog.register(ManufactureProduct)
-# auditlog.register(StoreSalePayment)
+auditlog.register(CashDrawerSession)
+auditlog.register(StoreSale)
 
 class CreditNote(models.Model):
     """Credit Note - Document for returns, refunds, and invoice adjustments"""

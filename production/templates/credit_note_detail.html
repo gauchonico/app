@@ -314,9 +314,11 @@
             <a href="{% url 'invoice_detail' credit_note.sales_invoice.pk %}" class="document-link">
                 <i class="fa fa-file-invoice me-1"></i>View Invoice #{{ credit_note.invoice_number }}
             </a>
-            <a href="{% url 'store_sale_order_details' credit_note.order.pk %}" class="document-link">
-                <i class="fa fa-shopping-cart me-1"></i>View Order #{{ credit_note.order_number }}
+            {% if order %}
+            <a href="{% url 'store_sale_order_details' order.pk %}" class="document-link">
+                <i class="fa fa-shopping-cart me-1"></i>View Order #{{ order.order_number }}
             </a>
+            {% endif %}
         </div>
         
         <!-- Reason and Notes -->

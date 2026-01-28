@@ -1953,6 +1953,71 @@ class CloseCashDrawerForm(forms.Form):
         required=False
     )
 
+    # NEW: float and banking fields
+    carry_forward_float = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        help_text="Amount of cash to leave in drawer as float for next session.",
+    )
+    bank_amount = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control'}),
+        help_text="Amount of cash to bank from this session.",
+    )
+    bank_account = forms.ModelChoiceField(
+        queryset=ChartOfAccounts.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text="Select bank account (e.g., UBA Bank).",
+    )
+    cash_drawer_account = forms.ModelChoiceField(
+        queryset=ChartOfAccounts.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text="Select Cash at Hand account for this drawer.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        # Optional store hint so we can prefer the right cash drawer account
+        store = kwargs.pop('store', None)
+        super().__init__(*args, **kwargs)
+
+        # Populate bank / cash drawer accounts based on naming convention
+        try:
+            asset_accounts = ChartOfAccounts.objects.filter(account_type='asset').order_by('account_name')
+            # Banks: names containing 'bank'
+            self.fields['bank_account'].queryset = asset_accounts.filter(account_name__icontains='bank')
+            # Cash drawers: names containing 'cash at hand'
+            self.fields['cash_drawer_account'].queryset = asset_accounts.filter(
+                account_name__icontains='cash at hand'
+            )
+        except Exception:
+            # Fallback: all accounts
+            all_accounts = ChartOfAccounts.objects.all().order_by('account_name')
+            self.fields['bank_account'].queryset = all_accounts
+            self.fields['cash_drawer_account'].queryset = all_accounts
+
+        # Prefer specific accounts based on store name if available
+        if store is not None:
+            try:
+                name = (store.name or "").lower()
+                cash_qs = self.fields['cash_drawer_account'].queryset
+                matched_cash = cash_qs.filter(account_name__icontains=name).first()
+                if matched_cash:
+                    self.fields['cash_drawer_account'].initial = matched_cash
+
+                bank_qs = self.fields['bank_account'].queryset
+                # Example: prefer UBA if present
+                uba_bank = bank_qs.filter(account_name__icontains='uba').first()
+                if uba_bank:
+                    self.fields['bank_account'].initial = uba_bank
+            except Exception:
+                pass
+
 
 #store credit notes
 # production/forms.py

@@ -224,7 +224,7 @@
 									</div>
 								{% else %}
 									<div>
-										<strong class="text-danger">UGX {{ lpo.requisition.total_cost|default:0|floatformat:0|intcomma }}</strong>
+										<strong class="text-danger">UGX {{ lpo.outstanding_balance|floatformat:0|intcomma }}</strong>
 										<br><small class="text-muted">Unpaid</small>
 										<br><a href="{% url 'pay_lpo' lpo.id %}" class="btn btn-sm btn-success">
 											<i class="fa fa-credit-card me-1"></i>Pay Now

@@ -212,9 +212,11 @@ urlpatterns = [
     path('invoice/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
     path('create_receipt/<int:invoice_id>/', views.create_receipt_from_invoice, name='create_receipt_from_invoice'),
     path('store_sale_list_receipts/', views.store_sale_list_receipts, name='store_sale_list_receipts'),
+    
+    #mainstore credit notes
     path('create_credit_note/<int:invoice_id>/', views.create_credit_note_from_invoice, name='create_credit_note_from_invoice'),
     path('credit_notes/', views.list_credit_notes, name='list_credit_notes'),
-    path('credit_note/<int:credit_note_id>/', views.credit_note_detail, name='credit_note_detail'),
+    path('credit_note/<int:credit_note_id>/', views.sales_credit_note_detail, name='sales_credit_note_detail'),
     path('apply_credit_note/<int:credit_note_id>/', views.apply_credit_note, name='apply_credit_note'),
     path('monthly-commissions/', views.monthly_commission_list, name='monthly_commission_list'),
     path('monthly-commissions/<int:staff_id>/<int:year>/<int:month>/', views.staff_monthly_commission_detail, name='staff_monthly_commission_detail'),
@@ -354,6 +356,8 @@ urlpatterns = [
     path('store-refreshment-list/', views.store_refreshment_list, name='store_refreshment_list'),
     path('adjust-refreshment-stock/<int:refreshment_id>/', views.adjust_refreshment_stock, name='adjust_refreshment_stock'),
 
+    path('tax-summary/', views.tax_summary_report, name='tax_summary_report'),
+
     # Cash Drawer URLs
     path('cash-drawer/', views.cash_drawer_manage, name='cash_drawer_manage'),
     path('cash-drawer/start/', views.cash_drawer_start, name='cash_drawer_start'),
@@ -361,6 +365,8 @@ urlpatterns = [
     path('cash-drawer/detail/<int:session_id>/', views.cash_drawer_detail, name='cash_drawer_detail'),
     path('cash-drawer/all/', views.all_cash_drawer_sessions, name='all_cash_drawer_sessions'),
     path('cash-drawer/session/<int:session_id>/', views.session_detail, name='session_detail'),
+    path('cash-drawer/<int:session_id>/bank/', views.CashDrawerBankingCreateView.as_view(), name='cash_drawer_bank'),
+    path('cash-drawer/bankings/', views.CashDrawerBankingListView.as_view(), name='cash_drawer_banking_list'),
 
     #store credit notes views
     path('credit-notes/create/<str:sale_type>/<int:sale_id>/', views.create_credit_note, name='create_credit_note'),
