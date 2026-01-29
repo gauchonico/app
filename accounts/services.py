@@ -7,13 +7,221 @@ from .models import (
     StoreTransfer as AccountingStoreTransfer, StoreBudget, StoreFinancialSummary,
     ManufacturingRecord, PaymentRecord, CommissionExpense
 )
-from .models import ChartOfAccounts, Department
+from .models import ChartOfAccounts, Department, Budget, StoreBudget
 from django.db.models import Sum
 from django.db import models
+
+
+class BudgetService:
+    """Helpers for checking department- and store-level budgets before approvals."""
+
+    @staticmethod
+    def check_budget_for_department(dept_code: str, account_code: str, amount, when=None):
+        """Return (ok: bool, budget: Budget|None, remaining: Decimal, over_by: Decimal).
+
+        - ok: True if within budget or no active budget found.
+        - budget: the matching Budget instance, if any.
+        - remaining: remaining_amount on that budget (0 if none).
+        - over_by: positive amount by which the requested spend exceeds remaining.
+        """
+        from decimal import Decimal
+
+        when = when or timezone.now().date()
+        amount = Decimal(str(amount))
+
+        try:
+            dept = Department.find_by_code(dept_code) if hasattr(Department, 'find_by_code') else Department.objects.get(code=dept_code)
+            account = ChartOfAccounts.objects.get(account_code=account_code)
+        except (Department.DoesNotExist, ChartOfAccounts.DoesNotExist):
+            # If we cannot resolve dept/account, do not block
+            return True, None, Decimal('0.00'), Decimal('0.00')
+
+        b = Budget.objects.filter(
+            department=dept,
+            account=account,
+            is_active=True,
+            start_date__lte=when,
+            end_date__gte=when,
+        ).first()
+
+        if not b:
+            # No specific budget configured for this combination
+            return True, None, Decimal('0.00'), Decimal('0.00')
+
+        remaining = b.remaining_amount
+        over_by = amount - remaining
+        ok = amount <= remaining
+        return ok, b, remaining, (over_by if over_by > 0 else Decimal('0.00'))
+
+    @staticmethod
+    def check_budget_for_store(store, account_code: str, amount, when=None):
+        """Return (ok: bool, store_budget: StoreBudget|None, remaining: Decimal, over_by: Decimal)."""
+        from decimal import Decimal
+
+        when = when or timezone.now().date()
+        amount = Decimal(str(amount))
+
+        try:
+            account = ChartOfAccounts.objects.get(account_code=account_code)
+        except ChartOfAccounts.DoesNotExist:
+            return True, None, Decimal('0.00'), Decimal('0.00')
+
+        sb = StoreBudget.objects.filter(
+            store=store,
+            account=account,
+            is_active=True,
+            start_date__lte=when,
+            end_date__gte=when,
+        ).first()
+
+        if not sb:
+            return True, None, Decimal('0.00'), Decimal('0.00')
+
+        remaining = sb.remaining_amount
+        over_by = amount - remaining
+        ok = amount <= remaining
+        return ok, sb, remaining, (over_by if over_by > 0 else Decimal('0.00'))
+
 
 class AccountingService:
     """Service for automatic accounting entries from production data"""
     
+    @staticmethod
+    def create_accessory_consumption_journal_entry(service_sale, user):
+        """Record salon supplies expense when accessories are consumed in a paid ServiceSale.
+
+        Trigger: ServiceSale has been fully paid (paid_status == 'paid') and has
+        one or more AccessorySaleItem rows that represent **internal use** of
+        accessories (they do not appear on the customer's receipt as separate
+        charge lines, or are priced at 0 for internal consumption).
+
+        For each such sale, we:
+        - Determine the store from service_sale.store.
+        - Map that store to the correct "Accessory Inventory {Store}" account
+          (e.g. 31200/31201/31202).
+        - Value consumption at accessory.purchase_price * quantity (main-store
+          unit cost).
+        - Post:
+
+            Dr 31222 Salon Supplies Expense
+            Cr 3120x Accessory Inventory {Store}
+
+        This should be called **once per ServiceSale** after payment, and will
+        skip if no accessory consumption value > 0 can be computed.
+        """
+        from decimal import Decimal
+        from production.models import AccessorySaleItem, StoreAccessoryInventory
+
+        try:
+            if getattr(service_sale, "paid_status", None) != "paid":
+                return None
+
+            store = getattr(service_sale, "store", None)
+            if store is None:
+                return None
+
+            # 1) Collect accessory consumption lines for this sale.
+            # We rely on AccessorySaleItem records; if your business logic
+            # distinguishes billable vs internal-use accessories, you can
+            # further filter here (e.g., price == 0 for internal use).
+            accessory_items = AccessorySaleItem.objects.filter(sale=service_sale)
+            if not accessory_items.exists():
+                return None
+
+            total_consumption_value = Decimal("0.00")
+
+            for item in accessory_items.select_related("accessory__accessory"):
+                sai = item.accessory  # StoreAccessoryInventory
+                accessory = getattr(sai, "accessory", None)
+                qty = item.quantity or Decimal("0.00")
+                if not accessory or qty <= 0:
+                    continue
+
+                unit_cost = accessory.purchase_price or Decimal("0.00")
+                if unit_cost <= 0:
+                    continue
+
+                total_consumption_value += unit_cost * qty
+
+            if total_consumption_value <= 0:
+                return None
+
+            # 2) Resolve accounts
+            # 31222 Salon Supplies Expense
+            supplies_expense = ChartOfAccounts.objects.filter(account_code="31222").first()
+
+            # Per-store accessory inventory account based on store name. We map
+            # using a small helper so that real store names like
+            #   "Kyanja", "Ntinda Store", "Livara Bugolobi Branch"
+            # resolve to CoA accounts such as:
+            #   31202 Accessory Inventory Kyanja
+            #   31201 Accessory Inventory Ntinda
+            #   31200 Accessory Inventory Bugolobi
+            def get_store_accessory_account(store_obj):
+                name = (store_obj.name or "").strip()
+                # Normalise to a simple key
+                key = name.lower()
+                if "kyanja" in key:
+                    target_name = "Accessory Inventory Kyanja"
+                elif "ntinda" in key:
+                    target_name = "Accessory Inventory Ntinda"
+                elif "bugolobi" in key:
+                    target_name = "Accessory Inventory Bugolobi"
+                else:
+                    # Fallback to generic pattern: "Accessory Inventory {store.name}"
+                    target_name = f"Accessory Inventory {store_obj.name}"
+
+                return ChartOfAccounts.objects.filter(
+                    account_name=target_name,
+                    account_type="asset",
+                    account_category="current_asset",
+                ).first()
+
+            store_inventory_account = get_store_accessory_account(store)
+
+            if not supplies_expense or not store_inventory_account:
+                # If mapping is missing, better to skip than post incorrectly
+                return None
+
+            # 3) Create journal entry
+            journal_entry = JournalEntry.objects.create(
+                date=service_sale.sale_date.date() if hasattr(service_sale, "sale_date") else timezone.now().date(),
+                reference=f"AccCons-{service_sale.id}",
+                description=(
+                    f"Accessory consumption for service sale {getattr(service_sale, 'service_sale_number', service_sale.id)} "
+                    f"at {store.name}"
+                ),
+                entry_type="production",
+                department=Department.objects.filter(code="PROD").first(),
+                created_by=user,
+                is_posted=True,
+                posted_at=timezone.now(),
+            )
+
+            # DR 31222 Salon Supplies Expense
+            JournalEntryLine.objects.create(
+                journal_entry=journal_entry,
+                account=supplies_expense,
+                entry_type="debit",
+                amount=total_consumption_value,
+                description="Salon supplies expense - accessories consumed",
+            )
+
+            # CR 3120x Accessory Inventory {Store}
+            JournalEntryLine.objects.create(
+                journal_entry=journal_entry,
+                account=store_inventory_account,
+                entry_type="credit",
+                amount=total_consumption_value,
+                description=f"Accessories consumed for services at {store.name}",
+            )
+
+            return journal_entry
+
+        except Exception as e:
+            print(f"Error creating accessory consumption journal entry: {e}")
+            return None
+
     @staticmethod
     def create_raw_material_writeoff_journal_entry(write_off, user):
         """Create journal entry for an approved raw-material IncidentWriteOff.
@@ -141,6 +349,214 @@ class AccountingService:
 
         except Exception as e:
             print(f"Error creating raw material write-off journal entry: {e}")
+            return None
+
+    @staticmethod
+    def create_accessory_requisition_journal_entry(accessory_req, user):
+        """Create journal entry when main-store accessory requisition is delivered.
+
+        Mirrors the raw-material requisition JE, but posts into
+        'Accessory Inventory - Main Store' instead of 'Raw Materials Inventory'.
+        """
+        try:
+            with transaction.atomic():
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=accessory_req.request_date.date(),
+                    reference=f"AccReq-{accessory_req.accessory_req_number}",
+                    description=f"Accessory requisition {accessory_req.accessory_req_number}",
+                    entry_type='production',
+                    department=Department.objects.filter(code='PROD').first(),  # Production dept
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now(),
+                )
+
+                # 1) Accessory Inventory - Main Store (Asset)
+                # Prefer lookup by explicit account_code so it maps cleanly to
+                # 31000 Accessory Inventory - Main Store in the CoA.
+                accessory_inventory_account = ChartOfAccounts.objects.filter(
+                    account_code='31000',
+                ).first()
+
+                # 2) Tax Receivable (Asset) for input VAT
+                tax_receivable_account = ChartOfAccounts.objects.filter(
+                    account_name='Tax Receivable',
+                    account_type='asset',
+                    account_category='tax_receivable',
+                ).first()
+
+                # 3) Accounts Payable (Liability)
+                payable_account = ChartOfAccounts.objects.filter(
+                    account_name='Accounts Payable',
+                    account_type='liability',
+                    account_category='current_liability',
+                ).first()
+
+                if not accessory_inventory_account or not payable_account:
+                    print(
+                        "Accessory requisition JE skipped: required accounts missing. "
+                        "Ensure 'Accessory Inventory - Main Store' (asset/current_asset) and "
+                        "'Accounts Payable' (liability/current_liability) exist."
+                    )
+                    return None
+
+                # Compute totals from items: assume price_per_unit & tax_code on each item
+                from decimal import Decimal
+
+                items = accessory_req.items.all()
+                subtotal_before_tax = Decimal('0.00')
+                total_tax_amount = Decimal('0.00')  # MainStoreAccessoryRequisitionItem currently has no tax fields
+
+                for item in items:
+                    qty = item.quantity_requested or Decimal('0.00')
+                    unit_price = item.price or Decimal('0.00')
+                    line_subtotal = qty * unit_price
+                    subtotal_before_tax += line_subtotal
+
+                # For now, we assume accessory requisition prices are tax-exclusive
+                # and that any VAT is handled separately at payment level, so
+                # total_tax_amount remains 0. You can extend MainStoreAccessoryRequisitionItem
+                # with tax_code if you later need per-line tax here.
+
+                grand_total = subtotal_before_tax + total_tax_amount
+
+                # Debit Accessory Inventory - Main Store (net of tax)
+                if subtotal_before_tax > 0:
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=accessory_inventory_account,
+                        entry_type='debit',
+                        amount=subtotal_before_tax,
+                        description=f"Accessories for requisition {accessory_req.accessory_req_number}",
+                    )
+
+                # Debit Tax Receivable if applicable
+                if total_tax_amount > 0 and tax_receivable_account:
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=tax_receivable_account,
+                        entry_type='debit',
+                        amount=total_tax_amount,
+                        description=f"Input VAT on accessories for requisition {accessory_req.accessory_req_number}",
+                    )
+
+                # Credit Accounts Payable with total including tax
+                if grand_total > 0:
+                    JournalEntryLine.objects.create(
+                        journal_entry=journal_entry,
+                        account=payable_account,
+                        entry_type='credit',
+                        amount=grand_total,
+                        description=f"Payable for accessories {accessory_req.accessory_req_number}",
+                    )
+
+                return journal_entry
+
+        except Exception as e:
+            print(f"Error creating accessory requisition journal entry: {e}")
+            return None
+
+    @staticmethod
+    def create_internal_accessory_transfer_journal_entry(accessory_request, user):
+        """Create journal entry when accessories are transferred from main store to a salon store.
+
+        DR Accessory Inventory - [Store]
+        CR Accessory Inventory - Main Store
+
+        Valued at accessory.purchase_price (unit cost) per line. Assumes a
+        ChartOfAccounts row named 'Accessory Inventory - Main Store' and,
+        for each store, 'Accessory Inventory {store.name}'.
+        """
+        from decimal import Decimal
+
+        try:
+            with transaction.atomic():
+                store = accessory_request.store
+
+                # Determine accounts
+                # Main store accessories: 31000 Accessory Inventory - Main Store
+                main_inventory_account = ChartOfAccounts.objects.filter(
+                    account_code='31000',
+                ).first()
+
+                # Per-store accessory inventory accounts are expected to be
+                # named "Accessory Inventory {store.name}", e.g.:
+                #   Bugolobi → 31200 Accessory Inventory Bugolobi
+                #   Ntinda  → 31201 Accessory Inventory Ntinda
+                #   Kyanja  → 31202 Accessory Inventory Kyanja
+                # and configured as asset/current_asset in the CoA.
+                store_account_name = f"Accessory Inventory {store.name}"
+                store_inventory_account = ChartOfAccounts.objects.filter(
+                    account_name=store_account_name,
+                    account_type='asset',
+                    account_category='current_asset',
+                ).first()
+
+                if not main_inventory_account or not store_inventory_account:
+                    print(
+                        "Internal accessory transfer JE skipped: required inventory accounts missing. "
+                        "Ensure 'Accessory Inventory - Main Store' and per-store accounts like "
+                        f"'{store_account_name}' exist."
+                    )
+                    return None
+
+                # Compute total transfer value from request items
+                items = accessory_request.items.all()
+                total_value = Decimal('0.00')
+
+                for item in items:
+                    accessory = item.accessory
+                    qty = item.quantity_requested or Decimal('0.00')
+                    unit_cost = accessory.purchase_price or Decimal('0.00')
+                    if unit_cost <= 0 or qty <= 0:
+                        continue
+                    total_value += qty * unit_cost
+
+                if total_value <= 0:
+                    print(
+                        f"Skipping internal accessory transfer JE for request {accessory_request.id}: "
+                        f"total_value is {total_value}"
+                    )
+                    return None
+
+                # Create journal entry
+                journal_entry = JournalEntry.objects.create(
+                    date=accessory_request.request_date,
+                    reference=f"AccInt-{accessory_request.id}",
+                    description=(
+                        f"Internal accessory transfer to {store.name} "
+                        f"(request {accessory_request.id})"
+                    ),
+                    entry_type='production',
+                    department=Department.objects.filter(code='PROD').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now(),
+                )
+
+                # DR Accessory Inventory - [Store]
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=store_inventory_account,
+                    entry_type='debit',
+                    amount=total_value,
+                    description=f"Accessories transferred to {store.name}",
+                )
+
+                # CR Accessory Inventory - Main Store
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=main_inventory_account,
+                    entry_type='credit',
+                    amount=total_value,
+                    description="Accessories transferred from main store",
+                )
+
+                return journal_entry
+
+        except Exception as e:
+            print(f"Error creating internal accessory transfer journal entry: {e}")
             return None
 
     @staticmethod
@@ -367,33 +783,35 @@ class AccountingService:
         """Create journal entry when products are manufactured.
 
         `manufacture_product` is a production.models.ManufactureProduct instance.
-        Total cost is primarily taken from its total_production_cost field when available,
-        falling back to summing its used_ingredients via get_raw_material_price_with_fallback.
 
-        This method also ensures a ManufacturingRecord exists and, where possible,
-        links it to the corresponding ManufacturedProductInventory (production-store
-        inventory for the manufactured batch).
+        IMPORTANT: This now relies **only** on the `total_production_cost` field
+        that is calculated on the manufacturing cost sheet. We *do not* attempt
+        to recompute cost from raw‑material usage, to avoid unit/price
+        mismatches that previously produced wildly inflated values.
+
+        Flow:
+        - Read `manufacture_product.total_production_cost`.
+        - If it is missing or not > 0, skip creating a JE.
+        - DR 1210 (Finished Goods / Store Inventory) with total_production_cost.
+        - CR 5100 (Raw Materials Inventory) with total_production_cost.
+        - Link the JE to ManufacturedProductInventory via ManufacturingRecord
+          when possible.
         """
         try:
             with transaction.atomic():
-                from production.utils import get_raw_material_price_with_fallback
                 from production.models import ManufacturedProductInventory
 
-                # 1) Prefer explicit total_production_cost recorded on the batch
-                total_cost = manufacture_product.total_production_cost or Decimal('0.00')
+                # 1) Use only the explicit total_production_cost recorded on the batch
+                total_cost = manufacture_product.total_production_cost or Decimal("0.00")
 
-                # 2) If not set, fall back to computing from used_ingredients
+                # If total_cost is not set or zero/negative, do not create a JE
                 if total_cost <= 0:
-                    total_cost = Decimal('0.00')
-                    for ingredient in manufacture_product.used_ingredients.all():
-                        price_info = get_raw_material_price_with_fallback(ingredient.raw_material)
-                        unit_price = price_info.get('price', Decimal('0.00'))
-                        ingredient_cost = Decimal(ingredient.quantity_used) * unit_price
-                        total_cost += ingredient_cost
-
-                # If still zero, do not create a meaningless JE
-                if total_cost <= 0:
-                    print(f"Skipping manufacturing JE for {manufacture_product.id}: total_cost is 0")
+                    print(
+                        "Skipping manufacturing JE for batch "
+                        f"{manufacture_product.batch_number}: total_production_cost "
+                        f"is {total_cost}. Ensure the manufacturing cost sheet "
+                        "has been saved before posting to the ledger."
+                    )
                     return None
 
                 # Create journal entry
@@ -408,16 +826,16 @@ class AccountingService:
                     department=Department.objects.filter(code='PROD').first(),
                     created_by=user,
                     is_posted=True,
-                    posted_at=timezone.now()
+                    posted_at=timezone.now(),
                 )
 
                 # Get inventory account (Finished Goods) and raw materials account
                 inventory_account = ChartOfAccounts.objects.filter(
-                    account_code='1210'  # Finished Goods / Store Inventory
+                    account_code="1210"  # Finished Goods / Store Inventory
                 ).first()
 
                 raw_materials_account = ChartOfAccounts.objects.filter(
-                    account_code='5100'  # Raw Materials
+                    account_code="5100"  # Raw Materials
                 ).first()
 
                 if inventory_account and raw_materials_account:
@@ -425,18 +843,23 @@ class AccountingService:
                     JournalEntryLine.objects.create(
                         journal_entry=journal_entry,
                         account=inventory_account,
-                        entry_type='debit',
+                        entry_type="debit",
                         amount=total_cost,
-                        description=f"Finished goods inventory - {manufacture_product.product.product_name}"
+                        description=(
+                            "Finished goods inventory - "
+                            f"{manufacture_product.product.product_name}"
+                        ),
                     )
 
                     # Credit Raw Materials (transfer from raw materials to finished goods)
                     JournalEntryLine.objects.create(
                         journal_entry=journal_entry,
                         account=raw_materials_account,
-                        entry_type='credit',
+                        entry_type="credit",
                         amount=total_cost,
-                        description=f"Raw materials consumed for {manufacture_product.batch_number}"
+                        description=(
+                            f"Raw materials consumed for {manufacture_product.batch_number}"
+                        ),
                     )
 
                     # Try to link this JE to a production-store inventory record
@@ -449,23 +872,23 @@ class AccountingService:
                         mr, created = ManufacturingRecord.objects.get_or_create(
                             manufacture_product=inventory,
                             journal_entry=journal_entry,
-                            defaults={'amount': total_cost},
+                            defaults={"amount": total_cost},
                         )
                         # Keep amount in sync if record already existed
                         if not created and mr.amount != total_cost:
                             mr.amount = total_cost
-                            mr.save(update_fields=['amount'])
+                            mr.save(update_fields=["amount"])
                     else:
                         # Create a placeholder record that will be linked to
                         # ManufacturedProductInventory when it is created.
                         mr, created = ManufacturingRecord.objects.get_or_create(
                             manufacture_product=None,
                             journal_entry=journal_entry,
-                            defaults={'amount': total_cost},
+                            defaults={"amount": total_cost},
                         )
                         if not created and mr.amount != total_cost:
                             mr.amount = total_cost
-                            mr.save(update_fields=['amount'])
+                            mr.save(update_fields=["amount"])
 
                     return journal_entry
 
@@ -712,18 +1135,18 @@ class AccountingService:
                     posted_at=timezone.now()
                 )
                 
-                # Get revenue account (Service Sales Revenue)
+                # Get revenue account (Store Service Revenue)
                 revenue_account = ChartOfAccounts.objects.filter(
-                    account_code='4120'  # Service Sales Revenue
+                    account_code='4120'  # Store Service Revenue (services from branches)
                 ).first()
                 
                 if not revenue_account:
-                    # Create service sales revenue account if it doesn't exist
+                    # Create Store Service Revenue account if it doesn't exist
                     revenue_account = ChartOfAccounts.objects.create(
                         account_code='4120',
-                        account_name='Service Sales Revenue',
+                        account_name='Store Service Revenue',
                         account_type='revenue',
-                        account_category='service_revenue',
+                        account_category='operating_revenue',
                         is_active=True
                     )
                 

@@ -8055,7 +8055,39 @@ def delete_requisition(request, requisition_id):
         
 @allowed_users(allowed_roles=['Finance'])
 def approve_requisition(request, requisition_id):
+    """Approve a production requisition with a budget check.
+
+    Uses BudgetService to ensure the raw-material spend (subtotal before tax)
+    is within the PROD department budget for Raw Materials Inventory (code 1210)
+    before creating the LPO and posting the JE.
+    """
+    from decimal import Decimal
+    from accounts.services import BudgetService
+
     requisition = Requisition.objects.get(pk=requisition_id)
+
+    # Only allow approval from specific statuses
+    if requisition.status not in ['created', 'rejected']:
+        messages.warning(request, f"Requisition {requisition.requisition_no} cannot be approved from its current status.")
+        return redirect('requisition_details', requisition_id=requisition.id)
+
+    subtotal = requisition.calculate_subtotal_before_tax() or Decimal('0.00')
+
+    ok, budget, remaining, over_by = BudgetService.check_budget_for_department(
+        dept_code='PROD',     # adjust if you use a different department code
+        account_code='1210',  # Raw Materials Inventory account code in your CoA
+        amount=subtotal,
+    )
+
+    if not ok and not request.user.is_superuser:
+        messages.error(
+            request,
+            f"Requisition {requisition.requisition_no} exceeds budget by UGX {over_by:,.0f}. "
+            f"Remaining budget is UGX {remaining:,.0f}. Please request a budget override."
+        )
+        return redirect('requisition_details', requisition_id=requisition.id)
+
+    # Approve requisition
     requisition.status = 'approved'
     requisition.save()
     

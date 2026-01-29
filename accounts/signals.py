@@ -7,7 +7,18 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from accounts.services import AccountingService
 from accounts.models import JournalEntry, ProductionExpense, SalesRevenue, StoreTransfer as StoreTransferLink, ManufacturingRecord, PaymentRecord
-from production.models import StoreSale, Requisition, StoreTransfer, ManufactureProduct, PaymentVoucher, ServiceSale, ManufacturedProductInventory, IncidentWriteOff
+from production.models import (
+    StoreSale,
+    Requisition,
+    StoreTransfer,
+    ManufactureProduct,
+    PaymentVoucher,
+    ServiceSale,
+    ManufacturedProductInventory,
+    IncidentWriteOff,
+    MainStoreAccessoryRequisition,
+    InternalAccessoryRequest,
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -88,6 +99,49 @@ def create_requisition_journal_entry_auto(sender, instance, created, **kwargs):
     except Exception as e:
         logger.error(f"Error creating requisition journal entry for requisition ID {instance.id}: {str(e)}")
 
+@receiver(post_save, sender=MainStoreAccessoryRequisition)
+def create_accessory_requisition_journal_entry_auto(sender, instance, **kwargs):
+    """Automatically create JE when a main-store accessory requisition is delivered.
+
+    Uses AccountingService.create_accessory_requisition_journal_entry to
+    debit Accessory Inventory - Main Store and credit Accounts Payable.
+    """
+    try:
+        # Only when delivered; ignore pending/approved/rejected
+        if instance.status != 'delivered':
+            return
+
+        # Prevent duplicates based on reference
+        ref = f"AccReq-{instance.accessory_req_number}"
+        if JournalEntry.objects.filter(reference=ref).exists():
+            logger.info(
+                f"Accessory requisition journal entry already exists for req ID: {instance.id}"
+            )
+            return
+
+        admin_user = get_admin_user()
+        if admin_user:
+            with transaction.atomic():
+                je = AccountingService.create_accessory_requisition_journal_entry(instance, admin_user)
+                if je:
+                    logger.info(
+                        f"Accessory requisition journal entry created for req ID: {instance.id} "
+                        f"- Entry: {je.entry_number or je.id}"
+                    )
+                else:
+                    logger.error(
+                        f"Failed to create accessory requisition journal entry for req ID: {instance.id}"
+                    )
+        else:
+            logger.error(
+                f"No admin user found for accessory requisition ID: {instance.id}"
+            )
+    except Exception as e:
+        logger.error(
+            f"Error creating accessory requisition journal entry for req ID {instance.id}: {str(e)}"
+        )
+
+
 @receiver(post_save, sender=ManufactureProduct)
 def create_manufacturing_journal_entry_auto(sender, instance, created, **kwargs):
     """Automatically create journal entry when a product is manufactured"""
@@ -160,9 +214,15 @@ def create_payment_journal_entry_auto(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=ServiceSale)
 def create_service_sale_journal_entry_auto(sender, instance, **kwargs):
-    """Automatically create journal entry when a service sale is invoiced (creates accounts receivable)"""
+    """Automatically create journal entries for service sales.
+
+    - When invoice_status == 'invoiced', create the revenue/AR JE.
+    - When the sale becomes fully paid (paid_status == 'paid'), create
+      accessory consumption JEs (DR 31222 / CR 3120x) for any associated
+      AccessorySaleItem rows.
+    """
     try:
-        # Only create journal entry when the sale is invoiced
+        # Step 1: create revenue / AR entry when invoiced
         if instance.invoice_status == 'invoiced' and instance.total_amount and instance.total_amount > 0:
             # Check for existing entry to prevent duplicates
             if check_existing_entry(instance, 'service_sale'):
@@ -175,16 +235,39 @@ def create_service_sale_journal_entry_auto(sender, instance, **kwargs):
                     # Add a small delay to avoid race conditions with entry number generation
                     import time
                     time.sleep(0.1)
-                    
+
                     journal_entry = AccountingService.create_service_sale_journal_entry(instance, admin_user)
                     if journal_entry:
-                        logger.info(f"Service sale journal entry created for sale ID: {instance.id} - Entry: {journal_entry.entry_number}")
+                        logger.info(
+                            f"Service sale journal entry created for sale ID: {instance.id} - "
+                            f"Entry: {journal_entry.entry_number}"
+                        )
                     else:
-                        logger.error(f"Failed to create service sale journal entry for sale ID: {instance.id}")
+                        logger.error(
+                            f"Failed to create service sale journal entry for sale ID: {instance.id}"
+                        )
             else:
                 logger.error(f"No admin user found for service sale ID: {instance.id}")
+
+        # Step 2: when sale is fully paid, record accessory consumption
+        if getattr(instance, 'paid_status', None) == 'paid':
+            admin_user = get_admin_user()
+            if admin_user:
+                with transaction.atomic():
+                    je = AccountingService.create_accessory_consumption_journal_entry(instance, admin_user)
+                    if je:
+                        logger.info(
+                            "Accessory consumption journal entry created for service sale ID: "
+                            f"{instance.id} - Entry: {je.entry_number or je.id}"
+                        )
+            else:
+                logger.error(
+                    f"No admin user found for accessory consumption on service sale ID: {instance.id}"
+                )
     except Exception as e:
-        logger.error(f"Error creating service sale journal entry for sale ID {instance.id}: {str(e)}")
+        logger.error(
+            f"Error creating service sale/accessory consumption journal entries for sale ID {instance.id}: {str(e)}"
+        )
         # Log the full traceback for debugging
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
@@ -229,6 +312,47 @@ def create_raw_material_writeoff_journal_entry_auto(sender, instance, **kwargs):
     except Exception as e:
         logger.error(
             f"Error creating raw material write-off journal entry for incident ID {instance.id}: {str(e)}"
+        )
+
+
+@receiver(post_save, sender=InternalAccessoryRequest)
+def create_internal_accessory_transfer_journal_entry_auto(sender, instance, **kwargs):
+    """Create JE when an internal accessory request is delivered to a salon store.
+
+    DR Accessory Inventory {store.name}
+    CR Accessory Inventory - Main Store
+    """
+    try:
+        if instance.status != 'delivered':
+            return
+
+        ref = f"AccInt-{instance.id}"
+        if JournalEntry.objects.filter(reference=ref).exists():
+            logger.info(
+                f"Internal accessory transfer journal entry already exists for request ID: {instance.id}"
+            )
+            return
+
+        admin_user = get_admin_user()
+        if admin_user:
+            with transaction.atomic():
+                je = AccountingService.create_internal_accessory_transfer_journal_entry(instance, admin_user)
+                if je:
+                    logger.info(
+                        f"Internal accessory transfer journal entry created for request ID: {instance.id} "
+                        f"- Entry: {je.entry_number or je.id}"
+                    )
+                else:
+                    logger.error(
+                        f"Failed to create internal accessory transfer journal entry for request ID: {instance.id}"
+                    )
+        else:
+            logger.error(
+                f"No admin user found for internal accessory request ID: {instance.id}"
+            )
+    except Exception as e:
+        logger.error(
+            f"Error creating internal accessory transfer journal entry for request ID {instance.id}: {str(e)}"
         )
 
 
