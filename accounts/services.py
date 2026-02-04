@@ -583,13 +583,25 @@ class AccountingService:
 
                 # Debit: Accounts Receivable (Asset) - Total amount due from customer
                 ar_account = ChartOfAccounts.objects.filter(
-                    account_name='Accounts Receivable', account_type='asset', account_category='current_asset'
+                    account_code='1100'  # Accounts Receivable
                 ).first()
 
-                # Get revenue account (Store Sales Revenue)
+                # Get revenue account (Store Sales Revenue - 4110)
                 revenue_account = ChartOfAccounts.objects.filter(
-                    account_name='Sales Revenue', account_type='revenue', account_category='operating_revenue'
+                    account_code='4110',  # Sale Revenue for main store products
+                    account_type='revenue',
+                    account_category='operating_revenue',
                 ).first()
+
+                # Create 4110 automatically if missing (name matches your CoA)
+                if not revenue_account:
+                    revenue_account = ChartOfAccounts.objects.create(
+                        account_code='4110',
+                        account_name='Sale Revenue',
+                        account_type='revenue',
+                        account_category='operating_revenue',
+                        is_active=True,
+                    )
 
                 # Get VAT Payable account
                 vat_payable_account = ChartOfAccounts.objects.filter(
@@ -1135,14 +1147,14 @@ class AccountingService:
                     posted_at=timezone.now()
                 )
                 
-                # Get revenue account (Store Service Revenue)
-                revenue_account = ChartOfAccounts.objects.filter(
-                    account_code='4120'  # Store Service Revenue (services from branches)
+                # Get default parent revenue account (Store Service Revenue 4120)
+                parent_revenue_account = ChartOfAccounts.objects.filter(
+                    account_code='4120'  # Store Service Revenue (parent for service categories)
                 ).first()
                 
-                if not revenue_account:
-                    # Create Store Service Revenue account if it doesn't exist
-                    revenue_account = ChartOfAccounts.objects.create(
+                if not parent_revenue_account:
+                    # Create parent Store Service Revenue account if it doesn't exist
+                    parent_revenue_account = ChartOfAccounts.objects.create(
                         account_code='4120',
                         account_name='Store Service Revenue',
                         account_type='revenue',
@@ -1165,30 +1177,69 @@ class AccountingService:
                         is_active=True
                     )
                 
-                if revenue_account and ar_account:
-                    # Credit Revenue
-                    JournalEntryLine.objects.create(
-                        journal_entry=journal_entry,
-                        account=revenue_account,
-                        entry_type='credit',
-                        amount=service_sale.total_amount,
-                        description=f"Service revenue from {service_sale.service_sale_number}"
-                    )
-                    
-                    # Debit Accounts Receivable
+                if parent_revenue_account and ar_account:
+                    from decimal import Decimal
+                    from collections import defaultdict
+                    from production.models import ServiceSaleItem
+
+                    # --- Debit Accounts Receivable for full amount ---
                     JournalEntryLine.objects.create(
                         journal_entry=journal_entry,
                         account=ar_account,
                         entry_type='debit',
                         amount=service_sale.total_amount,
-                        description=f"Service sale receivable from {service_sale.customer.first_name} {service_sale.customer.last_name}"
+                        description=(
+                            f"Service sale receivable from "
+                            f"{service_sale.customer.first_name} {service_sale.customer.last_name}"
+                        ),
                     )
-                    
-                    # Create sales revenue record
+
+                    # --- Build revenue by service category ---
+                    revenue_by_account = defaultdict(Decimal)
+                    services_total = Decimal('0.00')
+
+                    service_items = service_sale.service_sale_items.select_related(
+                        'service__service__service_category__revenue_account'
+                    )
+
+                    for item in service_items:
+                        line_amount = item.total_price or Decimal('0.00')
+                        if line_amount <= 0:
+                            continue
+                        services_total += line_amount
+
+                        # Resolve category-specific account; fall back to parent 4120
+                        category = getattr(item.service.service, 'service_category', None)
+                        category_account = getattr(category, 'revenue_account', None) if category else None
+                        account = category_account or parent_revenue_account
+                        revenue_by_account[account] += line_amount
+
+                    # Any remaining part of total_amount (e.g., products/refreshments on the ticket)
+                    # is posted to the parent service revenue account so the JE balances.
+                    remainder = (service_sale.total_amount or Decimal('0.00')) - services_total
+                    if remainder > 0:
+                        revenue_by_account[parent_revenue_account] += remainder
+
+                    # --- Credit revenue per account ---
+                    for account, amount in revenue_by_account.items():
+                        if amount <= 0:
+                            continue
+                        JournalEntryLine.objects.create(
+                            journal_entry=journal_entry,
+                            account=account,
+                            entry_type='credit',
+                            amount=amount,
+                            description=(
+                                f"Service revenue ({account.account_code}) from "
+                                f"{service_sale.service_sale_number}"
+                            ),
+                        )
+
+                    # Create aggregated sales revenue record for this service sale
                     SalesRevenue.objects.create(
                         service_sale=service_sale,
                         journal_entry=journal_entry,
-                        amount=service_sale.total_amount
+                        amount=service_sale.total_amount,
                     )
                     
                     print(f"Created journal entry for service sale {service_sale.id}: {journal_entry.entry_number}")
@@ -1224,28 +1275,45 @@ class AccountingService:
                 ar_account = ChartOfAccounts.objects.filter(
                     account_code='1100'  # Accounts Receivable
                 ).first()
-                
-                # Get appropriate cash account based on payment method
+
+                # Determine the store (for per-store cash accounts)
+                store = getattr(service_sale, 'store', None)
+
+                # Get appropriate cash/bank account based on payment method
                 if payment.payment_method == 'cash':
-                    cash_account = ChartOfAccounts.objects.filter(
-                        account_code='1000'  # Cash
-                    ).first()
+                    # Prefer the store's configured cash account if available
+                    cash_account = getattr(store, 'cash_account', None) if store else None
+                    if cash_account is None:
+                        cash_account = ChartOfAccounts.objects.filter(
+                            account_code='1000'  # Fallback global Cash on Hand
+                        ).first()
                 elif payment.payment_method in ['mobile_money', 'airtel_money']:
+                    # Split MTN vs Airtel mobile money into separate accounts
+                    if payment.payment_method == 'mobile_money':
+                        target_code = '10100'   # MTN Mobile Money
+                        target_name = 'MTN Mobile Money'
+                    else:  # 'airtel_money'
+                        target_code = '101001'  # Airtel Mobile Money
+                        target_name = 'Airtel Mobile Money'
+
                     cash_account = ChartOfAccounts.objects.filter(
-                        account_code='1010'  # Mobile Money
+                        account_code=target_code
                     ).first()
                     if not cash_account:
                         cash_account = ChartOfAccounts.objects.create(
-                            account_code='1010',
-                            account_name='Mobile Money',
+                            account_code=target_code,
+                            account_name=target_name,
                             account_type='asset',
                             account_category='current_asset',
-                            is_active=True
+                            is_active=True,
                         )
                 elif payment.payment_method in ['visa', 'bank_transfer']:
-                    cash_account = ChartOfAccounts.objects.filter(
-                        account_code='1020'  # Bank Account
-                    ).first()
+                    # Prefer the store's default bank account if configured
+                    cash_account = getattr(store, 'bank_account', None) if store else None
+                    if cash_account is None:
+                        cash_account = ChartOfAccounts.objects.filter(
+                            account_code='1020'  # Fallback global Bank Account
+                        ).first()
                     if not cash_account:
                         cash_account = ChartOfAccounts.objects.create(
                             account_code='1020',
@@ -1255,10 +1323,12 @@ class AccountingService:
                             is_active=True
                         )
                 else:
-                    # Default to cash
-                    cash_account = ChartOfAccounts.objects.filter(
-                        account_code='1000'  # Cash
-                    ).first()
+                    # Default to store cash account if available, otherwise global cash
+                    cash_account = getattr(store, 'cash_account', None) if store else None
+                    if cash_account is None:
+                        cash_account = ChartOfAccounts.objects.filter(
+                            account_code='1000'  # Fallback Cash on Hand
+                        ).first()
                 
                 if ar_account and cash_account:
                     # Debit Cash/Bank (increase cash)
@@ -1317,8 +1387,21 @@ class AccountingService:
                 # Debit: Cash/Bank (Asset)
                 # Determine the cash/bank account based on payment method
                 cash_account = None
+
+                # Identify the store from the receipt
+                store = None
+                if store_sale_payment.receipt and store_sale_payment.receipt.store_sale:
+                    store = store_sale_payment.receipt.store_sale.store
+
                 if store_sale_payment.payment_method == 'cash':
-                    cash_account = ChartOfAccounts.objects.filter(account_code='1000', account_type='asset', account_category='current_asset').first()
+                    # Prefer the store-specific cash account if configured
+                    cash_account = getattr(store, 'cash_account', None) if store else None
+                    if cash_account is None:
+                        cash_account = ChartOfAccounts.objects.filter(
+                            account_code='1000',
+                            account_type='asset',
+                            account_category='current_asset',
+                        ).first()
                 elif store_sale_payment.payment_method == 'mobile_money':
                     cash_account = ChartOfAccounts.objects.filter(account_code='1010', account_type='asset', account_category='current_asset').first()
                 elif store_sale_payment.payment_method == 'bank_transfer':

@@ -7,7 +7,7 @@ from accounts.models import (
     JournalEntry, ProductionExpense, SalesRevenue, StoreTransfer, 
     ManufacturingRecord, PaymentRecord
 )
-from production.models import StoreSale, Requisition, StoreTransfer as ProdStoreTransfer, ManufacturedProductInventory, PaymentVoucher
+from production.models import Requisition, StoreSale, StoreTransfer as ProdStoreTransfer, ManufacturedProductInventory, PaymentVoucher, ServiceSale
 import logging
 
 logger = logging.getLogger(__name__)
@@ -113,14 +113,18 @@ class Command(BaseCommand):
         # Get current valid record IDs
         valid_requisitions = set(Requisition.objects.values_list('id', flat=True))
         valid_store_sales = set(StoreSale.objects.values_list('id', flat=True))
+        valid_service_sales = set(ServiceSale.objects.values_list('id', flat=True))
         valid_store_transfers = set(ProdStoreTransfer.objects.values_list('id', flat=True))
         valid_manufacturing = set(ManufacturedProductInventory.objects.values_list('id', flat=True))
         valid_payments = set(PaymentVoucher.objects.values_list('id', flat=True))
         
         # Find orphaned records
         orphaned_expenses = ProductionExpense.objects.exclude(requisition_id__in=valid_requisitions)
+        # A SalesRevenue row is orphaned only if BOTH its linked service_sale and store_sale
+        # do not exist in the current production data.
         orphaned_sales = SalesRevenue.objects.exclude(
-            models.Q(service_sale__isnull=True) & models.Q(store_sale_id__in=valid_store_sales)
+            models.Q(service_sale_id__in=valid_service_sales) |
+            models.Q(store_sale_id__in=valid_store_sales)
         )
         orphaned_transfers = StoreTransfer.objects.exclude(transfer_id__in=valid_store_transfers)
         orphaned_manufacturing = ManufacturingRecord.objects.exclude(manufacture_product_id__in=valid_manufacturing)

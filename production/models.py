@@ -870,6 +870,24 @@ class Store(models.Model):
     location = models.CharField(max_length=255)
     manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name='managed_stores', blank=True, null=True)
 
+    # Per-store financial integration
+    cash_account = models.ForeignKey(
+        'accounts.ChartOfAccounts',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Cash-at-hand account for this store's till",
+        related_name='stores_cash_accounts',
+    )
+    bank_account = models.ForeignKey(
+        'accounts.ChartOfAccounts',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Default bank account for this store's deposits",
+        related_name='stores_bank_accounts',
+    )
+
     def __str__(self):
         return self.name
 class ServiceCategory(models.Model):
@@ -877,6 +895,20 @@ class ServiceCategory(models.Model):
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # Link each service category to a specific revenue account in the CoA
+    # e.g. 4101 Treatment, 4102 Unplaiting, 4111 Barber Shop, etc.
+    revenue_account = models.ForeignKey(
+        'accounts.ChartOfAccounts',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text=(
+            "Revenue account for this category (child of 4120 Store Service Revenue), "
+            "e.g. 4101 Treatment, 4111 Barber Shop."
+        ),
+        related_name='service_categories',
+    )
     
     def __str__(self):
         return self.name
@@ -3732,10 +3764,14 @@ from auditlog.registry import auditlog
 
 # Register key models for audit tracking
 # NOTE: Some legacy models were temporarily disabled due to earlier auditlog issues.
-# Newer models like CashDrawerSession and StoreSale are safe to register and will appear in audit_logs.html.
+# Audit logging for StoreSale is currently disabled because the underlying
+# third-party auditlog LogEntry model enforces a NOT NULL constraint on
+# changes_text, which raises IntegrityError when saving new StoreSales.
+# If/when auditlog is upgraded or its schema adjusted, this can be
+# re-enabled.
 
 auditlog.register(CashDrawerSession)
-auditlog.register(StoreSale)
+# auditlog.register(StoreSale)
 
 class CreditNote(models.Model):
     """Credit Note - Document for returns, refunds, and invoice adjustments"""

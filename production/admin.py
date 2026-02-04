@@ -24,10 +24,11 @@ class TaxCodeAdmin(admin.ModelAdmin):
         return super().get_queryset(request).order_by('code')
     
 class ServiceCategoryAdmin(admin.ModelAdmin):
-    list_display = ['name', 'description', 'created_at']
-    list_filter = ['created_at']
-    search_fields = ['name', 'description']
+    list_display = ['name', 'revenue_account', 'description', 'created_at']
+    list_filter = ['revenue_account', 'created_at']
+    search_fields = ['name', 'description', 'revenue_account__account_name', 'revenue_account__account_code']
     ordering = ['name']
+    autocomplete_fields = ['revenue_account']
     
     
 admin.site.register(ServiceCategory, ServiceCategoryAdmin)

@@ -25,7 +25,9 @@ admin.site.register(ManufactureProduct)
 admin.site.register(ManufacturedProductInventory)
 admin.site.register(CommissionRate)
 
-admin.site.register(Store)
+# Custom Store admin moved below to show cash/bank account integration
+# (do not use the generic registration here)
+# admin.site.register(Store)
 admin.site.register(StoreInventory)
 admin.site.register(StockTransfer)
 admin.site.register(RestockRequest)
@@ -142,3 +144,69 @@ class PriceAlertAdmin(admin.ModelAdmin):
     search_fields = ('raw_material__name', 'created_by__username')
     list_editable = ('is_active',)
     raw_id_fields = ('raw_material', 'created_by')
+
+
+class HasCashAccountFilter(admin.SimpleListFilter):
+    title = 'Has cash account'
+    parameter_name = 'has_cash_account'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('yes', 'Yes'),
+            ('no', 'No'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.filter(cash_account__isnull=False)
+        if self.value() == 'no':
+            return queryset.filter(cash_account__isnull=True)
+        return queryset
+
+
+class HasBankAccountFilter(admin.SimpleListFilter):
+    title = 'Has bank account'
+    parameter_name = 'has_bank_account'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('yes', 'Yes'),
+            ('no', 'No'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.filter(bank_account__isnull=False)
+        if self.value() == 'no':
+            return queryset.filter(bank_account__isnull=True)
+        return queryset
+
+
+@admin.register(Store)
+class StoreAdmin(admin.ModelAdmin):
+    """Show which stores are wired to cash/bank accounts in a single view."""
+
+    list_display = (
+        'name',
+        'location',
+        'cash_account',
+        'bank_account',
+        'has_cash_account_flag',
+        'has_bank_account_flag',
+    )
+    list_filter = (
+        HasCashAccountFilter,
+        HasBankAccountFilter,
+        'cash_account',
+        'bank_account',
+    )
+    search_fields = ('name', 'location')
+    list_select_related = ('cash_account', 'bank_account')
+
+    @admin.display(boolean=True, description='Has cash account')
+    def has_cash_account_flag(self, obj):
+        return bool(obj.cash_account)
+
+    @admin.display(boolean=True, description='Has bank account')
+    def has_bank_account_flag(self, obj):
+        return bool(obj.bank_account)

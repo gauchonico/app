@@ -12028,6 +12028,14 @@ class CashDrawerBankingCreateView(LoginRequiredMixin, CreateView):
         initial = super().get_initial()
         initial['amount'] = self.session.recommended_deposit_amount
         initial['reference'] = f"Session {self.session.id} deposit"
+
+        # Prefer per-store cash/bank accounts if configured
+        store = self.session.store
+        if getattr(store, 'cash_account', None) is not None:
+            initial['cash_drawer_account'] = store.cash_account
+        if getattr(store, 'bank_account', None) is not None:
+            initial['bank_account'] = store.bank_account
+
         return initial
 
     def form_valid(self, form):

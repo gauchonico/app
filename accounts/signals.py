@@ -216,14 +216,15 @@ def create_payment_journal_entry_auto(sender, instance, created, **kwargs):
 def create_service_sale_journal_entry_auto(sender, instance, **kwargs):
     """Automatically create journal entries for service sales.
 
-    - When invoice_status == 'invoiced', create the revenue/AR JE.
-    - When the sale becomes fully paid (paid_status == 'paid'), create
-      accessory consumption JEs (DR 31222 / CR 3120x) for any associated
-      AccessorySaleItem rows.
+    - When the sale becomes fully paid (paid_status == 'paid'), create the
+      revenue/AR JE for the total service sale using category-specific
+      revenue accounts.
+    - Also when fully paid, create accessory consumption JEs (DR 31222 /
+      CR 3120x) for any associated AccessorySaleItem rows.
     """
     try:
-        # Step 1: create revenue / AR entry when invoiced
-        if instance.invoice_status == 'invoiced' and instance.total_amount and instance.total_amount > 0:
+        # Step 1: create revenue / AR entry when the sale is fully paid
+        if getattr(instance, 'paid_status', None) == 'paid' and instance.total_amount and instance.total_amount > 0:
             # Check for existing entry to prevent duplicates
             if check_existing_entry(instance, 'service_sale'):
                 logger.info(f"Service sale journal entry already exists for sale ID: {instance.id}")

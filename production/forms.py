@@ -2001,20 +2001,34 @@ class CloseCashDrawerForm(forms.Form):
             self.fields['bank_account'].queryset = all_accounts
             self.fields['cash_drawer_account'].queryset = all_accounts
 
-        # Prefer specific accounts based on store name if available
+        # Prefer specific accounts based on the store configuration/name if available
         if store is not None:
             try:
-                name = (store.name or "").lower()
-                cash_qs = self.fields['cash_drawer_account'].queryset
-                matched_cash = cash_qs.filter(account_name__icontains=name).first()
-                if matched_cash:
-                    self.fields['cash_drawer_account'].initial = matched_cash
+                # If the store has an explicit cash_account / bank_account configured, prefer those
+                store_cash = getattr(store, 'cash_account', None)
+                store_bank = getattr(store, 'bank_account', None)
+
+                if store_cash is not None:
+                    # Ensure the store cash account is in the queryset and set as initial
+                    self.fields['cash_drawer_account'].queryset = self.fields['cash_drawer_account'].queryset | ChartOfAccounts.objects.filter(id=store_cash.id)
+                    self.fields['cash_drawer_account'].initial = store_cash
+                else:
+                    # Fallback: try to match by store name
+                    name = (store.name or "").lower()
+                    cash_qs = self.fields['cash_drawer_account'].queryset
+                    matched_cash = cash_qs.filter(account_name__icontains=name).first()
+                    if matched_cash:
+                        self.fields['cash_drawer_account'].initial = matched_cash
 
                 bank_qs = self.fields['bank_account'].queryset
-                # Example: prefer UBA if present
-                uba_bank = bank_qs.filter(account_name__icontains='uba').first()
-                if uba_bank:
-                    self.fields['bank_account'].initial = uba_bank
+                if store_bank is not None:
+                    self.fields['bank_account'].queryset = bank_qs | ChartOfAccounts.objects.filter(id=store_bank.id)
+                    self.fields['bank_account'].initial = store_bank
+                else:
+                    # Example: prefer UBA if present
+                    uba_bank = bank_qs.filter(account_name__icontains='uba').first()
+                    if uba_bank:
+                        self.fields['bank_account'].initial = uba_bank
             except Exception:
                 pass
 

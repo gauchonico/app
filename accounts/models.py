@@ -68,10 +68,22 @@ class ChartOfAccounts(models.Model):
     
     @property
     def balance(self):
-        """Calculate current balance for this account"""
-        return self.journal_entries.aggregate(
-            total=Sum('amount')
-        )['total'] or Decimal('0.00')
+        """Calculate current balance for this account based on normal side.
+
+        - Assets & Expenses: debit minus credit
+        - Liabilities, Equity & Revenue: credit minus debit
+        """
+        debit_total = self.journal_entries.filter(
+            entry_type='debit'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        credit_total = self.journal_entries.filter(
+            entry_type='credit'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        if self.is_debit_balance:
+            return debit_total - credit_total
+        return credit_total - debit_total
     
     @property
     def is_debit_balance(self):
