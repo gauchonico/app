@@ -1,0 +1,545 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Balance Sheet - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 fw-bold">
+                        <i class="fas fa-landmark me-2"></i>
+                        Balance Sheet
+                    </h1>
+                    <p class="mb-0">Financial position as of {{ as_of_date|date:"F j, Y" }}</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button onclick="window.print()" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-print me-2"></i>Print
+                    </button>
+                    <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Picker Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-0"
+                 style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-calendar me-2"></i>Select Date
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="as_of_date" class="form-label fw-bold">As of Date</label>
+                            <input
+                                type="date"
+                                id="as_of_date"
+                                name="as_of_date"
+                                class="form-control"
+                                value="{{ as_of_date|date:'Y-m-d' }}"
+                                max="{{ today|date:'Y-m-d' }}"
+                            >
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Generate Balance Sheet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Snapshot saved banner -->
+    {% if snapshot_saved %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-success d-flex align-items-center">
+                <i class="fas fa-check-circle me-2"></i>
+                <span>Snapshot saved for <strong>{{ as_of_date|date:"N j, Y" }}</strong></span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_assets|floatformat:0|intcomma }}</h4>
+                            <div>Total Assets</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-building fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_liabilities|floatformat:0|intcomma }}</h4>
+                            <div>Total Liabilities</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-file-invoice-dollar fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ total_equity|floatformat:0|intcomma }}</h4>
+                            <div>Total Equity</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-user-tie fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if is_balanced %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            {% if is_balanced %}
+                                <h4 class="mb-1"><i class="fas fa-check-circle me-1"></i>Balanced</h4>
+                                <div>Assets = Liabilities + Equity</div>
+                            {% else %}
+                                <h4 class="mb-1">UGX {{ difference|floatformat:0|intcomma }}</h4>
+                                <div>Out of Balance</div>
+                            {% endif %}
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-balance-scale fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Sheet Tables -->
+    <div class="row">
+
+        <!-- LEFT: Assets -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow border-0 h-100"
+                 style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-coins me-2"></i>Assets
+                    </h5>
+                    <span class="badge bg-primary fs-6">UGX {{ total_assets|floatformat:0|intcomma }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+
+                            <!-- Current Assets -->
+                            <thead class="table-dark">
+                                <tr>
+                                    <th colspan="3" class="py-2">
+                                        <i class="fas fa-wallet me-1"></i>Current Assets
+                                    </th>
+                                </tr>
+                            </thead>
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th style="width:100px">Code</th>
+                                    <th>Account</th>
+                                    <th class="text-end">Balance (UGX)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in current_asset_lines %}
+                                <tr>
+                                    <td><span class="fw-bold text-muted small">{{ line.code }}</span></td>
+                                    <td>{{ line.name }}</td>
+                                    <td class="text-end fw-bold {% if line.balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ line.balance|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic py-3">
+                                        No current asset balances
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-primary fw-bold">
+                                    <td colspan="2" class="text-end">Total Current Assets</td>
+                                    <td class="text-end">{{ total_current_assets|floatformat:0|intcomma }}</td>
+                                </tr>
+                            </tbody>
+
+                            <!-- Fixed Assets -->
+                            <thead class="table-dark">
+                                <tr>
+                                    <th colspan="3" class="py-2">
+                                        <i class="fas fa-industry me-1"></i>Fixed Assets
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in fixed_asset_lines %}
+                                <tr>
+                                    <td><span class="fw-bold text-muted small">{{ line.code }}</span></td>
+                                    <td>{{ line.name }}</td>
+                                    <td class="text-end fw-bold {% if line.balance < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ line.balance|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic py-3">
+                                        No fixed asset balances
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-primary fw-bold">
+                                    <td colspan="2" class="text-end">Total Fixed Assets</td>
+                                    <td class="text-end">{{ total_fixed_assets|floatformat:0|intcomma }}</td>
+                                </tr>
+                            </tbody>
+
+                            <!-- Grand Total Assets -->
+                            <tfoot class="table-dark">
+                                <tr class="fw-bold fs-6">
+                                    <td colspan="2" class="text-end">TOTAL ASSETS</td>
+                                    <td class="text-end">UGX {{ total_assets|floatformat:0|intcomma }}</td>
+                                </tr>
+                            </tfoot>
+
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Liabilities + Equity -->
+        <div class="col-lg-6 mb-4">
+            <div class="d-flex flex-column gap-4">
+
+                <!-- Liabilities -->
+                <div class="card shadow border-0"
+                     style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-file-invoice-dollar me-2"></i>Liabilities
+                        </h5>
+                        <span class="badge bg-warning fs-6">UGX {{ total_liabilities|floatformat:0|intcomma }}</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+
+                                <!-- Current Liabilities -->
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th colspan="3" class="py-2">
+                                            <i class="fas fa-clock me-1"></i>Current Liabilities
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <thead class="table-secondary">
+                                    <tr>
+                                        <th style="width:100px">Code</th>
+                                        <th>Account</th>
+                                        <th class="text-end">Balance (UGX)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for line in current_liability_lines %}
+                                    <tr>
+                                        <td><span class="fw-bold text-muted small">{{ line.code }}</span></td>
+                                        <td>{{ line.name }}</td>
+                                        <td class="text-end fw-bold text-warning">
+                                            {{ line.balance|floatformat:0|intcomma }}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted fst-italic py-3">
+                                            No current liability balances
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="table-warning fw-bold">
+                                        <td colspan="2" class="text-end">Total Current Liabilities</td>
+                                        <td class="text-end">{{ total_current_liabilities|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                </tbody>
+
+                                <!-- Long-term Liabilities -->
+                                {% if long_term_liability_lines %}
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th colspan="3" class="py-2">
+                                            <i class="fas fa-hourglass-half me-1"></i>Long-term Liabilities
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for line in long_term_liability_lines %}
+                                    <tr>
+                                        <td><span class="fw-bold text-muted small">{{ line.code }}</span></td>
+                                        <td>{{ line.name }}</td>
+                                        <td class="text-end fw-bold text-warning">
+                                            {{ line.balance|floatformat:0|intcomma }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="table-warning fw-bold">
+                                        <td colspan="2" class="text-end">Total Long-term Liabilities</td>
+                                        <td class="text-end">{{ total_long_term_liabilities|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                </tbody>
+                                {% endif %}
+
+                                <tfoot class="table-dark">
+                                    <tr class="fw-bold fs-6">
+                                        <td colspan="2" class="text-end">TOTAL LIABILITIES</td>
+                                        <td class="text-end">UGX {{ total_liabilities|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                </tfoot>
+
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Equity -->
+                <div class="card shadow border-0"
+                     style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-user-tie me-2"></i>Equity
+                        </h5>
+                        <span class="badge bg-info fs-6">UGX {{ total_equity|floatformat:0|intcomma }}</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+
+                                <thead class="table-secondary">
+                                    <tr>
+                                        <th style="width:100px">Code</th>
+                                        <th>Account</th>
+                                        <th class="text-end">Balance (UGX)</th>
+                                    </tr>
+                                </thead>
+
+                                <!-- Owner Equity -->
+                                {% if owner_equity_lines %}
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th colspan="3" class="py-2">
+                                            <i class="fas fa-user me-1"></i>Owner Equity
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for line in owner_equity_lines %}
+                                    <tr>
+                                        <td><span class="fw-bold text-muted small">{{ line.code }}</span></td>
+                                        <td>{{ line.name }}</td>
+                                        <td class="text-end fw-bold text-info">
+                                            {{ line.balance|floatformat:0|intcomma }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="table-info fw-bold">
+                                        <td colspan="2" class="text-end">Total Owner Equity</td>
+                                        <td class="text-end">{{ total_owner_equity|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                </tbody>
+                                {% endif %}
+
+                                <!-- Retained Earnings -->
+                                {% if retained_earnings_lines %}
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th colspan="3" class="py-2">
+                                            <i class="fas fa-piggy-bank me-1"></i>Retained Earnings
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for line in retained_earnings_lines %}
+                                    <tr>
+                                        <td><span class="fw-bold text-muted small">{{ line.code }}</span></td>
+                                        <td>{{ line.name }}</td>
+                                        <td class="text-end fw-bold text-info">
+                                            {{ line.balance|floatformat:0|intcomma }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    <tr class="table-info fw-bold">
+                                        <td colspan="2" class="text-end">Total Retained Earnings</td>
+                                        <td class="text-end">{{ total_retained_earnings|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                </tbody>
+                                {% endif %}
+
+                                {% if not owner_equity_lines and not retained_earnings_lines %}
+                                <tbody>
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted fst-italic py-3">
+                                            No equity balances
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                {% endif %}
+
+                                <tfoot class="table-dark">
+                                    <tr class="fw-bold fs-6">
+                                        <td colspan="2" class="text-end">TOTAL EQUITY</td>
+                                        <td class="text-end">UGX {{ total_equity|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                </tfoot>
+
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liabilities + Equity check row -->
+                <div class="card shadow border-0 {% if is_balanced %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center fw-bold fs-5">
+                            <span>
+                                <i class="fas fa-balance-scale me-2"></i>
+                                TOTAL LIABILITIES + EQUITY
+                            </span>
+                            <span>UGX {{ total_liabilities_and_equity|floatformat:0|intcomma }}</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Balance Check Alert -->
+    {% if is_balanced %}
+    <div class="alert alert-success mt-2">
+        <h6 class="alert-heading">
+            <i class="fas fa-check-circle me-2"></i>Balance Sheet is Balanced!
+        </h6>
+        <p class="mb-0">
+            Total Assets (UGX {{ total_assets|floatformat:0|intcomma }}) equals
+            Total Liabilities + Equity (UGX {{ total_liabilities_and_equity|floatformat:0|intcomma }}).
+        </p>
+    </div>
+    {% else %}
+    <div class="alert alert-danger mt-2">
+        <h6 class="alert-heading">
+            <i class="fas fa-exclamation-triangle me-2"></i>Balance Sheet is Out of Balance!
+        </h6>
+        <p class="mb-0">
+            There is a difference of UGX {{ difference|floatformat:0|intcomma }}.
+            Please review your journal entries.
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Saved Snapshots + Save Button -->
+    <div class="row mt-4">
+
+        {% if snapshots %}
+        <div class="col-md-8 mb-3">
+            <div class="card shadow border-0"
+                 style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-history me-2"></i>Saved Snapshots
+                    </h6>
+                </div>
+                <div class="card-body d-flex flex-wrap gap-2">
+                    {% for snap in snapshots %}
+                    <a href="?as_of_date={{ snap.as_of_date|date:'Y-m-d' }}"
+                       class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-calendar-check me-1"></i>
+                        {{ snap.as_of_date|date:"N j, Y" }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="col-md-4 mb-3 d-flex align-items-start justify-content-end">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="as_of_date" value="{{ as_of_date|date:'Y-m-d' }}">
+                <input type="hidden" name="save" value="1">
+                <button type="submit" class="btn btn-outline-light">
+                    <i class="fas fa-save me-2"></i>
+                    Save Snapshot for {{ as_of_date|date:"N j, Y" }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+@media print {
+    .btn, form, .card-header .btn {
+        display: none !important;
+    }
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        background: #fff !important;
+    }
+    .table-hover tbody tr:hover {
+        background-color: transparent !important;
+    }
+}
+</style>
+
+{% endblock %}

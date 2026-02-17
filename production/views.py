@@ -8207,6 +8207,12 @@ def lpo_verify(request, pk):
 
 @allowed_users(allowed_roles=['Finance'])
 def pay_lpo(request, lpo_id):
+    """
+    Handle LPO payment processing.
+    
+    Journal entries are created automatically by the PaymentVoucher post_save signal
+    in accounts/signals.py - do not create them manually here to avoid duplicates.
+    """
     lpo = get_object_or_404(LPO, id=lpo_id)
     requisition = lpo.requisition
     
@@ -8257,24 +8263,23 @@ def pay_lpo(request, lpo_id):
         is_active=True
     ).order_by('account_code')
     
-    # Filter to relevant payment accounts (cash, bank, accounts payable, etc.)
+    # Filter to relevant payment accounts (cash, bank, mobile money, etc.)
     payment_accounts = payment_accounts.filter(
         models.Q(account_name__icontains='cash') |
         models.Q(account_name__icontains='bank') |
-        models.Q(account_name__icontains='payable') |
         models.Q(account_name__icontains='mobile') |
         models.Q(account_name__icontains='petty') |
-        models.Q(account_category='current_asset') |
-        models.Q(account_category='current_liability')
+        models.Q(account_category='current_asset')
     )
 
-    # Check if the request method is POST
+    # Handle POST request - process payment
     if request.method == 'POST':
         amount_paid_input = request.POST.get('amount_paid', 0)
         payment_account_id = request.POST.get('payment_account', '')
         voucher_notes = request.POST.get('voucher_notes', '')
         
         try:
+            # Validate amount
             amount_paid_input = Decimal(amount_paid_input)
             if amount_paid_input <= 0:
                 messages.error(request, "Amount must be positive.")
@@ -8284,26 +8289,24 @@ def pay_lpo(request, lpo_id):
                 messages.error(request, f"Amount cannot exceed outstanding balance of UGX {outstanding_balance:,.0f}")
                 return redirect('pay_lpo', lpo_id=lpo.id)
             
+            # Validate payment account
             if not payment_account_id:
                 messages.error(request, "Please select a payment account.")
                 return redirect('pay_lpo', lpo_id=lpo.id)
             
-            # Update LPO with the new payment
-            lpo.amount_paid = (lpo.amount_paid or 0) + amount_paid_input
-            lpo.save()
-            
-            # Check if full payment
-            new_outstanding = max(0, grand_total - lpo.amount_paid)
-            payment_type = 'full' if new_outstanding <= 0 else 'partial'
-            
-            # Validate payment account
             try:
                 payment_account = ChartOfAccounts.objects.get(id=payment_account_id)
             except ChartOfAccounts.DoesNotExist:
                 messages.error(request, "Please select a valid payment account.")
                 return redirect('pay_lpo', lpo_id=lpo.id)
 
+            # Calculate new outstanding balance after this payment
+            new_outstanding = max(0, grand_total - amount_paid - amount_paid_input)
+            payment_type = 'full' if new_outstanding <= 0 else 'partial'
+
             # Create payment voucher
+            # NOTE: Journal entry is created automatically by post_save signal in accounts/signals.py
+            # Do NOT call AccountingService.create_payment_journal_entry here to avoid duplicates
             voucher = PaymentVoucher(
                 lpo=lpo, 
                 amount_paid=amount_paid_input,
@@ -8313,8 +8316,8 @@ def pay_lpo(request, lpo_id):
             )
             voucher.save()
             
-            # Create journal entry for the LPO payment
-            AccountingService.create_payment_journal_entry(voucher, request.user)
+            # Note: LPO.amount_paid is updated by the update_lpo_payment signal after voucher save
+            # So we don't need to manually update it here
 
             # Success message
             if new_outstanding <= 0:
@@ -8331,6 +8334,7 @@ def pay_lpo(request, lpo_id):
             messages.error(request, f"Payment failed: {str(e)}")
             return redirect('pay_lpo', lpo_id=lpo.id)
     
+    # Render payment form
     context = {
         'lpo': lpo,
         'requisition': requisition,
@@ -11781,73 +11785,96 @@ def cash_drawer_close(request, session_id):
             messages.error(request, "This cash drawer session is already closed.")
             return redirect('cash_drawer_detail', session_id=session_id)
         
-        # Get the sum of all transactions
-        total_transactions = session.transactions.aggregate(
+        # Only count cash transactions for expected balance
+        # Non-cash never physically enters the drawer
+        cash_transactions = session.transactions.filter(
+            payment_method='cash'
+        ).aggregate(
             total=Coalesce(Sum('amount'), Decimal('0'))
         )['total'] or Decimal('0')
-        
-        # Calculate expected balance
-        expected_balance = (session.opening_balance or Decimal('0')) + total_transactions
+
+        # Keep full total for display purposes only
+        all_transactions = session.transactions.aggregate(
+            total=Coalesce(Sum('amount'), Decimal('0'))
+        )['total'] or Decimal('0')
+
+        # Expected physical cash = opening float + all cash movements
+        expected_cash_balance = (
+            (session.opening_balance or Decimal('0')) + cash_transactions
+        )
         
         if request.method == 'POST':
-            # Handle form submission
             form = CloseCashDrawerForm(request.POST, store=session.store)
             if form.is_valid():
-                # Update the session
                 session.closing_balance = form.cleaned_data['closing_balance']
-                # Preserve your existing notes field
                 session.notes = form.cleaned_data['notes']
                 session.closing_time = timezone.now()
                 session.status = 'closed'
 
-                # Update carry-forward float if provided
                 carry_forward = form.cleaned_data.get('carry_forward_float')
                 if carry_forward is not None:
                     session.carry_forward_float = carry_forward
-
                 session.save()
 
-                # Optionally create a banking record if amount and accounts are provided
+                # ── Banking: CASH ONLY ────────────────────────────────────
                 bank_amount = form.cleaned_data.get('bank_amount') or Decimal('0')
                 bank_account = form.cleaned_data.get('bank_account')
                 cash_drawer_account = form.cleaned_data.get('cash_drawer_account')
 
                 if bank_amount > 0 and bank_account and cash_drawer_account:
+                    # Validate: bank amount cannot exceed physical cash available
+                    max_bankable = session.recommended_deposit_amount
+                    if bank_amount > max_bankable:
+                        messages.warning(
+                            request,
+                            f"Warning: Banking amount ({bank_amount:,}) exceeds "
+                            f"available cash ({max_bankable:,}). "
+                            f"Mobile money and card payments cannot be banked here."
+                        )
+
                     banking = CashDrawerBanking.objects.create(
                         session=session,
                         bank_account=bank_account,
                         cash_drawer_account=cash_drawer_account,
                         amount=bank_amount,
-                        reference=f"Session {session.id} deposit",
-                        notes=form.cleaned_data.get('notes') or "",
+                        reference=f"Session {session.id} cash deposit",
+                        notes=(
+                            f"Cash banking at end of session. "
+                            f"Float kept: {session.effective_carry_forward_float}. "
+                            + (form.cleaned_data.get('notes') or "")
+                        ),
                         created_by=request.user,
                     )
-                    # Create journal entry for this banking
                     banking.create_journal_entry()
 
                 messages.success(request, "Cash drawer session closed successfully.")
                 return redirect('cash_drawer_detail', session_id=session_id)
+
         else:
             # Pre-fill the form with calculated values
-            initial_carry_forward = session.effective_carry_forward_float
-            initial_bank_amount = session.recommended_deposit_amount
-
-            form = CloseCashDrawerForm(initial={
-                'closing_balance': expected_balance,
-                'expected_balance': expected_balance,
-                'difference': Decimal('0'),
-                'opening_balance': session.opening_balance,
-                'total_transactions': total_transactions,
-                'carry_forward_float': initial_carry_forward,
-                'bank_amount': initial_bank_amount,
-            }, store=session.store)
+            form = CloseCashDrawerForm(
+                initial={
+                    'closing_balance': expected_cash_balance,
+                    'expected_balance': expected_cash_balance,
+                    'difference': Decimal('0'),
+                    'opening_balance': session.opening_balance,
+                    'total_transactions': all_transactions,
+                    'carry_forward_float': session.effective_carry_forward_float,
+                    # Pre-fill with CASH ONLY deposit amount
+                    'bank_amount': session.recommended_deposit_amount,
+                },
+                store=session.store,
+            )  
         
         return render(request, 'cash_drawer/close.html', {
             'form': form,
             'session': session,
             'transactions': session.transactions.all(),
-            'total_transactions': total_transactions,
-            'expected_balance': expected_balance,
+            # Pass both totals so the template can show the breakdown
+            'cash_transactions_total': cash_transactions,
+            'all_transactions_total': all_transactions,
+            'non_cash_total': session.non_cash_sales_total,
+            'expected_cash_balance': expected_cash_balance,
             'recommended_deposit': session.recommended_deposit_amount,
             'effective_carry_forward_float': session.effective_carry_forward_float,
         })

@@ -582,6 +582,12 @@ class CommissionExpense(models.Model):
         ('monthly', 'Monthly Commission Payment')
     ])
     created_at = models.DateTimeField(auto_now_add=True)
+    staff = models.ForeignKey(
+        'POSMagicApp.Staff',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='commission_expenses'
+    )
     
     def __str__(self):
         if self.staff_commission:

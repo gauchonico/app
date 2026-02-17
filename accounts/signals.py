@@ -400,3 +400,92 @@ def link_manufacturing_record_to_inventory(sender, instance, created, **kwargs):
             )
     except Exception as e:
         logger.error(f"Error linking ManufacturingRecord to inventory {instance.id}: {str(e)}")
+
+# Add to POSMagicApp/signals.py (or wherever your other signals live)
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from production.models import StoreProductSale  # adjust import path
+
+
+@receiver(post_save, sender=StoreProductSale)
+def handle_product_sale_accounting(sender, instance, **kwargs):
+    """
+    Fire accounting journal entry when a StoreProductSale is marked paid.
+    Uses update_fields guard so it only triggers on a real paid transition,
+    not on every incidental save.
+    """
+    if instance.paid_status != 'paid':
+        return
+
+    # Already has a journal entry — don't double-post
+    from accounts.models import JournalEntry
+    already_posted = JournalEntry.objects.filter(
+        reference=f"ProductSale-{instance.id}"
+    ).exists()
+    if already_posted:
+        return
+
+    # Resolve a user — prefer the user who opened the cash drawer session
+    user = None
+    if instance.cash_drawer_session:
+        user = instance.cash_drawer_session.user
+
+    if not user:
+        from django.contrib.auth.models import User
+        user = User.objects.filter(is_superuser=True).first()
+
+    if not user:
+        print(
+            f"ProductSale {instance.id}: no user found to post journal entry. "
+            f"Skipping."
+        )
+        return
+
+    from accounts.services import AccountingService
+    AccountingService.create_product_sale_journal_entry(instance, user)
+    
+    
+@receiver(post_save, sender='production.IncidentWriteOff')
+def handle_raw_material_writeoff_accounting(sender, instance, created, **kwargs):
+    """
+    Post journal entry when a raw material IncidentWriteOff is created.
+    IncidentWriteOff has no approval step — fires on creation.
+    """
+    if instance.status != 'approved':
+        return
+
+    # Guard: already has a journal entry
+    from accounts.models import JournalEntry
+    if JournalEntry.objects.filter(reference=f"RM-WO-{instance.id}").exists():
+        return
+
+    # Resolve user
+    from django.contrib.auth.models import User
+    user = instance.written_off_by or User.objects.filter(is_superuser=True).first()
+
+    from accounts.services import AccountingService
+    AccountingService.create_raw_material_writeoff_journal_entry(instance, user)
+    
+@receiver(post_save, sender='production.StoreWriteOff')
+def handle_store_writeoff_accounting(sender, instance, **kwargs):
+    """
+    Post journal entry when a StoreWriteOff is approved.
+    Fires on every save but guards against:
+      - unapproved write-offs
+      - double-posting
+    """
+    if not instance.approved:
+        return
+
+    from accounts.models import JournalEntry
+    if JournalEntry.objects.filter(reference=f"StoreWO-{instance.id}").exists():
+        return
+
+    from django.contrib.auth.models import User
+    user = instance.approved_by or User.objects.filter(
+        is_superuser=True
+    ).first()
+
+    from accounts.services import AccountingService
+    AccountingService.create_store_writeoff_journal_entry(instance, user)

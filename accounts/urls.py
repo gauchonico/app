@@ -14,6 +14,9 @@ urlpatterns = [
     path('chart-of-accounts/<int:pk>/update/', views.chart_of_accounts_update, name='chart_of_accounts_update'),
     path('chart-of-accounts/<int:pk>/delete/', views.chart_of_accounts_delete, name='chart_of_accounts_delete'),
     
+    path('balance-sheet/', views.balance_sheet_view, name='balance_sheet'),
+    path('cash-flow/', views.cash_flow_statement_view, name='cash_flow_statement'),
+    
     # Departments
     path('departments/', views.department_list, name='department_list'),
     path('departments/create/', views.department_create, name='department_create'),

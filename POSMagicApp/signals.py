@@ -5,6 +5,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from .models import LoyaltySettings, Customer, CustomerLoyaltyTransaction
+from accounts.models import ChartOfAccounts
 
 
 @receiver(post_save, sender='production.ServiceSale')
@@ -112,3 +113,58 @@ def check_birthday_bonus(sender, instance, created, **kwargs):
                     transaction_type='BONUS',
                     description=f"Happy Birthday! Bonus points for {current_year}",
                 )
+
+# POSMagicApp/signals.py
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Staff
+
+@receiver(post_save, sender=Staff)
+def create_staff_commission_account(sender, instance, created, **kwargs):
+    _ensure_staff_commission_account(instance)
+
+
+def _ensure_staff_commission_account(staff):
+    """
+    Get or create a per-staff Commission Payable sub-account.
+    Account code format: 2110-{staff.pk:04d}  e.g. 2110-0003
+    Parent is always account_code='2110' (Commission Payable)
+    Returns the account or None if parent is missing.
+    """
+
+    try:
+        parent = ChartOfAccounts.objects.get(account_code='2110')
+    except ChartOfAccounts.DoesNotExist:
+        import logging
+        logging.getLogger(__name__).error(
+            "Parent account 2110 (Commission Payable) not found. "
+            f"Cannot create sub-account for staff {staff.pk}."
+        )
+        return None
+
+    account_code = f"2110-{staff.pk:04d}"
+    full_name = f"{staff.first_name} {staff.last_name}"
+
+    account, created = ChartOfAccounts.objects.get_or_create(
+        account_code=account_code,
+        defaults={
+            'account_name': f"Commissions Payable - {full_name}",
+            'account_type': 'liability',
+            'account_category': 'current_liability',
+            'parent_account': parent,
+            'description': (
+                f"Commission payable account for {full_name} "
+                f"({staff.specialization})"
+            ),
+            'is_active': True,
+        }
+    )
+
+    if created:
+        import logging
+        logging.getLogger(__name__).info(
+            f"Created commission account {account_code} for {full_name}"
+        )
+
+    return account

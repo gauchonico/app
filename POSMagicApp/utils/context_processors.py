@@ -1286,16 +1286,7 @@ def sidebar_menu(request):
                             
                 }]
             })
-            sidebar_menu.append({
-                'icon': 'bi bi-receipt',
-                'text': 'Staff Commissions',
-                'children': [{
-                    'url': '/production/monthly-commissions/',
-                    'icon': 'bi bi-receipt',
-                    'text': 'Monthly Commissions',
-                    'name': 'monthly_commission_list',
-                }]
-            })
+            
             sidebar_menu.append({
                 'icon': 'bi bi-receipt',
                 'text': 'Accounts',
@@ -1309,6 +1300,15 @@ def sidebar_menu(request):
                     'icon': 'bi bi-receipt',
                     'text': 'Chart of Accounts',
                     'name': 'chart_of_accounts_list',
+                },{
+                    'url':'/accounts/cash-flow/',
+                    'text':'Cash Flow Statement',
+                    'name':'cash_flow_statement'    
+                },{
+                    'url': '/accounts/balance-sheet/',
+                    'icon': 'bi bi-receipt',
+                    'text': 'Balance Sheet',
+                    'name': 'balance_sheet',
                 },{
                     'url': '/accounts/departments/',
                     'icon': 'bi bi-receipt',

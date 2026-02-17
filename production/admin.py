@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import *
+from accounts.models import ChartOfAccounts
 
 # Register your models here.
 
@@ -34,6 +35,17 @@ class ServiceCategoryAdmin(admin.ModelAdmin):
 admin.site.register(ServiceCategory, ServiceCategoryAdmin)
 admin.site.register(Refreshment)
 admin.site.register(Profile)
+
+
+# @admin.register(Supplier)
+# class SupplierAdmin(admin.ModelAdmin):
+#     list_display = (
+#         'name', 'company_name', 'payables_account', 'quality_rating',
+#         'payment_terms', 'credit_limit', 'is_active',
+#     )
+#     list_filter = ('is_active', 'payment_terms', 'quality_rating', 'payables_account')
+#     search_fields = ('name', 'company_name', 'email', 'contact_number')
+#     autocomplete_fields = ['payables_account']
 
 @admin.register(StoreCreditNote)
 class StoreCreditNoteAdmin(admin.ModelAdmin):

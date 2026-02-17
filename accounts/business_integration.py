@@ -42,7 +42,12 @@ class LivaraBusinessIntegration:
                     
                     # Get accounts
                     raw_materials_account = ChartOfAccounts.objects.filter(account_code='1200').first()
-                    accounts_payable_account = ChartOfAccounts.objects.filter(account_code='2000').first()
+
+                    # Prefer supplier-specific AP account if configured
+                    supplier = requisition.supplier
+                    accounts_payable_account = getattr(supplier, 'payables_account', None)
+                    if accounts_payable_account is None:
+                        accounts_payable_account = ChartOfAccounts.objects.filter(account_code='2000').first()
                     
                     # Calculate total cost if not already stored
                     total_amount = requisition.total_cost or requisition.calculate_total_cost()
@@ -96,8 +101,11 @@ class LivaraBusinessIntegration:
                     posted_at=timezone.now()
                 )
                 
-                # Get accounts
-                accounts_payable_account = ChartOfAccounts.objects.filter(account_code='2000').first()
+                # Get accounts (prefer supplier-specific AP if configured)
+                supplier = payment_voucher.lpo.requisition.supplier
+                accounts_payable_account = getattr(supplier, 'payables_account', None)
+                if accounts_payable_account is None:
+                    accounts_payable_account = ChartOfAccounts.objects.filter(account_code='2000').first()
                 
                 # Determine cash account based on payment method
                 cash_account_code = '1000'  # Default to cash

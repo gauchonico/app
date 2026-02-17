@@ -221,31 +221,34 @@ class AccountingService:
         except Exception as e:
             print(f"Error creating accessory consumption journal entry: {e}")
             return None
+        
+    def create_raw_material_writeoff_journal_entry(writeoff, user):
+        """
+        Create journal entry for an IncidentWriteOff (raw material loss).
 
-    @staticmethod
-    def create_raw_material_writeoff_journal_entry(write_off, user):
-        """Create journal entry for an approved raw-material IncidentWriteOff.
+        Valuation: latest RequisitionItem price for this raw material.
+        Falls back to RawMaterialPrice if no requisition history exists.
 
-        Logic:
-        - Determine unit cost using latest RequisitionItem for the raw_material,
-          falling back to RawMaterialPrice if needed.
-        - Amount = write_off.quantity * unit_cost.
-        - DR Raw Material Loss & Spoilage (expense/COGS)
-        - CR Raw Materials Inventory (asset).
+        DR  50900  Raw Material Loss & Spoilage  (expense / COGS)
+        CR  5100   Raw Materials Inventory        (asset)
         """
         from decimal import Decimal
         from production.models import RequisitionItem, RawMaterialPrice
 
         try:
             with transaction.atomic():
-                raw_material = write_off.raw_material
 
-                # 1) Determine unit cost and total loss
-                total_loss = Decimal('0.00')
+                # ── Guard: already posted? ────────────────────────────────
+                if JournalEntry.objects.filter(reference=f"RM-WO-{writeoff.id}").exists():
+                    print(f"RM-WO-{writeoff.id}: journal entry already exists, skipping.")
+                    return JournalEntry.objects.get(reference=f"RM-WO-{writeoff.id}")
+
+                raw_material = writeoff.raw_material
+
+                # ── Resolve unit cost ─────────────────────────────────────
                 unit_cost = Decimal('0.00')
-                price_source = "No requisition history found"
+                price_source = None
 
-                # Latest requisition item with a valid price
                 latest_req_item = (
                     RequisitionItem.objects.filter(
                         raw_material=raw_material,
@@ -257,10 +260,8 @@ class AccountingService:
 
                 if latest_req_item:
                     unit_cost = latest_req_item.price_per_unit
-                    total_loss = write_off.quantity * unit_cost
-                    price_source = f"Latest requisition: {latest_req_item.requisition.requisition_no}"
+                    price_source = f"Requisition {latest_req_item.requisition.requisition_no}"
                 else:
-                    # Fallback: latest RawMaterialPrice if available
                     latest_price = (
                         RawMaterialPrice.objects.filter(
                             raw_material=raw_material,
@@ -271,48 +272,40 @@ class AccountingService:
                     )
                     if latest_price:
                         unit_cost = latest_price.price
-                        total_loss = write_off.quantity * unit_cost
-                        price_source = f"Market price: {latest_price.supplier.name}"
-                    else:
-                        price_source = "No pricing information available"
+                        price_source = f"Market price ({latest_price.supplier.name})"
 
-                if total_loss <= 0:
+                if unit_cost <= 0:
                     print(
-                        f"Skipping raw material write-off JE for {write_off.id}: "
-                        f"total_loss is {total_loss} ({price_source})"
+                        f"RM-WO-{writeoff.id}: no unit cost found for "
+                        f"'{raw_material.name}' — skipping journal entry."
                     )
                     return None
 
-                # 2) Get accounts
-                # Raw Materials Inventory (asset)
-                raw_materials_inventory_account = ChartOfAccounts.objects.filter(
-                    account_name='Raw Materials Inventory',
-                    account_type='asset',
-                    account_category='current_asset',
-                ).first()
+                total_loss = Decimal(str(writeoff.quantity)) * unit_cost
 
-                # Loss/Spillage expense (you should configure this in your CoA)
+                # ── Resolve accounts ──────────────────────────────────────
                 loss_account = ChartOfAccounts.objects.filter(
-                    account_name='Raw Material Loss & Spoilage',
-                    account_type='expense',
-                    account_category='cost_of_goods_sold',
+                    account_code='50900'
                 ).first()
 
-                if not raw_materials_inventory_account or not loss_account:
-                    print(
-                        "Required accounts for raw material write-off not found. "
-                        "Ensure 'Raw Materials Inventory' (asset/current_asset) and "
-                        "'Raw Material Loss & Spoilage' (expense/cost_of_goods_sold) exist."
-                    )
+                inventory_account = ChartOfAccounts.objects.filter(
+                    account_code='5100'
+                ).first()
+
+                if not loss_account:
+                    print("RM-WO: account 50900 (Raw Material Loss & Spoilage) not found.")
+                    return None
+                if not inventory_account:
+                    print("RM-WO: account 5100 (Raw Materials Inventory) not found.")
                     return None
 
-                # 3) Create journal entry
+                # ── Create journal entry ──────────────────────────────────
                 journal_entry = JournalEntry.objects.create(
-                    date=write_off.date,
-                    reference=f"RM-WO-{write_off.id}",
+                    date=writeoff.date,
+                    reference=f"RM-WO-{writeoff.id}",
                     description=(
-                        f"Raw material incident write-off for {raw_material.name} "
-                        f"({price_source})"
+                        f"Raw material write-off: {raw_material.name} "
+                        f"x {writeoff.quantity} ({price_source})"
                     ),
                     entry_type='production',
                     department=Department.objects.filter(code='PROD').first(),
@@ -321,35 +314,165 @@ class AccountingService:
                     posted_at=timezone.now(),
                 )
 
-                # 4) Post lines
-                # DR Loss & Spoilage (expense/COGS)
+                # DR 50900 Raw Material Loss & Spoilage
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
                     account=loss_account,
                     entry_type='debit',
                     amount=total_loss,
                     description=(
-                        f"Loss on write-off of {write_off.quantity} {raw_material.unit_measurement} "
-                        f"of {raw_material.name}"
+                        f"Loss: {writeoff.quantity} {raw_material.unit_measurement} "
+                        f"of {raw_material.name} @ {unit_cost} each"
                     ),
                 )
 
-                # CR Raw Materials Inventory (asset)
+                # CR 5100 Raw Materials Inventory
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
-                    account=raw_materials_inventory_account,
+                    account=inventory_account,
                     entry_type='credit',
                     amount=total_loss,
-                    description=(
-                        f"Inventory reduction for incident write-off of {raw_material.name}"
-                    ),
+                    description=f"Inventory reduction: {raw_material.name} written off",
                 )
 
+                print(
+                    f"Created RM write-off JE {journal_entry.entry_number} — "
+                    f"{raw_material.name} x {writeoff.quantity} = {total_loss} "
+                    f"(source: {price_source})"
+                )
                 return journal_entry
 
         except Exception as e:
             print(f"Error creating raw material write-off journal entry: {e}")
+            import traceback
+            traceback.print_exc()
             return None
+        
+        
+    @staticmethod
+    def create_store_writeoff_journal_entry(writeoff, user):
+        """
+        Create journal entry for a StoreWriteOff (finished product shrinkage).
+        Only fires when writeoff.approved is True.
+
+        Valuation: LivaraMainStore.unit_cost * quantity written off.
+
+        DR  5030   Store Shrinkage      (expense / COGS)
+        CR  1210   Store Inventory      (asset)
+        """
+        from decimal import Decimal
+
+        try:
+            with transaction.atomic():
+
+                # ── Guard: only post approved write-offs ──────────────────
+                if not writeoff.approved:
+                    print(f"StoreWO-{writeoff.id}: not approved yet, skipping.")
+                    return None
+
+                # ── Guard: already posted? ────────────────────────────────
+                if JournalEntry.objects.filter(
+                    reference=f"StoreWO-{writeoff.id}"
+                ).exists():
+                    print(f"StoreWO-{writeoff.id}: journal entry already exists, skipping.")
+                    return JournalEntry.objects.get(reference=f"StoreWO-{writeoff.id}")
+
+                # ── Resolve unit cost from LivaraMainStore ────────────────
+                store_product = writeoff.main_store_product  # LivaraMainStore instance
+                unit_cost = store_product.unit_cost or Decimal('0.00')
+
+                if unit_cost <= 0:
+                    # Fallback: try to get cost from ManufacturedProductInventory
+                    mpi = store_product.product  # ManufacturedProductInventory
+                    if mpi and mpi.unit_cost and mpi.unit_cost > 0:
+                        unit_cost = mpi.unit_cost
+                    else:
+                        print(
+                            f"StoreWO-{writeoff.id}: no unit cost found for "
+                            f"batch {writeoff.batch_number} — skipping journal entry."
+                        )
+                        return None
+
+                total_loss = unit_cost * Decimal(str(writeoff.quantity))
+
+                if total_loss <= 0:
+                    print(f"StoreWO-{writeoff.id}: total_loss is 0, skipping.")
+                    return None
+
+                # ── Resolve accounts ──────────────────────────────────────
+                shrinkage_account = ChartOfAccounts.objects.filter(
+                    account_code='5030'
+                ).first()
+
+                inventory_account = ChartOfAccounts.objects.filter(
+                    account_code='1210'
+                ).first()
+
+                if not shrinkage_account:
+                    print("StoreWO: account 5030 (Store Shrinkage) not found.")
+                    return None
+                if not inventory_account:
+                    print("StoreWO: account 1210 (Store Inventory) not found.")
+                    return None
+
+                product_name = (
+                    store_product.product.product.product_name
+                    if store_product.product and store_product.product.product
+                    else writeoff.batch_number
+                )
+
+                # ── Create journal entry ──────────────────────────────────
+                journal_entry = JournalEntry.objects.create(
+                    date=writeoff.approved_date.date() if writeoff.approved_date else timezone.now().date(),
+                    reference=f"StoreWO-{writeoff.id}",
+                    description=(
+                        f"Store write-off: {product_name} "
+                        f"x {writeoff.quantity} units — "
+                        f"{writeoff.get_reason_display()}"
+                    ),
+                    entry_type='production',
+                    department=Department.objects.filter(code='PROD').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now(),
+                )
+
+                # DR 5030 Store Shrinkage
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=shrinkage_account,
+                    entry_type='debit',
+                    amount=total_loss,
+                    description=(
+                        f"Shrinkage: {writeoff.quantity} units of {product_name} "
+                        f"@ {unit_cost} each — {writeoff.get_reason_display()}"
+                    ),
+                )
+
+                # CR 1210 Store Inventory
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=inventory_account,
+                    entry_type='credit',
+                    amount=total_loss,
+                    description=(
+                        f"Inventory reduction: {product_name} "
+                        f"written off (batch {writeoff.batch_number})"
+                    ),
+                )
+
+                print(
+                    f"Created store write-off JE {journal_entry.entry_number} — "
+                    f"{product_name} x {writeoff.quantity} = {total_loss}"
+                )
+                return journal_entry
+
+        except Exception as e:
+            print(f"Error creating store write-off journal entry: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
 
     @staticmethod
     def create_accessory_requisition_journal_entry(accessory_req, user):
@@ -732,10 +855,15 @@ class AccountingService:
                     account_name='Tax Receivable', account_type='asset', account_category='tax_receivable'
                 ).first()
                 
-                # Get accounts payable account
-                payable_account = ChartOfAccounts.objects.filter(
-                    account_name='Accounts Payable', account_type='liability', account_category='current_liability'
-                ).first()
+                # Get accounts payable account (prefer supplier-specific AP if configured)
+                supplier = requisition.supplier
+                payable_account = getattr(supplier, 'payables_account', None)
+                if payable_account is None:
+                    payable_account = ChartOfAccounts.objects.filter(
+                        account_code='2000',  # Accounts Payable - Suppliers (control)
+                        account_type='liability',
+                        account_category='current_liability',
+                    ).first()
                 
                 if raw_materials_inventory_account and payable_account:
                     # Debit Raw Materials Inventory
@@ -1020,44 +1148,64 @@ class AccountingService:
                     posted_at=timezone.now()
                 )
                 
-                # Get accounts payable account
-                payable_account = ChartOfAccounts.objects.filter(
-                    account_code='2000'  # Accounts Payable
-                ).first()
+                # Get accounts payable account (prefer supplier-specific AP if configured)
+                supplier = payment_voucher.lpo.requisition.supplier
+                payable_account = getattr(supplier, 'payables_account', None)
+                if payable_account is None:
+                    payable_account = ChartOfAccounts.objects.filter(
+                        account_code='2000',  # Accounts Payable - Suppliers (control)
+                        account_type='liability',
+                        account_category='current_liability',
+                    ).first()
                 
                 # Get cash account
-                cash_account = ChartOfAccounts.objects.filter(
-                    account_code='1000'  # Cash
-                ).first()
+                payment_account = payment_voucher.payment_account
                 
-                if payable_account and cash_account:
-                    # Debit Accounts Payable
-                    JournalEntryLine.objects.create(
-                        journal_entry=journal_entry,
-                        account=payable_account,
-                        entry_type='debit',
-                        amount=payment_voucher.amount_paid,
-                        description=f"Payment to supplier for LPO {payment_voucher.lpo.lpo_number}"
-                    )
-                    
-                    # Credit Cash
-                    JournalEntryLine.objects.create(
-                        journal_entry=journal_entry,
-                        account=cash_account,
-                        entry_type='credit',
-                        amount=payment_voucher.amount_paid,
-                        description=f"Cash payment for LPO {payment_voucher.lpo.lpo_number}"
-                    )
-                    
-                    return journal_entry
-                else:
-                    # If accounts not found, delete the journal entry and return None
+                # Validate payment account exists
+                if not payment_account:
                     journal_entry.delete()
-                    print(f"Required accounts not found for payment voucher {payment_voucher.voucher_number}")
+                    error_msg = (
+                        f"Payment account not specified for voucher {payment_voucher.voucher_number}. "
+                        f"Please ensure payment_account is set when creating PaymentVoucher."
+                    )
+                    print(error_msg)
                     return None
+                
+                # Validate payable account exists
+                if not payable_account:
+                    journal_entry.delete()
+                    error_msg = (
+                        f"Accounts Payable account not found for payment voucher {payment_voucher.voucher_number}. "
+                        f"Supplier: {supplier.name}"
+                    )
+                    print(error_msg)
+                    return None
+                
+                # Create journal entry lines
+                # Debit: Supplier's Accounts Payable (reduces what we owe them)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=payable_account,
+                    entry_type='debit',
+                    amount=payment_voucher.amount_paid,
+                    description=f"Payment to {supplier.name} for LPO {payment_voucher.lpo.lpo_number}"
+                )
+                
+                # Credit: The actual payment account used (Cash/Bank/Mobile Money)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=payment_account,
+                    entry_type='credit',
+                    amount=payment_voucher.amount_paid,
+                    description=f"Payment via {payment_account.account_name} for LPO {payment_voucher.lpo.lpo_number}"
+                )
+                
+                return journal_entry
                     
         except Exception as e:
             print(f"Error creating payment journal entry: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     @staticmethod
@@ -1521,6 +1669,23 @@ class AccountingService:
         except Exception as e:
             print(f"Error creating store budget: {e}")
             return None
+        
+    @staticmethod
+    def _get_staff_payable_account(staff):
+        """
+        Resolve the per-staff commission payable account.
+        Falls back to auto-creating it if the signal hasn't run yet.
+        """
+        from POSMagicApp.signals import _ensure_staff_commission_account
+        
+        account_code = f"2110-{staff.pk:04d}"
+        account = ChartOfAccounts.objects.filter(account_code=account_code).first()
+        
+        if not account:
+            # Auto-heal: signal may not have run for older staff
+            account = _ensure_staff_commission_account(staff)
+        
+        return account
     
     @staticmethod
     def create_service_commission_journal_entry(staff_commission, user):
@@ -1553,117 +1718,114 @@ class AccountingService:
                     account_code='6015'  # Service Commission Expense
                 ).first()
                 
-                # Get commission payable account
-                payable_account = ChartOfAccounts.objects.filter(
-                    account_code='2110'  # Commission Payable
-                ).first()
+                # Get commission payable account must be staff specific
+                payable_account = AccountingService._get_staff_payable_account(
+                    staff=staff_commission.staff
+                )
                 
-                if expense_account and payable_account:
-                    # Dr. Service Commission Expense
-                    JournalEntryLine.objects.create(
-                        journal_entry=journal_entry,
-                        account=expense_account,
-                        entry_type='debit',
-                        amount=staff_commission.commission_amount,
-                        description=f"Service commission expense for {staff_commission.staff.first_name}"
-                    )
-                    
-                    # Cr. Commission Payable
-                    JournalEntryLine.objects.create(
-                        journal_entry=journal_entry,
-                        account=payable_account,
-                        entry_type='credit',
-                        amount=staff_commission.commission_amount,
-                        description=f"Commission payable to {staff_commission.staff.first_name}"
-                    )
-                    
-                    # Create commission expense record
-                    CommissionExpense.objects.create(
-                        staff_commission=staff_commission,
-                        journal_entry=journal_entry,
-                        amount=staff_commission.commission_amount,
-                        commission_type='service'
-                    )
-                    
-                    print(f"Created service commission journal entry: {journal_entry.entry_number}")
-                    return journal_entry
-                else:
-                    print("Commission accounts not found. Please run setup_commission_accounts command.")
+                if not expense_account or not payable_account:
+                    print("Commission accounts not found.")
                     return None
+
+                # Dr. Service Commission Expense (6015)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=expense_account,
+                    entry_type='debit',
+                    amount=staff_commission.commission_amount,
+                    description=f"Service commission expense for {staff_commission.staff.first_name}"
+                )
+
+                # Cr. Commissions Payable - [Staff Name]  (2110-XXXX)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=payable_account,
+                    entry_type='credit',
+                    amount=staff_commission.commission_amount,
+                    description=f"Commission payable to {staff_commission.staff.first_name}"
+                )
+
+                CommissionExpense.objects.create(
+                    staff_commission=staff_commission,
+                    journal_entry=journal_entry,
+                    amount=staff_commission.commission_amount,
+                    commission_type='service',
+                    staff=staff_commission.staff  # populate new FK
+                )
+                    
+                print(f"Created service commission journal entry: {journal_entry.entry_number}")
+                return journal_entry
                     
         except Exception as e:
             print(f"Error creating service commission journal entry: {e}")
             return None
-    
+        
     @staticmethod
     def create_product_commission_journal_entry(product_commission, user):
         """Create journal entry when product commission is earned"""
         try:
             with transaction.atomic():
-                # Check if journal entry already exists
-                existing_expense = CommissionExpense.objects.filter(
-                    product_commission=product_commission
-                ).first()
-                
-                if existing_expense:
-                    print(f"Product commission journal entry already exists for {product_commission.id}")
-                    return existing_expense.journal_entry
-                
-                # Create journal entry
+                # Guard: already posted?
+                if CommissionExpense.objects.filter(product_commission=product_commission).exists():
+                    return CommissionExpense.objects.get(
+                        product_commission=product_commission
+                    ).journal_entry
+
                 journal_entry = JournalEntry.objects.create(
                     date=product_commission.created_at.date(),
                     reference=f"ProductCommission-{product_commission.id}",
-                    description=f"Product commission for {product_commission.staff.first_name} - {product_commission.product_sale_item.product.product.product_name}",
+                    description=(
+                        f"Product commission for {product_commission.staff.first_name} "
+                        f"- {product_commission.product_sale_item.product.product.product_name}"
+                    ),
                     entry_type='system',
                     department=Department.objects.filter(code='SALES').first(),
                     created_by=user,
                     is_posted=True,
                     posted_at=timezone.now()
                 )
-                
-                # Get commission expense account
+
                 expense_account = ChartOfAccounts.objects.filter(
-                    account_code='6016'  # Product Commission Expense
+                    account_code='6016'
                 ).first()
                 
-                # Get commission payable account
-                payable_account = ChartOfAccounts.objects.filter(
-                    account_code='2110'  # Commission Payable
-                ).first()
-                
-                if expense_account and payable_account:
-                    # Dr. Product Commission Expense
-                    JournalEntryLine.objects.create(
-                        journal_entry=journal_entry,
-                        account=expense_account,
-                        entry_type='debit',
-                        amount=product_commission.commission_amount,
-                        description=f"Product commission expense for {product_commission.staff.first_name}"
-                    )
-                    
-                    # Cr. Commission Payable
-                    JournalEntryLine.objects.create(
-                        journal_entry=journal_entry,
-                        account=payable_account,
-                        entry_type='credit',
-                        amount=product_commission.commission_amount,
-                        description=f"Commission payable to {product_commission.staff.first_name}"
-                    )
-                    
-                    # Create commission expense record
-                    CommissionExpense.objects.create(
-                        product_commission=product_commission,
-                        journal_entry=journal_entry,
-                        amount=product_commission.commission_amount,
-                        commission_type='product'
-                    )
-                    
-                    print(f"Created product commission journal entry: {journal_entry.entry_number}")
-                    return journal_entry
-                else:
-                    print("Commission accounts not found. Please run setup_commission_accounts command.")
+                # ← THE FIX: per-staff account
+                payable_account = AccountingService._get_staff_payable_account(
+                    product_commission.staff
+                )
+
+                if not expense_account or not payable_account:
+                    print("Commission accounts not found.")
                     return None
-                    
+
+                # Dr. Product Commission Expense (6016)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=expense_account,
+                    entry_type='debit',
+                    amount=product_commission.commission_amount,
+                    description=f"Product commission expense for {product_commission.staff.first_name}"
+                )
+
+                # Cr. Commissions Payable - [Staff Name]  (2110-XXXX)
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=payable_account,
+                    entry_type='credit',
+                    amount=product_commission.commission_amount,
+                    description=f"Commission payable to {product_commission.staff.first_name}"
+                )
+
+                CommissionExpense.objects.create(
+                    product_commission=product_commission,
+                    journal_entry=journal_entry,
+                    amount=product_commission.commission_amount,
+                    commission_type='product',
+                    staff=product_commission.staff  # populate new FK
+                )
+
+                return journal_entry
+
         except Exception as e:
             print(f"Error creating product commission journal entry: {e}")
             return None
@@ -1747,3 +1909,629 @@ class AccountingService:
         except Exception as e:
             print(f"Error creating commission payment journal entry: {e}")
             return None
+        
+    @staticmethod
+    def _get_store_cash_account(store, payment_method):
+        """
+        Resolve the correct cash/bank ChartOfAccounts entry for a given
+        store and payment method.
+
+        Cash account codes per store (no FK on Store model, resolved by name):
+            Mutaasa Kafeero  →  3004
+            Bugolobi         →  3001  (adjust to your actual codes)
+            Ntinda           →  3002
+            Kyanja           →  3003
+
+        Mobile money and card accounts are shared across stores.
+        """
+        store_name = (store.name or '').strip().lower()
+        if payment_method == 'cash':
+            # Per-store cash at hand accounts
+            STORE_CASH_CODES = {
+                'mutaasa': '3004',
+                'bugolobi': '3001',   # adjust to your real codes
+                'ntinda':   '3002',
+                'kyanja':   '3003',
+            }
+            # Match by substring so "Mutaasa Kafeero" still hits 'mutaasa'
+            matched_code = None
+            for key, code in STORE_CASH_CODES.items():
+                if key in store_name:
+                    matched_code = code
+                    break
+
+            if matched_code:
+                account = ChartOfAccounts.objects.filter(
+                    account_code=matched_code
+                ).first()
+                if account:
+                    return account
+
+            # Fallback: generic cash on hand
+            return ChartOfAccounts.objects.filter(account_code='1000').first()
+
+        elif payment_method == 'mobile_money':
+            return ChartOfAccounts.objects.filter(account_code='10100').first()
+
+        elif payment_method == 'airtel_money':
+            return ChartOfAccounts.objects.filter(account_code='101001').first()
+
+        elif payment_method in ['visa', 'bank_transfer']:
+            return ChartOfAccounts.objects.filter(account_code='1020').first()
+
+        elif payment_method == 'mixed':
+            # Mixed payments: use store cash as the primary account.
+            # The split detail lives in the CashDrawerTransaction records —
+            # we post the full amount to cash here for simplicity.
+            return AccountingService._get_store_cash_account(store, 'cash')
+
+        # Default
+        return ChartOfAccounts.objects.filter(account_code='1000').first()
+
+
+    @staticmethod
+    def _get_store_product_revenue_account(store):
+        """
+        Resolve the correct Product Sales revenue account for a store.
+
+        4100 is the Product Sales account you specified.
+        If you later split by store, extend this map exactly like the cash one.
+        """
+        # Currently one shared Product Sales account across stores.
+        # To split per-store, add a map here keyed on store name substring.
+        return ChartOfAccounts.objects.filter(account_code='4100').first()
+
+
+    @staticmethod
+    def create_product_sale_journal_entry(product_sale, user):
+        """
+        Create double-entry journal for a StoreProductSale once it is paid.
+
+        Entry:
+            DR  Cash/Mobile Money/Bank  (store-specific cash account, e.g. 3004)
+            CR  4100 Product Sales      (revenue)
+
+        Guard: skips silently if a journal entry already exists for this sale
+        so the signal is safe to fire more than once.
+        """
+        try:
+            with transaction.atomic():
+                # ── Guard: already posted? ────────────────────────────────────
+                already_exists = JournalEntry.objects.filter(
+                    reference=f"ProductSale-{product_sale.id}"
+                ).exists()
+
+                if already_exists:
+                    print(
+                        f"Journal entry already exists for ProductSale "
+                        f"{product_sale.id} — skipping."
+                    )
+                    return JournalEntry.objects.filter(
+                        reference=f"ProductSale-{product_sale.id}"
+                    ).first()
+
+                # ── Resolve accounts ──────────────────────────────────────────
+                store = product_sale.store
+
+                cash_account = AccountingService._get_store_cash_account(
+                    store, product_sale.payment_mode
+                )
+                revenue_account = AccountingService._get_store_product_revenue_account(store)
+
+                if not cash_account:
+                    print(
+                        f"ProductSale {product_sale.id}: cash account not found "
+                        f"for store '{store.name}' / method '{product_sale.payment_mode}'. "
+                        f"Skipping journal entry."
+                    )
+                    return None
+
+                if not revenue_account:
+                    print(
+                        f"ProductSale {product_sale.id}: revenue account 4100 not found. "
+                        f"Skipping journal entry."
+                    )
+                    return None
+
+                # ── Create journal entry ──────────────────────────────────────
+                journal_entry = JournalEntry.objects.create(
+                    date=product_sale.sale_date.date(),
+                    reference=f"ProductSale-{product_sale.id}",
+                    description=(
+                        f"Product sale {product_sale.product_sale_number} — "
+                        f"{product_sale.customer.first_name} {product_sale.customer.last_name} "
+                        f"at {store.name}"
+                    ),
+                    entry_type='sales',
+                    department=Department.objects.filter(code='STORE').first(),
+                    created_by=user,
+                    is_posted=True,
+                    posted_at=timezone.now(),
+                )
+
+                # DR Cash / Mobile Money / Bank
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=cash_account,
+                    entry_type='debit',
+                    amount=product_sale.total_amount,
+                    description=(
+                        f"Cash received via {product_sale.payment_mode} — "
+                        f"{product_sale.product_sale_number}"
+                    ),
+                )
+
+                # CR 4100 Product Sales Revenue
+                JournalEntryLine.objects.create(
+                    journal_entry=journal_entry,
+                    account=revenue_account,
+                    entry_type='credit',
+                    amount=product_sale.total_amount,
+                    description=(
+                        f"Product sales revenue — {product_sale.product_sale_number} "
+                        f"at {store.name}"
+                    ),
+                )
+
+                # Link to SalesRevenue for reporting consistency
+                # StoreProductSale has no FK on SalesRevenue yet — we store
+                # the reference in the journal entry itself which is enough
+                # for the ledger. Add a FK to SalesRevenue if you need it
+                # to appear in get_related_records().
+
+                print(
+                    f"Created product sale journal entry "
+                    f"{journal_entry.entry_number} for "
+                    f"{product_sale.product_sale_number} at {store.name} — "
+                    f"DR {cash_account.account_code} / CR {revenue_account.account_code}"
+                )
+                return journal_entry
+
+        except Exception as e:
+            print(f"Error creating product sale journal entry: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    # Balance sheet services
+    @staticmethod
+    def generate_balance_sheet(as_of_date, save_snapshot=False, user=None):
+        """
+        Generate a live balance sheet as of a given date by reading
+        JournalEntryLine balances from ChartOfAccounts.
+
+        Sub-accounts (e.g. 2110-0001) are included in their category totals
+        but the parent (2110) is excluded to avoid double-counting when
+        sub-accounts exist.
+
+        Returns a dict with all sections and line items, plus optionally
+        saves a BalanceSheet snapshot.
+        """
+        from decimal import Decimal
+        from django.db.models import Sum, Q
+        from accounts.models import (
+            ChartOfAccounts, JournalEntryLine, BalanceSheet
+        )
+
+        def get_balance(account, as_of_date):
+            """Get account balance up to and including as_of_date."""
+            lines = JournalEntryLine.objects.filter(
+                account=account,
+                journal_entry__date__lte=as_of_date,
+                journal_entry__is_posted=True,
+            )
+            debits = lines.filter(entry_type='debit').aggregate(
+                t=Sum('amount')
+            )['t'] or Decimal('0.00')
+            credits = lines.filter(entry_type='credit').aggregate(
+                t=Sum('amount')
+            )['t'] or Decimal('0.00')
+
+            if account.account_type in ['asset', 'expense']:
+                return debits - credits
+            return credits - debits
+
+        def get_accounts(account_type, account_category):
+            """
+            Get active accounts for a type/category.
+            Excludes parent accounts that have active sub-accounts
+            to prevent double-counting.
+            """
+            accounts = ChartOfAccounts.objects.filter(
+                account_type=account_type,
+                account_category=account_category,
+                is_active=True,
+            ).order_by('account_code')
+
+            result = []
+            for acc in accounts:
+                # Skip parent if it has active sub-accounts
+                has_children = acc.sub_accounts.filter(is_active=True).exists()
+                if has_children:
+                    continue
+                balance = get_balance(acc, as_of_date)
+                if balance != Decimal('0.00'):
+                    result.append({
+                        'code': acc.account_code,
+                        'name': acc.account_name,
+                        'balance': balance,
+                    })
+            return result
+
+        # ── ASSETS ───────────────────────────────────────────────────────────
+        current_asset_categories = ['current_asset', 'tax_receivable']
+        current_asset_lines = []
+        for cat in current_asset_categories:
+            current_asset_lines.extend(get_accounts('asset', cat))
+        current_asset_lines.sort(key=lambda x: x['code'])
+
+        fixed_asset_lines = get_accounts('asset', 'fixed_asset')
+
+        total_current_assets = sum(a['balance'] for a in current_asset_lines)
+        total_fixed_assets = sum(a['balance'] for a in fixed_asset_lines)
+        total_assets = total_current_assets + total_fixed_assets
+
+        # ── LIABILITIES ───────────────────────────────────────────────────────
+        current_liability_lines = get_accounts('liability', 'current_liability')
+        # Include tax payable under current liabilities
+        tax_liability_lines = []
+        for cat in ['tax_payable']:
+            tax_liability_lines.extend(get_accounts('liability', cat))
+        current_liability_lines = sorted(
+            current_liability_lines + tax_liability_lines,
+            key=lambda x: x['code']
+        )
+
+        long_term_liability_lines = get_accounts('liability', 'long_term_liability')
+
+        total_current_liabilities = sum(a['balance'] for a in current_liability_lines)
+        total_long_term_liabilities = sum(a['balance'] for a in long_term_liability_lines)
+        total_liabilities = total_current_liabilities + total_long_term_liabilities
+
+        # ── EQUITY ────────────────────────────────────────────────────────────
+        owner_equity_lines = get_accounts('equity', 'owner_equity')
+        retained_earnings_lines = get_accounts('equity', 'retained_earnings')
+        equity_lines = owner_equity_lines + retained_earnings_lines
+
+        total_owner_equity = sum(a['balance'] for a in owner_equity_lines)
+        total_retained_earnings = sum(a['balance'] for a in retained_earnings_lines)
+        total_equity = total_owner_equity + total_retained_earnings
+
+        total_liabilities_and_equity = total_liabilities + total_equity
+        is_balanced = abs(total_assets - total_liabilities_and_equity) < Decimal('0.01')
+
+        data = {
+            'as_of_date': as_of_date,
+            'is_balanced': is_balanced,
+            'difference': total_assets - total_liabilities_and_equity,
+
+            # Assets
+            'current_asset_lines': current_asset_lines,
+            'fixed_asset_lines': fixed_asset_lines,
+            'total_current_assets': total_current_assets,
+            'total_fixed_assets': total_fixed_assets,
+            'total_assets': total_assets,
+
+            # Liabilities
+            'current_liability_lines': current_liability_lines,
+            'long_term_liability_lines': long_term_liability_lines,
+            'total_current_liabilities': total_current_liabilities,
+            'total_long_term_liabilities': total_long_term_liabilities,
+            'total_liabilities': total_liabilities,
+
+            # Equity
+            'owner_equity_lines': owner_equity_lines,
+            'retained_earnings_lines': retained_earnings_lines,
+            'total_owner_equity': total_owner_equity,
+            'total_retained_earnings': total_retained_earnings,
+            'total_equity': total_equity,
+
+            'total_liabilities_and_equity': total_liabilities_and_equity,
+        }
+
+        # ── Optional snapshot save ────────────────────────────────────────────
+        if save_snapshot:
+            snapshot, _ = BalanceSheet.objects.update_or_create(
+                as_of_date=as_of_date,
+                defaults={
+                    'current_assets': total_current_assets,
+                    'fixed_assets': total_fixed_assets,
+                    'total_assets': total_assets,
+                    'current_liabilities': total_current_liabilities,
+                    'long_term_liabilities': total_long_term_liabilities,
+                    'total_liabilities': total_liabilities,
+                    'owner_equity': total_owner_equity,
+                    'retained_earnings': total_retained_earnings,
+                    'total_equity': total_equity,
+                }
+            )
+            data['snapshot'] = snapshot
+
+        return data
+
+    #cashflow statement service 
+    @staticmethod
+    def generate_cash_flow_statement(start_date, end_date):
+        """
+        Generate a direct-method Cash Flow Statement for a given date range.
+
+        Sections:
+          A) Operating Activities
+             Inflows  — all revenue accounts (credit balances in period)
+             Outflows — all expense accounts (debit balances in period)
+
+          B) Investing Activities
+             Fixed asset purchases (debit movements on fixed_asset accounts)
+             Fixed asset disposals (credit movements on fixed_asset accounts)
+
+          C) Financing Activities
+             Owner Capital contributions (credit movements on 3000)
+             Owner Drawings (debit movements on 3100)
+             Loan proceeds (credit movements on 2500)
+             Loan repayments (debit movements on 2500)
+
+          D) Opening & Closing Cash
+             All cash/bank accounts (1000, 1010, 10100, 101001, 1020,
+             3001–3004, 4005)
+        """
+        from decimal import Decimal
+        from django.db.models import Sum
+
+        CASH_ACCOUNT_CODES = [
+            '1000', '1010', '10100', '101001', '1020',
+            '3001', '3002', '3003', '3004', '4005',
+        ]
+
+        # Codes to exclude from operating inflows (contra-revenue)
+        CONTRA_REVENUE_CODES = ['844555']
+
+        def period_debit(account):
+            """Net debit movement on an account within the period."""
+            lines = JournalEntryLine.objects.filter(
+                account=account,
+                journal_entry__date__gte=start_date,
+                journal_entry__date__lte=end_date,
+                journal_entry__is_posted=True,
+            )
+            debits = lines.filter(entry_type='debit').aggregate(
+                t=Sum('amount'))['t'] or Decimal('0.00')
+            credits = lines.filter(entry_type='credit').aggregate(
+                t=Sum('amount'))['t'] or Decimal('0.00')
+            return debits - credits
+
+        def period_credit(account):
+            """Net credit movement on an account within the period."""
+            return -period_debit(account)
+
+        def balance_at(account, as_of_date):
+            """Full balance on an account up to and including as_of_date."""
+            lines = JournalEntryLine.objects.filter(
+                account=account,
+                journal_entry__date__lte=as_of_date,
+                journal_entry__is_posted=True,
+            )
+            debits = lines.filter(entry_type='debit').aggregate(
+                t=Sum('amount'))['t'] or Decimal('0.00')
+            credits = lines.filter(entry_type='credit').aggregate(
+                t=Sum('amount'))['t'] or Decimal('0.00')
+            if account.account_type in ['asset', 'expense']:
+                return debits - credits
+            return credits - debits
+
+        # ── A. OPERATING ACTIVITIES ───────────────────────────────────────────
+
+        # Inflows: revenue accounts (credit side = cash received)
+        revenue_accounts = ChartOfAccounts.objects.filter(
+            account_type='revenue',
+            is_active=True,
+        ).exclude(
+            account_code__in=CONTRA_REVENUE_CODES
+        ).order_by('account_code')
+
+        operating_inflow_lines = []
+        for acc in revenue_accounts:
+            amount = period_credit(acc)
+            if amount > 0:
+                operating_inflow_lines.append({
+                    'code': acc.account_code,
+                    'name': acc.account_name,
+                    'amount': amount,
+                })
+
+        # Sales returns reduce inflows
+        sales_returns_acc = ChartOfAccounts.objects.filter(
+            account_code='844555'
+        ).first()
+        sales_returns_amount = Decimal('0.00')
+        if sales_returns_acc:
+            sales_returns_amount = period_debit(sales_returns_acc)
+            if sales_returns_amount > 0:
+                operating_inflow_lines.append({
+                    'code': '844555',
+                    'name': 'Less: Sales Returns',
+                    'amount': -sales_returns_amount,
+                })
+
+        total_operating_inflows = sum(
+            l['amount'] for l in operating_inflow_lines
+        )
+
+        # Outflows: expense accounts (debit side = cash paid out)
+        expense_accounts = ChartOfAccounts.objects.filter(
+            account_type='expense',
+            is_active=True,
+        ).order_by('account_code')
+
+        operating_outflow_lines = []
+        for acc in expense_accounts:
+            amount = period_debit(acc)
+            if amount > 0:
+                operating_outflow_lines.append({
+                    'code': acc.account_code,
+                    'name': acc.account_name,
+                    'amount': amount,
+                })
+
+        total_operating_outflows = sum(
+            l['amount'] for l in operating_outflow_lines
+        )
+        net_operating = total_operating_inflows - total_operating_outflows
+
+        # ── B. INVESTING ACTIVITIES ───────────────────────────────────────────
+        fixed_asset_accounts = ChartOfAccounts.objects.filter(
+            account_type='asset',
+            account_category='fixed_asset',
+            is_active=True,
+        ).order_by('account_code')
+
+        investing_inflow_lines = []   # disposals / sales of assets
+        investing_outflow_lines = []  # purchases of assets
+
+        for acc in fixed_asset_accounts:
+            net = period_debit(acc)  # positive = purchased, negative = disposed
+            if net > 0:
+                investing_outflow_lines.append({
+                    'code': acc.account_code,
+                    'name': f"Purchase of {acc.account_name}",
+                    'amount': net,
+                })
+            elif net < 0:
+                investing_inflow_lines.append({
+                    'code': acc.account_code,
+                    'name': f"Proceeds from {acc.account_name}",
+                    'amount': abs(net),
+                })
+
+        total_investing_inflows = sum(
+            l['amount'] for l in investing_inflow_lines
+        )
+        total_investing_outflows = sum(
+            l['amount'] for l in investing_outflow_lines
+        )
+        net_investing = total_investing_inflows - total_investing_outflows
+
+        # ── C. FINANCING ACTIVITIES ───────────────────────────────────────────
+        financing_inflow_lines = []
+        financing_outflow_lines = []
+
+        # Owner Capital — credit movement = new capital introduced
+        owner_capital = ChartOfAccounts.objects.filter(
+            account_code='3000'
+        ).first()
+        if owner_capital:
+            amount = period_credit(owner_capital)
+            if amount > 0:
+                financing_inflow_lines.append({
+                    'code': '3000',
+                    'name': 'Owner Capital Introduced',
+                    'amount': amount,
+                })
+
+        # Owner Drawings — debit movement = cash withdrawn
+        owner_drawings = ChartOfAccounts.objects.filter(
+            account_code='3100'
+        ).first()
+        if owner_drawings:
+            amount = period_debit(owner_drawings)
+            if amount > 0:
+                financing_outflow_lines.append({
+                    'code': '3100',
+                    'name': 'Owner Drawings',
+                    'amount': amount,
+                })
+
+        # Long-term Loans — credit = borrowed, debit = repaid
+        loans = ChartOfAccounts.objects.filter(
+            account_code='2500'
+        ).first()
+        if loans:
+            net = period_credit(loans)  # positive = net borrowing
+            if net > 0:
+                financing_inflow_lines.append({
+                    'code': '2500',
+                    'name': 'Loan Proceeds',
+                    'amount': net,
+                })
+            elif net < 0:
+                financing_outflow_lines.append({
+                    'code': '2500',
+                    'name': 'Loan Repayments',
+                    'amount': abs(net),
+                })
+
+        total_financing_inflows = sum(
+            l['amount'] for l in financing_inflow_lines
+        )
+        total_financing_outflows = sum(
+            l['amount'] for l in financing_outflow_lines
+        )
+        net_financing = total_financing_inflows - total_financing_outflows
+
+        # ── D. OPENING & CLOSING CASH ─────────────────────────────────────────
+        cash_accounts = ChartOfAccounts.objects.filter(
+            account_code__in=CASH_ACCOUNT_CODES,
+            is_active=True,
+        ).order_by('account_code')
+
+        # Opening cash: balance the day before start_date
+        from datetime import timedelta
+        day_before = start_date - timedelta(days=1)
+
+        opening_cash_lines = []
+        closing_cash_lines = []
+
+        for acc in cash_accounts:
+            opening_bal = balance_at(acc, day_before)
+            closing_bal = balance_at(acc, end_date)
+            if opening_bal != Decimal('0.00'):
+                opening_cash_lines.append({
+                    'code': acc.account_code,
+                    'name': acc.account_name,
+                    'amount': opening_bal,
+                })
+            if closing_bal != Decimal('0.00'):
+                closing_cash_lines.append({
+                    'code': acc.account_code,
+                    'name': acc.account_name,
+                    'amount': closing_bal,
+                })
+
+        opening_cash = sum(l['amount'] for l in opening_cash_lines)
+        closing_cash = sum(l['amount'] for l in closing_cash_lines)
+
+        # Net change should reconcile
+        net_change = net_operating + net_investing + net_financing
+        reconciled = abs((opening_cash + net_change) - closing_cash) < Decimal('0.01')
+
+        return {
+            'start_date': start_date,
+            'end_date': end_date,
+
+            # Operating
+            'operating_inflow_lines': operating_inflow_lines,
+            'operating_outflow_lines': operating_outflow_lines,
+            'total_operating_inflows': total_operating_inflows,
+            'total_operating_outflows': total_operating_outflows,
+            'net_operating': net_operating,
+
+            # Investing
+            'investing_inflow_lines': investing_inflow_lines,
+            'investing_outflow_lines': investing_outflow_lines,
+            'total_investing_inflows': total_investing_inflows,
+            'total_investing_outflows': total_investing_outflows,
+            'net_investing': net_investing,
+
+            # Financing
+            'financing_inflow_lines': financing_inflow_lines,
+            'financing_outflow_lines': financing_outflow_lines,
+            'total_financing_inflows': total_financing_inflows,
+            'total_financing_outflows': total_financing_outflows,
+            'net_financing': net_financing,
+
+            # Cash positions
+            'opening_cash_lines': opening_cash_lines,
+            'closing_cash_lines': closing_cash_lines,
+            'opening_cash': opening_cash,
+            'closing_cash': closing_cash,
+            'net_change': net_change,
+            'reconciled': reconciled,
+        }

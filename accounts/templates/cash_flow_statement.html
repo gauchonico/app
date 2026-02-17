@@ -1,0 +1,597 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Cash Flow Statement - Accounting{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 fw-bold">
+                        <i class="fas fa-water me-2"></i>
+                        Cash Flow Statement
+                    </h1>
+                    <p class="mb-0">
+                        {{ start_date|date:"F j, Y" }} &mdash; {{ end_date|date:"F j, Y" }}
+                        &nbsp;&middot;&nbsp; Direct Method
+                    </p>
+                    <div class="mt-2">
+                        {% if reconciled %}
+                        <span class="badge bg-success fs-6 px-3 py-2">
+                            <i class="fas fa-check-circle me-1"></i>
+                            Reconciled — Net change agrees with cash movement
+                        </span>
+                        {% else %}
+                        <span class="badge bg-danger fs-6 px-3 py-2">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Does not reconcile — review journal entries
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button onclick="window.print()" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-print me-2"></i>Print
+                    </button>
+                    <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Date Range Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow border-0"
+                 style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-calendar me-2"></i>Select Date Range
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="start_date" class="form-label fw-bold">Start Date</label>
+                            <input type="date" id="start_date" name="start_date"
+                                   class="form-control"
+                                   value="{{ start_date|date:'Y-m-d' }}"
+                                   max="{{ today|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="end_date" class="form-label fw-bold">End Date</label>
+                            <input type="date" id="end_date" name="end_date"
+                                   class="form-control"
+                                   value="{{ end_date|date:'Y-m-d' }}"
+                                   max="{{ today|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if net_operating >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ net_operating|floatformat:0|intcomma }}</h4>
+                            <div>Net Operating Cash Flow</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-cogs fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if net_investing >= 0 %}bg-info{% else %}bg-warning{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ net_investing|floatformat:0|intcomma }}</h4>
+                            <div>Net Investing Cash Flow</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-chart-line fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if net_financing >= 0 %}bg-primary{% else %}bg-secondary{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ net_financing|floatformat:0|intcomma }}</h4>
+                            <div>Net Financing Cash Flow</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-hand-holding-usd fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card {% if net_change >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h4 class="mb-1">UGX {{ net_change|floatformat:0|intcomma }}</h4>
+                            <div>Net Change in Cash</div>
+                        </div>
+                        <div class="ms-3">
+                            <i class="fas fa-exchange-alt fa-2x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Statement -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow border-0"
+                 style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Cash Flow Statement
+                        <small class="text-muted">
+                            ({{ start_date|date:"M d, Y" }} &mdash; {{ end_date|date:"M d, Y" }})
+                        </small>
+                    </h5>
+                    <button onclick="exportToCSV()" class="btn btn-outline-success btn-sm">
+                        <i class="fas fa-download me-2"></i>Export CSV
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="cashFlowTable">
+
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th style="width:110px">Code</th>
+                                    <th>Description</th>
+                                    <th class="text-end" style="width:200px">Amount (UGX)</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+
+                                <!-- ══ A. OPERATING ACTIVITIES ══ -->
+                                <tr class="table-dark">
+                                    <td colspan="3" class="fw-bold">
+                                        <i class="fas fa-cogs me-2"></i>
+                                        A. Operating Activities
+                                    </td>
+                                </tr>
+
+                                <!-- Operating Inflows -->
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Cash Received from Customers
+                                    </td>
+                                </tr>
+                                {% for line in operating_inflow_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold {% if line.amount < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {% if line.amount < 0 %}
+                                            ({{ line.amount|floatformat:0|intcomma|slice:"1:" }})
+                                        {% else %}
+                                            {{ line.amount|floatformat:0|intcomma }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic ps-4 py-2">
+                                        No cash inflows in this period
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-success fw-bold">
+                                    <td colspan="2" class="text-end">Total Cash Received</td>
+                                    <td class="text-end">{{ total_operating_inflows|floatformat:0|intcomma }}</td>
+                                </tr>
+
+                                <!-- Operating Outflows -->
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Cash Paid for Expenses
+                                    </td>
+                                </tr>
+                                {% for line in operating_outflow_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold text-danger">
+                                        ({{ line.amount|floatformat:0|intcomma }})
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic ps-4 py-2">
+                                        No cash outflows in this period
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-danger fw-bold">
+                                    <td colspan="2" class="text-end">Total Cash Paid for Expenses</td>
+                                    <td class="text-end text-danger">
+                                        ({{ total_operating_outflows|floatformat:0|intcomma }})
+                                    </td>
+                                </tr>
+
+                                <!-- Net Operating -->
+                                <tr class="fw-bold fs-6 {% if net_operating >= 0 %}table-success{% else %}table-danger{% endif %}">
+                                    <td colspan="2" class="text-end">
+                                        NET CASH FROM OPERATING ACTIVITIES
+                                    </td>
+                                    <td class="text-end {% if net_operating < 0 %}text-danger{% endif %}">
+                                        {% if net_operating < 0 %}
+                                            ({{ net_operating|floatformat:0|intcomma|slice:"1:" }})
+                                        {% else %}
+                                            {{ net_operating|floatformat:0|intcomma }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Spacer -->
+                                <tr><td colspan="3" class="py-1 bg-transparent"></td></tr>
+
+                                <!-- ══ B. INVESTING ACTIVITIES ══ -->
+                                <tr class="table-dark">
+                                    <td colspan="3" class="fw-bold">
+                                        <i class="fas fa-chart-line me-2"></i>
+                                        B. Investing Activities
+                                    </td>
+                                </tr>
+
+                                {% if investing_inflow_lines %}
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Proceeds from Asset Disposals
+                                    </td>
+                                </tr>
+                                {% for line in investing_inflow_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold text-success">
+                                        {{ line.amount|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+
+                                {% if investing_outflow_lines %}
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Purchase of Fixed Assets
+                                    </td>
+                                </tr>
+                                {% for line in investing_outflow_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold text-danger">
+                                        ({{ line.amount|floatformat:0|intcomma }})
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+
+                                {% if not investing_inflow_lines and not investing_outflow_lines %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic py-2">
+                                        No investing activities in this period
+                                    </td>
+                                </tr>
+                                {% endif %}
+
+                                <tr class="fw-bold fs-6 {% if net_investing >= 0 %}table-info{% else %}table-warning{% endif %}">
+                                    <td colspan="2" class="text-end">
+                                        NET CASH FROM INVESTING ACTIVITIES
+                                    </td>
+                                    <td class="text-end {% if net_investing < 0 %}text-danger{% endif %}">
+                                        {% if net_investing < 0 %}
+                                            ({{ net_investing|floatformat:0|intcomma|slice:"1:" }})
+                                        {% else %}
+                                            {{ net_investing|floatformat:0|intcomma }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Spacer -->
+                                <tr><td colspan="3" class="py-1 bg-transparent"></td></tr>
+
+                                <!-- ══ C. FINANCING ACTIVITIES ══ -->
+                                <tr class="table-dark">
+                                    <td colspan="3" class="fw-bold">
+                                        <i class="fas fa-hand-holding-usd me-2"></i>
+                                        C. Financing Activities
+                                    </td>
+                                </tr>
+
+                                {% if financing_inflow_lines %}
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Cash Received (Financing)
+                                    </td>
+                                </tr>
+                                {% for line in financing_inflow_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold text-success">
+                                        {{ line.amount|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+
+                                {% if financing_outflow_lines %}
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Cash Paid (Financing)
+                                    </td>
+                                </tr>
+                                {% for line in financing_outflow_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold text-danger">
+                                        ({{ line.amount|floatformat:0|intcomma }})
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+
+                                {% if not financing_inflow_lines and not financing_outflow_lines %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic py-2">
+                                        No financing activities in this period
+                                    </td>
+                                </tr>
+                                {% endif %}
+
+                                <tr class="fw-bold fs-6 {% if net_financing >= 0 %}table-primary{% else %}table-secondary{% endif %}">
+                                    <td colspan="2" class="text-end">
+                                        NET CASH FROM FINANCING ACTIVITIES
+                                    </td>
+                                    <td class="text-end {% if net_financing < 0 %}text-danger{% endif %}">
+                                        {% if net_financing < 0 %}
+                                            ({{ net_financing|floatformat:0|intcomma|slice:"1:" }})
+                                        {% else %}
+                                            {{ net_financing|floatformat:0|intcomma }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Spacer -->
+                                <tr><td colspan="3" class="py-1 bg-transparent"></td></tr>
+
+                                <!-- ══ D. CASH RECONCILIATION ══ -->
+                                <tr class="table-dark">
+                                    <td colspan="3" class="fw-bold">
+                                        <i class="fas fa-coins me-2"></i>
+                                        D. Cash Position
+                                    </td>
+                                </tr>
+
+                                <!-- Opening Cash -->
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Opening Cash &amp; Bank Balances
+                                        <small class="fw-normal text-muted ms-1">
+                                            (as of {{ start_date|date:"M d, Y" }})
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% for line in opening_cash_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold">
+                                        {{ line.amount|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic ps-4 py-2">
+                                        No opening cash balances
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-primary fw-bold">
+                                    <td colspan="2" class="text-end">Opening Cash Balance</td>
+                                    <td class="text-end">{{ opening_cash|floatformat:0|intcomma }}</td>
+                                </tr>
+
+                                <!-- Net Change -->
+                                <tr class="fw-bold">
+                                    <td colspan="2" class="text-end">
+                                        Net Change in Cash (A + B + C)
+                                    </td>
+                                    <td class="text-end {% if net_change < 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {% if net_change < 0 %}
+                                            ({{ net_change|floatformat:0|intcomma|slice:"1:" }})
+                                        {% else %}
+                                            {{ net_change|floatformat:0|intcomma }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Closing Cash -->
+                                <tr class="table-secondary">
+                                    <td colspan="3" class="fw-bold small text-uppercase ps-4">
+                                        Closing Cash &amp; Bank Balances
+                                        <small class="fw-normal text-muted ms-1">
+                                            (as of {{ end_date|date:"M d, Y" }})
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% for line in closing_cash_lines %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <span class="text-muted small fw-bold">{{ line.code }}</span>
+                                    </td>
+                                    <td class="ps-4">{{ line.name }}</td>
+                                    <td class="text-end fw-bold">
+                                        {{ line.amount|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted fst-italic ps-4 py-2">
+                                        No closing cash balances
+                                    </td>
+                                </tr>
+                                {% endfor %}
+
+                            </tbody>
+
+                            <!-- Grand Total -->
+                            <tfoot class="table-dark">
+                                <tr class="fw-bold fs-6">
+                                    <td colspan="2" class="text-end">
+                                        CLOSING CASH BALANCE
+                                    </td>
+                                    <td class="text-end
+                                        {% if closing_cash < 0 %}text-danger
+                                        {% else %}text-success{% endif %}">
+                                        UGX {{ closing_cash|floatformat:0|intcomma }}
+                                    </td>
+                                </tr>
+                            </tfoot>
+
+                        </table>
+                    </div>
+
+                    <!-- Reconciliation alert -->
+                    <div class="p-3">
+                        {% if reconciled %}
+                        <div class="alert alert-success mb-0">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Statement Reconciles
+                            </h6>
+                            <p class="mb-0">
+                                Opening Cash (UGX {{ opening_cash|floatformat:0|intcomma }})
+                                + Net Change (UGX {{ net_change|floatformat:0|intcomma }})
+                                = Closing Cash (UGX {{ closing_cash|floatformat:0|intcomma }}).
+                            </p>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-danger mb-0">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                Statement Does Not Reconcile
+                            </h6>
+                            <p class="mb-0">
+                                Opening (UGX {{ opening_cash|floatformat:0|intcomma }})
+                                + Net Change (UGX {{ net_change|floatformat:0|intcomma }})
+                                does not equal
+                                Closing Cash (UGX {{ closing_cash|floatformat:0|intcomma }}).
+                                Review your journal entries for unposted cash transactions.
+                            </p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+@media print {
+    .btn, form {
+        display: none !important;
+    }
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd !important;
+        background: #fff !important;
+    }
+}
+</style>
+
+<script>
+function exportToCSV() {
+    const table = document.getElementById('cashFlowTable');
+    const rows = table.querySelectorAll('tr');
+    let csv = [];
+    for (let i = 0; i < rows.length; i++) {
+        const cols = rows[i].querySelectorAll('td, th');
+        let csvRow = [];
+        for (let j = 0; j < cols.length; j++) {
+            let text = cols[j].innerText.replace(/,/g, ';').trim();
+            csvRow.push('"' + text + '"');
+        }
+        csv.push(csvRow.join(','));
+    }
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'cash_flow_{{ start_date|date:"Y-m-d" }}_to_{{ end_date|date:"Y-m-d" }}.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+
+{% endblock %}

@@ -10,6 +10,7 @@ from decimal import Decimal
 import json
 import csv
 from django.forms import ValidationError
+from datetime import date as date_type
 
 from .models import (
     ChartOfAccounts, Department, Budget, JournalEntry, JournalEntryLine,
@@ -1246,3 +1247,80 @@ def get_department_budget(request, department_id):
         'total_spent': float(total_spent),
         'remaining': float(remaining)
     })
+    
+@login_required
+def balance_sheet_view(request):
+    """
+    Live balance sheet view. Accepts ?as_of_date=YYYY-MM-DD query param.
+    POST with save=1 saves a snapshot to the BalanceSheet model.
+    """
+    # Resolve as_of_date from GET param or default to today
+    as_of_str = request.GET.get('as_of_date') or request.POST.get('as_of_date')
+    save_snapshot = request.method == 'POST' and request.POST.get('save') == '1'
+
+    if as_of_str:
+        try:
+            as_of_date = date_type.fromisoformat(as_of_str)
+        except ValueError:
+            as_of_date = date_type.today()
+    else:
+        as_of_date = date_type.today()
+
+    data = AccountingService.generate_balance_sheet(
+        as_of_date=as_of_date,
+        save_snapshot=save_snapshot,
+        user=request.user,
+    )
+
+    # Saved snapshots for the history sidebar
+    from accounts.models import BalanceSheet
+    snapshots = BalanceSheet.objects.order_by('-as_of_date')[:10]
+
+    context = {
+        **data,
+        'snapshots': snapshots,
+        'today': date_type.today(),
+        'snapshot_saved': save_snapshot and 'snapshot' in data,
+    }
+
+    return render(request, 'balance_sheet.html', context)
+
+@login_required
+def cash_flow_statement_view(request):
+    """
+    Direct-method Cash Flow Statement.
+    Accepts start_date and end_date as GET params (YYYY-MM-DD).
+    Defaults to the current calendar month.
+    """
+    today = date_type.today()
+
+    # Default: first day of current month to today
+    default_start = today.replace(day=1)
+    default_end = today
+
+    start_str = request.GET.get('start_date')
+    end_str = request.GET.get('end_date')
+
+    try:
+        start_date = date_type.fromisoformat(start_str) if start_str else default_start
+    except ValueError:
+        start_date = default_start
+
+    try:
+        end_date = date_type.fromisoformat(end_str) if end_str else default_end
+    except ValueError:
+        end_date = default_end
+
+    # Ensure end >= start
+    if end_date < start_date:
+        end_date = start_date
+
+    from accounts.services import AccountingService
+    data = AccountingService.generate_cash_flow_statement(start_date, end_date)
+
+    context = {
+        **data,
+        'today': today,
+    }
+
+    return render(request, 'cash_flow_statement.html', context)

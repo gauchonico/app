@@ -26,6 +26,9 @@ from django.core.exceptions import ValidationError
 # Create your models here.
 User = get_user_model()
 
+from accounts.models import ChartOfAccounts
+
+
 class Supplier(models.Model):
     QUALITY_CHOICES = [
         ('excellent', 'Excellent'),
@@ -59,6 +62,16 @@ class Supplier(models.Model):
     notes = models.TextField(blank=True, help_text="Additional notes about supplier")
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    # Supplier-specific payables account (child of 2000 Accounts Payable - Suppliers)
+    payables_account = models.ForeignKey(
+        ChartOfAccounts,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='suppliers',
+        help_text="AP account for this supplier (child of 2000 Accounts Payable - Suppliers)",
+    )
 
     def __str__(self):
         return f"{self.name} ({self.quality_rating})"
@@ -1505,20 +1518,55 @@ class CashDrawerSession(models.Model):
         if self.carry_forward_float is not None:
             return self.carry_forward_float
         return self.opening_balance or Decimal('0.00')
+    
+    @property
+    def cash_sales_total(self):
+        """Total cash received this session (excluding mobile money, card etc.)"""
+        return self.transactions.filter(
+            transaction_type='sale',
+            payment_method='cash',
+            amount__gt=0
+        ).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+
+    @property
+    def non_cash_sales_total(self):
+        """Total non-cash received — mobile money, airtel, card etc."""
+        return self.transactions.filter(
+            transaction_type='sale',
+            amount__gt=0
+        ).exclude(
+            payment_method='cash'
+        ).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+
+    @property
+    def cash_expenses_and_withdrawals(self):
+        """Cash paid out during the session — expenses, withdrawals, refunds."""
+        return abs(self.transactions.filter(
+            payment_method='cash',
+            amount__lt=0
+        ).aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00'))
+
 
     @property
     def recommended_deposit_amount(self):
-        """Recommended cash amount to bank when closing this session.
-
-        This assumes that effective_carry_forward_float is left in the till
-        and everything above that (if positive) is banked.
         """
-        if self.closing_balance is None:
-            return Decimal('0.00')
-
-        closing = self.closing_balance or Decimal('0.00')
+        Only physical cash should be banked.
+        Formula: opening_balance + cash_sales - cash_expenses - float_to_keep
+        Mobile money and airtel are NEVER included — they're already digital.
+        """
+        cash_in_drawer = (
+            (self.opening_balance or Decimal('0.00'))
+            + self.cash_sales_total
+            - self.cash_expenses_and_withdrawals
+        )
         float_to_keep = self.effective_carry_forward_float
-        deposit = closing - float_to_keep
+        deposit = cash_in_drawer - float_to_keep
         return deposit if deposit > 0 else Decimal('0.00')
 
     @classmethod
@@ -1536,12 +1584,14 @@ class CashDrawerSession(models.Model):
             return Decimal('0.00')
         return last_session.effective_carry_forward_float
 
-    def get_expected_balance(self):
-        """Calculate the expected balance based on opening balance and transactions"""
-        total_transactions = self.transactions.aggregate(
-            total=Coalesce(Sum('amount'), Decimal('0'))
-        )['total'] or Decimal('0')
-        return (self.opening_balance or Decimal('0')) + total_transactions
+    @property  
+    def expected_cash_balance(self):
+        """What should physically be in the drawer right now."""
+        return (
+            (self.opening_balance or Decimal('0.00'))
+            + self.cash_sales_total
+            - self.cash_expenses_and_withdrawals
+        )
 
     def add_credit_note_refund(self, credit_note,amount, payment_method, notes=None, user=None):
         """
@@ -1669,7 +1719,47 @@ class CashDrawerSession(models.Model):
     
         return transaction
 
+    @classmethod
+    def auto_close_expired_sessions(cls):
+        """
+        Close any sessions that are still open past midnight.
+        Call this from a cron job or Celery beat task at 00:05 daily.
+        """
+        from django.utils import timezone
+        from django.contrib.auth.models import User
 
+        now = timezone.now()
+        today = now.date()
+
+        # Sessions opened before today that are still open
+        expired = cls.objects.filter(
+            status='open',
+            opening_time__date__lt=today
+        )
+
+        system_user = User.objects.filter(is_superuser=True).first()
+        closed_count = 0
+
+        for session in expired:
+            # Close at 23:59 of the day they were opened
+            close_time = timezone.datetime.combine(
+                session.opening_time.date(),
+                timezone.datetime.max.time()
+            ).replace(tzinfo=now.tzinfo)
+
+            session.status = 'closed'
+            session.closing_time = close_time
+            session.closing_balance = session.get_expected_balance()
+            session.notes = (
+                (session.notes or '') +
+                '\n[Auto-closed by system at midnight]'
+            ).strip()
+            session.save(update_fields=[
+                'status', 'closing_time', 'closing_balance', 'notes'
+            ])
+            closed_count += 1
+
+        return closed_count
 
     @property
     def difference(self):
@@ -4245,7 +4335,7 @@ class StoreProductSaleItem(models.Model):
         verbose_name_plural = 'Product Sale Items'
     
     def __str__(self):
-        return f"{self.product.product_name} x {self.quantity} - {self.sale}"
+        return f"{self.product.product.product_name} x {self.quantity} - {self.sale}"
     
     def save(self, *args, **kwargs):
         # Calculate total price
